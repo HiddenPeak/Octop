@@ -3673,6 +3673,23 @@ describe("independent Task execution engines", () => {
     ).toBeEnabled();
   });
 
+  it("guides an Octop box without models to configure models or ACP", async () => {
+    const resources = await withEngineResources();
+    resources.execution_engines[0].available = false;
+    resources.execution_engines[0].unavailable_reason = "model_unavailable";
+    mount("", null);
+    expect(
+      (await screen.findAllByText(zh.projects.tasks.modelSetupRequired)).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(zh.projects.tasks.modelSetupHint)).toBeVisible();
+    expect(
+      screen.queryByText(zh.projects.tasks.engineSetupHint),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: zh.projects.tasks.send }),
+    ).toBeDisabled();
+  });
+
   it("preserves an unavailable selected engine instead of silently switching back to Octop", async () => {
     const resources = await withEngineResources();
     resources.execution_engines[1].available = false;

@@ -1880,11 +1880,19 @@ export default function TaskConversations({
                     <Alert
                       type="warning"
                       showIcon
-                      message={t("projects.tasks.engineUnavailable")}
+                      message={t(
+                        externalEngine
+                          ? "projects.tasks.engineUnavailable"
+                          : "projects.tasks.modelSetupRequired",
+                      )}
                       description={
                         hostID
                           ? t("projects.tasks.remoteEngineManagement")
-                          : t("projects.tasks.engineSetupHint")
+                          : t(
+                              externalEngine
+                                ? "projects.tasks.engineSetupHint"
+                                : "projects.tasks.modelSetupHint",
+                            )
                       }
                     />
                   ) : null}

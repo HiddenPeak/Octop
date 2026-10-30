@@ -35,6 +35,12 @@ export default function TaskEngineSelect({
   const { t } = useTranslation();
   const user = useCurrentUser();
   const canManage = canAccessKeys(user, "admin");
+  const canConfigureModels = canAccessKeys(user, [
+    "providers",
+    "ollama_models",
+    "onnx_models",
+  ]);
+  const nativeEngine = value.engine_id === "octop";
   const current = engineEntry(value, catalog);
   const unavailable = catalog
     ? !current?.available
@@ -103,13 +109,32 @@ export default function TaskEngineSelect({
           title={
             hostID
               ? t("projects.tasks.remoteEngineManagement")
-              : t("projects.tasks.engineSetupHint")
+              : t(
+                  nativeEngine
+                    ? "projects.tasks.modelSetupHint"
+                    : "projects.tasks.engineSetupHint",
+                )
           }
         >
           <Typography.Text type="warning">
-            {t("projects.tasks.engineUnavailable")}
+            {t(
+              nativeEngine
+                ? "projects.tasks.modelSetupRequired"
+                : "projects.tasks.engineUnavailable",
+            )}
           </Typography.Text>
         </Tooltip>
+      ) : null}
+      {!branch && !hostID && canConfigureModels ? (
+        <Button
+          size="small"
+          type="link"
+          href="/admin/models"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {t("projects.tasks.configureModels")}
+        </Button>
       ) : null}
       {!branch && !hostID && canManage ? (
         <Button
@@ -119,13 +144,18 @@ export default function TaskEngineSelect({
           target="_blank"
           rel="noopener noreferrer"
         >
-          {t("projects.tasks.manageEngines")}
+          {t("projects.tasks.configureACP")}
         </Button>
       ) : null}
-      {!branch && !hostID && !canManage ? (
+      {!branch && !hostID && !canManage && !canConfigureModels ? (
         <Typography.Text type="secondary">
           {t("projects.tasks.engineManagementAdminOnly")}
         </Typography.Text>
+      ) : null}
+      {unavailable && onRefresh ? (
+        <Button size="small" type="link" loading={loading} onClick={onRefresh}>
+          {t("projects.tasks.refreshEngineStatus")}
+        </Button>
       ) : null}
       {!branch && hostID ? (
         <Typography.Text type="secondary">
