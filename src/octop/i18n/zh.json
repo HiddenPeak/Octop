@@ -1144,6 +1144,18 @@
       "unknown_command": "不支持此命令：{command}",
       "new_draft": "已开始新会话，发送首条消息后创建任务。",
       "help": "命令：/new /task /model <模型> /mode ask|plan|craft /approve <交互ID> /deny <交互ID> /answer <交互ID> <回答> /cancel [轮次ID] /exit"
+    },
+    "box": {
+      "url_invalid": "请提供不含用户名、密码、路径、查询参数或片段的 HTTPS 地址。",
+      "tls_required": "请先配置本机 TLS 证书和私钥。开发环境使用 HTTP 须显式指定 --allow-loopback-http，且地址与监听配置均须使用回环 IP。",
+      "certificate_invalid": "无法读取配置的 TLS 证书，或证书已过期／尚未生效。",
+      "initialization_required": "请先启动此盒子服务，完成已有控制数据库和设备身份初始化，再生成配对材料。",
+      "mode_required": "此命令要求 account_mode=box_local，不会转换服务器账户。",
+      "secret_warning": "以下内容包含一次性认领秘密，仅通过可信本地渠道传递，请勿保存到日志。",
+      "key_warning": "管理密钥只显示这一次。请保存到安全位置，不要作为分享码交给其他人。",
+      "daemon_stop_required": "请先停止本实例的 Octop 服务，再执行管理密钥维护命令。",
+      "legacy_upgrade_required": "此实例仍使用旧设备授权模型。请停止服务，并在本机执行 octop box key init --upgrade-legacy。",
+      "pair_retired": "首次使用请在本机执行 octop box key init；App 使用管理密钥认领主设备，其他客户端使用分享码加入。"
     }
   },
   "memory_storage": {

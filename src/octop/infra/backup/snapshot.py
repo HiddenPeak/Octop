@@ -11,6 +11,14 @@ from octop.infra.db.pool import DatabasePool, SqlitePool
 from octop.infra.db.repos._base import now_ts
 
 _JWT_SECRET_KEY = "jwt"
+BOX_AUTH_TABLES = (
+    "box_account",
+    "box_paired_clients",
+    "box_pairing_grants",
+    "box_auth_challenges",
+    "box_auth_sessions",
+    "box_admin_sessions",
+)
 
 # Tables that carry a ``user_id`` ownership column (001_initial schema).
 _OWNERSHIP_TABLES = (
@@ -29,6 +37,35 @@ def _readonly_sqlite_uri(path: Path) -> str:
     """Build a read-only SQLite URI with a percent-encoded filesystem path."""
     encoded = quote(path.resolve().as_posix(), safe="/:")
     return f"file:{encoded}?mode=ro"
+
+
+def sqlite_snapshot_has_box_state(path: Path) -> bool:
+    """Inspect an extracted snapshot without opening or changing the live DB."""
+    source = sqlite3.connect(_readonly_sqlite_uri(path), uri=True)
+    try:
+        tables = {
+            str(row[0])
+            for row in source.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        return any(
+            table in tables
+            and source.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone() is not None
+            for table in BOX_AUTH_TABLES
+        )
+    finally:
+        source.close()
+
+
+def pool_has_box_state(pool: DatabasePool) -> bool:
+    """Empty v61 tables are ordinary server schema, not a paired box identity."""
+    from octop.infra.db.migrate import _table_exists
+
+    for table in BOX_AUTH_TABLES:
+        if _table_exists(pool, table):
+            with pool.connect() as conn:
+                if conn.execute(f"SELECT 1 FROM {table} LIMIT 1").fetchone() is not None:
+                    return True
+    return False
 
 
 def snapshot_sqlite_file(source: Path, dest: Path) -> None:

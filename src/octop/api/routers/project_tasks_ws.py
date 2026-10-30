@@ -13,7 +13,9 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import Field, StringConstraints, TypeAdapter, ValidationError
 
+from octop.api.common.box_auth import require_box_command
 from octop.api.common.task_websocket_logging import Scope, TaskWebSocketLog
+from octop.api.common.websocket_auth import has_box_auth, resolve_websocket_user
 from octop.api.deps import extract_raw_token, maybe_sliding_renew_token, resolve_user_from_token
 from octop.api.routers.projects import _services, _task_worker
 from octop.api.routers.resident_conversations import _runtime as _resident_runtime
@@ -314,12 +316,18 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
 
     async def authenticate(stage: str) -> None:
         nonlocal token
-        assert token is not None
         diagnostics.auth_check_count += 1
         try:
-            current = await asyncio.to_thread(resolve_user_from_token, server, token)
+            if has_box_auth(websocket):
+                current = await asyncio.to_thread(resolve_websocket_user, websocket, token)
+            else:
+                assert token is not None
+                current = await asyncio.to_thread(resolve_user_from_token, server, token)
             if current.id != user.id:
                 raise OctopError.localized(ErrorCode.AUTH_FAILED)
+            if has_box_auth(websocket):
+                return
+            assert token is not None
             renewed = await asyncio.to_thread(maybe_sliding_renew_token, server, token, current)
         except OctopError as exc:
             diagnostics.record(
@@ -450,7 +458,7 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
     diagnostics.auth_check_count += 1
     diagnostics.record("authentication_started", stage=stage)
     try:
-        if token is None:
+        if token is None and not has_box_auth(websocket):
             try:
                 raw = await asyncio.wait_for(websocket.receive_text(), timeout=10)
                 auth = AuthenticateFrame.model_validate_json(raw)
@@ -458,7 +466,11 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                 locale = auth.locale or locale
             except (TimeoutError, ValidationError):
                 raise OctopError.localized(ErrorCode.AUTH_FAILED) from None
-        user = await asyncio.to_thread(resolve_user_from_token, server, token)
+        if has_box_auth(websocket):
+            user = await asyncio.to_thread(resolve_websocket_user, websocket, token)
+        else:
+            assert token is not None
+            user = await asyncio.to_thread(resolve_user_from_token, server, token)
         locale = resolve_locale(user_locale=user.locale, explicit=locale)
         diagnostics.record("authentication_succeeded", stage=stage)
         stage = "ready"
@@ -501,7 +513,16 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                 diagnostics.command_count += 1
                 try:
                     result: Any = None
+                    box_context = getattr(websocket.state, "box_auth_context", None)
+                    if box_context is not None:
+                        require_box_command(box_context.role, frame.type)
                     if isinstance(frame, AttachFrame):
+                        if getattr(server, "box_account_service", None) is not None:
+                            from octop.infra.auth.box_context import validate_request
+
+                            await asyncio.to_thread(
+                                validate_request, user.id, client_id=frame.client_id
+                            )
                         if client_id is not None and frame.client_id != client_id:
                             raise OctopError.localized(ErrorCode.TASK_FRAME_INVALID)
                         client_id = frame.client_id

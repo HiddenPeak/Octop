@@ -9,7 +9,7 @@ import json
 import os
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel
 
 from octop.api.common.content_disposition import content_disposition
@@ -49,13 +49,20 @@ class TaskCapabilitiesResponse(BaseModel):
     "/capabilities", response_model=TaskCapabilitiesResponse, summary="读取统一会话协议能力"
 )
 async def capabilities(
-    server: OctopServer = Depends(get_server), user: User = Depends(current_user)
+    request: Request, server: OctopServer = Depends(get_server), user: User = Depends(current_user)
 ) -> dict[str, object]:
     assert server.services is not None
+    guest = getattr(getattr(request.state, "box_auth_context", None), "role", None) == "guest"
     can_browser = (
-        user.role == "admin" or "browser" in user.permissions
-    ) and importlib.util.find_spec("octop_browser") is not None
-    can_terminal = (user.role == "admin" or "terminal" in user.permissions) and os.name == "posix"
+        not guest
+        and (user.role == "admin" or "browser" in user.permissions)
+        and importlib.util.find_spec("octop_browser") is not None
+    )
+    can_terminal = (
+        not guest
+        and (user.role == "admin" or "terminal" in user.permissions)
+        and os.name == "posix"
+    )
     instance = await asyncio.to_thread(local_instance, server.services)
     return {
         "contract": "unified-task-conversations",
@@ -67,14 +74,14 @@ async def capabilities(
             "tasks": True,
             "projects": True,
             "task_ws": True,
-            "files": True,
+            "files": not guest,
             "browser": can_browser,
             "terminal": can_terminal,
             "recording": can_browser,
-            "tool_ui": True,
-            "memory": True,
-            "migrations": True,
-            "execution_engines": True,
+            "tool_ui": not guest,
+            "memory": not guest,
+            "migrations": not guest,
+            "execution_engines": not guest,
         },
     }
 

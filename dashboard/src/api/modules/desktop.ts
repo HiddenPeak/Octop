@@ -1,3 +1,4 @@
+import { boxAuthenticatedFetch } from "./boxAccounts";
 import { getApiUrl } from "../config";
 import { request, getAuthToken } from "../request";
 
@@ -27,7 +28,7 @@ function streamDesktopSse(
   const url = getApiUrl(path);
   const token = getAuthToken();
 
-  fetch(url, {
+  boxAuthenticatedFetch(url, {
     method: "POST",
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

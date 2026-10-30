@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
-from octop.api.deps import resolve_user_from_token
+from octop.api.common.websocket_auth import has_box_auth, resolve_websocket_user
 from octop.infra.desktop.input import canvas_to_screen, run_desktop_action
 from octop.infra.desktop.session import (
     DesktopSession,
@@ -237,7 +237,6 @@ async def desktop_stream_ws(
     websocket: WebSocket,
     token: str | None = Query(default=None),
 ) -> None:
-    server = websocket.app.state.octop_server
     locale = resolve_request_locale(websocket)
     status = desktop_status(locale=locale)
     if status.setup_state != "ready" or not status.ok:
@@ -271,14 +270,14 @@ async def desktop_stream_ws(
             return
 
         auth_token = _auth_token_from_start(start_msg, token)
-        if not auth_token:
+        if not auth_token and not has_box_auth(websocket):
             await _send_json(
                 websocket, {"type": "error", "code": "AUTH_FAILED", "message": "missing token"}
             )
             await websocket.close(code=4001, reason="missing token")
             return
         try:
-            user = resolve_user_from_token(server, auth_token)
+            user = await asyncio.to_thread(resolve_websocket_user, websocket, auth_token)
         except Exception as exc:
             await _send_json(
                 websocket, {"type": "error", "code": "AUTH_FAILED", "message": str(exc)}

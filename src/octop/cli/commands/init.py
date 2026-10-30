@@ -53,12 +53,22 @@ def init(
     from octop.infra.db.migrate import run_migrations
     from octop.infra.db.repos.users import UserRepo
     from octop.infra.errors import OctopError
+    from octop.infra.users.account_mode import require_server_account_mode
     from octop.infra.users.password import hash_password, validate_password_policy
     from octop.infra.utils.env_file import apply_env_file, env_file_path
     from octop.infra.utils.paths import PathLayout
 
     paths = PathLayout.from_env()
     home = paths.root
+
+    # Check the mode before --force can delete the box identity or pairing state.
+    apply_env_file(env_file_path(paths.root))
+    try:
+        require_server_account_mode(load_config(paths.config))
+    except OctopError as exc:
+        from octop.cli.support.errors import fail_octop
+
+        fail_octop(exc)
 
     # Sidecar files (octop-login.txt, NAS share metadata) must not block first
     # bootstrap. Only an existing control-plane DB counts as an install.

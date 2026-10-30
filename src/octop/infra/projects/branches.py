@@ -15,7 +15,7 @@ from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRow
 from octop.infra.db.repos.project_tasks import ProjectTaskRow
 from octop.infra.db.services import SharedServices
 from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import approval_policy, input_attachments
+from octop.infra.projects import approval_policy, box_guest_policy, input_attachments
 from octop.infra.projects.content import TaskContentBlock
 from octop.infra.projects.conversation_import_models import ImportedTurnHistory
 from octop.infra.projects.deletion_state import assert_project_writable
@@ -290,6 +290,9 @@ def create(
             assert_project_writable(services, conn, owner_id, project_id)
             if project.archived:
                 raise OctopError.localized(ErrorCode.PROJECT_ARCHIVED)
+        box_guest_policy.validate_configuration(
+            services, owner_id, {"selected_expert_id": selected}
+        )
         resolve_expert_profile(services, owner_id, selected)
         engine = body.engine or read_engine(source.execution_json)
         action_mode = body.action_mode or source.action_mode

@@ -1144,6 +1144,18 @@
       "unknown_command": "Unsupported command: {command}",
       "new_draft": "New conversation draft. A task is created with its first message.",
       "help": "Commands: /new /task /model <model> /mode ask|plan|craft /approve <interaction_id> /deny <interaction_id> /answer <interaction_id> <answer> /cancel [turn_id] /exit"
+    },
+    "box": {
+      "url_invalid": "Provide an HTTPS origin without credentials, path, query or fragment.",
+      "tls_required": "Configure TLS with a local certificate and key before pairing. HTTP requires --allow-loopback-http and loopback IPs for both the URL and configured listener.",
+      "certificate_invalid": "The configured TLS certificate cannot be read or is outside its validity period.",
+      "initialization_required": "Start this box server once to initialize its existing control-plane database and installation identity before pairing.",
+      "mode_required": "This command requires account_mode=box_local. It does not convert server accounts.",
+      "secret_warning": "This output contains a one-time claim secret. Transfer it only through a trusted local channel; do not save it in logs.",
+      "key_warning": "The management key is shown once. Store it securely; do not share it as an invitation code.",
+      "daemon_stop_required": "Stop this Octop instance before maintaining its management key.",
+      "legacy_upgrade_required": "This instance uses legacy device authorization. Stop it and run octop box key init --upgrade-legacy locally.",
+      "pair_retired": "Run octop box key init locally. Use the management key to claim the primary app client and share codes for invited clients."
     }
   },
   "memory_storage": {

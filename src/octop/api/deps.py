@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import Depends, Header, Query, Request
 
+from octop.api.common.box_auth import require_box_route
 from octop.infra.auth.tokens import InvalidToken as InvalidToken
 from octop.infra.auth.tokens import TokenExpired as TokenExpired
 from octop.infra.auth.tokens import decode_token as decode_token
@@ -59,7 +60,14 @@ _JWT_EXEMPT_EXACT = (
 
 
 def is_jwt_exempt_path(path: str) -> bool:
-    return path in _JWT_EXEMPT_EXACT or any(path.startswith(p) for p in _JWT_EXEMPT_PREFIXES)
+    from octop.api.middleware.box_accounts import public_box_path
+
+    return (
+        path in _JWT_EXEMPT_EXACT
+        or any(path.startswith(p) for p in _JWT_EXEMPT_PREFIXES)
+        or public_box_path("GET", path)
+        or public_box_path("POST", path)
+    )
 
 
 def is_jwt_exempt_request(request: Request) -> bool:
@@ -109,6 +117,9 @@ def _decode(server: OctopServer, token: str) -> dict[str, Any]:
 
 
 def resolve_user_from_token(server: OctopServer, token: str) -> User:
+    box = getattr(server, "box_account_service", None)
+    if box is not None:
+        return cast("User", box.validate_access_token(token).user)
     payload = _decode(server, token)
     assert server.user_manager is not None
     user = server.user_manager.get_by_id(int(payload["sub"]))
@@ -123,6 +134,8 @@ def maybe_sliding_renew_token(server: OctopServer, token: str, user: User) -> st
     Threshold is one-third of ``access_token_ttl_seconds`` remaining. Active clients
     that pick up ``ACCESS_TOKEN_RESPONSE_HEADER`` stay signed in without re-login.
     """
+    if getattr(server, "box_account_service", None) is not None:
+        return None
     assert server.services is not None
     payload = _decode(server, token)
     ttl = int(server.services.config.access_token_ttl_seconds)
@@ -143,6 +156,16 @@ def maybe_sliding_renew_token(server: OctopServer, token: str, user: User) -> st
 
 
 def authenticate_request(request: Request, server: OctopServer) -> User:
+    from octop.infra.auth.box_accounts import BoxAuthContext
+
+    context = getattr(request.state, "box_auth_context", None)
+    box = getattr(server, "box_account_service", None)
+    if box is not None:
+        if not isinstance(context, BoxAuthContext):
+            raise OctopError.localized(ErrorCode.AUTH_FAILED)
+        checked = box.validate_context(context)
+        require_box_route(checked.role, request.method, request.url.path)
+        return cast("User", checked.user)
     raw = extract_raw_token(
         authorization=request.headers.get("authorization"),
         access_token=request.query_params.get("access_token"),
@@ -158,6 +181,8 @@ async def current_user(
     authorization: str | None = Header(None),
     access_token: str | None = Query(None),
 ) -> User:
+    if getattr(server, "box_account_service", None) is not None:
+        return await asyncio.to_thread(authenticate_request, request, server)
     cached = getattr(request.state, "octop_user", None)
     if cached is not None:
         return cast("User", cached)

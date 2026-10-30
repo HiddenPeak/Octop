@@ -26,6 +26,7 @@ from octop.infra.db.repos.sso import SsoProviderRow
 from octop.infra.db.repos.user_roles import ADMIN_USER_ROLE_ID, role_assignment_for
 from octop.infra.db.services import SharedServices
 from octop.infra.errors import ErrorCode, OctopError
+from octop.infra.users.account_mode import require_server_account_mode
 from octop.infra.users.email import normalize_email
 from octop.infra.users.identity import Role, User
 from octop.infra.users.manager import UserManager, allocate_username
@@ -144,6 +145,7 @@ class LdapAuthService:
 
     def directory_authenticate(self, username: str, password: str) -> LdapIdentity | None:
         """Blocking directory bind. Run this in an executor, never on the event loop."""
+        require_server_account_mode(self._services.config)
         row = self._row()
         if row is None:
             return None
@@ -160,6 +162,7 @@ class LdapAuthService:
 
     async def resolve_user(self, identity: LdapIdentity) -> User:
         """Return the Octop user for a verified directory identity, provisioning if allowed."""
+        require_server_account_mode(self._services.config)
         row = self._row()
         if row is None:
             raise OctopError(ErrorCode.LDAP_UNAVAILABLE, "LDAP is not configured")

@@ -9,6 +9,7 @@ import {
 import type { ReactNode } from "react";
 import { setActiveAgentId } from "../api/request";
 import { agentApi as legacyAgentApi } from "../api/modules/agent";
+import { isBoxAccountMode } from "../api/modules/boxAccounts";
 import {
   retainDisconnectedBridgeAgents,
   toBridgeShadowAgentId,
@@ -245,6 +246,7 @@ async function fetchBridgeShadowAgents(): Promise<{
     remote: [] as OctopAgent[],
     liveConnectionIds: new Set<string>(),
   };
+  if (isBoxAccountMode()) return empty;
   try {
     const { bridgeApi } = await import("../api/modules/bridge");
     const connections = await bridgeApi.list();

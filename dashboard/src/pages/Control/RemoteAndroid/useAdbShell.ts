@@ -1,3 +1,4 @@
+import { openAuthenticatedWebSocket } from "../../../api/modules/boxAccounts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAuthToken } from "../../../api/request";
 
@@ -42,8 +43,9 @@ export function useAdbShell() {
       if (!serial) return;
       disconnect();
       setState("connecting");
-      const ws = new WebSocket(
+      const ws = openAuthenticatedWebSocket(
         buildWsUrl(serial, callbacks.cols ?? 120, callbacks.rows ?? 32),
+        () => connect(serial, callbacks),
       );
       wsRef.current = ws;
       ws.onopen = () => setState("connected");

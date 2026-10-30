@@ -17,6 +17,7 @@ from octop_harness import HarnessAgent
 from octop_harness.config import ModelConfig, ProviderConfig
 from octop_harness.llm.factory import ChatModelFactory
 
+from octop.config import OctopConfig
 from octop.infra.agents.providers.box import OctopChatModelFactory, OctopHarnessAgent
 from octop.infra.db.migrate import run_migrations
 from octop.infra.db.pool import SqlitePool
@@ -40,6 +41,7 @@ def services(tmp_path) -> Iterator[SimpleNamespace]:
         for owner in (7, 8)
     }
     service = SimpleNamespace(
+        config=OctopConfig(account_mode="server"),
         model_call_repo=ModelCallRepo(db),
         project_task_repo=SimpleNamespace(
             get=MagicMock(side_effect=tasks.get),

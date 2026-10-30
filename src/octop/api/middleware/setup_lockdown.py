@@ -28,7 +28,14 @@ def install(app: Any, server: Any) -> None:
         if not path.startswith("/api/"):
             return await call_next(request)
         cfg = server.services.config if server.services else getattr(server, "config", None)
+        if getattr(cfg, "account_mode", "server") == "box_local":
+            # BoxAccountMiddleware checks explicit claim/session state for HTTP
+            # and WS; user count is not a claim or a credential.
+            return await call_next(request)
         open_exact = ["/api/health"]
+        if request.method == "GET":
+            # Discover account mode before selecting the setup or pairing UI.
+            open_exact.append("/api/box/status")
         if cfg and cfg.enable_api_docs:
             open_exact.extend(("/api/docs", "/api/openapi.json"))
         if path in open_exact or any(path.startswith(p) for p in _OPEN_PREFIXES):

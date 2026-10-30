@@ -123,6 +123,19 @@ def catalog(
             ),
         )
     ]
+    from octop.infra.projects.box_guest_policy import is_guest
+
+    if is_guest(services, owner_id):
+        entries[0].capabilities = entries[0].capabilities.model_copy(
+            update={
+                "skills": False,
+                "mcp": False,
+                "plugins": False,
+                "subagents": False,
+                "knowledge": False,
+            }
+        )
+        return entries
     settings = ACPSettingsStore(
         settings_repo=services.settings_repo, agents_repo=services.agent_repo
     )

@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { isBoxAccountMode } from "../api/modules/boxAccounts";
 
 // Lazy-loaded pages — Common
 const ExpertsPage = lazy(() => import("../pages/Experts"));
@@ -8,6 +9,7 @@ const ConnectorsPage = lazy(() => import("../pages/Agent/Connectors"));
 const SkillPackagesPage = lazy(() => import("../pages/SkillPackages"));
 const KnowledgeBasesPage = lazy(() => import("../pages/KnowledgeBases"));
 const BoxProjectsPage = lazy(() => import("../pages/BoxProjects"));
+const BoxDevicesPage = lazy(() => import("../pages/BoxDevices"));
 const UnifiedConversationsPage = lazy(
   () => import("../pages/BoxProjects/UnifiedConversations"),
 );
@@ -42,6 +44,18 @@ const NotFoundPage = lazy(() => import("../components/NotFoundPage"));
 function RedirectPreserveSearch({ to }: { to: string }) {
   const location = useLocation();
   return <Navigate to={`${to}${location.search}${location.hash}`} replace />;
+}
+
+function AccountDevicesRoute() {
+  return isBoxAccountMode() ? <BoxDevicesPage /> : <OctopAdminUsersPage />;
+}
+
+function BridgeRoute() {
+  return isBoxAccountMode() ? (
+    <Navigate to="/conversations" replace />
+  ) : (
+    <BridgePage />
+  );
 }
 
 export interface RouteConfig {
@@ -96,6 +110,7 @@ export const pathToKey: Record<string, string> = {
   "/admin/models": "models",
   // Admin
   "/admin/users": "admin-users",
+  "/box/devices": "admin-users",
   "/admin/backend": "admin-storage",
   "/admin/plugins": "admin-plugins",
   "/admin/advanced": "admin-advanced",
@@ -172,7 +187,7 @@ export const routeConfigs: RouteConfig[] = [
   { path: "/connectors", element: <ConnectorsPage /> },
   { path: "/skill-packages", element: <SkillPackagesPage /> },
   { path: "/knowledge-bases", element: <KnowledgeBasesPage /> },
-  { path: "/bridge", element: <BridgePage /> },
+  { path: "/bridge", element: <BridgeRoute /> },
   {
     path: "/personalization/acp",
     element: <RedirectPreserveSearch to="/acp" />,
@@ -233,7 +248,8 @@ export const routeConfigs: RouteConfig[] = [
   { path: "/admin/models", element: <ModelsPage /> },
 
   // Admin (RequirePermission wrapper applied in MainLayout)
-  { path: "/admin/users", element: <OctopAdminUsersPage /> },
+  { path: "/admin/users", element: <AccountDevicesRoute /> },
+  { path: "/box/devices", element: <AccountDevicesRoute /> },
   {
     path: "/admin/sso",
     element: <Navigate to="/admin/users?tab=oidc" replace />,

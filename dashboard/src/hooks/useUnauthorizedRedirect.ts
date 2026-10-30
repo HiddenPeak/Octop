@@ -1,6 +1,7 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { UNAUTHORIZED_EVENT } from "../api/request";
+import { isBoxAccountMode } from "../api/modules/boxAccounts";
 
 /**
  * Route an expired session to /login through the router.
@@ -11,13 +12,17 @@ import { UNAUTHORIZED_EVENT } from "../api/request";
  */
 export function useUnauthorizedRedirect(): void {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   useEffect(() => {
     const handler = (event: Event) => {
       event.preventDefault();
-      navigate("/login", { replace: true });
+      // Keep rotation results and their route state on the public connection
+      // page when an older background request reports session revocation.
+      if (isBoxAccountMode() && pathname === "/connect") return;
+      navigate(isBoxAccountMode() ? "/connect" : "/login", { replace: true });
     };
     window.addEventListener(UNAUTHORIZED_EVENT, handler);
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, handler);
-  }, [navigate]);
+  }, [navigate, pathname]);
 }

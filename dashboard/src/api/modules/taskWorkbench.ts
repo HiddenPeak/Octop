@@ -153,7 +153,7 @@ export function createTaskWorkbenchApi(hostID: string | null = null) {
         `${path(id)}/workspace/media?${query({
           path: file,
           expected_scope_revision: revision,
-          access_token: getAuthToken() ?? undefined,
+          access_token: getAuthToken() || undefined,
         })}`,
       ),
     browserSessions: (id: string, revision: string) =>
@@ -190,13 +190,13 @@ export function createTaskWorkbenchApi(hostID: string | null = null) {
         width: String(width),
         height: String(height),
         expected_scope_revision: revision,
-        token: getAuthToken() ?? undefined,
+        token: getAuthToken() || undefined,
       })}`,
     terminalUrl: (id: string, sessionID: string, revision: string) =>
       `${getWsUrl(`${path(id)}/terminal/ws`)}?${query({
         session_id: sessionID,
         expected_scope_revision: revision,
-        token: getAuthToken() ?? undefined,
+        token: getAuthToken() || undefined,
       })}`,
     closeTerminal: (id: string, sessionID: string, revision: string) =>
       request(

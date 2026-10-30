@@ -4,6 +4,7 @@ from __future__ import annotations
 
 # command name -> (relative module path, attribute name, short help)
 COMMANDS: dict[str, tuple[str, str, str]] = {
+    "box": (".commands.box", "box", "Local box client pairing."),
     "conversation-migrations": (
         ".commands.conversation_migrations",
         "conversation_migrations",

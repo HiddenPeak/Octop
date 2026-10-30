@@ -1,0 +1,121 @@
+.page {
+  width: 100%;
+  max-width: 1080px;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.description {
+  margin: 0;
+  max-width: 650px;
+  line-height: 1.7;
+  color: var(--fn-text-tertiary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.section {
+  margin-top: 24px;
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.list {
+  border: 1px solid var(--fn-border-primary);
+  border-radius: 10px;
+  background: var(--fn-bg-primary);
+  overflow: hidden;
+}
+
+.device {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  border-bottom: 1px solid var(--fn-border-secondary);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.icon {
+  flex-shrink: 0;
+  display: flex;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--fn-bg-layout);
+  color: var(--fn-text-secondary);
+}
+
+.details {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  margin: 0;
+  color: var(--fn-text-tertiary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.modalContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  padding: 48px 20px;
+}
+
+@media (max-width: 575px) {
+  .device {
+    padding: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .device > .actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

@@ -1917,6 +1917,19 @@ def _apply_sqlite_migration(db: DatabasePool, version: int, path: Path) -> None:
         with db.connect() as conn:
             conn.execute("UPDATE _schema_version SET version = ?", (version,))
         return
+    if version == 62:
+        # A repaired/partially upgraded database can already contain these
+        # columns with a lower watermark. Preserve their authorization values.
+        for statement in _split_pg_sql(path.read_text(encoding="utf-8")):
+            column = re.fullmatch(
+                r"ALTER TABLE (\w+) ADD COLUMN (\w+) (.+)", statement, flags=re.DOTALL
+            )
+            if column is not None:
+                _ensure_column(db, column[1], column[2], column[3])
+            else:
+                with db.connect() as conn:
+                    conn.execute(statement)
+        return
     sql = path.read_text(encoding="utf-8")
     with db.connect() as conn:
         conn.executescript(sql)

@@ -7,7 +7,7 @@ import logging
 import os
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 from urllib.parse import quote_plus, urlparse
 
 logger = logging.getLogger(__name__)
@@ -127,6 +127,7 @@ class OctopConfig:
     port: int = 8088
     log_level: str = "info"
     access_token_ttl_seconds: int = 86400
+    account_mode: Literal["server", "box_local"] = "server"
     login_max_attempts: int = 5
     login_lockout_seconds: int = 900
     cors_origins: list[str] = field(default_factory=list)
@@ -466,6 +467,9 @@ def load_config(path: Path) -> OctopConfig:
         merged["port"] = env_port
     if v := os.environ.get("OCTOP_LOG_LEVEL"):
         merged["log_level"] = v
+    account_mode = os.environ.get("OCTOP_ACCOUNT_MODE", merged.get("account_mode", "server"))
+    if not isinstance(account_mode, str) or account_mode not in {"server", "box_local"}:
+        raise ValueError("account_mode must be server or box_local")
     if v := os.environ.get("OCTOP_ACCESS_TOKEN_TTL"):
         merged["access_token_ttl_seconds"] = _coerce_int(
             "OCTOP_ACCESS_TOKEN_TTL", v, merged["access_token_ttl_seconds"]
@@ -602,6 +606,7 @@ def load_config(path: Path) -> OctopConfig:
         port=int(merged["port"]),
         log_level=merged["log_level"],
         access_token_ttl_seconds=int(merged["access_token_ttl_seconds"]),
+        account_mode=cast(Literal["server", "box_local"], account_mode),
         login_max_attempts=int(merged.get("login_max_attempts", 5)),
         login_lockout_seconds=int(merged.get("login_lockout_seconds", 900)),
         cors_origins=list(merged.get("cors_origins") or []),

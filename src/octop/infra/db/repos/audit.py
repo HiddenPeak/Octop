@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from octop.infra.db.pool import DatabasePool
 from octop.infra.db.repos._base import DbRow, map_rows, now_ts
@@ -45,10 +46,24 @@ class AuditRepo:
         payload: str | None = None,
     ) -> None:
         with self._db.transaction() as conn:
-            conn.execute(
-                "INSERT INTO audit_log(ts, actor, action, target, payload) VALUES (?, ?, ?, ?, ?)",
-                (now_ts(), actor, action, target, payload or None),
+            self.write_in_transaction(
+                conn, actor=actor, action=action, target=target, payload=payload
             )
+
+    def write_in_transaction(
+        self,
+        conn: Any,
+        *,
+        actor: str | None,
+        action: str,
+        target: str | None = None,
+        payload: str | None = None,
+    ) -> None:
+        """Record an event atomically with its domain mutation."""
+        conn.execute(
+            "INSERT INTO audit_log(ts, actor, action, target, payload) VALUES (?, ?, ?, ?, ?)",
+            (now_ts(), actor, action, target, payload or None),
+        )
 
     def system_event(
         self,

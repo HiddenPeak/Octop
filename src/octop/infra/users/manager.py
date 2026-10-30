@@ -22,6 +22,7 @@ from octop.infra.db.repos.audit import ACTOR_ADMIN
 from octop.infra.db.repos.users import UserRepo
 from octop.infra.db.services import SharedServices
 from octop.infra.errors import ErrorCode, OctopError
+from octop.infra.users.account_mode import require_server_account_mode
 from octop.infra.users.email import normalize_email, parse_optional_email
 from octop.infra.users.identity import Role, User
 from octop.infra.users.password import hash_password, validate_password_policy, verify_password
@@ -112,7 +113,8 @@ class UserManager:
                     permissions=list(row.permissions),
                 )
                 self._users[row.username] = user
-                await self.ensure_resident(user.id)
+                if self._services.config.account_mode != "box_local" or user.is_admin:
+                    await self.ensure_resident(user.id)
 
     async def ensure_resident(self, user_id: int) -> None:
         """Prepare the user's stable steward without starting a model runtime."""
@@ -138,6 +140,7 @@ class UserManager:
         email: str | None = None,
         role_name: str | None = None,
     ) -> User:
+        require_server_account_mode(self._services.config)
         if not username:
             raise OctopError(ErrorCode.USERNAME_TAKEN, "username must not be empty")
         loc = normalize_locale(locale)
@@ -207,6 +210,7 @@ class UserManager:
         locale: str | None = None,
         email: str | None = None,
     ) -> User:
+        require_server_account_mode(self._services.config)
         from octop.infra.users.invites import InviteService
 
         async with self._lock:
@@ -254,6 +258,7 @@ class UserManager:
         subject: str,
         claims: dict[str, Any],
     ) -> User:
+        require_server_account_mode(self._services.config)
         async with self._lock:
             row = self._services.user_repo.get_by_sso(provider_id, subject)
             email = _normalized_claim_email(claims)
@@ -350,6 +355,7 @@ class UserManager:
         subject: str,
         claims: dict[str, Any],
     ) -> User:
+        require_server_account_mode(self._services.config)
         async with self._lock:
             row = self._services.user_repo.get(user_id)
             if row is None:
@@ -400,6 +406,7 @@ class UserManager:
             return cached
 
     async def unbind_sso_identity(self, *, user_id: int, kind: str) -> User:
+        require_server_account_mode(self._services.config)
         async with self._lock:
             row = self._services.user_repo.get(user_id)
             if row is None:
@@ -464,6 +471,7 @@ class UserManager:
             )
 
     async def authenticate(self, username: str, password: str) -> User | None:
+        require_server_account_mode(self._services.config)
         identifier = (username or "").strip()
         if not identifier:
             return None
@@ -523,6 +531,7 @@ class UserManager:
         return user
 
     async def change_password(self, username: str, old: str, new: str) -> None:
+        require_server_account_mode(self._services.config)
         row = self._services.user_repo.get_by_username(username)
         if row is None:
             raise OctopError(ErrorCode.AUTH_FAILED, "current password incorrect")
@@ -544,6 +553,7 @@ class UserManager:
 
     async def reset_password(self, username: str, new: str) -> None:
         """Admin-driven reset (no old-password check)."""
+        require_server_account_mode(self._services.config)
         row = self._services.user_repo.get_by_username(username)
         if row is None:
             raise OctopError(ErrorCode.NOT_FOUND, "user not found")
@@ -555,6 +565,7 @@ class UserManager:
         )
 
     async def set_permissions(self, username: str, permissions: builtins.list[str]) -> None:
+        require_server_account_mode(self._services.config)
         row = self._services.user_repo.get_by_username(username)
         if row is None:
             raise OctopError(ErrorCode.NOT_FOUND, "user not found")
@@ -582,6 +593,7 @@ class UserManager:
         token_quota: Any = UNSET,
         max_agents: Any = UNSET,
     ) -> None:
+        require_server_account_mode(self._services.config)
         from octop.infra.users.resource_policy import (
             POLICY_MAX_AGENTS,
             POLICY_TOKEN_QUOTA,
@@ -642,6 +654,7 @@ class UserManager:
         await self.set_resource_policy(username, max_agents=max_agents)
 
     async def set_role(self, username: str, role: Role | str) -> None:
+        require_server_account_mode(self._services.config)
         row = self._services.user_repo.get_by_username(username)
         if row is None:
             raise OctopError(ErrorCode.NOT_FOUND, "user not found")
@@ -758,6 +771,7 @@ class UserManager:
         self._services.user_repo.set_preferences_json(row.id, merged)
 
     async def disable(self, username: str) -> None:
+        require_server_account_mode(self._services.config)
         row = self._services.user_repo.get_by_username(username)
         if row is None:
             raise OctopError(ErrorCode.NOT_FOUND, "user not found")
@@ -767,6 +781,7 @@ class UserManager:
         self._services.audit_repo.write(actor=ACTOR_ADMIN, action="user.disable", target=username)
 
     async def enable(self, username: str) -> None:
+        require_server_account_mode(self._services.config)
         row = self._services.user_repo.get_by_username(username)
         if row is None:
             raise OctopError(ErrorCode.NOT_FOUND, "user not found")
@@ -785,6 +800,7 @@ class UserManager:
         self._services.audit_repo.write(actor=ACTOR_ADMIN, action="user.enable", target=username)
 
     async def unlock_login(self, username: str) -> None:
+        require_server_account_mode(self._services.config)
         row = self._services.user_repo.get_by_username(username)
         if row is None:
             raise OctopError(ErrorCode.NOT_FOUND, "user not found")
@@ -794,6 +810,7 @@ class UserManager:
         )
 
     async def remove(self, username: str) -> None:
+        require_server_account_mode(self._services.config)
         row = self._services.user_repo.get_by_username(username)
         if row is None:
             raise OctopError(ErrorCode.NOT_FOUND, "user not found")

@@ -36,6 +36,8 @@ from octop.infra.utils.paths import PathLayout
 from octop.infra.utils.process_resources import ensure_nofile_limit
 
 if TYPE_CHECKING:
+    from octop.infra.agents.resident_worker_lock import ResidentWorkerLock
+    from octop.infra.auth.box_accounts import BoxAccountService
     from octop.infra.auth.ldap.service import LdapAuthService
     from octop.infra.auth.ldap.throttle import LdapBindThrottle
     from octop.infra.auth.sso.service import SsoService
@@ -350,6 +352,8 @@ class OctopServer:
         self.task_ingress_worker: TaskIngressWorker | None = None
         self.conversation_migration_worker: ConversationMigrationWorker | None = None
         self._stop_task: asyncio.Task[None] | None = None
+        self.box_account_service: BoxAccountService | None = None
+        self._box_auth_lock: ResidentWorkerLock | None = None
 
     # Backward compat: expose user_manager directly
     @property
@@ -444,6 +448,8 @@ class OctopServer:
         install_shell_output_decoding()
         config = ensure_mobile_capabilities_probed(self.paths.config)
         self.config = config
+        if config.account_mode != "box_local" and (self.paths.root / "box-auth").exists():
+            raise ValueError("Box authentication state requires account_mode=box_local")
 
         self.expert_catalog = ExpertCatalog(
             default_library_root(),
@@ -517,6 +523,49 @@ class OctopServer:
 
         cleanup = AsyncExitStack()
         try:
+            if config.account_mode == "box_local":
+                from octop.infra.agentcomputer.identity import get_or_create_identity, read_identity
+                from octop.infra.agents.resident_worker_lock import ResidentWorkerLock
+                from octop.infra.auth.box_accounts import BoxAccountService
+                from octop.infra.errors import ErrorCode, OctopError
+
+                def require_box_database() -> None:
+                    assert self.services is not None
+                    with self.services.db.transaction() as conn:
+                        repo = self.services.box_account_repo
+                        if repo.account(conn) is None and repo.owner_count(conn):
+                            raise OctopError.localized(
+                                ErrorCode.FORBIDDEN, details={"reason": "box_migration_required"}
+                            )
+
+                # Reject an unsupported mode switch before creating any box trust
+                # files or identity, so a server can safely retain its old mode.
+                await asyncio.to_thread(require_box_database)
+                self._box_auth_lock = ResidentWorkerLock(
+                    self.paths.root / "box-auth" / "daemon.lock"
+                )
+                _, cancelled = await settle_task(
+                    asyncio.create_task(asyncio.to_thread(self._box_auth_lock.acquire))
+                )
+                if cancelled:
+                    raise asyncio.CancelledError
+                identity = await asyncio.to_thread(
+                    read_identity
+                    if (self.paths.root / "box-auth" / "trust.json").exists()
+                    else get_or_create_identity,
+                    self.paths.agentcomputer_identity,
+                )
+                secret = self.services.secret_repo.get("jwt")
+                assert secret is not None
+                self.box_account_service = BoxAccountService(
+                    self.services, secret=secret, box_id=str(identity.boxID)
+                )
+                await asyncio.to_thread(self.box_account_service.initialize)
+                status = await asyncio.to_thread(self.box_account_service.status)
+                if status["state"] == "recovery_required":
+                    raise OctopError.localized(
+                        ErrorCode.FORBIDDEN, details={"reason": "recovery_required"}
+                    )
             from octop.infra.projects.runtime import ProjectTaskWorker
 
             project_worker = ProjectTaskWorker(self.services)
@@ -702,6 +751,10 @@ class OctopServer:
             raise RuntimeError("shared services not ready for bridge")
 
         def _sign_user_token(user: Any) -> str:
+            if config.account_mode == "box_local":
+                from octop.infra.errors import ErrorCode, OctopError
+
+                raise OctopError.localized(ErrorCode.FORBIDDEN)
             secret = services.secret_repo.get("jwt")
             if secret is None:
                 raise RuntimeError("jwt secret missing")
@@ -748,10 +801,13 @@ class OctopServer:
             with suppress(Exception):
                 await bridge_mgr.resume_auto_connections()
 
-        asyncio.create_task(_resume_bridges(), name="bridge-auto-resume")
+        if config.account_mode != "box_local":
+            asyncio.create_task(_resume_bridges(), name="bridge-auto-resume")
 
     def _emit_wizard_password(self, *, user_count: int) -> None:
         config = self.config
+        if config is not None and config.account_mode == "box_local":
+            return
         if config is None:
             return
         wizard_home = self.paths.root
@@ -794,12 +850,16 @@ class OctopServer:
             )
 
     async def _close_database(self) -> None:
+        self.box_account_service = None
         services = self.services
         if services is not None:
             _, cancelled = await settle_task(
                 asyncio.create_task(asyncio.to_thread(services.db.close))
             )
             self.services = None
+            if self._box_auth_lock is not None:
+                await asyncio.to_thread(self._box_auth_lock.release)
+                self._box_auth_lock = None
             if cancelled:
                 raise asyncio.CancelledError
 

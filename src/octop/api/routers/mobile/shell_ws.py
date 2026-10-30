@@ -16,7 +16,7 @@ from typing import Any
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
-from octop.api.deps import resolve_user_from_token
+from octop.api.common.websocket_auth import has_box_auth, resolve_websocket_user
 from octop.infra.mobile.adb import find_adb, list_devices
 from octop.infra.users.identity import User
 from octop.infra.users.permissions import user_has_permission
@@ -57,7 +57,6 @@ async def adb_shell_ws(
     cols: int = Query(default=120, ge=20, le=500),
     rows: int = Query(default=32, ge=5, le=200),
 ) -> None:
-    server = websocket.app.state.octop_server
     adb = find_adb()
     if not adb or os.name != "posix":
         await websocket.close(code=4003, reason="adb shell unavailable")
@@ -65,12 +64,14 @@ async def adb_shell_ws(
 
     await websocket.accept()
 
-    if not token or not token.strip():
+    if not (token or "").strip() and not has_box_auth(websocket):
         await _send_json(websocket, {"type": "error", "message": "missing token"})
         await websocket.close(code=4001, reason="missing token")
         return
     try:
-        user: User = resolve_user_from_token(server, token.strip())
+        user: User = await asyncio.to_thread(
+            resolve_websocket_user, websocket, (token or "").strip()
+        )
     except Exception as exc:
         await _send_json(websocket, {"type": "error", "message": f"auth failed: {exc}"})
         await websocket.close(code=4001, reason=f"auth failed: {exc}")

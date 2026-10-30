@@ -18,6 +18,8 @@ import OidcComplete from "./pages/Login/OidcComplete";
 import SetupPage from "./pages/Setup";
 import InvitePage from "./pages/Invite";
 import AuthGuard from "./components/AuthGuard";
+import AccountEntryGate from "./components/AccountEntryGate";
+import BoxConnectPage from "./pages/BoxConnect";
 import OctopSpinner from "./components/OctopSpinner";
 import { AntdAppProvider } from "./components/AntdAppProvider";
 import GlobalErrorBoundary from "./components/ErrorBoundary";
@@ -133,10 +135,39 @@ function ThemedApp() {
             <DesktopWindowControls chrome={desktopChrome} />
           ) : null}
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/login/oidc/complete" element={<OidcComplete />} />
-            <Route path="/setup" element={<SetupPage />} />
-            <Route path="/invite" element={<InvitePage />} />
+            <Route path="/connect" element={<BoxConnectPage />} />
+            <Route
+              path="/login"
+              element={
+                <AccountEntryGate>
+                  <LoginPage />
+                </AccountEntryGate>
+              }
+            />
+            <Route
+              path="/login/oidc/complete"
+              element={
+                <AccountEntryGate>
+                  <OidcComplete />
+                </AccountEntryGate>
+              }
+            />
+            <Route
+              path="/setup"
+              element={
+                <AccountEntryGate>
+                  <SetupPage />
+                </AccountEntryGate>
+              }
+            />
+            <Route
+              path="/invite"
+              element={
+                <AccountEntryGate>
+                  <InvitePage />
+                </AccountEntryGate>
+              }
+            />
             <Route
               path="/*"
               element={

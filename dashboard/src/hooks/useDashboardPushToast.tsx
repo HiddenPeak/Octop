@@ -1,3 +1,8 @@
+import {
+  openAuthenticatedWebSocket,
+  hasBoxSession,
+  isBoxSessionPaused,
+} from "../api/modules/boxAccounts";
 import { App } from "antd";
 import { Bell } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -69,7 +74,7 @@ export function useDashboardPushToast(): void {
     };
 
     const scheduleReconnect = () => {
-      if (closed) return;
+      if (closed || isBoxSessionPaused()) return;
       clearReconnect();
       const delay = Math.min(1000 * 2 ** retry, MAX_RETRY_MS);
       retry += 1;
@@ -77,15 +82,15 @@ export function useDashboardPushToast(): void {
     };
 
     const connect = () => {
-      if (closed) return;
+      if (closed || isBoxSessionPaused()) return;
       const token = getAuthToken();
-      if (!token) {
+      if (!token && !hasBoxSession()) {
         scheduleReconnect();
         return;
       }
       let socket: WebSocket;
       try {
-        socket = new WebSocket(buildDashboardNotifyWsUrl());
+        socket = openAuthenticatedWebSocket(buildDashboardNotifyWsUrl());
       } catch {
         scheduleReconnect();
         return;

@@ -69,7 +69,7 @@ def test_v59_upgrade_and_skipped_watermark_keep_saved_turns_and_settings(
             assert (
                 dict(conn.execute("SELECT * FROM resident_requests").fetchone()) == request_before
             )
-            assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 60
+            assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 62
             assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
         repo = ResidentConversationRepo(db)
         with db.transaction() as conn:

@@ -140,6 +140,8 @@ def _load(
     turn_id: str,
     call_id: str,
 ) -> ProjectTaskToolCallRow:
+    # Internal polling and checkpoint recovery use the turn's frozen target;
+    # they must survive expiry/logout of the request that admitted the turn.
     if not services.project_task_repo.lock_owner(conn, owner_id):
         raise OctopError.localized(ErrorCode.FORBIDDEN)
     task = services.project_task_repo.get_in_transaction(conn, task_id, owner_id)
@@ -149,6 +151,21 @@ def _load(
     if row.client_id != client_id:
         raise OctopError.localized(ErrorCode.FORBIDDEN)
     return _normalize(services, conn, row)
+
+
+def _load_for_client(
+    services: SharedServices,
+    conn: Any,
+    owner_id: int,
+    client_id: str,
+    task_id: str,
+    turn_id: str,
+    call_id: str,
+) -> ProjectTaskToolCallRow:
+    from octop.infra.auth.box_context import validate_client_tools
+
+    validate_client_tools(services.config, owner_id, client_id, conn)
+    return _load(services, conn, owner_id, client_id, task_id, turn_id, call_id)
 
 
 def get_call(
@@ -161,12 +178,17 @@ def get_call(
 ) -> ClientToolCall:
     with services.db.transaction() as conn:
         return view(
-            _load(services, conn, owner_id, client_id, task_id, turn_id, call_id), services, conn
+            _load_for_client(services, conn, owner_id, client_id, task_id, turn_id, call_id),
+            services,
+            conn,
         )
 
 
 def open_calls(services: SharedServices, owner_id: int, client_id: str) -> list[ClientToolCall]:
+    from octop.infra.auth.box_context import validate_client_tools
+
     with services.db.transaction() as conn:
+        validate_client_tools(services.config, owner_id, client_id, conn)
         if not services.project_task_repo.lock_owner(conn, owner_id):
             raise OctopError.localized(ErrorCode.FORBIDDEN)
         return [
@@ -188,7 +210,7 @@ def claim_call(
 ) -> ClientToolClaim:
     error = None
     with services.db.transaction() as conn:
-        row = _load(services, conn, owner_id, client_id, task_id, turn_id, call_id)
+        row = _load_for_client(services, conn, owner_id, client_id, task_id, turn_id, call_id)
         if row.status == "pending":
             from octop.infra.projects.deletion_state import assert_task_writable
 
@@ -264,7 +286,7 @@ def submit_result(
     )
     error = None
     with services.db.transaction() as conn:
-        row = _load(services, conn, owner_id, client_id, task_id, turn_id, call_id)
+        row = _load_for_client(services, conn, owner_id, client_id, task_id, turn_id, call_id)
         if not row.claim_token or not hmac.compare_digest(row.claim_token, result.claim_token):
             error = ErrorCode.FORBIDDEN
         elif row.status == "completed":

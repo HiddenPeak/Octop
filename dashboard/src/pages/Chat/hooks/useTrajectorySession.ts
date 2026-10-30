@@ -1,3 +1,7 @@
+import {
+  BOX_SESSION_EVENT,
+  isBoxSessionPaused,
+} from "../../../api/modules/boxAccounts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   trajectoryApi,
@@ -156,7 +160,7 @@ export function useTrajectorySession({
     };
 
     const openStream = (afterSeq?: number) => {
-      if (cancelled) return;
+      if (cancelled || isBoxSessionPaused()) return;
       source?.close();
       source = new EventSource(
         trajectoryApi.streamUrl(agentId, threadId, afterSeq),
@@ -164,6 +168,12 @@ export function useTrajectorySession({
       bindSource(source);
     };
 
+    const sessionChanged = () => {
+      source?.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (!isBoxSessionPaused()) openStream(lastSeqRef.current);
+    };
+    window.addEventListener(BOX_SESSION_EVENT, sessionChanged);
     setLoading(true);
     setError(false);
     void trajectoryApi
@@ -194,6 +204,7 @@ export function useTrajectorySession({
 
     return () => {
       cancelled = true;
+      window.removeEventListener(BOX_SESSION_EVENT, sessionChanged);
       if (reconnectTimer != null) clearTimeout(reconnectTimer);
       source?.close();
     };

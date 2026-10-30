@@ -1,3 +1,10 @@
+import {
+  openAuthenticatedWebSocket,
+  cachedBoxIdentity,
+  isBoxAccountMode,
+  hasBoxSession,
+  isBoxSessionPaused,
+} from "../../api/modules/boxAccounts";
 import { randomUUID } from "../../utils/randomUUID";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import i18n from "../../i18n";
@@ -45,6 +52,7 @@ export const residentStorageKey = (
     String(account),
     scope.agent_id,
     scope.thread_id,
+    ...(cachedBoxIdentity() ? [cachedBoxIdentity()] : []),
   ])}`;
 const storage = () => (isSessionOnlyAuth() ? sessionStorage : localStorage);
 function restore(key: string): StoredConversation {
@@ -404,7 +412,12 @@ export function useResidentConversation(accountId: string | number | null) {
     const connect = () => {
       if (disposed) return;
       token = getAuthToken();
-      if (!streamSupported || !token || typeof WebSocket === "undefined") {
+      if (
+        !streamSupported ||
+        (!token && !hasBoxSession()) ||
+        isBoxSessionPaused() ||
+        typeof WebSocket === "undefined"
+      ) {
         setConnectionState("polling");
         return;
       }
@@ -418,7 +431,7 @@ export function useResidentConversation(accountId: string | number | null) {
         reconnect = setTimeout(connect, 3000);
       };
       try {
-        ws = new WebSocket(getWsUrl("/project-tasks/ws"));
+        ws = openAuthenticatedWebSocket(getWsUrl("/project-tasks/ws"));
       } catch {
         setConnectionState("polling");
         reconnect = setTimeout(connect, 3000);
@@ -427,6 +440,7 @@ export function useResidentConversation(accountId: string | number | null) {
       socket = ws;
       watchdog = setTimeout(fail, 15000);
       ws.onopen = () => {
+        if (isBoxAccountMode()) return;
         if (!disposed && socket === ws)
           ws.send(
             JSON.stringify({
@@ -461,7 +475,8 @@ export function useResidentConversation(accountId: string | number | null) {
             void recover(key, target, true);
           } else if (
             frame.type === "session" &&
-            typeof frame.access_token === "string"
+            typeof frame.access_token === "string" &&
+            !isBoxAccountMode()
           ) {
             setAuthToken(frame.access_token, !isSessionOnlyAuth());
             token = frame.access_token;

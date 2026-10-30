@@ -27,17 +27,23 @@ from octop.infra.backup.chats import (
     strip_chat_tables_from_sqlite_file,
 )
 from octop.infra.backup.manifest import MANIFEST_VERSION, AgentBackupEntry, BackupManifest
-from octop.infra.backup.pg_dump import dump_postgres, restore_postgres
+from octop.infra.backup.pg_dump import (
+    dump_postgres,
+    postgres_snapshot_has_box_state,
+    restore_postgres,
+)
 from octop.infra.backup.restore_lock import offline_restore_guard
 from octop.infra.backup.snapshot import (
     capture_jwt_secret_from_pool,
     capture_users_from_pool,
     infer_owner_user_id,
+    pool_has_box_state,
     prune_users_not_in,
     remap_ownership_to_user,
     restore_jwt_secret_into_pool,
     restore_sqlite_into_pool,
     snapshot_sqlite_file,
+    sqlite_snapshot_has_box_state,
     upsert_users_into_pool,
 )
 from octop.infra.backup.task_files import add_task_files, restore_task_files
@@ -429,6 +435,14 @@ def _replace_tree_from_archive(extracted: Path, dest: Path, arc_name: str) -> in
     return count
 
 
+def assert_regular_restore_target(paths: PathLayout, pool: DatabasePool | None = None) -> None:
+    """Box restores need a future coordinated trust recovery, never plain DB replacement."""
+    if (paths.root / "box-auth").exists() or (pool is not None and pool_has_box_state(pool)):
+        raise OctopError.localized(
+            ErrorCode.FORBIDDEN, status=409, details={"reason": "box_restore_requires_recovery"}
+        )
+
+
 def restore_system_backup(
     source: Path | bytes,
     *,
@@ -461,7 +475,11 @@ def restore_system_backup(
     performing the restore) receives all imported ``user_id`` ownership. When
     omitted, the first preserved admin (else first preserved user) is used.
     """
+    assert_regular_restore_target(paths, pool)
     with offline_restore_guard(paths), tempfile.TemporaryDirectory() as tmp:
+        # Recheck after acquiring writer locks in case a box initialized while
+        # this restore was preparing; ordinary restore never removes its fence.
+        assert_regular_restore_target(paths, pool)
         extracted = Path(tmp) / "extracted"
         _extract_archive(source, extracted)
         manifest = _extract_manifest_from_dir(extracted)
@@ -505,6 +523,18 @@ def restore_system_backup(
         db_path = extracted / manifest.db_file
         if not db_path.is_file():
             raise OctopError(ErrorCode.SLASH_BAD_ARGS, "backup archive missing database file")
+
+        has_box_state = (
+            postgres_snapshot_has_box_state(db_path)
+            if archive_driver == "postgresql"
+            else sqlite_snapshot_has_box_state(db_path)
+        )
+        if has_box_state:
+            raise OctopError.localized(
+                ErrorCode.FORBIDDEN,
+                status=409,
+                details={"reason": "box_restore_requires_recovery"},
+            )
 
         saved_chats = (
             capture_chat_tables(pool, Path(tmp) / "preserved-chats.sqlite")

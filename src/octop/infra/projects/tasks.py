@@ -812,11 +812,15 @@ def _base_configuration(
     action_mode: ActionMode = "craft",
     configuration_revision: int = 1,
 ) -> dict[str, Any]:
+    from octop.infra.projects.box_guest_policy import is_guest, validate_configuration
     from octop.infra.projects.expert_profiles import (
         resolve_expert_profile,
         validate_expert_workspace_skills,
     )
 
+    validate_configuration(
+        services, owner_id, {**options.model_dump(), "selected_expert_id": selected_expert_id}
+    )
     project = get_project(services, owner_id, project_id) if project_id else None
     if project and project.archived:
         raise OctopError.localized(ErrorCode.PROJECT_ARCHIVED)
@@ -861,9 +865,13 @@ def _base_configuration(
         **selection_snapshot(
             services,
             owner_id,
-            options.knowledge_base_ids
-            if options.knowledge_base_ids is not None
-            else capabilities.get("knowledge_base_ids") or None,
+            []
+            if is_guest(services, owner_id)
+            else (
+                options.knowledge_base_ids
+                if options.knowledge_base_ids is not None
+                else capabilities.get("knowledge_base_ids") or None
+            ),
         ),
         "expert_profile": expert,
         "project_defaults": project_defaults,
@@ -1482,6 +1490,7 @@ def cancel(services: SharedServices, owner_id: int, task_id: str, turn_id: str) 
 
 
 def resources(services: SharedServices, owner_id: int) -> TaskResources:
+    from octop.infra.projects.box_guest_policy import is_guest
     from octop.infra.projects.expert_profiles import (
         _workspace,
         composer_skill_defaults,
@@ -1489,6 +1498,7 @@ def resources(services: SharedServices, owner_id: int) -> TaskResources:
     )
     from octop.infra.projects.expert_teams import member_ids as team_member_ids
 
+    guest = is_guest(services, owner_id)
     available = project_resources(services, owner_id)
     providers = ProviderStore(services.provider_repo)
     models = [
@@ -1510,10 +1520,16 @@ def resources(services: SharedServices, owner_id: int) -> TaskResources:
         if providers.is_model_ref_usable(f"{provider.name}/{model['id']}")
     ]
     experts = []
-    rows = [
-        *services.agent_repo.list_by_user(owner_id, include_disabled=False, exclude_resident=True),
-        *services.agent_repo.list_shared(exclude_user_id=owner_id),
-    ]
+    rows = (
+        []
+        if guest
+        else [
+            *services.agent_repo.list_by_user(
+                owner_id, include_disabled=False, exclude_resident=True
+            ),
+            *services.agent_repo.list_shared(exclude_user_id=owner_id),
+        ]
+    )
     for row in rows:
         if row.kind not in {"expert", "team"} or (
             row.kind == "team" and (row.is_shared or row.user_id != owner_id)
@@ -1578,6 +1594,9 @@ def patch(services: SharedServices, owner_id: int, task_id: str, body: TaskPatch
             )
             if current.active_turn_id:
                 raise OctopError.localized(ErrorCode.TASK_BUSY)
+            from octop.infra.projects.box_guest_policy import validate_configuration
+
+            validate_configuration(services, owner_id, {"selected_expert_id": selected})
             resolve_expert_profile(services, owner_id, selected)
             selection = body.engine or engine_catalog.read_engine(current.execution_json)
             engine_catalog.validate_engine(

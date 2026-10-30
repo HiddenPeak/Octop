@@ -1,3 +1,4 @@
+import { cachedBoxIdentity } from "../../api/modules/boxAccounts";
 import { useTaskHost } from "../../context/TaskHostContext";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getApiUrl } from "../../api/config";
@@ -82,10 +83,13 @@ function reset<T>(cache: Cache<T>) {
 function useCache<T>(scope: string) {
   const { hostID, identity: hostIdentity } = useTaskHost();
   const user = useCurrentUser();
+  const boxIdentity = cachedBoxIdentity();
   const key = user
     ? `octop:project-lists:v3:${getApiUrl("/")}:${user.id}:${user.username}:${
         hostID ?? "local"
-      }:${hostIdentity}:${scope}`
+      }:${hostIdentity}:${scope}${
+        boxIdentity ? `:box:${encodeURIComponent(boxIdentity)}` : ""
+      }`
     : null;
   const identity = key ?? `memory:${scope}`;
   const cache = useMemo(

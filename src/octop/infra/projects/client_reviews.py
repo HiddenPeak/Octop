@@ -25,7 +25,9 @@ def request_review(
 ) -> ClientToolCall:
     error = None
     with services.db.transaction() as conn:
-        row = client_tools._load(services, conn, owner, client_id, task_id, turn_id, call_id)
+        row = client_tools._load_for_client(
+            services, conn, owner, client_id, task_id, turn_id, call_id
+        )
         context = json.loads(row.approval_context_json)
         settings = approval_policy.settings(services)
         arguments = json.loads(row.arguments_json)

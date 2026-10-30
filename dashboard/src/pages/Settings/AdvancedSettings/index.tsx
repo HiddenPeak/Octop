@@ -22,6 +22,7 @@ import tabStyles from "./tabContent.module.less";
 import ForbiddenPage from "../../../components/ForbiddenPage";
 import { useGatedSearchTabs } from "../../../hooks/useGatedSearchTabs";
 import { ADVANCED_TAB_PERMISSIONS } from "../../../utils/permissions";
+import { isBoxAccountMode } from "../../../api/modules/boxAccounts";
 
 type TabKey =
   | "env-vars"
@@ -60,7 +61,9 @@ export default function AdvancedSettingsPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const { allowedTabs, activeTab, forbidden, selectTab } = useGatedSearchTabs({
-    tabs: TABS,
+    tabs: isBoxAccountMode()
+      ? TABS.filter((tab) => tab.key !== "captcha")
+      : TABS,
     tabPermissions: ADVANCED_TAB_PERMISSIONS,
     parseTab,
     querylessKey: "env-vars",

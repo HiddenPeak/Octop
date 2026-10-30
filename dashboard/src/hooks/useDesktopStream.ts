@@ -1,3 +1,7 @@
+import {
+  openAuthenticatedWebSocket,
+  isBoxSessionPaused,
+} from "../api/modules/boxAccounts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAuthToken } from "../api/request";
 
@@ -81,7 +85,8 @@ export function useDesktopStream() {
   }, []);
 
   const scheduleReconnect = useCallback(() => {
-    if (manualStopRef.current || !callbacksRef.current) return;
+    if (manualStopRef.current || !callbacksRef.current || isBoxSessionPaused())
+      return;
     if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
       updateStatus("error");
       return;
@@ -120,7 +125,7 @@ export function useDesktopStream() {
           if (gen !== connectGenRef.current) return;
         }
 
-        const ws = new WebSocket(buildWsUrl());
+        const ws = openAuthenticatedWebSocket(buildWsUrl());
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -128,7 +133,7 @@ export function useDesktopStream() {
           ws.send(
             JSON.stringify({
               type: "start",
-              token: getAuthToken(),
+              token: getAuthToken() || undefined,
               monitor: opts.monitor ?? 0,
               quality: opts.quality ?? 80,
               max_fps: opts.maxFps ?? 10,

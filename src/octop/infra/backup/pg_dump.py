@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
+from octop.infra.backup.snapshot import BOX_AUTH_TABLES
 from octop.infra.errors import ErrorCode, OctopError
 
 
@@ -66,3 +68,42 @@ def restore_postgres(conninfo: str, dump_file: Path) -> None:
             ErrorCode.INTERNAL_ERROR,
             f"pg_restore failed: {proc.stderr.strip() or proc.stdout.strip()}",
         )
+
+
+def postgres_snapshot_has_box_state(dump_file: Path) -> bool:
+    """Render only auth table data to a temporary file, without a DB connection.
+
+    pg_restore emits COPY or INSERT according to the source pg_dump options.
+    Do not treat the manifest or a table's mere presence as an identity: new
+    ordinary server databases contain the same empty tables.
+    """
+    pg_restore = _require_tool("pg_restore")
+    with tempfile.TemporaryDirectory() as temporary:
+        script = Path(temporary) / "auth-preflight.sql"
+        command = [pg_restore, "--data-only", "--no-owner", "--file", str(script)]
+        for table in BOX_AUTH_TABLES:
+            command.extend(["--table", table])
+        command.append(str(dump_file))
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            raise OctopError.localized(
+                ErrorCode.FORBIDDEN, status=409, details={"reason": "box_restore_preflight_failed"}
+            )
+        copying = False
+        with script.open(encoding="utf-8") as source:
+            for line in source:
+                text = line.strip()
+                if copying:
+                    if text == r"\.":
+                        copying = False
+                    else:
+                        return True
+                elif text.startswith("COPY ") and text.endswith(" FROM stdin;"):
+                    copying = True
+                elif text.startswith("INSERT INTO "):
+                    return True
+        if copying:
+            raise OctopError.localized(
+                ErrorCode.FORBIDDEN, status=409, details={"reason": "box_restore_preflight_failed"}
+            )
+        return False

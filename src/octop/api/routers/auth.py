@@ -208,10 +208,30 @@ async def login(
 
 
 @router.post("/logout", status_code=204, summary="Sign out")
-async def logout(user: Any = Depends(current_user), server: Any = Depends(get_server)) -> Response:
-    """Record an audit event for the current session. JWTs are stateless and not revoked server-side."""
+async def logout(
+    request: Request, user: Any = Depends(current_user), server: Any = Depends(get_server)
+) -> Response:
+    """Revoke the current paired-client session in box mode; audit sign-out in server mode."""
+    from octop.api.common.box_auth import browser_cookie_name
+
+    response = Response(status_code=204)
+    box = getattr(server, "box_account_service", None)
+    if box is not None:
+        context = getattr(request.state, "box_auth_context", None)
+        if context is None:
+            raise OctopError.localized(ErrorCode.AUTH_FAILED)
+        await asyncio.to_thread(box.logout, context)
+        if context.session_kind == "admin":
+            response.delete_cookie(
+                browser_cookie_name(box.box_id),
+                path="/api",
+                secure=request.url.scheme == "https",
+                httponly=True,
+                samesite="strict",
+            )
+        response.headers["Cache-Control"] = "no-store"
     server.services.audit_repo.write(actor=user.username, action="auth.logout")
-    return Response(status_code=204)
+    return response
 
 
 @router.get("/me", summary="Current user profile")

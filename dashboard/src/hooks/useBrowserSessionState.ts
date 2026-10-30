@@ -1,3 +1,7 @@
+import {
+  openAuthenticatedWebSocket,
+  isBoxSessionPaused,
+} from "../api/modules/boxAccounts";
 import { useState, useEffect, useRef, useCallback } from "react";
 import api from "../api";
 import { bridgeApi } from "../api/modules/bridge";
@@ -89,7 +93,7 @@ export function useBrowserSessionState(
       const resp = bridgeId
         ? await bridgeApi.getBrowserSessions(bridgeId)
         : await api.getSessions();
-      if (unmountedRef.current) return;
+      if (unmountedRef.current || isBoxSessionPaused()) return;
       if (resp.ok) {
         setEnvironment(resp.environment);
         if (resp.sessions.length > 0) {
@@ -111,7 +115,7 @@ export function useBrowserSessionState(
   const connectWsRef = useRef<() => void>(() => {});
 
   const scheduleReconnect = useCallback(() => {
-    if (unmountedRef.current) return;
+    if (unmountedRef.current || isBoxSessionPaused()) return;
     if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
     const delay = Math.min(1000 * Math.pow(2, reconnectAttempt.current), 16000);
     reconnectAttempt.current += 1;
@@ -119,7 +123,7 @@ export function useBrowserSessionState(
   }, []);
 
   const connectWs = useCallback(() => {
-    if (unmountedRef.current) return;
+    if (unmountedRef.current || isBoxSessionPaused()) return;
     const bridgeId = bridgeIdRef.current;
     if (!bridgeId && !browserProfile) return;
 
@@ -147,7 +151,7 @@ export function useBrowserSessionState(
 
     let ws: WebSocket;
     try {
-      ws = new WebSocket(wsUrl);
+      ws = openAuthenticatedWebSocket(wsUrl);
     } catch {
       // Schedule reconnect
       scheduleReconnect();

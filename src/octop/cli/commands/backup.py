@@ -11,7 +11,11 @@ from octop.cli.support.errors import fail_octop
 from octop.config import load_config
 from octop.infra.backup.auto import create_and_store_auto_backup
 from octop.infra.backup.store import place_backup_file
-from octop.infra.backup.system_archive import create_system_backup, restore_system_backup
+from octop.infra.backup.system_archive import (
+    assert_regular_restore_target,
+    create_system_backup,
+    restore_system_backup,
+)
 from octop.infra.db.factory import open_database
 from octop.infra.db.migrate import run_migrations
 from octop.infra.db.services import build_shared_services
@@ -170,12 +174,16 @@ def restore(
     yes: bool,
 ) -> None:
     """Restore from a backup archive. Stop ``octop run`` first for a clean restore."""
+    paths = _paths(home)
+    try:
+        assert_regular_restore_target(paths)
+    except OctopError as exc:
+        fail_octop(exc)
     if not yes:
         click.confirm(
             "This overwrites the database and local workspaces. Continue?",
             abort=True,
         )
-    paths = _paths(home)
     config = load_config(paths.config)
     db = open_database(config, paths)
     try:

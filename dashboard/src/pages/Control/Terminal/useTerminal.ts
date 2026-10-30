@@ -1,3 +1,7 @@
+import {
+  openAuthenticatedWebSocket,
+  isBoxSessionPaused,
+} from "../../../api/modules/boxAccounts";
 /**
  * Terminal session manager — process-scoped singleton.
  *
@@ -218,6 +222,7 @@ function appendScrollback(session: TerminalSession, data: string) {
 }
 
 function scheduleReconnect(session: TerminalSession) {
+  if (isBoxSessionPaused()) return;
   clearReconnectTimer(session);
   if (session.exited) {
     setConnState(session, "disconnected");
@@ -252,7 +257,7 @@ function openWs(session: TerminalSession) {
   }
   let ws: WebSocket;
   try {
-    ws = new WebSocket(buildWsUrl(session.agentId, session.id));
+    ws = openAuthenticatedWebSocket(buildWsUrl(session.agentId, session.id));
   } catch (err) {
     console.error("[Terminal] Failed to create WebSocket:", err);
     setConnState(session, "error");
@@ -330,7 +335,10 @@ function openWs(session: TerminalSession) {
       setConnState(session, "disconnected");
       return;
     }
-    if (ev.code === 1011 || (ev.code >= 4000 && ev.code < 5000)) {
+    if (
+      ev.code === 1011 ||
+      (ev.code >= 4000 && ev.code < 5000 && ev.code !== 4401)
+    ) {
       session.exited = true;
       clearReconnectTimer(session);
       setConnState(session, "error");

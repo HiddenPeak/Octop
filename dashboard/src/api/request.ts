@@ -1,3 +1,9 @@
+import {
+  boxAuthenticatedFetch,
+  detectBoxStatus,
+  isBoxAccountMode,
+  runBoxRequest,
+} from "./modules/boxAccounts";
 import { getApiUrl } from "./config";
 import i18n from "../i18n";
 import { markNavigatingAway } from "../utils/reloadOnStaleChunk";
@@ -72,6 +78,7 @@ export function isSessionOnlyAuth(): boolean {
  * post the token back to the opener — ``sessionStorage`` is not shared.
  */
 export function setAuthToken(token: string, remember: boolean = true) {
+  if (isBoxAccountMode()) return;
   if (remember) {
     localStorage.setItem(AUTH_TOKEN_KEY, token);
     sessionStorage.removeItem(AUTH_TOKEN_KEY);
@@ -84,6 +91,7 @@ export function setAuthToken(token: string, remember: boolean = true) {
 
 /** Get JWT token from localStorage or (session-only) sessionStorage. */
 export function getAuthToken(): string {
+  if (isBoxAccountMode()) return "";
   return (
     localStorage.getItem(AUTH_TOKEN_KEY) ||
     sessionStorage.getItem(AUTH_TOKEN_KEY) ||
@@ -102,6 +110,7 @@ export function clearAuthToken() {
 
 /** Persist a sliding-renewed access token from an API response, if present. */
 export function applyRenewedAccessToken(response: Response): void {
+  if (isBoxAccountMode()) return;
   const renewed = response.headers.get(ACCESS_TOKEN_RESPONSE_HEADER);
   if (renewed) {
     setAuthToken(renewed, !isSessionOnlyAuth());
@@ -312,7 +321,8 @@ function handleUnauthorized(): void {
   if (
     path.startsWith("/setup") ||
     path.startsWith("/login") ||
-    path.startsWith("/invite")
+    path.startsWith("/invite") ||
+    path.startsWith("/connect")
   )
     return;
   _redirectingToLogin = true;
@@ -323,7 +333,7 @@ function handleUnauthorized(): void {
   if (takenOver) return;
 
   markNavigatingAway();
-  window.location.replace("/login");
+  window.location.replace(isBoxAccountMode() ? "/connect" : "/login");
 }
 
 /**
@@ -359,13 +369,14 @@ export async function request<T = unknown>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  assertNotSetupLocked(path);
+  await detectBoxStatus();
+  if (!isBoxAccountMode()) assertNotSetupLocked(path);
 
   const url = getApiUrl(path);
 
   const headers = buildHeaders(path, options.headers);
 
-  const response = await fetch(url, {
+  const response = await boxAuthenticatedFetch(url, {
     ...options,
     headers,
   });
@@ -415,11 +426,12 @@ export async function requestBlob(
   options: RequestInit = {},
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<Blob> {
-  assertNotSetupLocked(path);
+  await detectBoxStatus();
+  if (!isBoxAccountMode()) assertNotSetupLocked(path);
 
   const url = getApiUrl(path);
   const headers = buildAuthHeaders(path);
-  const response = await fetch(url, {
+  const response = await boxAuthenticatedFetch(url, {
     ...options,
     headers: { ...headers, ...(options.headers as Record<string, string>) },
   });
@@ -468,11 +480,12 @@ export async function probeAuthResource(
   path: string,
   options: RequestInit = {},
 ): Promise<void> {
-  assertNotSetupLocked(path);
+  await detectBoxStatus();
+  if (!isBoxAccountMode()) assertNotSetupLocked(path);
 
   const url = getApiUrl(path);
   const headers = buildAuthHeaders(path);
-  const response = await fetch(url, {
+  const response = await boxAuthenticatedFetch(url, {
     ...options,
     headers: { ...headers, ...(options.headers as Record<string, string>) },
   });
@@ -508,11 +521,12 @@ export async function requestStream(
   path: string,
   options: RequestInit = {},
 ): Promise<{ contentType: string; body: ReadableStream<Uint8Array> }> {
-  assertNotSetupLocked(path);
+  await detectBoxStatus();
+  if (!isBoxAccountMode()) assertNotSetupLocked(path);
 
   const url = getApiUrl(path);
   const headers = buildAuthHeaders(path);
-  const response = await fetch(url, {
+  const response = await boxAuthenticatedFetch(url, {
     ...options,
     headers: { ...headers, ...(options.headers as Record<string, string>) },
   });
@@ -555,105 +569,114 @@ export async function requestUpload<T = unknown>(
   options: RequestInit = {},
   onProgress?: UploadProgressHandler,
 ): Promise<T> {
-  assertNotSetupLocked(path);
+  await detectBoxStatus();
+  if (!isBoxAccountMode()) assertNotSetupLocked(path);
 
   const url = getApiUrl(path);
   const headers = buildAuthHeaders(path);
   const method = options.method ?? "POST";
 
-  return new Promise<T>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open(method, url);
+  return runBoxRequest(
+    method,
+    (boxHeaders) =>
+      new Promise<T>((resolve, reject) => {
+        Object.assign(headers, boxHeaders);
+        const xhr = new XMLHttpRequest();
+        xhr.open(method, url);
 
-    for (const [key, value] of Object.entries(headers)) {
-      xhr.setRequestHeader(key, value);
-    }
-    if (options.headers) {
-      const extraEntries =
-        options.headers instanceof Headers
-          ? Array.from(options.headers.entries())
-          : Array.isArray(options.headers)
-          ? options.headers
-          : Object.entries(options.headers);
-      for (const [k, v] of extraEntries) {
-        xhr.setRequestHeader(k, String(v));
-      }
-    }
-
-    if (onProgress) {
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable && event.total > 0) {
-          onProgress(Math.round((event.loaded / event.total) * 100));
+        for (const [key, value] of Object.entries(headers)) {
+          xhr.setRequestHeader(key, value);
         }
-      };
-    }
-
-    if (options.signal) {
-      if (options.signal.aborted) {
-        reject(new DOMException("The operation was aborted.", "AbortError"));
-        return;
-      }
-      options.signal.addEventListener(
-        "abort",
-        () => {
-          xhr.abort();
-        },
-        { once: true },
-      );
-    }
-
-    xhr.onload = () => {
-      void (async () => {
-        const status = xhr.status;
-        const responseText = xhr.responseText;
-        const responseHeaders = new Headers();
-        const renewed = xhr.getResponseHeader(ACCESS_TOKEN_RESPONSE_HEADER);
-        if (renewed) {
-          responseHeaders.set(ACCESS_TOKEN_RESPONSE_HEADER, renewed);
-        }
-        const response = new Response(responseText, {
-          status,
-          headers: responseHeaders,
-        });
-
-        if (await check503ForSetupRequired(path, response)) {
-          reject(new SetupRequiredError());
-          return;
+        if (options.headers) {
+          const extraEntries =
+            options.headers instanceof Headers
+              ? Array.from(options.headers.entries())
+              : Array.isArray(options.headers)
+              ? options.headers
+              : Object.entries(options.headers);
+          for (const [k, v] of extraEntries) {
+            if (!isBoxAccountMode() || k.toLowerCase() !== "authorization")
+              xhr.setRequestHeader(k, String(v));
+          }
         }
 
-        try {
-          await throwIfUnauthorized(path, response);
-        } catch (err) {
-          reject(err);
-          return;
+        if (onProgress) {
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable && event.total > 0) {
+              onProgress(Math.round((event.loaded / event.total) * 100));
+            }
+          };
         }
 
-        applyRenewedAccessToken(response);
-
-        if (!response.ok) {
-          // Same shape as request() so parseApiError() can read the error envelope.
-          reject(
-            new Error(
-              `Upload failed: ${status}${
-                responseText ? ` - ${responseText}` : ""
-              }`,
-            ),
+        if (options.signal) {
+          if (options.signal.aborted) {
+            reject(
+              new DOMException("The operation was aborted.", "AbortError"),
+            );
+            return;
+          }
+          options.signal.addEventListener(
+            "abort",
+            () => {
+              xhr.abort();
+            },
+            { once: true },
           );
-          return;
         }
 
-        try {
-          resolve((await response.json()) as T);
-        } catch {
-          reject(new Error("Upload failed: invalid JSON response"));
-        }
-      })();
-    };
+        xhr.onload = () => {
+          void (async () => {
+            const status = xhr.status;
+            const responseText = xhr.responseText;
+            const responseHeaders = new Headers();
+            const renewed = xhr.getResponseHeader(ACCESS_TOKEN_RESPONSE_HEADER);
+            if (renewed) {
+              responseHeaders.set(ACCESS_TOKEN_RESPONSE_HEADER, renewed);
+            }
+            const response = new Response(responseText, {
+              status,
+              headers: responseHeaders,
+            });
 
-    xhr.onerror = () => reject(new Error("Network error"));
-    xhr.onabort = () =>
-      reject(new DOMException("The operation was aborted.", "AbortError"));
+            if (await check503ForSetupRequired(path, response)) {
+              reject(new SetupRequiredError());
+              return;
+            }
 
-    xhr.send(body);
-  });
+            try {
+              await throwIfUnauthorized(path, response);
+            } catch (err) {
+              reject(err);
+              return;
+            }
+
+            applyRenewedAccessToken(response);
+
+            if (!response.ok) {
+              // Same shape as request() so parseApiError() can read the error envelope.
+              reject(
+                new Error(
+                  `Upload failed: ${status}${
+                    responseText ? ` - ${responseText}` : ""
+                  }`,
+                ),
+              );
+              return;
+            }
+
+            try {
+              resolve((await response.json()) as T);
+            } catch {
+              reject(new Error("Upload failed: invalid JSON response"));
+            }
+          })();
+        };
+
+        xhr.onerror = () => reject(new Error("Network error"));
+        xhr.onabort = () =>
+          reject(new DOMException("The operation was aborted.", "AbortError"));
+
+        xhr.send(body);
+      }),
+  );
 }

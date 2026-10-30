@@ -1,3 +1,4 @@
+import { boxAuthenticatedFetch } from "./boxAccounts";
 import { request, getAuthToken } from "../request";
 import { getApiUrl } from "../config";
 
@@ -50,7 +51,7 @@ function streamMobileSse(
     onDone(ok, error);
   };
 
-  fetch(url, {
+  boxAuthenticatedFetch(url, {
     method: "POST",
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

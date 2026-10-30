@@ -137,7 +137,7 @@ export function isGroupedNavKey(key: string): boolean {
 
 export function buildNavSections(
   user: OctopUser | null,
-  opts?: { mobileEnabled?: boolean },
+  opts?: { mobileEnabled?: boolean; boxAccountMode?: boolean },
 ): NavSection[] {
   const sections: NavSection[] = [
     {
@@ -223,13 +223,14 @@ export function buildNavSections(
     });
   }
   // User-scoped remote Octop links — always available (like personalization).
-  settingsItems.push({
-    key: "bridge",
-    path: "/bridge",
-    icon: <Cloudy size={iconSize} strokeWidth={iconStroke} />,
-    labelKey: "nav.bridge",
-    badge: "Beta",
-  });
+  if (!opts?.boxAccountMode)
+    settingsItems.push({
+      key: "bridge",
+      path: "/bridge",
+      icon: <Cloudy size={iconSize} strokeWidth={iconStroke} />,
+      labelKey: "nav.bridge",
+      badge: "Beta",
+    });
   if (settingsItems.length > 0) {
     sections.push({
       id: "settings",
@@ -280,9 +281,9 @@ export function buildNavSections(
   if (navAllowed(user, "admin-users")) {
     adminItems.push({
       key: "admin-users",
-      path: "/admin/users",
+      path: opts?.boxAccountMode ? "/box/devices" : "/admin/users",
       icon: <UsersIcon size={iconSize} strokeWidth={iconStroke} />,
-      labelKey: "nav.adminUsers",
+      labelKey: opts?.boxAccountMode ? "boxAccount.devices" : "nav.adminUsers",
     });
   }
   if (navAllowed(user, "models")) {

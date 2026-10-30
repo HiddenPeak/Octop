@@ -24,7 +24,8 @@ from starlette.websockets import WebSocketState
 
 from octop.api.common.content_disposition import content_disposition
 from octop.api.common.upload_limit import read_upload_capped
-from octop.api.deps import current_user, get_server, require_database, resolve_user_from_token
+from octop.api.common.websocket_auth import resolve_websocket_user
+from octop.api.deps import current_user, get_server, require_database
 from octop.api.routers import terminal
 from octop.api.routers.browser.harness import harness_sessions_payload
 from octop.api.routers.browser.stream import run_browser_stream_session
@@ -270,7 +271,7 @@ async def browser_stream(
 ) -> None:
     server = websocket.app.state.octop_server
     try:
-        user = resolve_user_from_token(server, token or "")
+        user = await asyncio.to_thread(resolve_websocket_user, websocket, token)
         if not listen_only and not expected_scope_revision:
             raise OctopError.localized(ErrorCode.TASK_REVISION_CONFLICT)
         scope = await _scope(
@@ -288,7 +289,7 @@ async def browser_stream(
 
     async def receive() -> str:
         raw = await websocket.receive_text()
-        fresh = resolve_user_from_token(server, token or "")
+        fresh = await asyncio.to_thread(resolve_websocket_user, websocket, token)
         await _scope(
             server,
             fresh,
@@ -303,7 +304,7 @@ async def browser_stream(
         return raw
 
     async def send(payload: dict[str, Any]) -> None:
-        fresh = resolve_user_from_token(server, token or "")
+        fresh = await asyncio.to_thread(resolve_websocket_user, websocket, token)
         await _scope(
             server,
             fresh,
@@ -345,7 +346,7 @@ async def terminal_stream(
 ) -> None:
     server = websocket.app.state.octop_server
     try:
-        user = resolve_user_from_token(server, token or "")
+        user = await asyncio.to_thread(resolve_websocket_user, websocket, token)
         if not expected_scope_revision:
             raise OctopError.localized(ErrorCode.TASK_REVISION_CONFLICT)
         scope = await _scope(
@@ -356,7 +357,7 @@ async def terminal_stream(
         return
 
     async def validate() -> None:
-        fresh = resolve_user_from_token(server, token or "")
+        fresh = await asyncio.to_thread(resolve_websocket_user, websocket, token)
         await _scope(
             server, fresh, task_id, scope.view.scope_revision, mutable=True, permission="terminal"
         )

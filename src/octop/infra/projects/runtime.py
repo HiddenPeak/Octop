@@ -51,6 +51,7 @@ from octop.infra.knowledge.tools import SEARCH_KNOWLEDGE_TOOL, build_knowledge_t
 from octop.infra.projects import (
     approval_policy,
     approval_runtime,
+    box_guest_policy,
     input_attachments,
     interactions,
     workbench,
@@ -293,6 +294,12 @@ async def run_turn(
     services: SharedServices, owner_id: int, turn: ProjectTaskTurnRow, history: list[Any]
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Yield only public text/tool-progress events; credentials stay in-process."""
+    await asyncio.to_thread(
+        box_guest_policy.validate_configuration,
+        services,
+        owner_id,
+        json.loads(turn.configuration_json),
+    )
     task = await asyncio.to_thread(services.project_task_repo.get_internal, turn.task_id, owner_id)
     with model_call_scope(
         services,
@@ -346,6 +353,7 @@ async def _run_turn(
         async for event in run_compaction(services, owner_id, turn, history, factory=HarnessAgent):
             yield event
         return
+    guest = await asyncio.to_thread(box_guest_policy.is_guest, services, owner_id)
     action_timeline_enabled = bool(raw.get("action_timeline_enabled", True))
     fields = ProjectFields.model_validate(
         {key: raw[key] for key in ProjectFields.model_fields if key in raw}
@@ -745,6 +753,18 @@ async def _run_turn(
                 else []
             ),
             action_gate,
+            *(
+                [
+                    box_guest_policy.BoxGuestToolsMiddleware(
+                        SERVER_ARTIFACT_TOOLS
+                        | {READ_TASK_IMAGE, ASK_USER, PLANNING, NOTIFY_USER}
+                        | {tool.name for tool in client_tools},
+                        locale,
+                    )
+                ]
+                if guest
+                else []
+            ),
             TaskFilePathMiddleware(workspace, locale),
             *(
                 [ExpertAccessMiddleware(services, owner_id, profile)]
@@ -795,10 +815,10 @@ async def _run_turn(
                 *({"write_file", "edit_file", "execute"} if action_gate.mode != "craft" else set()),
             }
         ),
-        web_search_tools=raw.get("web_search_enabled", True),
+        web_search_tools=not guest and raw.get("web_search_enabled", True),
         tools=[
             *publisher.tools(),
-            *build_knowledge_tools(services),
+            *([] if guest else build_knowledge_tools(services)),
             *plugin_tools,
             question_tool(locale),
             planning.tool(),

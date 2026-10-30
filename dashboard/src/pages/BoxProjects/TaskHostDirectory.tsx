@@ -11,6 +11,7 @@ import {
 } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { isBoxAccountMode } from "../../api/modules/boxAccounts";
 import {
   bridgeApi,
   type BridgeConnection,
@@ -57,6 +58,7 @@ export default function TaskHostDirectory({
   const [version, setVersion] = useState(0);
   const local = t("projects.tasks.hosts.local");
   useEffect(() => {
+    if (isBoxAccountMode()) return;
     let active = true;
     void bridgeApi
       .list()

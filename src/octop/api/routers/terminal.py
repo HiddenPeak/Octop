@@ -67,7 +67,8 @@ from starlette.websockets import WebSocketState
 
 from octop.api.common.agent import assert_agent_owner
 from octop.api.common.agent_workspace import resolve_agent_workspace_dir
-from octop.api.deps import get_server, require_permission, resolve_user_from_token
+from octop.api.common.websocket_auth import has_box_auth, resolve_websocket_user
+from octop.api.deps import get_server, require_permission
 from octop.infra.errors import ErrorCode, OctopError
 from octop.infra.users.permissions import user_has_permission
 from octop.infra.utils import posix_compat
@@ -513,12 +514,12 @@ async def terminal_ws(
     """
     server = websocket.app.state.octop_server
 
-    # --- auth (token query param + agent ownership) ---------------------
-    if not token:
+    # --- auth (box header context or legacy token + agent ownership) ---
+    if not token and not has_box_auth(websocket):
         await websocket.close(code=4001, reason="missing token")
         return
     try:
-        user = resolve_user_from_token(server, token)
+        user = await asyncio.to_thread(resolve_websocket_user, websocket, token)
     except OctopError as exc:
         await websocket.close(code=4001, reason=f"auth: {exc.code.value}")
         return

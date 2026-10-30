@@ -1,3 +1,5 @@
+import { boxAuthenticatedFetch } from "../../../api/modules/boxAccounts";
+import { openAuthenticatedWebSocket } from "../../../api/modules/boxAccounts";
 /**
  * Module-level chat store that survives React component unmount/remount cycles.
  *
@@ -150,7 +152,7 @@ const pendingResumeBySession = new Map<
 /** Try to open the dashboard chat WebSocket; null if construction fails. */
 function tryOpenDashboardWs(agentId: string): WebSocket | null {
   try {
-    return new WebSocket(buildDashboardChatWsUrl(agentId));
+    return openAuthenticatedWebSocket(buildDashboardChatWsUrl(agentId));
   } catch {
     return null;
   }
@@ -2924,16 +2926,19 @@ export async function resumeHitl(
   };
 
   try {
-    const res = await fetch(getApiUrl(`/agents/${agentId}/chat/hitl/resume`), {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        thread_id: threadId,
-        decisions,
-        ...(hitlPolicy ? { hitl_policy: hitlPolicy } : {}),
-      }),
-      signal: controller.signal,
-    });
+    const res = await boxAuthenticatedFetch(
+      getApiUrl(`/agents/${agentId}/chat/hitl/resume`),
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          thread_id: threadId,
+          decisions,
+          ...(hitlPolicy ? { hitl_policy: hitlPolicy } : {}),
+        }),
+        signal: controller.signal,
+      },
+    );
     if (!res.ok) {
       appendErrorBubble(state, `HITL resume failed (${res.status})`);
       finish();

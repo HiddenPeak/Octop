@@ -1,5 +1,7 @@
 # AgentComputer 统一会话接入交接
 
+> 2026-10-30：`account_mode=box_local` 采用长期管理密钥登录网页、唯一原生主设备、一次性分享码直接加入和独立受邀身份。浏览器不计入配对设备，分享不再二次审批。协议与迁移见[盒子账户客户端接线](box-local-account-client.md)；默认 `server` 模式保留原登录。App本轮仅更新接线文档，未修改Swift/UI。
+
 更新日期：2026-10-27。统一 Task 初始接口参考基线：`feature/agentcomputer-foundation @ 4cd685b7`，Bridge 安全修复已由 `34e918d5` 提供；2026-10-23 后续修订恢复项目及全部 Task 的永久删除，并在服务端先停止活动轮次。该次交付提交及重启验证记录见资料包的 `manifest.json` 与 `deployment-verification.json`。APP 代码切点的只读核对基线：`feature/0.0.2/octp @ eb51d07`；客户端 Swift/UI 未改动。接口已实现不等于其他运行服务已升级，也不代表真实用户旧会话已迁移。
 
 此前部署记录（2026-10-23）：Bridge 修复已在本机部署；项目删除修订于 2026-10-23 20:10（Asia/Shanghai）从当时工作树重启至本机 `127.0.0.1:8088`，进程为 `27383`。该次启动使用基于 `34e918d5` 的工作树源码，启动时改动尚未提交、未合入目标分支；运行来源为该隔离工作树，不能只用启动时的 HEAD 判断当时行为。健康、在线文档、新删除接口 OpenAPI、数据库完整性及原有记录校验通过，重启前后仍为 17 个项目、181 个 Task、785 个 Turn。验证记录：`/private/tmp/octop-project-deletion-restart-20261023T121038Z/result.json`。此前 `34e918d5` 资料包不包含这项后续修订，其他服务需单独升级。

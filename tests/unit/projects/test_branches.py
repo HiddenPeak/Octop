@@ -601,3 +601,27 @@ def test_operation_contract_rejects_ambiguous_edits_and_regeneration():
         TaskFork(request_id="edit-no-prompt", operation="edit")
     with pytest.raises(ValidationError):
         TaskFork(request_id="regen-new-prompt", operation="regenerate", prompt="New prompt")
+
+
+def test_box_guest_cannot_fork_with_an_otherwise_shared_expert(services):
+    from octop.infra.projects.expert_profiles import expert_configuration
+
+    services.agent_repo.set_shared("foreign-expert", True)
+    expert, _ = expert_configuration(services, 1, "foreign-expert")
+    assert expert.user_id == 2 and expert.is_shared
+    box_services = replace(services, config=replace(services.config, account_mode="box_local"))
+    before = services.project_task_turn_repo.list("source")
+
+    with pytest.raises(OctopError) as denied:
+        branches.create(
+            box_services,
+            1,
+            "source",
+            TaskFork(request_id="guest-shared-expert", selected_expert_id="foreign-expert"),
+        )
+
+    assert denied.value.code == ErrorCode.FORBIDDEN
+    assert denied.value.details["reason"] == "box_guest_resource"
+    assert services.project_task_turn_repo.list("source") == before
+    with services.db.read_snapshot() as conn:
+        assert services.project_task_branch_repo.by_request(conn, 1, "guest-shared-expert") is None

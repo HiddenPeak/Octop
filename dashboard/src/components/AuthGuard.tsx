@@ -3,6 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { Spin } from "antd";
 import { clearAuthToken, getAuthToken } from "../api/request";
 import { authApi, type OctopUser } from "../api/modules/auth";
+import {
+  BOX_AUTH_REQUIRED_EVENT,
+  BOX_SESSION_EVENT,
+  detectBoxStatus,
+  isBoxSessionPaused,
+  restoreBoxSession,
+} from "../api/modules/boxAccounts";
 import { applyUserLocale } from "../utils/locale";
 import { isNetworkFetchError } from "../utils/networkError";
 import { CurrentUserProvider } from "../hooks/useCurrentUser";
@@ -13,14 +20,12 @@ interface AuthGuardProps {
 }
 
 /**
- * Gate every protected route on (a) the initial admin existing and
- * (b) a valid JWT in localStorage. Octop always requires auth — there is
- * no "password protection disabled" mode like finnie had.
+ * Resolve the installation's account mode before mounting protected pages.
+ * Box administrators restore a revocable, independent browser cookie session;
+ * server installations keep the existing setup and password flow.
  *
- * Always wait for ``/api/setup/status`` (and ``/auth/me`` when a token
- * exists) before mounting children. Optimistic shell render with a stale
- * token would fire ``/api/agents`` / capabilities / update probes and get
- * 503'd by setup lockdown on first boot.
+ * Wait for mode discovery and identity validation before mounting children,
+ * so their API calls cannot race setup or browser authentication.
  *
  * When unauthenticated we must NOT render children: MainLayout / AgentProvider
  * would fire authenticated APIs, trip the 401 interceptor, and race the
@@ -46,31 +51,57 @@ export default function AuthGuard({ children }: AuthGuardProps) {
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
+    const requireConnection = () => {
+      setAuthed(false);
+      setUser(null);
+      navigateRef.current("/connect", { replace: true });
+    };
+    const onSessionChange = () => {
+      if (!isBoxSessionPaused()) return;
+      requireConnection();
+    };
+    window.addEventListener(BOX_SESSION_EVENT, onSessionChange);
+    window.addEventListener(BOX_AUTH_REQUIRED_EVENT, requireConnection);
+    return () => {
+      window.removeEventListener(BOX_SESSION_EVENT, onSessionChange);
+      window.removeEventListener(BOX_AUTH_REQUIRED_EVENT, requireConnection);
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     const check = async () => {
       setOffline(false);
       try {
-        const status = await authApi.getAuthStatus();
-
-        // No admin yet → push to setup wizard; drop any leftover JWT from a
-        // previous install so background prefetch cannot stampede lockdown.
-        if (status.setup_required) {
-          clearAuthToken();
-          if (!cancelled) navigateRef.current("/setup", { replace: true });
-          return;
-        }
-
-        // Setup done. Need a token.
-        const token = getAuthToken();
-        if (!token) {
-          if (!cancelled) {
-            setAuthed(false);
-            // Stay on the spinner until navigation away completes — do not
-            // flip ``checking`` off or children would mount and 401→/login.
-            navigateRef.current("/login", { replace: true });
+        const box = await detectBoxStatus();
+        if (box) {
+          if (box.state !== "claimed" || !(await restoreBoxSession())) {
+            if (!cancelled) navigateRef.current("/connect", { replace: true });
+            return;
           }
-          return;
+        } else {
+          const status = await authApi.getAuthStatus();
+
+          // No admin yet → push to setup wizard; drop any leftover JWT from a
+          // previous install so background prefetch cannot stampede lockdown.
+          if (status.setup_required) {
+            clearAuthToken();
+            if (!cancelled) navigateRef.current("/setup", { replace: true });
+            return;
+          }
+
+          // Setup done. Need a token.
+          const token = getAuthToken();
+          if (!token) {
+            if (!cancelled) {
+              setAuthed(false);
+              // Stay on the spinner until navigation away completes — do not
+              // flip ``checking`` off or children would mount and 401→/login.
+              navigateRef.current("/login", { replace: true });
+            }
+            return;
+          }
         }
 
         // Validate the token by hitting /auth/me. On 401 the request.ts
@@ -93,7 +124,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
             return;
           }
           setAuthed(false);
-          navigateRef.current("/login", { replace: true });
+          navigateRef.current(box ? "/connect" : "/login", { replace: true });
         }
       } catch (err) {
         if (cancelled) return;

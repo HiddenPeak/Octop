@@ -270,6 +270,20 @@ async def submit(
     retry_of_turn_id: str | None = None,
     admission_hook: AdmissionHook | None = None,
 ) -> tasks.TaskDetail:
+    if getattr(getattr(services, "config", None), "account_mode", "server") == "box_local":
+        from octop.infra.auth.box_context import box_request_auth, validate_request
+
+        if box_request_auth.get() is not None:
+            previous_hook = admission_hook
+
+            def box_admission(conn: Any, admitted_task: str | None, turn: str | None) -> None:
+                validate_request(owner_id, conn=conn, client_id=body.options.client_id)
+                if previous_hook is not None:
+                    previous_hook(conn, admitted_task, turn)
+
+            admission_hook = box_admission
+        elif body.options.client_id or body.options.client_tools:
+            raise OctopError.localized(ErrorCode.FORBIDDEN)
     identity = {
         "task_id": task_id,
         "project_id": project_id,

@@ -1,3 +1,5 @@
+import { boxAuthenticatedFetch } from "./boxAccounts";
+import { openAuthenticatedWebSocket } from "./boxAccounts";
 import { bridgeAgentHeaders, request, getAuthToken } from "../request";
 import { getApiUrl, getWsUrl } from "../config";
 import type {
@@ -36,7 +38,7 @@ function streamBrowserSse(
   const url = getApiUrl(path);
   const token = getAuthToken();
 
-  fetch(url, {
+  boxAuthenticatedFetch(url, {
     method: "POST",
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -173,7 +175,7 @@ export const browserApi = {
       params.set("token", token);
     }
     const wsUrl = `${getWsUrl("/browser-stream/ws")}?${params.toString()}`;
-    return new WebSocket(wsUrl);
+    return openAuthenticatedWebSocket(wsUrl);
   },
 
   // -- Browser record/replay --

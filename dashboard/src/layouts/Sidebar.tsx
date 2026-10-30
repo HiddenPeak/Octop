@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import AvatarDropdown from "../components/AvatarDropdown";
+import { isBoxAccountMode } from "../api/modules/boxAccounts";
 import AppVersionBadge from "../components/AppVersionBadge";
 import CurrentVersionBadge from "../components/CurrentVersionBadge";
 import { ArrowRightLeft, ChevronDown, X } from "lucide-react";
@@ -395,7 +396,11 @@ export default function Sidebar({
   const isMinimal = layoutMode === "minimal";
   const onChatPath = isChatPath(location.pathname);
   const catalog = useMemo(
-    () => buildNavSections(user, { mobileEnabled }),
+    () =>
+      buildNavSections(user, {
+        mobileEnabled,
+        boxAccountMode: isBoxAccountMode(),
+      }),
     [user, mobileEnabled],
   );
   const [savedLayout, setSavedLayout] = useState<SidebarNavLayout | null>(null);

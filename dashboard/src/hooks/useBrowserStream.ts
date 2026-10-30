@@ -1,3 +1,4 @@
+import { openAuthenticatedWebSocket } from "../api/modules/boxAccounts";
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
   taskWorkbenchApi,
@@ -126,7 +127,9 @@ export function useBrowserStream() {
         : buildWsUrl(width, height, options.bridgeConnectionId);
       let ws: WebSocket;
       try {
-        ws = new WebSocket(wsUrl);
+        ws = openAuthenticatedWebSocket(wsUrl, () =>
+          connect(url, width, height, callbacks, options),
+        );
       } catch (err) {
         console.error("[BrowserStream] Failed to create WebSocket:", err);
         updateStatus("error");

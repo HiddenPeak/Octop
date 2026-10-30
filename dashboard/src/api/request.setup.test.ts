@@ -1,3 +1,13 @@
+vi.mock("./modules/boxAccounts", () => ({
+  detectBoxStatus: async () => null,
+  isBoxAccountMode: () => false,
+  boxAuthenticatedFetch: (url: string, options: RequestInit) =>
+    fetch(url, options),
+  runBoxRequest: (
+    _method: string,
+    work: (headers: object) => Promise<unknown>,
+  ) => work({}),
+}));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./config", () => ({

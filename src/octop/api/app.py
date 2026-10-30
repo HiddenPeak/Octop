@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from scalar_fastapi import get_scalar_api_reference
 
+from octop.api.middleware.box_accounts import BoxAccountMiddleware
 from octop.api.middleware.jwt_auth import install as install_jwt_auth
 from octop.api.middleware.setup_lockdown import install as install_setup_lockdown
 from octop.api.openapi_meta import API_DESCRIPTION, OPENAPI_TAGS, configure_openapi
@@ -136,6 +137,7 @@ def build_app(server: OctopServer) -> FastAPI:
     install_bridge_proxy(app, server)
     install_jwt_auth(app, server)
     install_setup_lockdown(app, server)
+    app.add_middleware(BoxAccountMiddleware, server=server)
 
     if server.app_runtime is not None and server.app_runtime.bridge_manager is not None:
         from octop.api.bridge_peer import prepare_peer_dashboard_turn
@@ -167,6 +169,7 @@ def build_app(server: OctopServer) -> FastAPI:
         auth_oauth,
         auth_oidc,
         backup,
+        box_accounts,
         bridge,
         browser,
         channels,
@@ -240,6 +243,8 @@ def build_app(server: OctopServer) -> FastAPI:
         [
             _RouterMount(setup.router, "/api", ["setup"]),
             _RouterMount(auth.router, "/api/auth", ["auth"]),
+            _RouterMount(box_accounts.router, "/api", ["box-accounts"]),
+            _RouterMount(box_accounts.auth_router, "/api", ["box-accounts"]),
             _RouterMount(project_imports.router, "/api", ["projects"]),
             _RouterMount(project_imports.task_router, "/api", ["projects"]),
             _RouterMount(task_conversation_tools.router, "/api", ["projects"]),

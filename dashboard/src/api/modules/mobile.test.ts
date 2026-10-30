@@ -1,3 +1,7 @@
+vi.mock("./boxAccounts", () => ({
+  boxAuthenticatedFetch: (url: string, options: RequestInit) =>
+    fetch(url, options),
+}));
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../request", () => ({

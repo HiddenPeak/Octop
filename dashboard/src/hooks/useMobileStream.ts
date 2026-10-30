@@ -1,3 +1,4 @@
+import { openAuthenticatedWebSocket } from "../api/modules/boxAccounts";
 import { useCallback, useRef, useState } from "react";
 import { getAuthToken } from "../api/request";
 import { H264CanvasDecoder, parseVideoInit } from "../utils/h264CanvasDecoder";
@@ -63,14 +64,16 @@ export function useMobileStream() {
       disconnect();
       setStatus("connecting");
       decoderRef.current.attach(callbacks.canvas);
-      const ws = new WebSocket(buildWsUrl());
+      const ws = openAuthenticatedWebSocket(buildWsUrl(), () =>
+        connect(opts, callbacks),
+      );
       ws.binaryType = "arraybuffer";
       wsRef.current = ws;
       ws.onopen = () => {
         ws.send(
           JSON.stringify({
             type: "start",
-            token: getAuthToken(),
+            token: getAuthToken() || undefined,
             device: opts.device,
             quality: opts.quality ?? 75,
             max_fps: opts.maxFps ?? 10,

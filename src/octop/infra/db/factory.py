@@ -24,7 +24,7 @@ def should_defer_control_plane_db(config: OctopConfig, paths: PathLayout) -> boo
     ``OCTOP_DATABASE_*`` / PostgreSQL configuration. Password verification and
     early wizard steps then run without a pool.
     """
-    if config.database.is_postgresql:
+    if config.account_mode == "box_local" or config.database.is_postgresql:
         return False
     if database_env_configured():
         return False

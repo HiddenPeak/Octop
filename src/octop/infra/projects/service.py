@@ -15,6 +15,7 @@ from octop.infra.connectors.service import ConnectorService
 from octop.infra.db.repos.projects import ProjectRow
 from octop.infra.db.services import SharedServices
 from octop.infra.errors import ErrorCode, OctopError
+from octop.infra.projects import box_guest_policy
 from octop.infra.projects.capabilities import CAPABILITY_FIELDS, capability_options
 from octop.infra.projects.models import (
     McpOption,
@@ -44,6 +45,8 @@ def _allowed_root(services: SharedServices, owner_id: int) -> str | None:
 def resources(
     services: SharedServices, owner_id: int, *, include_skills: bool = True
 ) -> ProjectResources:
+    if box_guest_policy.is_guest(services, owner_id):
+        return ProjectResources(skills=[], mcp_servers=[], directory_roots=[])
     skills = []
     if include_skills:
         store = SkillPackageStore(
@@ -102,6 +105,7 @@ def _validate(
     cached_skills: bool = False,
     allow_expert_team: bool = False,
 ) -> str | None:
+    box_guest_policy.validate_configuration(services, owner_id, fields.model_dump())
     available = (
         resources(services, owner_id, include_skills=False)
         if cached_skills

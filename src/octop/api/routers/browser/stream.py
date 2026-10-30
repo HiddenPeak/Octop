@@ -40,7 +40,7 @@ from typing import Any
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
-from octop.api.deps import resolve_user_from_token
+from octop.api.common.websocket_auth import has_box_auth, resolve_websocket_user
 from octop.api.routers.browser.harness import (
     control_owner_for,
     harness_list_tabs,
@@ -341,12 +341,11 @@ async def browser_stream_ws(
     width: int = Query(default=1280),
     height: int = Query(default=800),
 ) -> None:
-    server = websocket.app.state.octop_server
-    if not token:
+    if not token and not has_box_auth(websocket):
         await websocket.close(code=4001, reason="missing token")
         return
     try:
-        user = resolve_user_from_token(server, token)
+        user = await asyncio.to_thread(resolve_websocket_user, websocket, token)
     except Exception as exc:
         await websocket.close(code=4001, reason=f"auth failed: {exc}")
         return

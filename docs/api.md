@@ -1,5 +1,7 @@
 # API Reference
 
+> 2026-10-30：`account_mode=box_local` 采用长期管理密钥登录网页、唯一原生主设备、一次性分享码直接加入和独立受邀身份。浏览器不计入配对设备，分享不再二次审批。协议与迁移见[盒子账户客户端接线](box-local-account-client.md)；默认 `server` 模式保留原登录。App本轮仅更新接线文档，未修改Swift/UI。
+
 MCP、连接器管理、授权流程及项目／Task 资源选择的 APP 接入见 [APP MCP 与连接器接入](app-mcp-connectors.md)。
 
 客户端本轮接线先读[统一 Task 客户端接口交接](agentcomputer-unified-conversations-handoff.md)。统一 Task 基础接口参考 `feature/agentcomputer-foundation @ 4cd685b7`，Bridge 安全修复由 `34e918d5` 提供；项目自动停止后级联删除为其后的本次修订，准确运行版本见交接文档及交付资料包。REST 完整模型见运行服务的 `/api/openapi.json`，Task WS 报文见[协议与 JSON Schema](project-task-websocket.md)。协议号不用于判断这些后续修订是否已部署。
@@ -496,7 +498,9 @@ options 还接受 reasoning_mode（auto/enabled/disabled）和 reasoning_effort�
 
 正式任务页面使用 `WS /api/project-tasks/ws`（HTTPS 部署使用 WSS）。同一页面和账号共用一条连接，可同时订阅多个任务；切换任务取消旧订阅，不停止任务。项目配置、任务列表、历史分页、改名和删除继续使用 REST。AgentComputer 原生客户端本轮未修改，仍需按本节接入。
 
-浏览器建立连接后须在 10 秒内发送首帧：
+`box_local` 的 Dashboard 通过同源 HttpOnly Cookie 握手认证，直接等待 ready；原生客户端使用 Bearer。以下 authenticate 首帧和滑动续期仅适用于 `server` 模式。
+
+`server` 模式浏览器建立连接后须在 10 秒内发送首帧：
 
 ```json
 {"type":"authenticate","token":"<access token>","locale":"zh"}

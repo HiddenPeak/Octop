@@ -1,9 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import AuthGuard from "./AuthGuard";
+import AccountEntryGate from "./AccountEntryGate";
+
+vi.mock("../api/modules/boxAccounts", () => ({
+  BOX_AUTH_REQUIRED_EVENT: "octop:box-auth-required",
+  BOX_SESSION_EVENT: "octop:box-session",
+  isBoxSessionPaused: vi.fn(() => false),
+  detectBoxStatus: vi.fn(),
+  restoreBoxSession: vi.fn(),
+}));
 
 vi.mock("../api/modules/auth", () => ({
   authApi: {
@@ -23,13 +32,125 @@ vi.mock("../utils/locale", () => ({
 
 import { authApi } from "../api/modules/auth";
 import { getAuthToken } from "../api/request";
+import { detectBoxStatus, restoreBoxSession } from "../api/modules/boxAccounts";
 
 describe("AuthGuard offline boot", () => {
   beforeEach(() => {
+    vi.mocked(detectBoxStatus).mockReset().mockResolvedValue(null);
+    vi.mocked(restoreBoxSession).mockReset().mockResolvedValue(false);
     vi.mocked(authApi.getAuthStatus).mockReset();
     vi.mocked(authApi.me).mockReset();
     vi.mocked(getAuthToken).mockReset();
     vi.mocked(getAuthToken).mockReturnValue(null);
+  });
+
+  it("restores an admin cookie with no primary device and skips legacy setup and bearer tokens", async () => {
+    vi.mocked(detectBoxStatus).mockResolvedValue({
+      state: "claimed",
+      primary_client_id: null,
+    } as never);
+    vi.mocked(restoreBoxSession).mockResolvedValue(true);
+    vi.mocked(authApi.me).mockResolvedValue({ id: 1, locale: "zh" } as never);
+    render(
+      <MemoryRouter>
+        <AuthGuard>
+          <div>box-shell</div>
+        </AuthGuard>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("box-shell")).toBeInTheDocument();
+    expect(authApi.getAuthStatus).not.toHaveBeenCalled();
+    expect(getAuthToken).not.toHaveBeenCalled();
+  });
+
+  it.each(["unclaimed", "recovery_required", "claimed"])(
+    "routes a %s box without a browser session to the connection page",
+    async (state) => {
+      vi.mocked(detectBoxStatus).mockResolvedValue({ state } as never);
+      render(
+        <MemoryRouter initialEntries={["/"]}>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <AuthGuard>
+                  <div>private-data</div>
+                </AuthGuard>
+              }
+            />
+            <Route path="/connect" element={<div>box-connect</div>} />
+          </Routes>
+        </MemoryRouter>,
+      );
+      expect(await screen.findByText("box-connect")).toBeInTheDocument();
+      expect(screen.queryByText("private-data")).not.toBeInTheDocument();
+      expect(authApi.getAuthStatus).not.toHaveBeenCalled();
+      expect(authApi.me).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not fall back to password login when detecting account mode fails", async () => {
+    vi.mocked(detectBoxStatus).mockRejectedValue(
+      new TypeError("Failed to fetch"),
+    );
+    render(
+      <MemoryRouter>
+        <AuthGuard>
+          <div>private-data</div>
+        </AuthGuard>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(authApi.getAuthStatus).not.toHaveBeenCalled();
+    expect(screen.queryByText("private-data")).not.toBeInTheDocument();
+  });
+
+  it("unmounts private data when the browser session is revoked", async () => {
+    vi.mocked(detectBoxStatus).mockResolvedValue({ state: "claimed" } as never);
+    vi.mocked(restoreBoxSession).mockResolvedValue(true);
+    vi.mocked(authApi.me).mockResolvedValue({ id: 1, locale: "zh" } as never);
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <AuthGuard>
+                <div>private-data</div>
+              </AuthGuard>
+            }
+          />
+          <Route path="/connect" element={<div>box-connect</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByText("private-data");
+    act(() => {
+      window.dispatchEvent(new Event("octop:box-auth-required"));
+    });
+    expect(await screen.findByText("box-connect")).toBeInTheDocument();
+    expect(screen.queryByText("private-data")).not.toBeInTheDocument();
+  });
+
+  it("redirects old password/setup bookmarks before mounting their forms", async () => {
+    vi.mocked(detectBoxStatus).mockResolvedValue({ state: "claimed" } as never);
+    render(
+      <MemoryRouter initialEntries={["/setup"]}>
+        <Routes>
+          <Route
+            path="/setup"
+            element={
+              <AccountEntryGate>
+                <div>old-password-form</div>
+              </AccountEntryGate>
+            }
+          />
+          <Route path="/connect" element={<div>box-connect</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("box-connect")).toBeInTheDocument();
+    expect(screen.queryByText("old-password-form")).not.toBeInTheDocument();
   });
 
   it("shows offline panel instead of the protected shell when setup/status fails", async () => {

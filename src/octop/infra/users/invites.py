@@ -15,6 +15,7 @@ from octop.infra.db.repos._base import now_ts
 from octop.infra.db.repos.invites import InviteRepo, InviteRow, invite_status_payload
 from octop.infra.db.services import SharedServices
 from octop.infra.errors import ErrorCode, OctopError
+from octop.infra.users.account_mode import require_server_account_mode
 from octop.infra.users.identity import Role, User
 from octop.infra.users.password import hash_password, validate_password_policy
 from octop.infra.utils.locale import normalize_locale
@@ -82,6 +83,7 @@ class InviteService:
         role_name: str | None = None,
         role: str | None = None,
     ) -> InviteRow:
+        require_server_account_mode(self._services.config)
         days = int(expires_in_days)
         if days < MIN_EXPIRES_DAYS or days > MAX_EXPIRES_DAYS:
             raise OctopError(
@@ -136,6 +138,7 @@ class InviteService:
         return invite_status_payload(after)
 
     def validate(self, code: str) -> dict[str, object]:
+        require_server_account_mode(self._services.config)
         cleaned = (code or "").strip()
         if not cleaned:
             raise OctopError(ErrorCode.INVITE_INVALID, "invite code required", status=400)
@@ -163,6 +166,7 @@ class InviteService:
         register_user: Callable[[User], None],
         email: str | None = None,
     ) -> User:
+        require_server_account_mode(self._services.config)
         from octop.infra.users.email import parse_optional_email
 
         cleaned_code = (code or "").strip()

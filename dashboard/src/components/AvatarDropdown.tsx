@@ -30,6 +30,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { authApi } from "../api/modules/auth";
+import { isBoxAccountMode, logoutBoxSession } from "../api/modules/boxAccounts";
 import { preferencesApi } from "../api/modules/preferences";
 import { clearAuthToken } from "../api/request";
 import { applyGuestLocale, applyUserLocale } from "../utils/locale";
@@ -105,6 +106,7 @@ export default function AvatarDropdown({
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const role = useUserRole();
+  const boxMode = isBoxAccountMode();
   const isMobile = useIsMobile();
   const { layoutMode, setLayoutMode } = useLayoutMode();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -125,11 +127,17 @@ export default function AvatarDropdown({
 
   const handleLogout = useCallback(async () => {
     setMenuOpen(false);
-    await authApi.logout();
+    try {
+      if (boxMode) await logoutBoxSession();
+      else await authApi.logout();
+    } catch (err) {
+      message.error(apiErrorMessage(err, t("boxAccount.disconnectFailed"), t));
+      return;
+    }
     clearAuthToken();
     await applyGuestLocale();
-    navigate("/login", { replace: true });
-  }, [navigate]);
+    navigate(boxMode ? "/connect" : "/login", { replace: true });
+  }, [boxMode, navigate, t]);
 
   const handleSaveProfile = async (values: { display_name: string }) => {
     setSaving(true);
@@ -261,10 +269,16 @@ export default function AvatarDropdown({
   };
 
   const currentLang = i18n.language?.startsWith("zh") ? "zh" : "en";
-  const roleLabel =
-    role === "admin" ? t("account.roleAdmin") : t("account.roleUser");
+  const roleLabel = boxMode
+    ? t("boxAccount.owner")
+    : role === "admin"
+    ? t("account.roleAdmin")
+    : t("account.roleUser");
 
-  const displayName = user?.display_name || user?.username || "—";
+  const displayName =
+    user?.display_name ||
+    (boxMode ? t("boxAccount.owner") : user?.username) ||
+    "—";
 
   /** Defer panel open so the account Popover / mobile sidebar can unmount first. */
   const deferOpen = (open: () => void) => {
@@ -300,13 +314,14 @@ export default function AvatarDropdown({
       .me()
       .then((next) => onUserChange?.(next))
       .catch(() => undefined);
-    void authApi
-      .getOauthStatus()
-      .then((status) =>
-        setSsoProviders(status.providers.filter((item) => item.enabled)),
-      )
-      .catch(() => undefined);
-  }, [onUserChange, settingsOpen]);
+    if (!boxMode)
+      void authApi
+        .getOauthStatus()
+        .then((status) =>
+          setSsoProviders(status.providers.filter((item) => item.enabled)),
+        )
+        .catch(() => undefined);
+  }, [boxMode, onUserChange, settingsOpen]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -354,7 +369,7 @@ export default function AvatarDropdown({
             {roleLabel}
           </Tag>
         </div>
-        {user?.username && (
+        {!boxMode && user?.username && (
           <span className={styles.menuHandle}>@{user.username}</span>
         )}
       </div>
@@ -404,13 +419,34 @@ export default function AvatarDropdown({
 
       <button type="button" className={styles.menuItem} onClick={openSettings}>
         <Settings size={16} strokeWidth={1.8} />
-        <span>{t("account.settings")}</span>
+        <span>
+          {t(boxMode ? "boxAccount.preferences" : "account.settings")}
+        </span>
       </button>
 
-      <button type="button" className={styles.menuItem} onClick={openPassword}>
-        <KeyRound size={16} strokeWidth={1.8} />
-        <span>{t("account.changePassword")}</span>
-      </button>
+      {boxMode ? (
+        <button
+          type="button"
+          className={styles.menuItem}
+          onClick={() => {
+            setMenuOpen(false);
+            onBeforeOpenSettings?.();
+            navigate("/box/devices");
+          }}
+        >
+          <KeyRound size={16} strokeWidth={1.8} />
+          <span>{t("boxAccount.devices")}</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          className={styles.menuItem}
+          onClick={openPassword}
+        >
+          <KeyRound size={16} strokeWidth={1.8} />
+          <span>{t("account.changePassword")}</span>
+        </button>
+      )}
 
       {userCan(user, "update") && (
         <button
@@ -434,7 +470,7 @@ export default function AvatarDropdown({
         onClick={() => void handleLogout()}
       >
         <LogOut size={16} strokeWidth={1.8} />
-        <span>{t("auth.logout")}</span>
+        <span>{t(boxMode ? "boxAccount.disconnect" : "auth.logout")}</span>
       </button>
     </div>
   );
@@ -498,7 +534,7 @@ export default function AvatarDropdown({
               {roleLabel}
             </Tag>
           </div>
-          {user?.username && (
+          {!boxMode && user?.username && (
             <span className={styles.settingsIdentityHandle}>
               @{user.username}
             </span>
@@ -652,7 +688,7 @@ export default function AvatarDropdown({
         <PaletteSwitcher />
       </section>
 
-      {ssoRows.length > 0 && (
+      {!boxMode && ssoRows.length > 0 && (
         <>
           <Divider className={styles.settingsDivider} />
           <section className={styles.settingsSection}>
@@ -832,7 +868,7 @@ export default function AvatarDropdown({
 
       {isMobile ? (
         <Drawer
-          title={t("account.settings")}
+          title={t(boxMode ? "boxAccount.preferences" : "account.settings")}
           open={settingsOpen}
           onClose={closeSettings}
           placement="bottom"
@@ -850,7 +886,7 @@ export default function AvatarDropdown({
         </Drawer>
       ) : (
         <Modal
-          title={t("account.settings")}
+          title={t(boxMode ? "boxAccount.preferences" : "account.settings")}
           open={settingsOpen}
           onCancel={closeSettings}
           footer={null}

@@ -14,6 +14,7 @@ from octop.infra.db.pool import DatabasePool
 from octop.infra.db.repos.agents import AgentRepo
 from octop.infra.db.repos.audit import AuditRepo
 from octop.infra.db.repos.backends import BackendRepo
+from octop.infra.db.repos.box_accounts import BoxAccountRepo
 from octop.infra.db.repos.bridge_connections import BridgeConnectionRepo
 from octop.infra.db.repos.care_push import CarePushRepo
 from octop.infra.db.repos.channels import ChannelRepo
@@ -76,6 +77,7 @@ from octop.infra.utils.paths import PathLayout
 class RepoBundle:
     db: DatabasePool
 
+    box_account_repo: BoxAccountRepo
     conversation_migration_repo: ConversationMigrationRepo
     unified_source_route_repo: UnifiedSourceRouteRepo
     unified_source_inbox_repo: UnifiedSourceInboxRepo
@@ -140,6 +142,7 @@ class RepoBundle:
         secret_repo = SecretRepo(db)
         return cls(
             db=db,
+            box_account_repo=BoxAccountRepo(db),
             conversation_migration_repo=ConversationMigrationRepo(db),
             unified_source_route_repo=UnifiedSourceRouteRepo(),
             unified_source_inbox_repo=UnifiedSourceInboxRepo(),
@@ -205,6 +208,10 @@ class SharedServices:
     paths: PathLayout
     config: OctopConfig
     repos: RepoBundle
+
+    @property
+    def box_account_repo(self) -> BoxAccountRepo:
+        return self.repos.box_account_repo
 
     @property
     def db(self) -> DatabasePool:

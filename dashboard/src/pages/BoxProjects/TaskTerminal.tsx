@@ -1,3 +1,8 @@
+import {
+  openAuthenticatedWebSocket,
+  hasBoxSession,
+  isBoxAccountMode,
+} from "../../api/modules/boxAccounts";
 import { randomUUID } from "../../utils/randomUUID";
 import { useTaskHost } from "../../context/TaskHostContext";
 import { useEffect, useRef, useState } from "react";
@@ -32,13 +37,19 @@ export default function TaskTerminal({ scope }: { scope: TaskWorkbenchScope }) {
       socket.current.send(JSON.stringify(body));
   };
   useEffect(() => {
-    if (!sessionID || scope.read_only) return;
-    const ws = new WebSocket(
+    if (
+      !sessionID ||
+      scope.read_only ||
+      (isBoxAccountMode() && !hasBoxSession())
+    )
+      return;
+    const ws = openAuthenticatedWebSocket(
       taskWorkbenchApi.terminalUrl(
         scope.task_id,
         sessionID,
         scope.scope_revision,
       ),
+      () => setVersion((value) => value + 1),
     );
     socket.current = ws;
     ws.onopen = () => {

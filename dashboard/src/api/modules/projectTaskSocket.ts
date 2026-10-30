@@ -1,3 +1,9 @@
+import {
+  openAuthenticatedWebSocket,
+  isBoxAccountMode,
+  restoreBoxSession,
+  boxSessionIdentity,
+} from "./boxAccounts";
 import { randomUUID } from "../../utils/randomUUID";
 import i18n from "../../i18n";
 import { taskSocketPath } from "../taskTransport";
@@ -84,14 +90,17 @@ export class ProjectTaskSocket {
     }, 1000);
   }
 
-  private connect(): Promise<void> {
+  private async connect(): Promise<void> {
+    if (isBoxAccountMode()) await restoreBoxSession();
     clearTimeout(this.idle);
-    const token = getAuthToken();
+    const token = isBoxAccountMode() ? boxSessionIdentity() : getAuthToken();
     if (this.socket && this.token !== token)
       this.fail(disconnected(), this.socket);
     if (this.ready) return this.ready;
     if (!token) return Promise.reject(new Error("Unauthorized"));
-    const socket = new WebSocket(getWsUrl(taskSocketPath(this.hostID)));
+    const socket = openAuthenticatedWebSocket(
+      getWsUrl(taskSocketPath(this.hostID)),
+    );
     this.socket = socket;
     this.token = token;
     this.ready = new Promise<void>((resolve, reject) => {
@@ -101,7 +110,7 @@ export class ProjectTaskSocket {
         10000,
       );
       socket.onopen = () => {
-        if (this.socket === socket)
+        if (this.socket === socket && !isBoxAccountMode())
           socket.send(
             JSON.stringify({
               type: "authenticate",
@@ -112,7 +121,10 @@ export class ProjectTaskSocket {
       };
       socket.onmessage = (event) => {
         if (this.socket !== socket) return;
-        if (getAuthToken() !== this.token) {
+        if (
+          (isBoxAccountMode() ? boxSessionIdentity() : getAuthToken()) !==
+          this.token
+        ) {
           this.fail(disconnected(), socket);
           return;
         }
@@ -141,7 +153,8 @@ export class ProjectTaskSocket {
         } else if (
           frame.type === "session" &&
           frame.access_token &&
-          !this.hostID
+          !this.hostID &&
+          !isBoxAccountMode()
         ) {
           setAuthToken(frame.access_token, !isSessionOnlyAuth());
           this.token = frame.access_token;
