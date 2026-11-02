@@ -88,26 +88,22 @@ export default function BoxDevicesPage() {
   const changeClient = (client: BoxClient, primary: boolean) => {
     modal.confirm({
       title: t(
-        primary ? "boxAccount.setPrimaryTitle" : "boxAccount.revokeTitle",
+        primary ? "boxAccount.setOwnerTitle" : "boxAccount.revokeTitle",
         { name: client.name },
       ),
       content: t(
-        primary ? "boxAccount.setPrimaryConfirm" : "boxAccount.revokeConfirm",
+        primary ? "boxAccount.setOwnerConfirm" : "boxAccount.revokeConfirm",
       ),
-      okText: t(primary ? "boxAccount.setPrimary" : "boxAccount.revoke"),
+      okText: t(primary ? "boxAccount.setOwner" : "boxAccount.revoke"),
       okButtonProps: { danger: !primary },
       cancelText: t("common.cancel"),
       onOk: async () => {
         setBusyId(client.client_id);
         try {
-          if (primary) await boxAccountsApi.setPrimary(client.client_id);
+          if (primary) await boxAccountsApi.setOwner(client.client_id);
           else await boxAccountsApi.revoke(client.client_id);
           message.success(
-            t(
-              primary
-                ? "boxAccount.primaryChanged"
-                : "boxAccount.revokedSuccess",
-            ),
+            t(primary ? "boxAccount.ownerAdded" : "boxAccount.revokedSuccess"),
           );
           await refresh();
         } catch (err) {
@@ -200,7 +196,7 @@ export default function BoxDevicesPage() {
                           client.state === "revoked"
                             ? "boxAccount.revoked"
                             : client.role === "primary"
-                            ? "boxAccount.primaryDevice"
+                            ? "boxAccount.ownerDevice"
                             : "boxAccount.guestDevice",
                         )}
                       </Tag>
@@ -219,7 +215,7 @@ export default function BoxDevicesPage() {
                           loading={busyId === client.client_id}
                           onClick={() => changeClient(client, true)}
                         >
-                          {t("boxAccount.setPrimary")}
+                          {t("boxAccount.setOwner")}
                         </Button>
                       )}
                       <Button

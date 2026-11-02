@@ -126,6 +126,15 @@ class BoxAccountRepo:
     def clients(self, conn: Any) -> list[dict[str, Any]]:
         return [dict(row) for row in conn.execute("SELECT * FROM box_paired_clients ORDER BY id")]
 
+    def owner_client_ids(self, conn: Any) -> list[str]:
+        return [
+            str(row["client_id"])
+            for row in conn.execute(
+                "SELECT client_id FROM box_paired_clients "
+                "WHERE role='primary' AND state='active' ORDER BY id"
+            )
+        ]
+
     def create_client(
         self,
         conn: Any,

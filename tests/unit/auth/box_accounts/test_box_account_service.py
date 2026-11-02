@@ -150,8 +150,14 @@ def test_first_primary_is_explicit_and_guest_users_are_independent(service, mana
     assert service.account(guest)["user"]["id"] == guest.user.id
     assert service.user_for_client(guest_id) == guest.user
     assert {row["role"] for row in service.clients(manager)} == {"primary", "guest"}
-    with pytest.raises(OctopError):
-        primary_candidate(service, management_key, "takeover")
+    other_key, candidate = primary_candidate(service, management_key, "another-owner")
+    other_id = service.prove_pairing(
+        candidate["pairing_id"], sign(other_key, candidate["challenge"])
+    )["client_id"]
+    other, _ = login(service, other_key, other_id)
+    assert other.user.id == primary.user.id
+    assert set(service.account(other)["owner_client_ids"]) == {primary_id, other_id}
+    assert service.account(guest)["owner_client_ids"] == []
 
 
 @pytest.mark.parametrize(
@@ -165,7 +171,7 @@ def test_guest_cannot_manage_box(service, management_key, operation):
         "share": lambda: service.create_enroll_grant(guest, request_id="no"),
         "clients": lambda: service.clients(guest),
         "revoke": lambda: service.revoke_client(guest, client_id),
-        "primary": lambda: service.set_primary(guest, client_id),
+        "primary": lambda: service.add_owner_device(guest, client_id),
         "rotate": lambda: service.rotate_management_key(guest),
         "browser": lambda: service.browser_session(guest),
     }
@@ -189,7 +195,7 @@ def test_primary_can_share_with_action_proof_but_cannot_manage_key_or_devices(
     service.prove_pairing(pairing["pairing_id"], sign(new_key, pairing["challenge"]))
     for operation in (
         lambda: service.revoke_client(context, client_id),
-        lambda: service.set_primary(context, client_id),
+        lambda: service.add_owner_device(context, client_id),
         lambda: service.rotate_management_key(context),
     ):
         with pytest.raises(OctopError) as denied:
@@ -197,7 +203,7 @@ def test_primary_can_share_with_action_proof_but_cannot_manage_key_or_devices(
         assert denied.value.status == 403
 
 
-def test_primary_transfer_revokes_both_sessions_and_retains_guest_identity(service, management_key):
+def test_adding_owner_preserves_other_devices_and_guest_data(service, management_key):
     manager = admin(service, management_key)
     first_key, first_id = claim(service, management_key)
     second_key, second_id = enroll(service, manager)
@@ -205,28 +211,37 @@ def test_primary_transfer_revokes_both_sessions_and_retains_guest_identity(servi
     first, first_token = login(service, first_key, first_id)
     second, second_token = login(service, second_key, second_id)
     other, other_token = login(service, other_key, other_id)
-    proof = sign(
-        first_key,
-        service.create_challenge(
-            client_id=first_id, action="enroll", params={"request_id": "cancel"}
+    grant = service.create_enroll_grant(
+        first,
+        request_id="still-valid",
+        proof=sign(
+            first_key,
+            service.create_challenge(
+                client_id=first_id, action="enroll", params={"request_id": "still-valid"}
+            ),
         ),
     )
-    grant = service.create_enroll_grant(first, request_id="cancel", proof=proof)
     original_ids = {row["client_id"]: row["guest_user_id"] for row in service.clients(manager)}
-    service.set_primary(manager, second_id)
-    for token in (first_token, second_token):
-        with pytest.raises(OctopError):
-            service.validate_access_token(token)
-    assert service.validate_access_token(other_token) == other
-    assert login(service, first_key, first_id)[0].user.id == original_ids[first_id]
-    assert login(service, second_key, second_id)[0].user.id == manager.user.id
+    service.add_owner_device(manager, second_id)
     with pytest.raises(OctopError):
-        begin_pairing(service, grant, request_id="cancelled")
-    service.set_primary(manager, first_id)
-    assert login(service, second_key, second_id)[0].user.id == second.user.id
+        service.validate_access_token(second_token)
+    assert service.validate_access_token(first_token) == first
+    assert service.validate_access_token(other_token) == other
+    second_owner, second_owner_token = login(service, second_key, second_id)
+    assert second_owner.user.id == manager.user.id != second.user.id
+    begin_pairing(service, grant, request_id="still-usable")
+    service.add_owner_device(manager, second_id)  # Idempotent; no session revocation.
+    assert service.validate_access_token(second_owner_token) == second_owner
     assert original_ids == {
         row["client_id"]: row["guest_user_id"] for row in service.clients(manager)
     }
+    service.revoke_client(manager, first_id)
+    with pytest.raises(OctopError):
+        service.validate_access_token(first_token)
+    assert service.validate_access_token(second_owner_token) == second_owner
+    assert service.validate_access_token(other_token) == other
+    assert service.account(manager)["owner_client_ids"] == [second_id]
+    assert service.status()["primary_client_id"] == second_id
 
 
 def test_admin_can_revoke_last_primary_and_recover_without_any_client(service, management_key):
@@ -554,7 +569,7 @@ def test_old_database_never_revives_authorization(service, management_key, tmp_p
     elif mutation == "rotate":
         service.rotate_management_key(manager)
     elif mutation == "transfer":
-        service.set_primary(manager, guest_id)
+        service.add_owner_device(manager, guest_id)
     else:
         service.logout(context)
     with service._services.db.connect() as conn:
@@ -726,7 +741,7 @@ def test_migration_062_preserves_old_rows_and_dialect_parity(tmp_path, monkeypat
         run_migrations(db)
         with db.connect() as conn:
             assert dict(conn.execute("SELECT * FROM users").fetchone()) == before
-            assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 62
+            assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 63
             assert conn.execute("SELECT auth_model_version FROM box_account").fetchone()[0] == 1
             assert (
                 conn.execute("SELECT role,guest_user_id FROM box_paired_clients").fetchone()["role"]
@@ -760,7 +775,68 @@ def test_management_migration_replay_preserves_live_authorization(service, manag
     with service._services.db.connect() as conn:
         assert service._repo.account(conn) == account
         assert service._repo.clients(conn) == clients
-        assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 62
+        assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 63
     assert service._trust.read() == trust
     assert service.validate_context(manager) == manager
     assert service.validate_access_token(token) == client
+
+
+def test_v62_upgrade_preserves_owner_and_trust_then_allows_multiple_devices(
+    service, management_key
+):
+    key, first_id = claim(service, management_key)
+    first, token = login(service, key, first_id)
+    with service._services.db.transaction() as conn:
+        conn.execute(
+            "CREATE UNIQUE INDEX idx_box_active_primary ON box_paired_clients(role) WHERE role='primary' AND state='active'"
+        )
+        conn.execute("UPDATE _schema_version SET version=62")
+        before = service._repo.account(conn)
+    trust = service._trust.read()
+    run_migrations(service._services.db)
+    with service._services.db.connect() as conn:
+        assert service._repo.account(conn) == before
+    assert service._trust.read() == trust
+    assert service.validate_access_token(token) == first
+    other_key, candidate = primary_candidate(service, management_key, "upgraded-owner")
+    other_id = service.prove_pairing(
+        candidate["pairing_id"], sign(other_key, candidate["challenge"])
+    )["client_id"]
+    assert login(service, other_key, other_id)[0].user.id == first.user.id
+    # Repairing an old watermark must not recreate the removed singleton index.
+    with service._services.db.transaction() as conn:
+        conn.execute("UPDATE _schema_version SET version=61")
+    run_migrations(service._services.db)
+    run_migrations(service._services.db)
+    restarted = BoxAccountService(service._services, secret=b"test-secret" * 4, box_id="test-box")
+    restarted.initialize()
+    assert login(restarted, key, first_id)[0].user.id == first.user.id
+    assert login(restarted, other_key, other_id)[0].user.id == first.user.id
+    sqlite_sql = (migrate._MIGRATIONS_DIR / "063_multiple_owner_devices.sql").read_text()
+    assert sqlite_sql == (migrate._MIGRATIONS_DIR / "063_multiple_owner_devices.pg.sql").read_text()
+
+
+def test_independent_owner_candidates_survive_another_registration(service, management_key):
+    first_key, first = primary_candidate(service, management_key, "first")
+    second_key, second = primary_candidate(service, management_key, "second")
+    first_id = service.prove_pairing(first["pairing_id"], sign(first_key, first["challenge"]))[
+        "client_id"
+    ]
+    # A changed authorization revision invalidates the old challenge, not the candidate.
+    with pytest.raises(OctopError):
+        service.prove_pairing(second["pairing_id"], sign(second_key, second["challenge"]))
+    retry = service.create_primary_claim(
+        management_key=management_key,
+        request_id="second",
+        public_key_jwk=json.loads(jwt.algorithms.ECAlgorithm.to_jwk(second_key.public_key())),
+        name="Primary",
+        platform="native",
+    )
+    assert retry["pairing_id"] == second["pairing_id"]
+    second_id = service.prove_pairing(retry["pairing_id"], sign(second_key, retry["challenge"]))[
+        "client_id"
+    ]
+    assert (
+        login(service, first_key, first_id)[0].user.id
+        == login(service, second_key, second_id)[0].user.id
+    )

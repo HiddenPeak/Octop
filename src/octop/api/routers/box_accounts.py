@@ -76,8 +76,14 @@ class BoxStatusResponse(BaseModel):
     account_mode: Literal["box_local"]
     protocol_version: Literal[1]
     auth_model_version: Literal[2]
+    multiple_owner_devices: Literal[True] = Field(
+        description="Owner access can be granted to multiple independently revocable clients."
+    )
     management_key_configured: bool
-    primary_client_id: str | None
+    primary_client_id: str | None = Field(
+        deprecated=True,
+        description="Legacy representative owner device; never an authorization selector.",
+    )
     box_id: str
     state: Literal["unclaimed", "claimed", "recovery_required"]
     pairing_available: bool
@@ -210,7 +216,13 @@ class BoxAccountResponse(BaseModel):
     owner: OwnerResponse | None = None
     role: Literal["admin", "primary", "guest"]
     session_kind: Literal["admin", "client"]
-    primary_client_id: str | None
+    primary_client_id: str | None = Field(
+        deprecated=True,
+        description="Legacy representative owner device; never an authorization selector.",
+    )
+    owner_client_ids: list[str] = Field(
+        description="Active owner devices; empty for guest callers. Wire role primary means owner access."
+    )
     auth_revision: int
     recovery_key_confirmed: bool
     instance_id: str
@@ -259,8 +271,15 @@ async def create_pairing(body: PairingRequest, service: PublicService) -> Pairin
     "/primary-claims",
     openapi_extra={"security": []},
     response_model=PairingResponse,
-    summary="Explicitly claim the first native primary device",
-    description="A management key authorizes the candidate; possession of its private key must be proved separately. Browser login never claims this slot.",
+    summary="Register an owner device (legacy path)",
+    deprecated=True,
+)
+@router.post(
+    "/owner-claims",
+    openapi_extra={"security": []},
+    response_model=PairingResponse,
+    summary="Register another owner device using the management key",
+    description="Proof of the candidate private key is required. Existing owner devices keep access. The primary wire role denotes shared owner access.",
 )
 async def create_primary_claim(
     body: PrimaryClaimRequest, service: PublicService
@@ -546,7 +565,7 @@ async def retired_approval(context: Context) -> Response:
     status_code=204,
     openapi_extra=box_auth_metadata(admin_only=True, mutation=True),
     summary="Revoke any native client and its sessions",
-    description="Web administrator only. Revocation may remove the last primary device; existing data remains.",
+    description="Web administrator only. Revocation may remove the last owner device; existing data remains.",
 )
 async def revoke(client_id: str, context: Context, service: Service) -> Response:
     await asyncio.to_thread(service.revoke_client, context, client_id)
@@ -555,12 +574,26 @@ async def revoke(client_id: str, context: Context, service: Service) -> Response
 
 @router.post(
     "/clients/{client_id}/primary",
-    status_code=204,
+    status_code=410,
     openapi_extra=box_auth_metadata(admin_only=True, mutation=True),
-    summary="Transfer the primary role to an active native client",
+    summary="Retired exclusive primary-device transfer",
+    description="Returns 410 without changing authorization. Use /owner to explicitly grant shared owner access.",
+    deprecated=True,
 )
 async def set_primary(client_id: str, context: Context, service: Service) -> Response:
     await asyncio.to_thread(service.set_primary, context, client_id)
+    return Response(status_code=410)
+
+
+@router.post(
+    "/clients/{client_id}/owner",
+    status_code=204,
+    openapi_extra=box_auth_metadata(admin_only=True, mutation=True),
+    summary="Grant an active client access to the owner account",
+    description="Web administrator only. Other owner devices retain access. This client must sign in again; its previous guest data remains separate.",
+)
+async def add_owner_device(client_id: str, context: Context, service: Service) -> Response:
+    await asyncio.to_thread(service.add_owner_device, context, client_id)
     return Response(status_code=204, headers={"Cache-Control": "no-store"})
 
 

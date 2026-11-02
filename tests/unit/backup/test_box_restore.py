@@ -122,7 +122,7 @@ def test_box_snapshot_cannot_be_imported_into_fresh_server(
         target_pool.close()
 
 
-@pytest.mark.parametrize("version", [60, 61, 62])
+@pytest.mark.parametrize("version", [60, 61, 62, 63])
 def test_normal_server_backups_with_missing_or_empty_box_tables_remain_restorable(
     tmp_path, monkeypatch, version
 ):

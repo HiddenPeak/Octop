@@ -20,7 +20,7 @@ vi.mock("../../api/modules/boxAccounts", () => ({
   boxAccountsApi: {
     clients: mocks.clients,
     createShare: mocks.create,
-    setPrimary: mocks.primary,
+    setOwner: mocks.primary,
     revoke: mocks.revoke,
   },
 }));
@@ -62,7 +62,7 @@ describe("BoxDevices native client management", () => {
   it("allows revoking the final device without ending web management", async () => {
     render(<BoxDevicesPage />);
     await screen.findByText("Mac app");
-    expect(screen.getByText("boxAccount.primaryDevice")).toBeVisible();
+    expect(screen.getByText("boxAccount.ownerDevice")).toBeVisible();
     const revoke = screen.getByRole("button", { name: "boxAccount.revoke" });
     expect(revoke).toBeEnabled();
     fireEvent.click(revoke);
@@ -71,14 +71,14 @@ describe("BoxDevices native client management", () => {
     expect(mocks.revoke).toHaveBeenCalledWith("client-1");
     expect(mocks.navigate).not.toHaveBeenCalled();
   });
-  it("confirms primary reassignment for an invited client", async () => {
+  it("confirms granting owner access to an invited client", async () => {
     mocks.clients.mockResolvedValue([{ ...device, role: "guest" }]);
     render(<BoxDevicesPage />);
     fireEvent.click(
-      await screen.findByRole("button", { name: "boxAccount.setPrimary" }),
+      await screen.findByRole("button", { name: "boxAccount.setOwner" }),
     );
     expect(mocks.confirm.mock.calls[0][0].content).toBe(
-      "boxAccount.setPrimaryConfirm",
+      "boxAccount.setOwnerConfirm",
     );
     await act(async () => mocks.confirm.mock.calls[0][0].onOk());
     expect(mocks.primary).toHaveBeenCalledWith("client-1");

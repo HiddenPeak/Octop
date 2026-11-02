@@ -15,6 +15,7 @@ export interface BoxStatus {
   account_mode: "box_local";
   protocol_version: number;
   auth_model_version: 2;
+  multiple_owner_devices?: boolean;
   management_key_configured: boolean;
   primary_client_id: string | null;
   box_id: string;
@@ -42,6 +43,7 @@ export interface BoxAccount {
   role: "admin" | "primary" | "guest";
   session_kind: "admin" | "client";
   primary_client_id: string | null;
+  owner_client_ids?: string[];
   recovery_key_confirmed: boolean;
   instance_id: string;
   account_id: string;
@@ -326,9 +328,9 @@ export const boxAccountsApi = {
     protectedCall<BoxShareCode>("/box/pairing-grants", {
       request_id: crypto.randomUUID(),
     }),
-  setPrimary: (clientId: string) =>
+  setOwner: (clientId: string) =>
     protectedCall<void>(
-      `/box/clients/${encodeURIComponent(clientId)}/primary`,
+      `/box/clients/${encodeURIComponent(clientId)}/owner`,
       {},
     ),
   revoke: (clientId: string) =>

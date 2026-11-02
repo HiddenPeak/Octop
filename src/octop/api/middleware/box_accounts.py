@@ -27,6 +27,7 @@ _PUBLIC = {
     ("GET", "/api/box/status"),
     ("POST", "/api/box/pairings"),
     ("POST", "/api/box/primary-claims"),
+    ("POST", "/api/box/owner-claims"),
     ("POST", "/api/auth/challenges"),
     ("POST", "/api/auth/sessions"),
     ("POST", "/api/auth/browser/sessions"),

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from octop.infra.auth.box_context import box_request_auth
 from octop.infra.projects import client_tools, runtime
 from octop.infra.projects.client_tool_models import ClientToolDefinition
@@ -18,18 +20,25 @@ from tests.integration.test_project_task_client_tools import DEFINITION, identit
 from tests.integration.test_project_tasks import settled
 from tests.integration.test_project_tasks_ws import until
 from tests.support.auth import seed_openai_provider
-from tests.support.box_accounts import _login
+from tests.support.box_accounts import _admin_login, _login
 
 
+@pytest.mark.parametrize("other_is_owner", [False, True])
 async def test_box_tool_worker_survives_logout_and_requires_the_original_device(
     connected_box,  # noqa: F811
     monkeypatch,
+    other_is_owner,
 ):
     from octop.api.routers import project_tasks_ws
 
     client, _server, key, client_id, auth = connected_box
     await seed_openai_provider(client, auth)
-    _other_key, other_id, other_auth = await _second_client(client, key, client_id, auth)
+    other_key, other_id, other_auth = await _second_client(client, key, client_id, auth)
+    if other_is_owner:
+        manager = await _admin_login(client, _server)
+        response = await client.post(f"/api/box/clients/{other_id}/owner", headers=manager, json={})
+        assert response.status_code == 204
+        other_auth, _ = await _login(client, other_key, other_id)
     observed = []
 
     async def run(services, owner, turn, history):
@@ -68,9 +77,11 @@ async def test_box_tool_worker_survives_logout_and_requires_the_original_device(
         assert call["status"] == "pending"
         assert (await client.post("/api/auth/logout", headers=auth)).status_code == 204
 
-    # An independent guest cannot read or execute the primary device's call.
+    # Even another owner device cannot claim this device-bound tool call.
     async with _connect(client, other_auth) as other:
         await _ready(other)
+        impersonation = await _command(other, "client.attach", "impersonate", client_id=client_id)
+        assert impersonation["type"] == "error" and impersonation["status"] == 403
         await _command(other, "client.attach", "attach-other", client_id=other_id)
         denied = await _command(other, "tool.get", "wrong-device", **identity(call))
         assert denied["type"] == "error" and denied["status"] in {403, 404}

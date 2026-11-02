@@ -219,9 +219,9 @@ it("rotates the key without storing it and requires explicit login", async () =>
 it("manages clients using admin cookie endpoints without proofs", async () => {
   const box = await import("./boxAccounts");
   await box.connectBoxSession("admin-key");
-  await box.boxAccountsApi.setPrimary("client/1");
+  await box.boxAccountsApi.setOwner("client/1");
   await box.boxAccountsApi.revoke("client/1");
-  expect(bodyOf("/box/clients/client%2F1/primary")).toEqual({});
+  expect(bodyOf("/box/clients/client%2F1/owner")).toEqual({});
   expect(bodyOf("/box/clients/client%2F1/revoke")).toEqual({});
 });
 it("preserves server-mode fetch options and bearer authentication", async () => {

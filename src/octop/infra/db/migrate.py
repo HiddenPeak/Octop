@@ -1763,6 +1763,8 @@ def _reconcile_pre_squash_schema_version(db: DatabasePool) -> None:
 
 def _apply_postgresql_migration(conn: Any, sql: str) -> None:
     for stmt in _split_pg_sql(sql):
+        if stmt.startswith("CREATE UNIQUE INDEX IF NOT EXISTS idx_box_active_primary"):
+            continue  # Migration 063 removes this obsolete singleton constraint.
         conn.execute(stmt)
 
 
@@ -1921,6 +1923,8 @@ def _apply_sqlite_migration(db: DatabasePool, version: int, path: Path) -> None:
         # A repaired/partially upgraded database can already contain these
         # columns with a lower watermark. Preserve their authorization values.
         for statement in _split_pg_sql(path.read_text(encoding="utf-8")):
+            if statement.startswith("CREATE UNIQUE INDEX IF NOT EXISTS idx_box_active_primary"):
+                continue  # Migration 063 removes this obsolete singleton constraint.
             column = re.fullmatch(
                 r"ALTER TABLE (\w+) ADD COLUMN (\w+) (.+)", statement, flags=re.DOTALL
             )

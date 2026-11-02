@@ -235,6 +235,7 @@ class BoxAccountService:
             "primary_client_id": primary,
             "management_key_configured": configured,
             "auth_model_version": 2,
+            "multiple_owner_devices": True,
         }
 
     def _upgrade_legacy(self, conn: Any) -> None:
@@ -464,9 +465,7 @@ class BoxAccountService:
     ) -> dict[str, Any]:
         public_key_json, fingerprint = self._candidate(public_key_jwk, request_id, name, platform)
         with self._transaction() as conn:
-            account = self._verify_management_key(conn, management_key)
-            if account["primary_client_id"] is not None:
-                raise _error("primary_already_exists", 409)
+            self._verify_management_key(conn, management_key)
             grant = self._repo.grant_by_request(conn, request_id)
             if grant is None:
                 created = self._new_grant(
@@ -689,10 +688,9 @@ class BoxAccountService:
             raise _error("management_key_required", 409)
         role = "guest"
         if grant["purpose"] == "claim":
-            if account["primary_client_id"] is not None:
-                raise _error("primary_already_exists", 409)
+            # Keep the primary wire role for existing clients; it now denotes
+            # owner access and is no longer an exclusive device slot.
             role = "primary"
-            self._repo.close_claim_grants(conn, except_id=grant["grant_id"])
         if self._repo.client_by_key(conn, grant["candidate_fingerprint"]) is not None:
             raise _error("public_key_already_registered", 409)
         client_id = new_ulid()
@@ -706,7 +704,7 @@ class BoxAccountService:
             candidate=grant,
             now=now,
         )
-        if role == "primary":
+        if role == "primary" and account["primary_client_id"] is None:
             self._repo.set_primary(conn, client_id)
         self._repo.grant_state(conn, grant["grant_id"], "consumed", client_id=client_id)
         self._services.audit_repo.write_in_transaction(
@@ -810,7 +808,7 @@ class BoxAccountService:
         if client["state"] != "active" or client["owner_user_id"] != account["owner_user_id"]:
             raise _error("session_invalid")
         role = client["role"]
-        if role == "primary" and account["primary_client_id"] == client["client_id"]:
+        if role == "primary":
             user_id = account["owner_user_id"]
         elif role == "guest" and client["guest_user_id"] is not None:
             user_id = client["guest_user_id"]
@@ -1113,6 +1111,11 @@ class BoxAccountService:
                 "role": validated.role,
                 "session_kind": validated.session_kind,
                 "primary_client_id": account["primary_client_id"],
+                "owner_client_ids": (
+                    self._repo.owner_client_ids(conn)
+                    if validated.role in {"admin", "primary"}
+                    else []
+                ),
             }
 
     def clients(self, context: BoxAuthContext) -> list[dict[str, Any]]:
@@ -1158,7 +1161,8 @@ class BoxAccountService:
                 return {"client_id": client_id, "state": "revoked"}
             self._repo.revoke_client(conn, client_id, int(time.time()))
             if account["primary_client_id"] == client_id:
-                self._repo.set_primary(conn, None)
+                remaining = self._repo.owner_client_ids(conn)
+                self._repo.set_primary(conn, remaining[0] if remaining else None)
             self._services.audit_repo.write_in_transaction(
                 conn, actor="_management", action="box.client.revoke", target=client_id
             )
@@ -1168,24 +1172,28 @@ class BoxAccountService:
     def set_primary(self, context: BoxAuthContext, client_id: str) -> dict[str, Any]:
         with self._transaction() as conn:
             self._require_admin(context, conn)
+            raise _error("box_primary_transfer_retired", 410)
+
+    def add_owner_device(self, context: BoxAuthContext, client_id: str) -> dict[str, Any]:
+        with self._transaction() as conn:
+            self._require_admin(context, conn)
             account = self._repo.account(conn)
             assert account is not None
             client = self._repo.client(conn, client_id)
             if client is None or client["state"] != "active" or client["guest_user_id"] is None:
                 raise _error("client_not_found", 404)
-            if account["primary_client_id"] != client_id:
+            if client["role"] != "primary":
                 now = int(time.time())
-                if account["primary_client_id"] is not None:
-                    self._repo.set_client_role(conn, account["primary_client_id"], "guest", now)
                 self._repo.set_client_role(conn, client_id, "primary", now)
-                self._repo.set_primary(conn, client_id)
+                if account["primary_client_id"] is None:
+                    self._repo.set_primary(conn, client_id)
                 self._stage_trust(conn)
                 self._services.audit_repo.write_in_transaction(
-                    conn, actor="_management", action="box.primary.set", target=client_id
+                    conn, actor="_management", action="box.owner_device.add", target=client_id
                 )
             return {
-                "primary_client_id": client_id,
-                "previous_primary_client_id": account["primary_client_id"],
+                "client_id": client_id,
+                "owner_client_ids": self._repo.owner_client_ids(conn),
             }
 
     def logout(self, context: BoxAuthContext) -> dict[str, Any]:

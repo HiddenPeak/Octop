@@ -1,6 +1,6 @@
 # API Reference
 
-> 2026-10-30：`account_mode=box_local` 采用长期管理密钥登录网页、唯一原生主设备、一次性分享码直接加入和独立受邀身份。浏览器不计入配对设备，分享不再二次审批。协议与迁移见[盒子账户客户端接线](box-local-account-client.md)；默认 `server` 模式保留原登录。App本轮仅更新接线文档，未修改Swift/UI。
+> 2026-11-02：`account_mode=box_local` 采用长期管理密钥登录网页、多台自有设备共享主人项目和会话、一次性分享码直接加入和独立受邀身份。`GET /api/box/status` 声明 `multiple_owner_devices=true`；新增 `/api/box/owner-claims` 与 `/api/box/clients/{id}/owner`，旧登记路径兼容；旧主设备转移接口返回 410，不会静默追加授权。浏览器不计入配对设备，分享不再二次审批。协议与迁移见[盒子账户客户端接线](box-local-account-client.md)；默认 `server` 模式保留原登录。App本轮仅更新接线文档，未修改Swift/UI。
 
 MCP、连接器管理、授权流程及项目／Task 资源选择的 APP 接入见 [APP MCP 与连接器接入](app-mcp-connectors.md)。
 

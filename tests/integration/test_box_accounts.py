@@ -110,6 +110,7 @@ async def test_box_docs_have_typed_public_and_protected_operations(box_env) -> N
     for path, method in [
         ("/api/box/status", "get"),
         ("/api/box/pairings", "post"),
+        ("/api/box/owner-claims", "post"),
         ("/api/box/pairings/{pairing_id}/proof", "post"),
         ("/api/auth/challenges", "post"),
         ("/api/auth/sessions", "post"),
@@ -134,6 +135,7 @@ async def test_box_docs_have_typed_public_and_protected_operations(box_env) -> N
         ("/api/auth/browser/refresh", "post"),
         ("/api/box/clients/{client_id}/revoke", "post"),
         ("/api/box/clients/{client_id}/primary", "post"),
+        ("/api/box/clients/{client_id}/owner", "post"),
         ("/api/box/management-key/rotate", "post"),
     ]:
         operation = paths[path][method]
