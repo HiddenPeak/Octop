@@ -6,7 +6,7 @@ import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Literal, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from octop.infra.db.pool import DatabasePool
@@ -178,6 +178,13 @@ class UsageRow:
         )
 
 
+@dataclass(frozen=True)
+class TaskUsageAgent:
+    agent_id: str
+    agent_name: str
+    attribution: Literal["delegation", "owner_primary", "unavailable"]
+
+
 def _zoneinfo(timezone: str) -> ZoneInfo:
     try:
         return ZoneInfo(timezone)
@@ -254,6 +261,57 @@ def resolve_usage_window(
 class UsageRepo:
     def __init__(self, db: DatabasePool):
         self._db = db
+
+    def task_agents(self, task_ids: list[str], *, user_id: int | None) -> dict[str, TaskUsageAgent]:
+        """Resolve the delegating resident, or the owner's primary assistant.
+
+        Primary fallback is display ownership, not evidence of model execution.
+        Deleted tasks can still have retained receipts and delegation provenance.
+        """
+        if not task_ids:
+            return {}
+        placeholders = ",".join("?" for _ in task_ids)
+        scope = "AND o.owner_id=?" if user_id is not None else ""
+        params: list[Any] = [*task_ids]
+        if user_id is not None:
+            params.append(user_id)
+        with self._db.connect() as conn:
+            rows = conn.execute(
+                f"""
+                WITH owners AS (
+                    SELECT task_id,owner_id FROM project_tasks
+                    UNION
+                    SELECT task_id,user_id AS owner_id FROM model_calls WHERE task_id<>''
+                ), identities AS (
+                    SELECT o.task_id,o.owner_id,
+                        COALESCE(d.origin_agent_id,b.agent_id,'') AS agent_id,
+                        CASE WHEN d.origin_agent_id IS NOT NULL THEN 'delegation'
+                             WHEN b.agent_id IS NOT NULL THEN 'owner_primary'
+                             ELSE 'unavailable' END AS attribution
+                    FROM owners o
+                    LEFT JOIN resident_delegations d ON d.task_id=o.task_id
+                        AND d.owner_id=o.owner_id
+                        AND d.id=(SELECT MIN(first_d.id) FROM resident_delegations first_d
+                            WHERE first_d.task_id=o.task_id AND first_d.owner_id=o.owner_id)
+                    LEFT JOIN resident_conversations b ON b.owner_id=o.owner_id
+                        AND b.role='primary'
+                    WHERE o.task_id IN ({placeholders}) {scope}
+                )
+                SELECT i.*,COALESCE(a.name,'') AS agent_name FROM identities i
+                LEFT JOIN agents a ON a.agent_id=i.agent_id AND a.user_id=i.owner_id
+                """,
+                params,
+            ).fetchall()
+        return {
+            str(row["task_id"]): TaskUsageAgent(
+                agent_id=str(row["agent_id"]),
+                agent_name=str(row["agent_name"]),
+                attribution=cast(
+                    Literal["delegation", "owner_primary", "unavailable"], row["attribution"]
+                ),
+            )
+            for row in rows
+        }
 
     # --- write -----------------------------------------------------------
 

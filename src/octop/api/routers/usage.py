@@ -33,16 +33,61 @@ from octop.i18n import tr
 from octop.infra.errors import ErrorCode, OctopError
 from octop.infra.usage.query import ModelCallFilters, ModelCallPage, list_model_calls
 from octop.infra.usage.task_summary import TaskUsageFilters, TaskUsagePage, task_usage_summary
+from octop.infra.usage.task_trend import TaskTrendFilters, TaskUsageTrend, task_usage_trend
 from octop.infra.utils.locale import normalize_locale, resolve_request_locale
 
 router = APIRouter()
 
 
 @router.get(
+    "/usage/task-trend",
+    response_model=TaskUsageTrend,
+    summary="查看每日任务来源 Tokens 与累计节省估算",
+    description="仅本人。按服务端时区补齐升序日期，返回盒子／三方／未归属历史用量、每日节省和区间累计节省。整个区间逐任务优先用调用流水、无流水才用历史记录，避免重复计算。仅盒子计入参考费用节省，未知量不补零。支持 window、task_id、project_id，最多 366 个自然日，不支持 all。",
+)
+async def user_task_usage_trend(
+    filters: TaskTrendFilters = Depends(),
+    user: Any = Depends(current_user),
+    server: Any = Depends(get_server),
+) -> TaskUsageTrend:
+    try:
+        return await task_usage_trend(
+            server.services,
+            user_id=int(user.id),
+            filters=filters,
+            timezone=_server_timezone(server),
+        )
+    except (ValueError, OverflowError) as exc:
+        raise OctopError.localized(ErrorCode.USAGE_TREND_WINDOW_INVALID) from exc
+
+
+@router.get(
+    "/admin/usage/task-trend",
+    response_model=TaskUsageTrend,
+    summary="查看全局每日任务用量与累计节省估算",
+    description="仅管理员，可用 user_id 筛选。日期与估算规则同 /usage/task-trend；未归属任务的流水排除并计数，完整金额、已知小计和上下界分别返回，不是供应商实际账单。",
+)
+async def admin_task_usage_trend(
+    user_id: int | None = Query(default=None, gt=0),
+    filters: TaskTrendFilters = Depends(),
+    user: Any = Depends(current_user),
+    server: Any = Depends(get_server),
+) -> TaskUsageTrend:
+    if not user.is_admin:
+        raise OctopError.localized(ErrorCode.FORBIDDEN)
+    try:
+        return await task_usage_trend(
+            server.services, user_id=user_id, filters=filters, timezone=_server_timezone(server)
+        )
+    except (ValueError, OverflowError) as exc:
+        raise OctopError.localized(ErrorCode.USAGE_TREND_WINDOW_INVALID) from exc
+
+
+@router.get(
     "/usage/task-summary",
     response_model=TaskUsagePage,
-    summary="按任务查看盒子、三方 Token 与参考费用",
-    description="仅本人。按服务端时区和调用开始时间汇总新流水；唯一已受理请求关联判难消耗。缺失用量为 null 并返回缺失调用数。历史业务记录单列，不与流水相加。费用统一按 GPT-6 Astra 官方标准价快照对标估算，不是供应商账单。",
+    summary="按任务查看智能体、来源用量与本地节省估算",
+    description="仅本人。按服务端时区和调用开始时间汇总新流水；唯一已受理请求关联判难消耗。缺失用量为 null 并返回缺失调用数。历史业务记录单列，不与流水相加。费用统一按 GPT-6 Astra 官方标准价快照对标估算，不是供应商账单。返回关联常驻智能体；节省仅计本地／盒子参考费用，三方不计入。",
 )
 async def user_task_usage_summary(
     filters: TaskUsageFilters = Depends(),
@@ -64,7 +109,7 @@ async def user_task_usage_summary(
     "/admin/usage/task-summary",
     response_model=TaskUsagePage,
     summary="按任务查看全局来源用量与参考费用",
-    description="仅管理员，可通过 user_id 筛选。支持 window、task_id、project_id 和 offset/limit；顶层 totals 覆盖全部匹配任务，未归属调用另列。所有金额为 GPT-6 Astra 对标估算，取消但未报告的用量保持未知。",
+    description="仅管理员，可通过 user_id 筛选。支持 window、task_id、project_id 和 offset/limit；顶层 totals 覆盖全部匹配任务，未归属调用另列。所有金额为 GPT-6 Astra 对标估算，取消但未报告的用量保持未知。智能体按任务所属用户解析；节省总计逐任务优先用流水、无流水时用历史记录。",
 )
 async def admin_task_usage_summary(
     user_id: int | None = Query(default=None, gt=0),

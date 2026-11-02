@@ -1178,14 +1178,18 @@ endpoint (public, mounted directly in `api/app.py`).
 
 ## Usage & admin
 
-App 的任务来源与参考费用接入使用新增的 `GET /api/usage/task-summary` 和管理员对应接口；支持盒子／三方拆分、历史配置来源推断、缺失值计数，以及统一 GPT-6 Astra 对标估算。完整字段、分页、价格假设与两套数据不相加的规则见[任务 Token 与参考费用接入](task-token-usage-client.md)。
+App 的任务来源与参考费用接入使用新增的 `GET /api/usage/task-summary` 和管理员对应接口；支持盒子／三方拆分、历史配置来源推断、缺失值计数、关联常驻智能体（`agent_id/agent_name/agent_attribution`），以及统一 GPT-6 Astra 对标估算。该接口的 `capabilities.savings=true`，`items[].savings` 与 `totals.savings` 仅估算本地／盒子部分省去的参考费用，三方不计入；每个任务优先用新流水、无流水才用历史记录。原 `/usage/summary` 的能力标记保持原口径。完整字段、分页、价格假设与两套数据不相加的规则见[任务 Token 与参考费用接入](task-token-usage-client.md)。
 
 | Method | Path | Auth | Notes |
 |--------|------|------|-------|
 | `GET`    | `/usage/summary` | user | 当前用户的 token 用量；管理员可用 `as_user` 查看指定用户 |
 | `GET`    | `/usage/calls` | user | 当前用户新采集的独立模型调用流水，支持精确筛选与游标分页 |
+| `GET`    | `/usage/task-summary` | user | 按任务查看来源用量、常驻智能体与本地模型节省估算 |
+| `GET`    | `/usage/task-trend` | user | 每日盒子／三方 Tokens、每日节省和区间累计节省；按服务端时区补齐日期，最多 366 个自然日 |
 | `GET`    | `/admin/usage/summary` | admin | 全部用户的 token 用量；可用 `user_id` 缩小范围 |
 | `GET`    | `/admin/usage/calls` | admin | 全部或指定 `user_id` 的新模型调用流水 |
+| `GET`    | `/admin/usage/task-summary` | admin | 全部或指定 `user_id` 的任务来源用量与节省估算 |
+| `GET`    | `/admin/usage/task-trend` | admin | 全部或指定 `user_id` 的每日任务来源用量与累计节省 |
 | `GET`    | `/usage/export.xlsx` | user | 导出相同用户、时间和资源筛选范围的用量明细与分组 |
 | `GET`    | `/admin/usage/export.xlsx` | admin | 导出全局或指定用户的用量明细与分组 |
 | `GET`    | `/admin/overview` | admin | `{user_count, agent_count, ...}` |

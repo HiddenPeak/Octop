@@ -77,6 +77,7 @@ export interface TaskUsageTotals {
   call_usage: TaskCallUsage;
   sources: { box: TaskCallUsage; third_party: TaskCallUsage };
   retained_task_usage: RetainedTaskUsageTotals;
+  savings: ReferenceCostAmounts;
 }
 
 export interface TaskUsageItem extends TaskUsageTotals {
@@ -85,6 +86,9 @@ export interface TaskUsageItem extends TaskUsageTotals {
   project_id: string;
   project_name: string;
   last_usage_at: number;
+  agent_id: string;
+  agent_name: string;
+  agent_attribution: "delegation" | "owner_primary" | "unavailable";
 }
 
 export interface ReferencePricingRates {
@@ -113,7 +117,7 @@ export interface TaskUsagePage {
     historical_source_inference: true;
     actual_cost: false;
     execution_location: false;
-    savings: false;
+    savings: true;
     budget: false;
   };
   pricing: {

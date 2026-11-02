@@ -143,6 +143,10 @@ function task(
     project_id: "",
     project_name: "",
     last_usage_at: 1,
+    agent_id: "",
+    agent_name: "",
+    agent_attribution: "unavailable",
+    savings: referenceCost(),
     call_usage: callUsage(),
     sources: { box: callUsage(), third_party: callUsage() },
     retained_task_usage: retained(null),
@@ -179,7 +183,7 @@ function page(
       historical_source_inference: true,
       actual_cost: false,
       execution_location: false,
-      savings: false,
+      savings: true,
       budget: false,
     },
     pricing: {
@@ -204,6 +208,7 @@ function page(
       call_usage: callUsage(),
       sources: { box: callUsage(), third_party: callUsage() },
       retained_task_usage: retained(null),
+      savings: referenceCost(),
     },
     unassigned_call_usage: callUsage(),
     unassigned_sources: { box: callUsage(), third_party: callUsage() },
@@ -222,6 +227,32 @@ beforeEach(() => {
 });
 
 describe("TaskSourceUsage", () => {
+  it("shows the associated assistant and local savings including partial and zero estimates", async () => {
+    vi.mocked(request).mockResolvedValue(
+      page([
+        task("local-task", {
+          agent_id: "resident",
+          agent_name: "Hippogenius",
+          agent_attribution: "owner_primary",
+          savings: referenceCost({
+            status: "partial",
+            known_amount_usd: "0.002",
+          }),
+        }),
+        task("cloud-task", {
+          savings: referenceCost({ status: "estimated", amount_usd: "0" }),
+        }),
+      ]),
+    );
+    render(<TaskSourceUsage windowKey="all" adminUserFilter={null} />);
+    const row = (await screen.findAllByText("local-task"))[0].closest("tr")!;
+    expect(row).toHaveTextContent("Hippogenius");
+    expect(row).toHaveTextContent("$0.002");
+    expect(row).toHaveTextContent("已知小计，另有未知");
+    const cloud = screen.getAllByText("cloud-task")[0].closest("tr")!;
+    expect(within(cloud).getAllByRole("cell").at(-1)).toHaveTextContent("$0");
+  });
+
   it("uses receipts before historical inference without adding totals and keeps unknowns visible", async () => {
     const old = retained(900, 800, 100);
     old.reference_cost = {
@@ -267,6 +298,7 @@ describe("TaskSourceUsage", () => {
             third_party: callUsage(5, 3456, 4),
           },
           retained_task_usage: retained(999999, 900000, 99999),
+          savings: referenceCost(),
         },
         unassigned_call_usage: callUsage(2, null, 2),
       },

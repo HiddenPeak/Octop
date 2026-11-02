@@ -187,6 +187,9 @@ export default function TaskSourceUsage({
                 <Descriptions.Item label={t("tokenUsage.sourceRetainedCost")}>
                   {cost(retained.reference_cost)}
                 </Descriptions.Item>
+                <Descriptions.Item label={t("tokenUsage.sourceSavings")}>
+                  {cost(data.totals.savings)}
+                </Descriptions.Item>
               </Descriptions>
             </div>
           )}
@@ -300,6 +303,19 @@ export default function TaskSourceUsage({
                         )}
                     </div>
                   ),
+                },
+                {
+                  title: t("tokenUsage.sourceAgent"),
+                  key: "agent",
+                  render: (_, item) =>
+                    item.agent_name ||
+                    item.agent_id ||
+                    t("tokenUsage.sourceUnknown"),
+                },
+                {
+                  title: t("tokenUsage.sourceSavings"),
+                  key: "savings",
+                  render: (_, item) => cost(item.savings),
                 },
               ]}
             />

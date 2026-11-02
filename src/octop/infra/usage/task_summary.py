@@ -159,6 +159,11 @@ class TaskUsageTotals(BaseModel):
     call_usage: TaskCallUsage
     sources: TaskSourceUsage
     retained_task_usage: RetainedTaskUsageTotals
+    savings: ReferenceCostAmounts = Field(
+        description="Estimated avoided reference API fees for Box/local usage only; "
+        "third-party usage contributes zero. Per task, receipts take precedence over journals. "
+        "Excludes hardware, electricity and subscriptions; not actual bill savings."
+    )
 
 
 class TaskUsageItem(TaskUsageTotals):
@@ -167,6 +172,13 @@ class TaskUsageItem(TaskUsageTotals):
     project_id: str
     project_name: str
     last_usage_at: int = Field(description="Latest included call/journal time, Unix milliseconds.")
+    agent_id: str = ""
+    agent_name: str = ""
+    agent_attribution: Literal["delegation", "owner_primary", "unavailable"] = Field(
+        default="unavailable",
+        description="Delegating resident, or owner's primary assistant for display ownership; "
+        "not a claim that the assistant executed every model call.",
+    )
 
 
 class ReferencePricingRates(BaseModel):
@@ -198,7 +210,7 @@ class TaskUsageCapabilities(BaseModel):
     historical_source_inference: Literal[True] = True
     actual_cost: Literal[False] = False
     execution_location: Literal[False] = False
-    savings: Literal[False] = False
+    savings: Literal[True] = True
     budget: Literal[False] = False
 
 
@@ -232,7 +244,7 @@ def _amount(value: Decimal) -> str:
     return format(value.normalize(), "f")
 
 
-def _cost_totals(costs: Sequence[ReferenceCost]) -> ReferenceCostTotals:
+def _cost_totals(costs: Sequence[ReferenceCost | ReferenceCostAmounts]) -> ReferenceCostTotals:
     counts = Counter(cost.status for cost in costs)
     known = [Decimal(cost.known_amount_usd) for cost in costs if cost.known_amount_usd is not None]
     subtotal = _amount(sum(known, Decimal(0))) if known else None
@@ -410,6 +422,61 @@ def _rates(rates: ReferenceRates) -> ReferencePricingRates:
     )
 
 
+def _savings(
+    calls: Sequence[AttributedTaskModelCall],
+    entries: Sequence[RetainedTaskUsageEntry],
+    costs: dict[str, ReferenceCost],
+) -> ReferenceCostAmounts:
+    zero = ReferenceCost(
+        amount_usd="0",
+        known_amount_usd="0",
+        status="estimated",
+        context_band="unknown",
+        missing_fields=(),
+        assumptions=(),
+        lower_bound_usd="0",
+        upper_bound_usd="0",
+    )
+    parts: list[ReferenceCost] = []
+    if calls:
+        parts = [costs[call.row.call_id] if call.row.source == "box" else zero for call in calls]
+    else:
+        for entry in entries:
+            if entry.provider_kind == "box":
+                parts.append(
+                    compute_retained_reference_cost(
+                        {
+                            "input_tokens": entry.input_tokens,
+                            "output_tokens": entry.output_tokens,
+                        }
+                    )
+                )
+            elif entry.provider_kind is not None:
+                parts.append(zero)
+            else:
+                parts.append(
+                    ReferenceCost(
+                        amount_usd=None,
+                        known_amount_usd=None,
+                        status="unknown",
+                        context_band="unknown",
+                        missing_fields=("provider_kind",),
+                        assumptions=(),
+                    )
+                )
+    result = ReferenceCostAmounts.model_validate(_cost_totals(parts).model_dump())
+    result.assumptions = sorted(
+        set(result.assumptions)
+        | {
+            "box_usage_as_local_reference_savings",
+            "third_party_usage_excluded",
+            "excludes_hardware_electricity_subscriptions",
+            "per_task_receipts_precede_journals",
+        }
+    )
+    return result
+
+
 def _task_summary(
     services: SharedServices, *, user_id: int | None, filters: TaskUsageFilters, timezone: str
 ) -> TaskUsagePage:
@@ -471,12 +538,21 @@ def _task_summary(
                 retained_task_usage=_retained(
                     [journal] if journal else [], journal_entries[task_id]
                 ),
+                savings=_savings(task_calls, journal_entries[task_id], costs),
             )
         )
     items.sort(key=lambda item: (item.last_usage_at, item.task_id), reverse=True)
     assigned = [call for call in calls if call.task_id]
     unassigned = groups[""]
     next_offset = filters.offset + filters.limit
+    page_items = items[filters.offset : next_offset]
+    agents = services.usage_repo.task_agents([item.task_id for item in page_items], user_id=user_id)
+    for item in page_items:
+        agent = agents.get(item.task_id)
+        if agent is not None:
+            item.agent_id = agent.agent_id
+            item.agent_name = agent.agent_name
+            item.agent_attribution = agent.attribution
     return TaskUsagePage(
         window=filters.window,
         range_start=start * 1000,
@@ -496,10 +572,15 @@ def _task_summary(
             call_usage=_call_usage(assigned, usages, costs),
             sources=_sources(assigned, usages, costs),
             retained_task_usage=_retained(retained, retained_entries),
+            savings=ReferenceCostAmounts.model_validate(
+                _cost_totals(
+                    [item.savings for item in items if item.savings.status != "no_data"]
+                ).model_dump()
+            ),
         ),
         unassigned_call_usage=_call_usage(unassigned, usages, costs),
         unassigned_sources=_sources(unassigned, usages, costs),
-        items=items[filters.offset : next_offset],
+        items=page_items,
     )
 
 

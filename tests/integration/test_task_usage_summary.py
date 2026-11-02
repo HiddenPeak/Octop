@@ -542,3 +542,104 @@ async def test_task_summary_rejects_invalid_windows_and_pagination(env: Any) -> 
         "/api/admin/usage/task-summary", headers=auth, params={"user_id": 0}
     )
     assert response.status_code == 422, response.text
+
+
+def _usage_agent(server: Any, owner: int, name: str, role: str = "primary") -> tuple[str, str]:
+    agent_id, thread_id = f"usage-agent-{owner}-{role}", f"usage-thread-{owner}-{role}"
+    with server.services.db.transaction() as conn:
+        existing = conn.execute(
+            "SELECT agent_id,thread_id FROM resident_conversations WHERE owner_id=? AND role=?",
+            (owner, role),
+        ).fetchone()
+        if existing:
+            conn.execute("UPDATE agents SET name=? WHERE agent_id=?", (name, existing["agent_id"]))
+            return str(existing["agent_id"]), str(existing["thread_id"])
+        conn.execute(
+            "INSERT INTO agents(agent_id,user_id,name,created_at,updated_at) VALUES(?,?,?,?,?)",
+            (agent_id, owner, name, _WHEN, _WHEN),
+        )
+        conn.execute(
+            "INSERT INTO threads(thread_id,agent_id,user_id,channel_type,session_key,last_active,"
+            "created_at) VALUES(?,?,?,'web',?,?,?)",
+            (thread_id, agent_id, owner, thread_id, _WHEN, _WHEN),
+        )
+        conn.execute(
+            "INSERT INTO resident_conversations(owner_id,role,agent_id,thread_id,created_at,"
+            "updated_at) VALUES(?,?,?,?,?,?)",
+            (owner, role, agent_id, thread_id, _WHEN, _WHEN),
+        )
+    return agent_id, thread_id
+
+
+async def test_task_agents_resolve_primary_and_delegation_without_cross_user_fallback(
+    env: Any,
+) -> None:
+    client, server, auth = env
+    owner = await resolve_user_id(client, auth, "admin")
+    primary, _ = _usage_agent(server, owner, "Hippogenius")
+    delegated, thread = _usage_agent(server, owner, "Research assistant", "research")
+    alice_auth = await create_user(client, auth, username="usage-identity-alice")
+    alice = await resolve_user_id(client, auth, "usage-identity-alice")
+    alice_agent, _ = _usage_agent(server, alice, "Alice assistant")
+    for task_id, user in (
+        ("primary-task", owner),
+        ("delegated-task", owner),
+        ("alice-task", alice),
+    ):
+        _task(server, user, task_id)
+        _call(server, user, task_id, task_id=task_id, usage=_tokens(10, 1))
+    with server.services.db.transaction() as conn:
+        conn.execute(
+            "INSERT INTO resident_delegations(delegation_id,owner_id,origin_agent_id,"
+            "origin_thread_id,source_turn_id,task_id,initial_turn_id,request_id,fingerprint,"
+            "timezone,created_at,updated_at) VALUES('usage-delegation',?,?,?,'source',"
+            "'delegated-task','initial','request','fingerprint','UTC',?,?)",
+            (owner, delegated, thread, _WHEN, _WHEN),
+        )
+    items = {item["task_id"]: item for item in (await _summary(client, auth, admin=True))["items"]}
+    assert items["primary-task"]["agent_id"] == primary
+    assert items["primary-task"]["agent_name"] == "Hippogenius"
+    assert items["primary-task"]["agent_attribution"] == "owner_primary"
+    assert items["delegated-task"]["agent_id"] == delegated
+    assert items["delegated-task"]["agent_name"] == "Research assistant"
+    assert items["delegated-task"]["agent_attribution"] == "delegation"
+    assert items["alice-task"]["agent_id"] == alice_agent
+    assert items["alice-task"]["agent_name"] == "Alice assistant"
+    assert (await _summary(client, alice_auth, task_id="primary-task"))["items"] == []
+    # The delegation still identifies the assistant after the task itself is deleted.
+    with server.services.db.transaction() as conn:
+        conn.execute("DELETE FROM project_task_turns WHERE task_id='delegated-task'")
+        conn.execute("DELETE FROM project_tasks WHERE task_id='delegated-task'")
+    deleted = (await _summary(client, auth, task_id="delegated-task"))["items"][0]
+    assert deleted["agent_id"] == delegated
+
+
+async def test_local_savings_exclude_third_party_and_do_not_double_count_journals(env: Any) -> None:
+    client, server, auth = env
+    owner = await resolve_user_id(client, auth, "admin")
+    _historical_provider(server, "Local", "box")
+    _task(server, owner, "mixed", input_tokens=9999, model_ref="Local/model")
+    _call(server, owner, "local", task_id="mixed", usage=_tokens(100, 20))
+    _call(server, owner, "cloud", task_id="mixed", source="third_party", usage=_tokens(900, 90))
+    _task(server, owner, "historical", input_tokens=100, output_tokens=20, model_ref="Local/model")
+    _task(server, owner, "cloud-only")
+    _call(server, owner, "cloud-unknown", task_id="cloud-only", source="third_party")
+    page = await _summary(client, auth)
+    items = {item["task_id"]: item for item in page["items"]}
+    assert page["capabilities"]["savings"] is True
+    assert items["mixed"]["savings"]["amount_usd"] == "0.002"
+    assert items["historical"]["savings"]["amount_usd"] == "0.002"
+    assert items["cloud-only"]["savings"]["amount_usd"] == "0"
+    assert page["totals"]["savings"]["amount_usd"] == "0.004"
+    assert (await _summary(client, auth, limit=1))["totals"]["savings"] == page["totals"]["savings"]
+    _call(server, owner, "local-unknown", task_id="mixed")
+    partial = (await _summary(client, auth, task_id="mixed"))["items"][0]["savings"]
+    assert partial["status"] == "partial"
+    assert partial["amount_usd"] is None
+    assert partial["known_amount_usd"] == "0.002"
+    _task(server, owner, "unknown-source", input_tokens=10, model_ref="Missing/model")
+    unknown = (await _summary(client, auth, task_id="unknown-source"))["items"][0]["savings"]
+    assert unknown["status"] == "unknown" and unknown["amount_usd"] is None
+    assert unknown["missing_fields"] == ["provider_kind"]
+    empty = await _summary(client, auth, task_id="absent")
+    assert empty["totals"]["savings"]["status"] == "no_data"
