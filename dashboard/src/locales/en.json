@@ -1,5 +1,14 @@
 {
   "boxAccount": {
+    "devicesSubtitle": "Manage connected devices and their access to your box.",
+    "ownerAccessHint": "Your devices share the owner’s projects and conversations. Multiple devices can connect at once.",
+    "otherClientsHint": "Each uses its own private space",
+    "noOwnerDevices": "No owner devices yet",
+    "noOwnerDevicesHint": "Connect your own client with the management key to access the owner’s projects and conversations.",
+    "noGuestClients": "No invited clients yet",
+    "revokedDevices": "Revoked devices",
+    "deviceActions": "Manage {{name}}",
+    "webBrowser": "Web browser",
     "connect": "Connect to box",
     "devices": "Devices",
     "disconnect": "Sign out",

@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import BoxDevicesPage from ".";
@@ -63,7 +64,12 @@ describe("BoxDevices native client management", () => {
     render(<BoxDevicesPage />);
     await screen.findByText("Mac app");
     expect(screen.getByText("boxAccount.ownerDevice")).toBeVisible();
-    const revoke = screen.getByRole("button", { name: "boxAccount.revoke" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "boxAccount.deviceActions" }),
+    );
+    const revoke = await screen.findByRole("menuitem", {
+      name: "boxAccount.revoke",
+    });
     expect(revoke).toBeEnabled();
     fireEvent.click(revoke);
     expect(mocks.revoke).not.toHaveBeenCalled();
@@ -75,7 +81,10 @@ describe("BoxDevices native client management", () => {
     mocks.clients.mockResolvedValue([{ ...device, role: "guest" }]);
     render(<BoxDevicesPage />);
     fireEvent.click(
-      await screen.findByRole("button", { name: "boxAccount.setOwner" }),
+      await screen.findByRole("button", { name: "boxAccount.deviceActions" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "boxAccount.setOwner" }),
     );
     expect(mocks.confirm.mock.calls[0][0].content).toBe(
       "boxAccount.setOwnerConfirm",
@@ -94,6 +103,53 @@ describe("BoxDevices native client management", () => {
     expect(
       screen.queryByText("boxAccount.pendingRequests"),
     ).not.toBeInTheDocument();
+  });
+  it("keeps all owner devices visible and revoked devices out of active groups", async () => {
+    mocks.clients.mockResolvedValue([
+      device,
+      { ...device, client_id: "owner-2", name: "My phone", platform: "iOS" },
+      { ...device, client_id: "guest-1", name: "Guest laptop", role: "guest" },
+      {
+        ...device,
+        client_id: "revoked-1",
+        name: "Old laptop",
+        state: "revoked",
+      },
+    ]);
+    render(<BoxDevicesPage />);
+    await screen.findByText("Mac app");
+    const owners = screen.getByRole("region", {
+      name: "boxAccount.ownerDevice",
+    });
+    expect(within(owners).getByText("Mac app")).toBeVisible();
+    expect(within(owners).getByText("My phone")).toBeVisible();
+    expect(within(owners).queryByText("Old laptop")).not.toBeInTheDocument();
+    const guests = screen.getByRole("region", {
+      name: "boxAccount.guestDevice",
+    });
+    expect(within(guests).getByText("Guest laptop")).toBeVisible();
+    const history = screen
+      .getByText("boxAccount.revokedDevices")
+      .closest("details")!;
+    expect(history).not.toHaveAttribute("open");
+    expect(within(history).queryByRole("button")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("boxAccount.revokedDevices"));
+    expect(history).toHaveAttribute("open");
+    expect(screen.getByText("Old laptop")).toBeVisible();
+    fireEvent.click(within(owners).getAllByRole("button")[1]);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("menuitem", { name: "boxAccount.revoke" }),
+      ).toBeVisible(),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "boxAccount.setOwner" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "boxAccount.revoke" }),
+    );
+    await act(async () => mocks.confirm.mock.calls[0][0].onOk());
+    expect(mocks.revoke).toHaveBeenCalledWith("owner-2");
   });
   it("shows and copies only the temporary code and removes it on closing", async () => {
     mocks.create.mockResolvedValue({
