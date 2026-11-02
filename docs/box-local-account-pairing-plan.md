@@ -155,7 +155,7 @@ DDL 分别位于 [061 基础表](../src/octop/infra/db/migrations/061_box_accoun
 
 签名使用 P-256/ES256，客户端必须核对挑战中的盒子、主体、动作和参数摘要符合当前意图；请求的 `platform`、名称或自报角色不参与赋权。新客户端加入只需用户输入一段分享码，盒子地址和公钥等协议字段由客户端维护，不让用户复制整份 JSON。
 
-生产连接使用 HTTPS/WSS；HTTP/WS 仅用于实际回环连接的本机开发。网页 Cookie 写操作要求同源 Origin 和 `X-Octop-Box-CSRF`；安全读取接受同源 Origin、Fetch Metadata 或 Referer。Cookie 名称由盒子 ID 派生，Cookie 与原生 Bearer 不能互相替代。
+默认连接使用 HTTPS/WSS；HTTP/WS 允许实际回环连接的本机开发。只能提供HTTP的部署可通过服务端 `box_http_origins` 明确列出允许的HTTP源（局域网与公网映射可分别列出），重启后启用兼容模式；默认空列表不开放远程HTTP，不能通过转发头启用。该列表不是网络访问控制，也不提供传输加密，管理密钥、会话和业务内容仍有被截获或修改的风险。网页 Cookie 写操作仍要求同源 Origin 和 `X-Octop-Box-CSRF`；安全读取接受同源 Origin、Fetch Metadata 或 Referer。Cookie 名称由盒子 ID 派生，Cookie 与原生 Bearer 不能互相替代。客户端配置及风险说明见[接线文档](box-local-account-client.md#3-传输与持钥证明)。
 
 Task WebSocket 在握手阶段使用原生 Bearer 或同源网页 Cookie 完成认证，然后直接返回 `ready`。不使用 URL 中的 `token`/`access_token`，不再发送旧 `authenticate` 首帧。长连接和长响应会持续重验授权；客户端工具还必须绑定当前认证的 `paired_client_id`。
 

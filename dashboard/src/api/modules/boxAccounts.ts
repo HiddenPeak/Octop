@@ -1,4 +1,5 @@
 import { getApiUrl } from "../config";
+import { randomUUID } from "../../utils/randomUUID";
 
 export class BoxAccountError extends Error {
   readonly reason: string;
@@ -326,7 +327,7 @@ export const boxAccountsApi = {
   clients: () => protectedCall<BoxClient[]>("/box/clients"),
   createShare: () =>
     protectedCall<BoxShareCode>("/box/pairing-grants", {
-      request_id: crypto.randomUUID(),
+      request_id: randomUUID(),
     }),
   setOwner: (clientId: string) =>
     protectedCall<void>(

@@ -128,6 +128,7 @@ class OctopConfig:
     log_level: str = "info"
     access_token_ttl_seconds: int = 86400
     account_mode: Literal["server", "box_local"] = "server"
+    box_http_origins: list[str] = field(default_factory=list)
     login_max_attempts: int = 5
     login_lockout_seconds: int = 900
     cors_origins: list[str] = field(default_factory=list)
@@ -470,6 +471,30 @@ def load_config(path: Path) -> OctopConfig:
     account_mode = os.environ.get("OCTOP_ACCOUNT_MODE", merged.get("account_mode", "server"))
     if not isinstance(account_mode, str) or account_mode not in {"server", "box_local"}:
         raise ValueError("account_mode must be server or box_local")
+    box_http_origins = merged.get("box_http_origins", [])
+    if not isinstance(box_http_origins, list):
+        raise ValueError("box_http_origins must be a list of HTTP origins")
+    for origin in box_http_origins:
+        if not isinstance(origin, str):
+            raise ValueError("box_http_origins entries must be HTTP origins")
+        try:
+            parsed_origin = urlparse(origin)
+            parsed_port = parsed_origin.port
+        except ValueError as exc:
+            raise ValueError("box_http_origins contains an invalid origin") from exc
+        if (
+            parsed_origin.scheme != "http"
+            or parsed_port == 0
+            or not parsed_origin.hostname
+            or parsed_origin.username is not None
+            or parsed_origin.password is not None
+            or parsed_origin.path
+            or parsed_origin.params
+            or parsed_origin.query
+            or parsed_origin.fragment
+            or any(char.isspace() for char in origin)
+        ):
+            raise ValueError("box_http_origins entries must contain only http://host[:port]")
     if v := os.environ.get("OCTOP_ACCESS_TOKEN_TTL"):
         merged["access_token_ttl_seconds"] = _coerce_int(
             "OCTOP_ACCESS_TOKEN_TTL", v, merged["access_token_ttl_seconds"]
@@ -607,6 +632,7 @@ def load_config(path: Path) -> OctopConfig:
         log_level=merged["log_level"],
         access_token_ttl_seconds=int(merged["access_token_ttl_seconds"]),
         account_mode=cast(Literal["server", "box_local"], account_mode),
+        box_http_origins=box_http_origins,
         login_max_attempts=int(merged.get("login_max_attempts", 5)),
         login_lockout_seconds=int(merged.get("login_lockout_seconds", 900)),
         cors_origins=list(merged.get("cors_origins") or []),

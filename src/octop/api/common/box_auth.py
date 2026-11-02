@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from ipaddress import ip_address
 from typing import Any
 from urllib.parse import urlsplit
@@ -38,7 +38,23 @@ def _origin(value: str, *, referer: bool = False) -> tuple[str, str, int]:
     )
 
 
-def require_browser_origin(scope: Mapping[str, Any], *, safe: bool = False) -> None:
+def _configured_http_origin(scope: Mapping[str, Any], http_origins: Sequence[str]) -> bool:
+    if not http_origins or scope.get("scheme") not in {"http", "ws"}:
+        return False
+    headers = Headers(raw=scope.get("headers", []))
+    try:
+        return len(headers.getlist("host")) == 1 and any(
+            _origin(origin)[0] == "http"
+            and _origin(f"http://{headers.get('host', '')}") == _origin(origin)
+            for origin in http_origins
+        )
+    except ValueError:
+        return False
+
+
+def require_browser_origin(
+    scope: Mapping[str, Any], *, safe: bool = False, http_origins: Sequence[str] = ()
+) -> None:
     """Cookie credentials are restricted to this exact web origin.
 
     Safe fetches normally omit Origin. Fetch Metadata (or a same-origin Referer
@@ -49,7 +65,7 @@ def require_browser_origin(scope: Mapping[str, Any], *, safe: bool = False) -> N
     scheme = "https" if scope.get("scheme") in {"https", "wss"} else "http"
     try:
         expected = _origin(f"{scheme}://{headers.get('host', '')}")
-        if scheme == "http":
+        if scheme == "http" and not _configured_http_origin(scope, http_origins):
             # Do not grant the cleartext development exception to DNS rebinding
             # hostnames, even when the connection reaches the loopback socket.
             hostname = expected[1]
@@ -71,13 +87,18 @@ def require_browser_origin(scope: Mapping[str, Any], *, safe: bool = False) -> N
     raise OctopError.localized(ErrorCode.FORBIDDEN, details={"reason": "box_origin_required"})
 
 
-def require_box_transport(scope: Mapping[str, Any]) -> None:
-    """Require TLS, allowing cleartext only from a loopback socket for development.
+def require_box_transport(scope: Mapping[str, Any], *, http_origins: Sequence[str] = ()) -> None:
+    """Require TLS unless loopback or an explicitly configured HTTP origin.
 
     The ASGI server supplies the scheme and peer. Forwarded client headers and
-    a caller-controlled Host name cannot grant the loopback exception.
+    a caller-controlled Host name cannot grant the loopback exception. An
+    operator's HTTP origin exception is compatibility only, never encryption.
     """
     if scope.get("scheme") in {"https", "wss"}:
+        return
+    # An operator may explicitly accept cleartext for one configured origin.
+    # This does not provide encryption or trust any forwarded headers.
+    if _configured_http_origin(scope, http_origins):
         return
     client = scope.get("client")
     try:

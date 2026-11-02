@@ -83,7 +83,8 @@ class BoxAccountMiddleware:
         path = scope["path"]
         method = scope.get("method", "WEBSOCKET")
         try:
-            require_box_transport(scope)
+            http_origins = getattr(config, "box_http_origins", ())
+            require_box_transport(scope, http_origins=http_origins)
             if blocked_box_path(method, path):
                 raise OctopError.localized(
                     ErrorCode.FORBIDDEN, details={"reason": "box_account_mode"}
@@ -116,7 +117,9 @@ class BoxAccountMiddleware:
                 raw = HTTPConnection(scope).cookies.get(browser_cookie_name(service.box_id), "")
                 if not raw:
                     raise OctopError.localized(ErrorCode.AUTH_FAILED)
-                require_browser_origin(scope, safe=method in {"GET", "HEAD", "OPTIONS"})
+                require_browser_origin(
+                    scope, safe=method in {"GET", "HEAD", "OPTIONS"}, http_origins=http_origins
+                )
             elif authorization is not None and authorization.lower().startswith("bearer "):
                 raw = authorization[7:].strip()
             else:

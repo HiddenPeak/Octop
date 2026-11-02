@@ -34,7 +34,9 @@ async def _service(
             ErrorCode.NOT_FOUND,
             details={"reason": "box_mode_required"},
         )
-    require_box_transport(request.scope)
+    require_box_transport(
+        request.scope, http_origins=server.config.box_http_origins if server.config else ()
+    )
     return service
 
 
@@ -406,7 +408,9 @@ async def create_browser_session(
     service: PublicService,
     server: OctopServer = Depends(get_server),
 ) -> BrowserSessionResponse:
-    require_browser_origin(request.scope)
+    require_browser_origin(
+        request.scope, http_origins=server.config.box_http_origins if server.config else ()
+    )
     previous = None
     raw = request.cookies.get(browser_cookie_name(service.box_id))
     if raw:

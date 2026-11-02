@@ -191,6 +191,10 @@ it("does not replay a mutation when authorization is rejected", async () => {
   window.removeEventListener(box.BOX_AUTH_REQUIRED_EVENT, required);
 });
 it("issues each one-time share code with a unique request id", async () => {
+  // Public HTTP does not expose crypto.randomUUID, but getRandomValues is available.
+  vi.stubGlobal("crypto", {
+    getRandomValues: crypto.getRandomValues.bind(crypto),
+  });
   const box = await import("./boxAccounts");
   await box.connectBoxSession("admin-key");
   await box.boxAccountsApi.createShare();
