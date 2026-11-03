@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   primary: vi.fn(),
   revoke: vi.fn(),
+  deleteClient: vi.fn(),
   confirm: vi.fn(),
   navigate: vi.fn(),
   copy: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock("../../api/modules/boxAccounts", () => ({
     createShare: mocks.create,
     setOwner: mocks.primary,
     revoke: mocks.revoke,
+    deleteClient: mocks.deleteClient,
   },
 }));
 vi.mock("../../hooks/useServerTimezone", () => ({
@@ -60,6 +62,37 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 describe("BoxDevices native client management", () => {
+  it("confirms the device ID before deleting only a revoked registration", async () => {
+    mocks.clients
+      .mockResolvedValueOnce([
+        device,
+        { ...device, client_id: "revoked-1", state: "revoked" },
+      ])
+      .mockResolvedValueOnce([device]);
+    render(<BoxDevicesPage />);
+    await screen.findByText("revoked-1");
+    expect(
+      within(
+        screen.getByRole("region", { name: "boxAccount.ownerDevice" }),
+      ).queryByRole("button", { name: "boxAccount.deleteDeviceTitle" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("boxAccount.revokedDevices"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "boxAccount.deleteDeviceTitle" }),
+    );
+    expect(mocks.deleteClient).not.toHaveBeenCalled();
+    const confirmation = mocks.confirm.mock.calls[0][0];
+    const preview = render(confirmation.content);
+    expect(preview.container).toHaveTextContent("revoked-1");
+    expect(preview.container).toHaveTextContent(
+      "boxAccount.deleteDeviceConfirm",
+    );
+    preview.unmount();
+    await act(async () => confirmation.onOk());
+    expect(mocks.deleteClient).toHaveBeenCalledWith("revoked-1");
+    expect(screen.queryByText("revoked-1")).not.toBeInTheDocument();
+    expect(screen.getByText("client-1")).toBeVisible();
+  });
   it("allows revoking the final device without ending web management", async () => {
     render(<BoxDevicesPage />);
     await screen.findByText("Mac app");
@@ -132,7 +165,11 @@ describe("BoxDevices native client management", () => {
       .getByText("boxAccount.revokedDevices")
       .closest("details")!;
     expect(history).not.toHaveAttribute("open");
-    expect(within(history).queryByRole("button")).not.toBeInTheDocument();
+    expect(
+      within(history).queryByRole("button", {
+        name: "boxAccount.deviceActions",
+      }),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("boxAccount.revokedDevices"));
     expect(history).toHaveAttribute("open");
     expect(screen.getByText("Old laptop")).toBeVisible();

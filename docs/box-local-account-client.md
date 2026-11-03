@@ -66,11 +66,14 @@ HTTP没有传输加密，设备签名不提供链路加密。选用HTTPS时仍�
 | `POST /api/box/pairings` | 分享码绑定受邀候选公钥。 |
 | `POST /api/box/pairings/{id}/proof` | 候选持钥证明；成功直接登记，无审批。 |
 | `POST /api/box/pairings/{id}/result` | 候选签名查询结果，处理成功响应丢失。 |
-| `POST /api/auth/challenges` | 申请session、enroll或result动作挑战。 |
-| `POST /api/auth/sessions` | 已登记客户端签名换取10分钟Bearer。 |
+| `POST /api/auth/challenges` | 申请session、login、client-status、enroll或result动作挑战。 |
+| `POST /api/auth/sessions` | 新登记后的首次换票，以及已建立连接的后台续期；10分钟Bearer。 |
+| `POST /api/auth/client-logins` | 已有登记手动登录或撤销后恢复：设备证明及用户重新输入的管理密钥／新分享码。 |
+| `POST /api/box/clients/{id}/status` | 不依赖会话，以原设备密钥证明查询自身 active／revoked 状态。 |
 | `GET /api/box/account` | 当前访问身份、角色、稳定缓存标识。 |
 | `GET /api/box/clients` | 有管理权限的身份读取客户端及角色状态。 |
 | `POST /api/box/clients/{id}/revoke` | 网页管理员撤销客户端，包括最后自有设备。 |
+| `DELETE /api/box/clients/{id}` | 网页管理员删除已撤销登记及关联认证记录；保留业务数据。 |
 | `POST /api/box/clients/{id}/owner` | 网页管理员将活动客户端指定为自有设备。 |
 | `POST /api/box/management-key/rotate` | 网页管理员轮换管理密钥。 |
 | `POST /api/auth/logout` | 撤销当前会话。 |
@@ -123,6 +126,26 @@ HTTP没有传输加密，设备签名不提供链路加密。选用HTTPS时仍�
 
 已有client_id请求 `{"client_id":"...","action":"session","params":{}}` 到 `/api/auth/challenges`。签署后向 `/api/auth/sessions` 发送 `{"proof":"..."}`，得到access_token、session_id、paired_client_id、role、user_id、session_kind=client、expires_in=600。
 
+### 5.4 手动连接必须重新输入凭证（2026-11-03）
+
+用户手动连接已有登记时，不能仅凭保存的设备私钥免输入登录。管理密钥或分享码只保留在当前请求内存，成功、失败或取消后清空，不写入客户端 Keychain／偏好／日志。设备私钥仍是不可由用户输入的签名身份材料，保留用于同一登记的证明与已建立会话的续期；不能将管理密钥代替设备身份。已成功登记不再保存其登记秘密摘要。
+
+1. 输入管理密钥（自有设备）或**新的单次分享码**（受邀设备）。
+2. 请求 `/api/auth/challenges`，body 为 `{"client_id":"…","action":"login","params":{"secret_hash":"…"}}`。`secret_hash` 是输入字符串的 canonical JSON UTF-8 字节的 SHA-256 十六进制摘要，与 ES256 证明参数编码保持一致。
+3. 签署完整挑战，向 `/api/auth/client-logins` 发送 `{"proof":"…","secret":"用户本次输入"}`。不发送秘密到 URL、Header 或日志。
+4. 设备签名及输入必须同时有效：自有设备校验当前管理密钥；受邀设备消费新的、未绑定候选、未过期且签发者仍有效的 enroll 分享码，已消费分享码不能再次使用。角色由现有设备决定，不能靠输入管理密钥把受邀设备提升为自有设备。
+5. 无论原登记为 active 还是 revoked，只要本次设备证明和凭证均有效，就返回同一 `paired_client_id` 和原用户的短会话，再核验 `/api/box/account`。revoked 登记恢复为 active、清空 revoked_at，保留原角色及账户，不创建第二个设备／受邀账户。撤销前的会话、挑战和已取消分享码不恢复；受邀设备每次手动登录均须新的单次分享码，原码不能复用。新登记本身已校验本次输入，因此首次换票仍走 `/api/auth/sessions`；已建立连接后台续期继续使用 session 证明。
+
+App 对已有登记（包括已撤销登记）统一使用以上 login 流程，不能因为缓存的 revoked 状态就拦截登录，也不能用 session 流程绕过凭证验证。设备私钥丢失时才走首次登记流程；受邀设备重新登记会创建独立账户，不会自动找回原受邀空间。
+
+### 5.5 网页解绑与原生端退出（2026-11-03）
+
+网页撤销后，现有盒子认证中间件会在最长约 1 秒的周期复验及每次收发时关闭原设备 WebSocket（4401）。App 暂停写操作并尝试续期；原设备证明被拒绝时退出登录，不能停留在工作区等用户手动断开。普通网络失败不视为撤销。
+
+确认设备撤销时，申请 `action=client-status`、空 params 的挑战，以原设备私钥签署，再无 Bearer 调用 `POST /api/box/clients/{id}/status`、body `{"proof":"…"}`。服务端仅返回签名匹配设备的 `box_id`／`client_id`／`state`／`revoked_at`；active 时 revoked_at 必须为 null，revoked 时必须为明确时间。状态证明不能换取会话或恢复权限；恢复必须另行执行以上 login 流程，校验用户本次输入的凭证。证明不可重放，也不能查询另一设备。
+
+收到匹配的 revoked 状态后，App 退出连接、清除会话令牌、停止访问工作区，并隔离当前账户缓存；保留盒子身份、client_id 和设备私钥，以支持用户重新输入正确凭证恢复原账户。撤销本身不自动删除登记材料或账户数据；普通 401／403、旧盒子缺少状态接口、证明过期、网络或服务重启错误同样不删除私钥／数据。设备续期证明已被拒绝时仍须退出连接并要求手动输入，不能因无法证明撤销就保留登录界面状态。
+
 原生HTTP和WS握手使用 `Authorization: Bearer …`。Task WS鉴权成功先返回ready，不需要再发送登录首帧。令牌到期前重新签名换票，再按订阅游标重连；没有长期refresh token，不接受URL token或WS旧authenticate首帧。普通断线不代表设备被撤销。
 
 ## 6. 网页登录
@@ -143,9 +166,11 @@ guest拥有独立内部用户身份，只能操作自己的项目、任务和附
 
 将受邀设备设为自有设备只允许网页管理员。仅目标端旧会话及未使用分享材料失效，client_id与私钥保留；重新换票后映射主人。其他自有设备的会话、身份和分享码不变。目标端原受邀数据保留，不合并进主人历史。重复授权不撤销会话。
 
-撤销客户端不删除项目或任务；恢复使用须新密钥重新登记，不能复用已撤销公钥。通过分享码重新登记会创建新的受邀身份，不会自动接回原受邀身份的数据；主人用管理密钥登记新的自有设备后，仍访问原有主人数据。当前没有“换机恢复原受邀身份”的接线协议。
+撤销客户端不删除项目或任务。原设备保留登记私钥时，可以通过第5.4节的手动登录，以当前管理密钥或新的单次分享码恢复原登记和原账户。私钥丢失或换机时须生成新密钥重新登记；通过分享码重新登记会创建新的受邀身份，不会自动接回原受邀身份的数据，主人用管理密钥登记新的自有设备后仍访问原有主人数据。当前没有“换机恢复原受邀身份”的接线协议。
 
 轮换请求 `{"revoke_clients":false}` 默认保留客户端及其原生会话，撤销所有Web会话和全部未完成授权，包括分享材料和待完成的自有设备认领。true同时撤销全部客户端，需要重新认领/分享。轮换或移除最后自有设备后，当前有效管理密钥仍可登录网页。
+
+网页管理员可以在“已撤销设备”列表确认名称及完整设备 ID 后，调用 `DELETE /api/box/clients/{id}` 删除登记。需要同源 Cookie 和 CSRF，活动登记返回 `409 client_not_revoked`，不存在返回 `404 client_not_found`，成功返回 `204` 空响应。服务端删除登记及关联会话、挑战、授权材料，更新库外信任并记录审计；保留用户、项目、任务和历史数据，不影响其他活动设备的访问。删除后不能再以旧 client_id 恢复登记，设备需重新登记；受邀设备重新登记会获得新的独立账户，不会自动关联原受邀数据。App 或网页不可将普通撤销等同于删除。
 
 ## 8. 长连接、执行身份与恢复
 

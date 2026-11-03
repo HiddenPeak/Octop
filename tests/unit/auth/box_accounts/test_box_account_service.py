@@ -873,3 +873,287 @@ def test_independent_owner_candidates_survive_another_registration(service, mana
         login(service, first_key, first_id)[0].user.id
         == login(service, second_key, second_id)[0].user.id
     )
+
+
+@pytest.mark.parametrize("role", ["primary", "guest"])
+def test_delete_revoked_registration_preserves_business_data(service, management_key, role):
+    from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
+    from inhere_box.infra.db.repos.projects import ProjectRow
+
+    manager = admin(service, management_key)
+    key, client_id = (
+        claim(service, management_key) if role == "primary" else enroll(service, manager)
+    )
+    context, token = login(service, key, client_id)
+    project = ProjectRow(
+        project_id="kept-project",
+        owner_id=context.user.id,
+        name="Keep",
+        description="",
+        directory=None,
+        client_directory=None,
+        instructions="",
+        skills_json="[]",
+        mcp_servers_json="[]",
+        revision=1,
+        created_at=1,
+        updated_at=1,
+    )
+    task = ProjectTaskRow(
+        task_id="kept-task",
+        owner_id=context.user.id,
+        project_id=project.project_id,
+        title="Keep task",
+        request_id="kept-request",
+        active_turn_id=None,
+        created_at=1,
+        updated_at=1,
+    )
+    with service._services.db.transaction() as conn:
+        service._services.project_repo.create(conn, project)
+        service._services.project_task_repo.insert(conn, task)
+    other_key, other_id = enroll(service, manager, request_id="other-client")
+    other, other_token = login(service, other_key, other_id)
+    with pytest.raises(InhereBoxError) as denied:
+        service.delete_client(context, client_id)
+    assert denied.value.status == 403
+    with pytest.raises(InhereBoxError) as active:
+        service.delete_client(manager, client_id)
+    assert active.value.status == 409
+    service.revoke_client(manager, client_id)
+    service.create_challenge(client_id=client_id, action="client-status")
+    service.delete_client(manager, client_id)
+    assert [client["client_id"] for client in service.clients(manager)] == [other_id]
+    assert service.validate_access_token(other_token) == other
+    with pytest.raises(InhereBoxError):
+        service.validate_access_token(token)
+    with pytest.raises(InhereBoxError):
+        manual_login(service, key, client_id, management_key)
+    with pytest.raises(InhereBoxError) as missing:
+        service.delete_client(manager, client_id)
+    assert missing.value.status == 404
+    with service._services.db.connect() as conn:
+        assert service._repo.owner(conn, context.user.id) is not None
+        assert (
+            conn.execute(
+                "SELECT name FROM projects WHERE project_id=?", (project.project_id,)
+            ).fetchone()[0]
+            == "Keep"
+        )
+        assert (
+            conn.execute(
+                "SELECT title FROM project_tasks WHERE task_id=?", (task.task_id,)
+            ).fetchone()[0]
+            == "Keep task"
+        )
+        for table in ["box_auth_challenges", "box_auth_sessions", "box_pairing_grants"]:
+            assert (
+                conn.execute(
+                    f"SELECT COUNT(*) FROM {table} WHERE client_id=?", (client_id,)
+                ).fetchone()[0]
+                == 0
+            )
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    restarted = BoxAccountService(service._services, secret=b"test-secret" * 4, box_id="test-box")
+    restarted.initialize()
+    assert login(restarted, other_key, other_id)[0].user == other.user
+    assert restarted.status()["state"] == "claimed"
+
+
+def test_delete_revoked_issuer_preserves_other_registered_clients(service, management_key):
+    manager = admin(service, management_key)
+    key, client_id = claim(service, management_key)
+    owner, _ = login(service, key, client_id)
+    grant = service.create_enroll_grant(
+        owner,
+        request_id="issued",
+        proof=sign(
+            key,
+            service.create_challenge(
+                client_id=client_id, action="enroll", params={"request_id": "issued"}
+            ),
+        ),
+    )
+    guest_key, pairing = begin_pairing(service, grant)
+    guest_id = service.prove_pairing(pairing["pairing_id"], sign(guest_key, pairing["challenge"]))[
+        "client_id"
+    ]
+    service.create_challenge(pairing_id=pairing["pairing_id"], action="result")
+    service.revoke_client(manager, client_id)
+    service.delete_client(manager, client_id)
+    assert login(service, guest_key, guest_id)[0].role == "guest"
+    with service._services.db.connect() as conn:
+        assert service._repo.grant(conn, grant["grant_id"]) is None
+        assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+
+
+def manual_login(service, key, client_id, secret):
+    from inhere_box.infra.auth.box_accounts.crypto import digest
+
+    challenge = service.create_challenge(
+        client_id=client_id, action="login", params={"secret_hash": digest(secret)}
+    )
+    return service.login_client(sign(key, challenge), secret)
+
+
+def test_manual_owner_login_requires_current_input_and_keeps_device(service, management_key):
+    key, client_id = claim(service, management_key)
+    context = admin(service, management_key)
+    before = service.account(login(service, key, client_id)[0])
+    for secret in ["wrong", ""]:
+        with pytest.raises(InhereBoxError):
+            manual_login(service, key, client_id, secret)
+    for _ in range(2):
+        session = manual_login(service, key, client_id, management_key)
+        verified = service.validate_access_token(session["access_token"])
+        assert session["paired_client_id"] == client_id
+        assert service.account(verified)["user"]["id"] == before["user"]["id"]
+    assert len(service.clients(context)) == 1
+
+
+def test_manual_login_binds_input_and_is_not_a_renewal_proof(service, management_key):
+    from inhere_box.infra.auth.box_accounts.crypto import digest
+
+    key, client_id = claim(service, management_key)
+    challenge = service.create_challenge(
+        client_id=client_id, action="login", params={"secret_hash": digest(management_key)}
+    )
+    proof = sign(key, challenge)
+    with pytest.raises(InhereBoxError):
+        service.login_client(proof, "different-input")
+    with pytest.raises(InhereBoxError):
+        service.create_session(proof)
+    result = service.login_client(proof, management_key)
+    assert result["paired_client_id"] == client_id
+    with pytest.raises(InhereBoxError):
+        service.login_client(proof, management_key)
+    rotated = service.rotate_management_key_local()["management_key"]
+    with pytest.raises(InhereBoxError):
+        manual_login(service, key, client_id, management_key)
+    assert manual_login(service, key, client_id, rotated)["paired_client_id"] == client_id
+
+
+def test_manual_guest_login_consumes_fresh_share_and_preserves_workspace(service, management_key):
+    context = admin(service, management_key)
+    key, client_id = enroll(service, context)
+    old_context = login(service, key, client_id)[0]
+    grant = service.create_enroll_grant(context, request_id="reconnect-share")
+    session = manual_login(service, key, client_id, grant["secret"])
+    verified = service.validate_access_token(session["access_token"])
+    assert session["paired_client_id"] == client_id and session["role"] == "guest"
+    assert verified.user.id == old_context.user.id
+    assert service.account(verified)["user"]["id"] == service.account(old_context)["user"]["id"]
+    assert len(service.clients(context)) == 1
+    with pytest.raises(InhereBoxError):
+        manual_login(service, key, client_id, grant["secret"])
+    with pytest.raises(InhereBoxError):
+        manual_login(service, key, client_id, management_key)
+
+
+def test_manual_guest_login_cannot_consume_another_candidate(service, management_key):
+    context = admin(service, management_key)
+    key, client_id = enroll(service, context)
+    grant = service.create_enroll_grant(context, request_id="bound-share")
+    other_key, pairing = begin_pairing(service, grant, request_id="bound-candidate")
+    with pytest.raises(InhereBoxError):
+        manual_login(service, key, client_id, grant["secret"])
+    assert (
+        service.prove_pairing(pairing["pairing_id"], sign(other_key, pairing["challenge"]))["state"]
+        == "consumed"
+    )
+
+
+def test_revoked_device_status_does_not_restore_access(service, management_key):
+    key, client_id = claim(service, management_key)
+    context = admin(service, management_key)
+    for expected in ["active", "revoked"]:
+        if expected == "revoked":
+            service.revoke_client(context, client_id)
+        challenge = service.create_challenge(client_id=client_id, action="client-status")
+        proof = sign(key, challenge)
+        with pytest.raises(InhereBoxError):
+            service.client_status("other-client", proof)
+        status = service.client_status(client_id, proof)
+        assert status["box_id"] == service.box_id and status["client_id"] == client_id
+        assert status["state"] == expected
+        assert (status["revoked_at"] is not None) == (expected == "revoked")
+        with pytest.raises(InhereBoxError):
+            service.client_status(client_id, proof)
+    with pytest.raises(InhereBoxError):
+        login(service, key, client_id)
+
+
+@pytest.mark.parametrize("role", ["primary", "guest"])
+def test_manual_login_restores_revoked_device_but_not_old_authorization(
+    service, management_key, role
+):
+    context = admin(service, management_key)
+    key, client_id = (
+        claim(service, management_key) if role == "primary" else enroll(service, context)
+    )
+    before, token = login(service, key, client_id)
+    old_proof = sign(key, service.create_challenge(client_id=client_id))
+    service.revoke_client(context, client_id)
+    for invalid in ["wrong", management_key] if role == "guest" else ["wrong"]:
+        with pytest.raises(InhereBoxError):
+            manual_login(service, key, client_id, invalid)
+    with service._services.db.connect() as conn:
+        assert service._repo.client(conn, client_id)["state"] == "revoked"
+    with pytest.raises(InhereBoxError):
+        login(service, key, client_id)
+    secret = management_key
+    if role == "guest":
+        secret = service.create_enroll_grant(context, request_id="restore-share")["secret"]
+    session = manual_login(service, key, client_id, secret)
+    restored = service.validate_access_token(session["access_token"])
+    assert restored.user == before.user and restored.role == role
+    assert session["paired_client_id"] == client_id
+    clients = service.clients(context)
+    assert len(clients) == 1
+    assert clients[0]["state"] == "active" and clients[0]["revoked_at"] is None
+    for operation in [
+        lambda: service.validate_access_token(token),
+        lambda: service.validate_context(before),
+        lambda: service.create_session(old_proof),
+    ]:
+        with pytest.raises(InhereBoxError):
+            operation()
+    restarted = BoxAccountService(service._services, secret=b"test-secret" * 4, box_id="test-box")
+    restarted.initialize()
+    assert login(restarted, key, client_id)[0].user == before.user
+    if role == "guest":
+        with pytest.raises(InhereBoxError):
+            manual_login(restarted, key, client_id, secret)
+
+
+@pytest.mark.parametrize("invalid", ["expired", "consumed", "cancelled", "issuer_revoked"])
+def test_invalid_share_cannot_restore_revoked_guest(service, management_key, box_clock, invalid):
+    context = admin(service, management_key)
+    owner_key, owner_id = claim(service, management_key)
+    owner, _ = login(service, owner_key, owner_id)
+    key, client_id = enroll(service, context)
+    grant = service.create_enroll_grant(
+        owner,
+        request_id="restore",
+        proof=sign(
+            owner_key,
+            service.create_challenge(
+                client_id=owner_id, action="enroll", params={"request_id": "restore"}
+            ),
+        ),
+    )
+    if invalid == "consumed":
+        manual_login(service, key, client_id, grant["secret"])
+    service.revoke_client(context, client_id)
+    if invalid == "expired":
+        box_clock[0] = grant["expires_at"]
+    elif invalid == "cancelled":
+        service.cancel_pairing(context, grant["grant_id"])
+    elif invalid == "issuer_revoked":
+        service.revoke_client(context, owner_id)
+    with pytest.raises(InhereBoxError):
+        manual_login(service, key, client_id, grant["secret"])
+    with service._services.db.connect() as conn:
+        client = service._repo.client(conn, client_id)
+        assert client["state"] == "revoked" and client["revoked_at"] is not None
+    assert service.status()["state"] == "claimed"

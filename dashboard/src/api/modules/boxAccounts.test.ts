@@ -100,6 +100,18 @@ it("logs in with only a management key and never persists session secrets", asyn
     ),
   ).toBe(false);
 });
+it("deletes a revoked registration with DELETE and current CSRF", async () => {
+  const box = await import("./boxAccounts");
+  await box.connectBoxSession("admin-key");
+  fetchMock.mockImplementationOnce(async () => json(cookie));
+  await box.boxAccountsApi.deleteClient("client/1");
+  const call = fetchMock.mock.calls.find(([url]) =>
+    String(url).endsWith("/box/clients/client%2F1"),
+  )!;
+  expect(call[1].method).toBe("DELETE");
+  expect(new Headers(call[1].headers).get("X-Inhere-Box-CSRF")).toBe("csrf-1");
+  expect(call[1].body).toBeUndefined();
+});
 it("restores an admin cookie without a key or paired client", async () => {
   cookie = {
     session_id: "existing-admin",

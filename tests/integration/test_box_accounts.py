@@ -278,3 +278,125 @@ async def test_trusted_cli_key_initialization_and_rotation_require_stopped_daemo
                 json={"management_key": candidate},
             )
             assert response.status_code == expected, response.text
+
+
+async def test_delete_revoked_device_requires_web_admin_and_csrf(box_env):
+    client, server, _home = box_env
+    _key, client_id, device_auth = await _claim(client, server)
+    path = f"/api/box/clients/{client_id}"
+    assert (await client.delete(path, headers=device_auth)).status_code == 403
+    admin_headers = await _admin_login(client, server)
+    assert (await client.delete(path, headers=admin_headers)).status_code == 409
+    assert (await client.post(f"{path}/revoke", headers=admin_headers, json={})).status_code == 204
+    assert (await client.delete(path, headers={"Origin": "http://localhost"})).status_code == 403
+    assert (
+        await client.delete(path, headers={**admin_headers, "Origin": "http://other"})
+    ).status_code == 403
+    response = await client.delete(path, headers=admin_headers)
+    assert response.status_code == 204 and not response.content
+    assert response.headers["cache-control"] == "no-store"
+    assert (await client.get("/api/box/clients", headers=admin_headers)).json() == []
+    assert (await client.get("/api/box/account", headers=admin_headers)).status_code == 200
+    assert (await client.delete(path, headers=admin_headers)).status_code == 404
+    schema = (await client.get("/api/openapi.json")).json()
+    assert "204" in schema["paths"]["/api/box/clients/{client_id}"]["delete"]["responses"]
+    assert (await client.get("/api/docs")).status_code == 200
+
+
+async def test_manual_login_reuses_device_then_web_revoke_exposes_signed_status(box_env):
+    from inhere_box.infra.auth.box_accounts.crypto import digest
+
+    client, server, _home = box_env
+    key, client_id, auth = await _claim(client, server)
+    management_key = await _management_key(server)
+    proof = await _action(client, key, client_id, "login", {"secret_hash": digest(management_key)})
+    denied = await client.post("/api/auth/client-logins", json={"proof": proof, "secret": "wrong"})
+    assert denied.status_code == 401
+    response = await client.post(
+        "/api/auth/client-logins", json={"proof": proof, "secret": management_key}
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["paired_client_id"] == client_id
+    assert (
+        await client.post(
+            "/api/auth/client-logins", json={"proof": proof, "secret": management_key}
+        )
+    ).status_code == 401
+    admin_headers = await _admin_login(client, server)
+    assert len((await client.get("/api/box/clients", headers=admin_headers)).json()) == 1
+    assert (
+        await client.post(f"/api/box/clients/{client_id}/revoke", headers=admin_headers, json={})
+    ).status_code == 204
+    assert (await client.get("/api/box/account", headers=auth)).status_code == 401
+    client.cookies.clear()
+    proof = await _action(client, key, client_id, "client-status")
+    status = await client.post(f"/api/box/clients/{client_id}/status", json={"proof": proof})
+    assert status.status_code == 200, status.text
+    assert status.json()["state"] == "revoked" and status.json()["revoked_at"] is not None
+    assert status.headers["cache-control"] == "no-store"
+    assert (
+        await client.post(f"/api/box/clients/{client_id}/status", json={"proof": proof})
+    ).status_code == 401
+    schema = (await client.get("/api/openapi.json")).json()["paths"]
+    for path in ["/api/auth/client-logins", "/api/box/clients/{client_id}/status"]:
+        assert not schema[path]["post"].get("security")
+    proof = await _action(client, key, client_id, "login", {"secret_hash": digest(management_key)})
+    restored = await client.post(
+        "/api/auth/client-logins", json={"proof": proof, "secret": management_key}
+    )
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["paired_client_id"] == client_id
+    assert (await client.get("/api/box/account", headers=auth)).status_code == 401
+    restored_auth = {"Authorization": "Bearer " + restored.json()["access_token"]}
+    assert (await client.get("/api/box/account", headers=restored_auth)).status_code == 200
+
+
+async def test_manual_guest_http_login_preserves_account_and_consumes_share(box_env):
+    from inhere_box.infra.auth.box_accounts.crypto import digest
+
+    client, server, _home = box_env
+    owner_key, owner_id, owner_auth = await _claim(client, server)
+    issue = await _action(client, owner_key, owner_id, "enroll", {"request_id": "initial-guest"})
+    grant = (
+        await client.post(
+            "/api/box/pairing-grants",
+            headers=owner_auth,
+            json={"request_id": "initial-guest", "proof": issue},
+        )
+    ).json()
+    key = ec.generate_private_key(ec.SECP256R1())
+    candidate = await _candidate(client, grant, key, request_id="guest-login")
+    client_id = candidate["client_id"]
+    guest_auth, _ = await _login(client, key, client_id)
+    original = (await client.get("/api/box/account", headers=guest_auth)).json()
+    admin_headers = await _admin_login(client, server)
+    assert (
+        await client.post(f"/api/box/clients/{client_id}/revoke", headers=admin_headers, json={})
+    ).status_code == 204
+    issue = await _action(client, owner_key, owner_id, "enroll", {"request_id": "guest-reconnect"})
+    grant = (
+        await client.post(
+            "/api/box/pairing-grants",
+            headers=owner_auth,
+            json={"request_id": "guest-reconnect", "proof": issue},
+        )
+    ).json()
+    client.cookies.clear()
+    proof = await _action(client, key, client_id, "login", {"secret_hash": digest(grant["secret"])})
+    response = await client.post(
+        "/api/auth/client-logins", json={"proof": proof, "secret": grant["secret"]}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["role"] == "guest" and response.json()["paired_client_id"] == client_id
+    auth = {"Authorization": "Bearer " + response.json()["access_token"]}
+    account = (await client.get("/api/box/account", headers=auth)).json()
+    assert account["account_id"] == original["account_id"] and account["user"] == original["user"]
+    proof = await _action(client, key, client_id, "login", {"secret_hash": digest(grant["secret"])})
+    assert (
+        await client.post(
+            "/api/auth/client-logins", json={"proof": proof, "secret": grant["secret"]}
+        )
+    ).status_code == 401
+    admin_headers = await _admin_login(client, server)
+    assert len((await client.get("/api/box/clients", headers=admin_headers)).json()) == 2

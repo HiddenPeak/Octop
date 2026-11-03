@@ -12,6 +12,7 @@ import {
   RefreshCw,
   ShieldCheck,
   Smartphone,
+  Trash2,
   Unlink,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -121,6 +122,35 @@ export default function BoxDevicesPage() {
       },
     });
   };
+  const deleteClient = (client: BoxClient) => {
+    modal.confirm({
+      title: t("boxAccount.deleteDeviceTitle", { name: client.name }),
+      content: (
+        <>
+          <p className={styles.deviceId}>
+            {t("boxAccount.deviceId")}: <code>{client.client_id}</code>
+          </p>
+          <p>{t("boxAccount.deleteDeviceConfirm")}</p>
+        </>
+      ),
+      okText: t("common.delete"),
+      okButtonProps: { danger: true },
+      cancelText: t("common.cancel"),
+      onOk: async () => {
+        setBusyId(client.client_id);
+        try {
+          await boxAccountsApi.deleteClient(client.client_id);
+          message.success(t("boxAccount.deviceDeleted"));
+          await refresh();
+        } catch (err) {
+          message.error(boxErrorMessage(err, t));
+          throw err;
+        } finally {
+          setBusyId(undefined);
+        }
+      },
+    });
+  };
   const copyShare = async () => {
     if (!share) return;
     try {
@@ -181,6 +211,9 @@ export default function BoxDevicesPage() {
         <h3 className={styles.deviceName} title={client.name}>
           {client.name}
         </h3>
+        <p className={styles.deviceId}>
+          {t("boxAccount.deviceId")}: <code>{client.client_id}</code>
+        </p>
         <p className={styles.meta}>
           {platformName(client.platform)}
           <span className={styles.separator} aria-hidden="true">
@@ -334,9 +367,18 @@ export default function BoxDevicesPage() {
                 <ul className={styles.historyList}>
                   {revokedClients.map((client) => (
                     <li key={client.client_id} className={styles.historyRow}>
-                      <span className={styles.historyName} title={client.name}>
-                        {client.name}
-                      </span>
+                      <div className={styles.deviceDetails}>
+                        <span
+                          className={styles.historyName}
+                          title={client.name}
+                        >
+                          {client.name}
+                        </span>
+                        <p className={styles.deviceId}>
+                          {t("boxAccount.deviceId")}:{" "}
+                          <code>{client.client_id}</code>
+                        </p>
+                      </div>
                       <span className={styles.meta}>
                         {platformName(client.platform)}
                         <span className={styles.separator} aria-hidden="true">
@@ -346,6 +388,19 @@ export default function BoxDevicesPage() {
                           time: displayTime(client.last_seen_at),
                         })}
                       </span>
+                      <Button
+                        danger
+                        type="text"
+                        icon={<Trash2 size={15} />}
+                        loading={busyId === client.client_id}
+                        disabled={busyId != null}
+                        onClick={() => deleteClient(client)}
+                        aria-label={t("boxAccount.deleteDeviceTitle", {
+                          name: client.name,
+                        })}
+                      >
+                        {t("common.delete")}
+                      </Button>
                     </li>
                   ))}
                 </ul>

@@ -295,10 +295,14 @@ export async function boxAuthenticatedFetch(
     return response;
   });
 }
-async function protectedCall<T>(path: string, body?: unknown): Promise<T> {
+async function protectedCall<T>(
+  path: string,
+  body?: unknown,
+  method = body === undefined ? "GET" : "POST",
+): Promise<T> {
   return responseJson<T>(
     await boxAuthenticatedFetch(sameOriginUrl(path), {
-      method: body === undefined ? "GET" : "POST",
+      method,
       headers: { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
     }),
@@ -338,6 +342,12 @@ export const boxAccountsApi = {
     protectedCall<void>(
       `/box/clients/${encodeURIComponent(clientId)}/revoke`,
       {},
+    ),
+  deleteClient: (clientId: string) =>
+    protectedCall<void>(
+      `/box/clients/${encodeURIComponent(clientId)}`,
+      undefined,
+      "DELETE",
     ),
   rotateManagementKey: async (
     revokeClients: boolean,

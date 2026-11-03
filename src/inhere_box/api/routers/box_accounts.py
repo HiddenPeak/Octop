@@ -144,6 +144,21 @@ class ProofRequest(BoxRequest):
     )
 
 
+class ClientLoginRequest(ProofRequest):
+    secret: str = Field(
+        min_length=1,
+        max_length=512,
+        description="Manually entered management key or fresh one-time share code; never stored by the client.",
+    )
+
+
+class ClientStatusResponse(BaseModel):
+    box_id: str
+    client_id: str
+    state: Literal["active", "revoked"]
+    revoked_at: int | None
+
+
 class PairingResponse(BaseModel):
     pairing_id: str
     state: str
@@ -156,7 +171,7 @@ class PairingResponse(BaseModel):
 class ChallengeRequest(BoxRequest):
     client_id: str | None = Field(default=None, max_length=128)
     pairing_id: str | None = Field(default=None, max_length=128)
-    action: Literal["session", "enroll", "result"] = "session"
+    action: Literal["session", "login", "client-status", "enroll", "result"] = "session"
     params: dict[str, str] = Field(
         default_factory=dict,
         max_length=4,
@@ -371,6 +386,38 @@ async def create_session(
 
 
 @auth_router.post(
+    "/client-logins",
+    openapi_extra={"security": []},
+    response_model=SessionResponse,
+    summary="Sign into an existing native device with manually entered credentials",
+    description="Requires a fresh login proof bound to the credential digest. Owner devices use the current management key; guests use a fresh one-time share code. Valid credentials restore a revoked device, preserving its role and workspace. Previously revoked sessions remain invalid.",
+)
+async def login_client(
+    body: ClientLoginRequest, response: Response, service: PublicService
+) -> SessionResponse:
+    response.headers["Cache-Control"] = "no-store"
+    return SessionResponse.model_validate(
+        await asyncio.to_thread(service.login_client, body.proof, body.secret)
+    )
+
+
+@router.post(
+    "/clients/{client_id}/status",
+    openapi_extra={"security": []},
+    response_model=ClientStatusResponse,
+    summary="Prove this device's active or revoked status without a session",
+    description="Requires a fresh client-status proof made with the registered device key. This proof only reads the device's own status; restoring access requires a separate manual login with valid credentials.",
+)
+async def client_status(
+    client_id: str, body: ProofRequest, response: Response, service: PublicService
+) -> ClientStatusResponse:
+    response.headers["Cache-Control"] = "no-store"
+    return ClientStatusResponse.model_validate(
+        await asyncio.to_thread(service.client_status, client_id, body.proof)
+    )
+
+
+@auth_router.post(
     "/browser/sessions",
     openapi_extra={
         "security": [],
@@ -565,6 +612,18 @@ async def retired_approval(context: Context) -> Response:
 )
 async def revoke(client_id: str, context: Context, service: Service) -> Response:
     await asyncio.to_thread(service.revoke_client, context, client_id)
+    return Response(status_code=204, headers={"Cache-Control": "no-store"})
+
+
+@router.delete(
+    "/clients/{client_id}",
+    status_code=204,
+    openapi_extra=box_auth_metadata(admin_only=True, mutation=True),
+    summary="Delete a revoked device registration",
+    description="Web administrator only, with same-origin and CSRF validation. Active devices return 409. Deletes the registration and related authentication records, preserving users, projects, tasks and history. The old registration can no longer be restored; the device must register again.",
+)
+async def delete_client(client_id: str, context: Context, service: Service) -> Response:
+    await asyncio.to_thread(service.delete_client, context, client_id)
     return Response(status_code=204, headers={"Cache-Control": "no-store"})
 
 

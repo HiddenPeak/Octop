@@ -29,11 +29,13 @@ _PUBLIC = {
     ("POST", "/api/box/owner-claims"),
     ("POST", "/api/auth/challenges"),
     ("POST", "/api/auth/sessions"),
+    ("POST", "/api/auth/client-logins"),
     ("POST", "/api/auth/browser/sessions"),
     ("GET", "/api/docs"),
     ("GET", "/api/openapi.json"),
 }
 _PAIRING_PUBLIC = re.compile(r"/api/box/pairings/[A-Za-z0-9_-]+/(?:proof|result)\Z")
+_CLIENT_STATUS_PUBLIC = re.compile(r"/api/box/clients/[A-Za-z0-9_-]+/status\Z")
 _BLOCKED = (
     "/api/setup",
     "/api/bridge",
@@ -50,6 +52,7 @@ def public_box_path(method: str, path: str) -> bool:
     return (
         (method, path) in _PUBLIC
         or (method == "POST" and _PAIRING_PUBLIC.fullmatch(path) is not None)
+        or (method == "POST" and _CLIENT_STATUS_PUBLIC.fullmatch(path) is not None)
         or (method == "GET" and path.startswith("/api/i18n/"))
     )
 

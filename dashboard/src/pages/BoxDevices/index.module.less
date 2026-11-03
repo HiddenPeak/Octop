@@ -206,6 +206,18 @@
   white-space: nowrap;
 }
 
+.deviceId {
+  margin: 0 0 4px;
+  color: var(--fn-text-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+
+  code {
+    user-select: text;
+  }
+}
+
 .meta {
   margin: 0;
   color: var(--fn-text-secondary);
@@ -284,12 +296,17 @@
   padding: 12px 0;
   border-bottom: 1px solid var(--fn-border-secondary);
 
+  > .deviceDetails {
+    flex: 1 1 220px;
+  }
+
   &:last-child {
     border: 0;
   }
 }
 
 .historyName {
+  display: block;
   min-width: 0;
   overflow: hidden;
   color: var(--fn-text-secondary);

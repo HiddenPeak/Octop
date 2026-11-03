@@ -573,7 +573,9 @@ class BoxAccountService:
         public_key_json = ""
         if client_id is not None:
             client = self._repo.client(conn, client_id)
-            if client is None or client["state"] != "active":
+            if client is None or (
+                client["state"] != "active" and action not in {"login", "client-status"}
+            ):
                 persist = False
             else:
                 public_key_json = client["public_key_json"]
@@ -622,6 +624,8 @@ class BoxAccountService:
             raise _error("challenge_parameters_invalid", 400)
         if client_id is not None and action not in {
             "session",
+            "login",
+            "client-status",
             "enroll",
             "approve",
             "cancel",
@@ -872,37 +876,101 @@ class BoxAccountService:
             "user_id": user.id,
         }
 
-    def create_session(self, proof: str) -> dict[str, Any]:
+    def client_status(self, client_id: str, proof: str) -> dict[str, Any]:
+        """A status proof cannot restore a device or obtain a session."""
         with self._transaction() as conn:
-            challenge = self._proof(conn, proof, action="session", params={})
+            self._proof(conn, proof, action="client-status", params={}, client_id=client_id)
+            client = self._repo.client(conn, client_id)
+            if client is None or client["state"] not in {"active", "revoked"}:
+                raise _error("client_not_found", 404)
+            return {
+                "box_id": self.box_id,
+                "client_id": client_id,
+                "state": client["state"],
+                "revoked_at": client["revoked_at"],
+            }
+
+    def login_client(self, proof: str, secret: str) -> dict[str, Any]:
+        """Fresh credentials can restore a revoked device without changing its account."""
+        if not secret or len(secret) > 512:
+            raise _error("credential_invalid")
+        with self._transaction() as conn:
+            challenge = self._proof(
+                conn, proof, action="login", params={"secret_hash": digest(secret)}
+            )
             client = self._repo.client(conn, challenge["client_id"] or "")
             account = self._repo.account(conn)
             if client is None or account is None:
                 raise _error("proof_invalid")
-            user = self._client_user(conn, client, account)
-            now, sid = int(time.time()), new_ulid()
-            self._repo.create_session(
-                conn,
-                session_id=sid,
-                client_id=client["client_id"],
-                owner_id=user.id,
-                revision=account["auth_revision"],
-                role=client["role"],
-                boot_id=self.boot_id,
-                now=now,
-                expires_at=now + SESSION_TTL,
-            )
-            return self._token(
-                user=user,
-                sid=sid,
-                client_id=client["client_id"],
-                revision=account["auth_revision"],
-                session_kind="client",
-                role=client["role"],
-                key_revision=0,
-                now=now,
-                ttl=SESSION_TTL,
-            )
+            if client["role"] == "primary":
+                self._verify_management_key(conn, secret)
+            else:
+                located = self._repo.grant_by_secret_hash(
+                    conn, hashlib.sha256(secret.encode()).hexdigest()
+                )
+                if located is None:
+                    raise _error("credential_invalid")
+                grant = self._usable_grant(conn, located["grant_id"])
+                if grant["purpose"] != "enroll" or grant["state"] != "issued":
+                    raise _error("credential_invalid")
+                self._repo.grant_state(
+                    conn, grant["grant_id"], "consumed", client_id=client["client_id"]
+                )
+            restored = client["state"] == "revoked"
+            if restored:
+                self._repo.restore_client(conn, client["client_id"])
+                if client["role"] == "primary" and account["primary_client_id"] is None:
+                    self._repo.set_primary(conn, client["client_id"])
+                client = self._repo.client(conn, client["client_id"])
+                assert client is not None
+            result = self._client_session(conn, client)
+            if restored:
+                self._services.audit_repo.write_in_transaction(
+                    conn,
+                    actor=client["client_id"],
+                    action="box.client.restore",
+                    target=client["client_id"],
+                )
+            if restored or client["role"] == "guest":
+                self._stage_trust(conn)
+            return result
+
+    def create_session(self, proof: str) -> dict[str, Any]:
+        with self._transaction() as conn:
+            challenge = self._proof(conn, proof, action="session", params={})
+            client = self._repo.client(conn, challenge["client_id"] or "")
+            if client is None:
+                raise _error("proof_invalid")
+            return self._client_session(conn, client)
+
+    def _client_session(self, conn: Any, client: dict[str, Any]) -> dict[str, Any]:
+        account = self._repo.account(conn)
+        if account is None:
+            raise _error("proof_invalid")
+        user = self._client_user(conn, client, account)
+        now, sid = int(time.time()), new_ulid()
+        self._repo.create_session(
+            conn,
+            session_id=sid,
+            client_id=client["client_id"],
+            owner_id=user.id,
+            revision=account["auth_revision"],
+            role=client["role"],
+            boot_id=self.boot_id,
+            now=now,
+            expires_at=now + SESSION_TTL,
+        )
+        return self._token(
+            user=user,
+            sid=sid,
+            client_id=client["client_id"],
+            revision=account["auth_revision"],
+            session_kind="client",
+            role=client["role"],
+            key_revision=0,
+            now=now,
+            ttl=SESSION_TTL,
+        )
 
     def _csrf_token(self, session_id: str) -> str:
         message = canonical(["inhere-box-browser-csrf-v1", self.box_id, self.boot_id, session_id])
@@ -1168,6 +1236,25 @@ class BoxAccountService:
             )
             self._stage_trust(conn)
             return {"client_id": client_id, "state": "revoked"}
+
+    def delete_client(self, context: BoxAuthContext, client_id: str) -> None:
+        with self._transaction() as conn:
+            self._require_admin(context, conn)
+            client = self._repo.client(conn, client_id)
+            if client is None:
+                raise _error("client_not_found", 404)
+            if client["state"] != "revoked":
+                raise _error("client_not_revoked", 409)
+            account = self._repo.account(conn)
+            assert account is not None
+            if account["primary_client_id"] == client_id:
+                remaining = self._repo.owner_client_ids(conn)
+                self._repo.set_primary(conn, remaining[0] if remaining else None)
+            self._repo.delete_client(conn, client_id)
+            self._services.audit_repo.write_in_transaction(
+                conn, actor="_management", action="box.client.delete", target=client_id
+            )
+            self._stage_trust(conn)
 
     def set_primary(self, context: BoxAuthContext, client_id: str) -> dict[str, Any]:
         with self._transaction() as conn:

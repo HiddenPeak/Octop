@@ -162,6 +162,13 @@ class BoxAccountRepo:
             ),
         )
 
+    def restore_client(self, conn: Any, client_id: str) -> None:
+        conn.execute(
+            "UPDATE box_paired_clients SET state='active',revoked_at=NULL "
+            "WHERE client_id=? AND state='revoked'",
+            (client_id,),
+        )
+
     def revoke_client(self, conn: Any, client_id: str, now: int) -> None:
         conn.execute(
             "UPDATE box_paired_clients SET state='revoked',revoked_at=? WHERE client_id=?",
@@ -176,6 +183,19 @@ class BoxAccountRepo:
             "AND state NOT IN ('consumed','cancelled')",
             (client_id,),
         )
+
+    def delete_client(self, conn: Any, client_id: str) -> None:
+        conn.execute(
+            "DELETE FROM box_auth_challenges WHERE client_id=? OR grant_id IN "
+            "(SELECT grant_id FROM box_pairing_grants WHERE client_id=? OR issued_by_client_id=?)",
+            (client_id, client_id, client_id),
+        )
+        conn.execute("DELETE FROM box_auth_sessions WHERE client_id=?", (client_id,))
+        conn.execute(
+            "DELETE FROM box_pairing_grants WHERE client_id=? OR issued_by_client_id=?",
+            (client_id, client_id),
+        )
+        conn.execute("DELETE FROM box_paired_clients WHERE client_id=?", (client_id,))
 
     def grant(self, conn: Any, grant_id: str) -> dict[str, Any] | None:
         row = conn.execute(
