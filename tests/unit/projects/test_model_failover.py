@@ -10,21 +10,21 @@ import pytest
 from langchain.agents.middleware import ModelRequest, ModelResponse
 from langchain_core.messages import AIMessage, HumanMessage
 
-from octop.config import OctopConfig
-from octop.infra.agents.middleware import model_failover as middleware_module
-from octop.infra.agents.providers.health import ModelHealthRegistry
-from octop.infra.agents.providers.store import ProviderStore
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRow
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.projects import model_failover
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.middleware import model_failover as middleware_module
+from inhere_box.infra.agents.providers.health import ModelHealthRegistry
+from inhere_box.infra.agents.providers.store import ProviderStore
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRow
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.projects import model_failover
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
 def environment(tmp_path, monkeypatch):
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     db = SqlitePool(tmp_path / "failover.sqlite")
     run_migrations(db)
     repos = RepoBundle.from_pool(db)
@@ -68,7 +68,7 @@ def environment(tmp_path, monkeypatch):
             ),
         )
     turn = repos.project_task_turn_repo.claim("worker-one", 1_000)
-    services = SharedServices(PathLayout(tmp_path), OctopConfig(), repos)
+    services = SharedServices(PathLayout(tmp_path), InhereBoxConfig(), repos)
     models = {
         ref: SimpleNamespace(model=ref, profile={"max_input_tokens": 100_000})
         for ref in ("box/local", "box/spare", "cloud/remote")
@@ -77,7 +77,7 @@ def environment(tmp_path, monkeypatch):
     monkeypatch.setattr(model_failover, "model_health_for", lambda _repo: health)
     monkeypatch.setattr(
         model_failover,
-        "OctopChatModelFactory",
+        "InhereBoxChatModelFactory",
         lambda _providers: SimpleNamespace(get_chat_model=models.__getitem__, aclose=AsyncMock()),
     )
     monkeypatch.setattr(middleware_module, "_estimated_input_tokens", lambda _request: 100)
@@ -141,7 +141,7 @@ async def test_box_failover_stays_local_and_audits_without_mutating_snapshot(
         services, 1, turn, raw, ProviderStore(services.provider_repo).build_harness_configs()
     )
     middleware._retry.max_retries = 0
-    configurable = {"model": "box/local", "octop_auto_route": True}
+    configurable = {"model": "box/local", "inhere_box_auto_route": True}
     monkeypatch.setattr(middleware_module, "_configurable", lambda _request: configurable)
     attempted = []
 
@@ -179,7 +179,7 @@ async def test_explicit_task_failure_is_raised_without_another_model(environment
     monkeypatch.setattr(
         middleware_module,
         "_configurable",
-        lambda _request: {"model": "box/local", "octop_auto_route": False},
+        lambda _request: {"model": "box/local", "inhere_box_auto_route": False},
     )
     attempted = []
 
@@ -212,7 +212,7 @@ async def test_failover_tries_newest_flagship_before_lightweight_model(environme
     middleware = await model_failover.task_failover_middleware(
         services, 1, turn, raw, ProviderStore(services.provider_repo).build_harness_configs()
     )
-    configurable = {"model": "box/local", "octop_auto_route": True}
+    configurable = {"model": "box/local", "inhere_box_auto_route": True}
     monkeypatch.setattr(middleware_module, "_configurable", lambda _request: configurable)
     attempted = []
 

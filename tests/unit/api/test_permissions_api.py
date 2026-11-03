@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from octop.api.deps import require_permission
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.users.identity import Role, User
+from inhere_box.api.deps import require_permission
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.users.identity import Role, User
 
 
 def _user(is_admin: bool, permissions: list[str] | None = None) -> User:
@@ -26,7 +26,7 @@ def test_unknown_key_raises_at_construction() -> None:
 
 async def test_dependency_denies_without_permission() -> None:
     dep = require_permission("browser")
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         await dep(_user(False, []))
     assert exc.value.code is ErrorCode.FORBIDDEN
     assert exc.value.details.get("permission") == "browser"

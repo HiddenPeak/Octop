@@ -11,8 +11,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from octop.api.routers import project_tasks_ws
-from octop.infra.projects import runtime, tasks
+from inhere_box.api.routers import project_tasks_ws
+from inhere_box.infra.projects import runtime, tasks
 from tests.integration.test_project_tasks import settled
 from tests.integration.test_project_tasks_ws import command, connected, until
 from tests.support.auth import resolve_user_id

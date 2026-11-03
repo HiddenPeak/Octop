@@ -25,7 +25,7 @@
     border-color: var(--fn-color-brand, #e85d75);
   }
 
-  > :global(textarea:is(.ant-input, .octop-input)) {
+  > :global(textarea:is(.ant-input, .inhere-box-input)) {
     padding: 3px 2px;
     border: 0;
     border-radius: 0;
@@ -60,7 +60,7 @@
   flex-wrap: wrap;
   gap: 2px;
 
-  > :global(:is(.ant-btn, .octop-btn)) {
+  > :global(:is(.ant-btn, .inhere-box-btn)) {
     font-size: 12px;
     padding-inline: 6px;
   }
@@ -78,17 +78,17 @@
   flex-wrap: wrap;
   gap: 4px 6px;
 
-  > :global(:is(.ant-select, .octop-select)) {
+  > :global(:is(.ant-select, .inhere-box-select)) {
     min-width: 0;
     max-width: 170px;
   }
 
-  > :global(:is(.ant-btn, .octop-btn)) {
+  > :global(:is(.ant-btn, .inhere-box-btn)) {
     font-size: 12px;
     padding-inline: 5px;
   }
 
-  :global(:is(.ant-segmented, .octop-segmented)) {
+  :global(:is(.ant-segmented, .inhere-box-segmented)) {
     font-size: 12px;
   }
 }
@@ -140,7 +140,7 @@
     overflow-wrap: anywhere;
   }
 
-  > :global(:is(.ant-btn, .octop-btn)) {
+  > :global(:is(.ant-btn, .inhere-box-btn)) {
     width: 20px;
     height: 20px;
     flex: 0 0 auto;
@@ -161,7 +161,7 @@
 .optionsPopover {
   max-width: calc(100vw - 24px);
 
-  :global(:is(.ant-popover-inner, .octop-popover-inner)) {
+  :global(:is(.ant-popover-inner, .inhere-box-popover-inner)) {
     padding: 12px;
   }
 }
@@ -172,24 +172,24 @@
   overflow: auto;
   overscroll-behavior: contain;
 
-  :global(:is(.ant-form-item, .octop-form-item)) {
+  :global(:is(.ant-form-item, .inhere-box-form-item)) {
     margin-bottom: 12px;
   }
 
-  :global(:is(.ant-form-item-label, .octop-form-item-label)) {
+  :global(:is(.ant-form-item-label, .inhere-box-form-item-label)) {
     padding-bottom: 4px;
     white-space: normal;
   }
 
-  :global(:is(.ant-collapse-content-box, .octop-collapse-content-box)) {
+  :global(:is(.ant-collapse-content-box, .inhere-box-collapse-content-box)) {
     padding: 4px 0 8px !important;
   }
 
-  :global(:is(.ant-collapse-header, .octop-collapse-header)) {
+  :global(:is(.ant-collapse-header, .inhere-box-collapse-header)) {
     padding-inline: 0 !important;
   }
 
-  :global(:is(.ant-select, .octop-select)) {
+  :global(:is(.ant-select, .inhere-box-select)) {
     width: 100%;
   }
 }
@@ -200,7 +200,7 @@
   justify-content: space-between;
   gap: 8px;
 
-  > :global(:is(.ant-btn, .octop-btn)) {
+  > :global(:is(.ant-btn, .inhere-box-btn)) {
     flex: 0 0 auto;
   }
 }
@@ -219,7 +219,7 @@
   .settings {
     gap: 3px 4px;
 
-    > :global(:is(.ant-select, .octop-select)) {
+    > :global(:is(.ant-select, .inhere-box-select)) {
       max-width: 145px;
     }
   }
@@ -229,7 +229,10 @@
   max-width: calc(100vw - 24px);
 
   :global(
-      :is(.ant-select-item-option-content, .octop-select-item-option-content)
+      :is(
+          .ant-select-item-option-content,
+          .inhere-box-select-item-option-content
+        )
     ) {
     white-space: normal;
     overflow-wrap: anywhere;

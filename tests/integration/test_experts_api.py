@@ -1,7 +1,7 @@
 """tests/integration/test_experts_api.py — expert catalog endpoints.
 
 Covers list / detail / one-click create. Uses the bundled library that
-ships with the package (``src/octop/experts/library/``) so the data
+ships with the package (``src/inhere_box/experts/library/``) so the data
 shape matches production exactly.
 """
 
@@ -121,7 +121,7 @@ async def test_create_agent_from_expert_applies_quick_prompts(env: Any) -> None:
     workspace = srv.app_runtime.agent_registry.workspace_for_agent(agent_id)
     if workspace is None:
         pytest.skip("workspace not available before bootstrap")
-    from octop.infra.agents.experts.catalog import (
+    from inhere_box.infra.agents.experts.catalog import (
         WORKSPACE_MANIFEST_PATH,
         read_workspace_manifest_data,
     )
@@ -275,8 +275,8 @@ async def test_create_agent_from_expert_rejects_unknown_package_before_creation(
 
 
 async def test_hub_install_mounts_skill_packages(env: Any, monkeypatch: pytest.MonkeyPatch) -> None:
-    from octop.api.routers import experts as experts_router
-    from octop.infra.agents.manager import AgentCreateSpec
+    from inhere_box.api.routers import experts as experts_router
+    from inhere_box.infra.agents.manager import AgentCreateSpec
 
     c, server, auth = env
     package_id = (
@@ -325,7 +325,7 @@ async def test_hub_install_mounts_skill_packages(env: Any, monkeypatch: pytest.M
 async def test_hub_install_rejects_unknown_package_before_creation(
     env: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from octop.api.routers import experts as experts_router
+    from inhere_box.api.routers import experts as experts_router
 
     c, _server, auth = env
     create_called = False

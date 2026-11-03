@@ -10,13 +10,13 @@ API、原收据和公开 RunView 字段保持；最终门禁及本地结果见 [
 
 daemon 在初始化控制面后、创建运行时之前执行恢复扫描。显式选择的 daemon 生命周期 OS mutex 先保护当前安装目录，持有到服务退出；冲突使用本地化 `CONTROL_PLANE_BUSY`，状态为 409。
 CLI 在保存显式 host/port 或生成 TLS 文件之前取得这把锁，并将同一个 guard 交给 foreground/server；被拒绝的第二个进程不改运行配置。直接 foreground 同样创建 daemon guard，默认 embedded Server 不接收 guard。
-这个 mutex 只协调参与第七轮约定、使用同一当前 OCTOP_HOME 的 daemon，不是数据库集群锁，也不涵盖另一目录、所有嵌入式调用或未采用此协议的旧版本进程。
+这个 mutex 只协调参与第七轮约定、使用同一当前 INHERE_BOX_HOME 的 daemon，不是数据库集群锁，也不涵盖另一目录、所有嵌入式调用或未采用此协议的旧版本进程。
 它不能证明旧 0.6 进程不存在，不能证明模型、工具、子进程或沙箱已经停止，也不能授予重派权限。
 
 embedded 启动默认跳过这项 daemon 互斥与扫描，不暗中把本地 CLI/测试调用变为全局恢复动作。
 锁获取、扫描、组件清理与数据库关闭均等待后台操作结束后才传播取消；首次启动在恢复前或组件创建途中失败、监听规划失败和正常退出都清理已创建资源后放锁。部分组件 boot 的失败清理不依赖 `_started` 已置为 true。
 确定性 Fixture 可以显式调用内部恢复函数；这与配置一个可运行模型的产品开关不同。
-普通 Octop 专家的入口和原行为不因该元数据扫描变成 AgentComputer worker。
+普通 inhere-box 专家的入口和原行为不因该元数据扫描变成 AgentComputer worker。
 
 ## 扫描范围与顺序
 

@@ -3,13 +3,13 @@ requires = ["hatchling>=1.18"]
 build-backend = "hatchling.build"
 
 [project]
-name = "octop"
+name = "inhere-box"
 version = "1.0.2b6"
 description = "Smarter self-hosted AI assistant for multiple users and agents, built on octop-harness"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.12"
-authors = [{name = "octop contributors"}]
+authors = [{name = "inhere-box contributors"}]
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
@@ -48,6 +48,8 @@ dependencies = [
     "openpyxl>=3.1",
     "xlrd>=2.0.1",
     "ldap3>=2.9.1",
+    "zeroconf>=0.148",
+    "ifaddr>=0.2.0",
 ]
 
 [project.optional-dependencies]
@@ -96,28 +98,28 @@ dev = [
 ]
 
 [project.scripts]
-octop = "octop.cli.main:cli"
+inhere-box = "inhere_box.cli.main:cli"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/octop"]
+packages = ["src/inhere_box"]
 
 [tool.hatch.build]
 include = [
-    "src/octop/**/*.py",
-    "src/octop/**/*.json",
-    "src/octop/**/*.md",
-    "src/octop/**/*.sql",
-    "src/octop/**/*.sh",
-    "src/octop/**/*.png",
-    "src/octop/dashboard/**/*",
-    "src/octop/infra/agents/experts/library/**/*",
-    "src/octop/infra/agents/plugins/bundled/**/*",
-    "src/octop/infra/agents/subagents/library/**/*",
-    "src/octop/infra/agents/subagents/divisions.json",
-    "src/octop/infra/desktop/scripts/**/*",
+    "src/inhere_box/**/*.py",
+    "src/inhere_box/**/*.json",
+    "src/inhere_box/**/*.md",
+    "src/inhere_box/**/*.sql",
+    "src/inhere_box/**/*.sh",
+    "src/inhere_box/**/*.png",
+    "src/inhere_box/dashboard/**/*",
+    "src/inhere_box/infra/agents/experts/library/**/*",
+    "src/inhere_box/infra/agents/plugins/bundled/**/*",
+    "src/inhere_box/infra/agents/subagents/library/**/*",
+    "src/inhere_box/infra/agents/subagents/divisions.json",
+    "src/inhere_box/infra/desktop/scripts/**/*",
 ]
 artifacts = [
-    "src/octop/dashboard/**/*",
+    "src/inhere_box/dashboard/**/*",
 ]
 
 [tool.ruff]
@@ -132,18 +134,18 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["B011"]
-"src/octop/api/**" = ["B008"]
+"src/inhere_box/api/**" = ["B008"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 ignore_missing_imports = true
-files = ["src/octop"]
+files = ["src/inhere_box"]
 exclude = [
-    "src/octop/dashboard/",
-    "src/octop/infra/agents/experts/library/",
-    "src/octop/infra/agents/plugins/bundled/",
-    "src/octop/infra/agents/subagents/library/",
+    "src/inhere_box/dashboard/",
+    "src/inhere_box/infra/agents/experts/library/",
+    "src/inhere_box/infra/agents/plugins/bundled/",
+    "src/inhere_box/infra/agents/subagents/library/",
 ]
 
 [[tool.mypy.overrides]]
@@ -151,55 +153,55 @@ module = "tests.*"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "octop.api.routers.auth"
+module = "inhere_box.api.routers.auth"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "octop.api.routers.health"
+module = "inhere_box.api.routers.health"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "octop.api.routers.setup"
+module = "inhere_box.api.routers.setup"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "octop.api.routers.users"
+module = "inhere_box.api.routers.users"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "octop.api.routers.agents"
+module = "inhere_box.api.routers.agents"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "octop.api.routers.providers"
+module = "inhere_box.api.routers.providers"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "octop.api.routers.chat"
+module = "inhere_box.api.routers.chat"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "octop.api.routers.channels"
+module = "inhere_box.api.routers.channels"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "octop.api.routers.cron"
+module = "inhere_box.api.routers.cron"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "octop.api.routers.admin"
+module = "inhere_box.api.routers.admin"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "octop.api.app"
+module = "inhere_box.api.app"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = "octop.infra.utils.posix_compat"
+module = "inhere_box.infra.utils.posix_compat"
 disable_error_code = ["attr-defined"]
 
 [[tool.mypy.overrides]]
-module = "octop.infra.utils.subprocess_io_win"
+module = "inhere_box.infra.utils.subprocess_io_win"
 disable_error_code = ["attr-defined"]
 
 [tool.pytest.ini_options]
@@ -208,7 +210,7 @@ asyncio_mode = "auto"
 markers = [
     "live: tests that hit real LLM / external services (skipped by default)",
     "slow: expensive tests (integration boot, real harness, browser); skipped by make test-fast",
-    "postgresql: tests that need a live PostgreSQL (set OCTOP_TEST_DATABASE_URL)",
+    "postgresql: tests that need a live PostgreSQL (set INHERE_BOX_TEST_DATABASE_URL)",
 ]
 # The project pins a starlette fork (1.3.1) whose TestClient prefers a
 # private ``httpx2`` build that is not installable from PyPI. When ``httpx2``

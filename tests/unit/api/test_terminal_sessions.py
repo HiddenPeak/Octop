@@ -1,6 +1,6 @@
 """Unit tests for the terminal session machinery and WS handler.
 
-These run without the full ``OctopServer`` / ``octop_gateway`` stack:
+These run without the full ``InhereBoxServer`` / ``octop_gateway`` stack:
 the ``terminal`` router module imports cleanly on its own, so we drive
 it with lightweight fakes for the server, the WebSocket and the PTY
 spawn. Pure-logic cases run on any platform; PTY-path cases are gated
@@ -20,8 +20,8 @@ import pytest
 from fastapi import WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
-from octop.api.routers import terminal
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.api.routers import terminal
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 posix_only = pytest.mark.skipif(os.name != "posix", reason="POSIX terminal required")
 
@@ -167,7 +167,7 @@ async def test_pump_pty_drains_fans_out_and_reaps() -> None:
 
 
 # ---------------------------------------------------------------------------
-# WS handler driven with fakes (no real PTY, no OctopServer)
+# WS handler driven with fakes (no real PTY, no InhereBoxServer)
 # ---------------------------------------------------------------------------
 
 
@@ -175,7 +175,7 @@ class _FakeWS:
     """Minimal starlette-WebSocket stand-in for the terminal handler."""
 
     def __init__(self, server: object, received: tuple[str, ...] = ()) -> None:
-        self.app = SimpleNamespace(state=SimpleNamespace(octop_server=server))
+        self.app = SimpleNamespace(state=SimpleNamespace(inhere_box_server=server))
         self.application_state = WebSocketState.CONNECTING
         self._received = list(received)
         self.sent: list[str] = []
@@ -248,7 +248,7 @@ async def test_ws_bad_token_closes_4001(monkeypatch) -> None:
     server, _ = _make_server()
 
     def _bad(_server, _token):
-        raise OctopError(ErrorCode.AUTH_FAILED, "nope")
+        raise InhereBoxError(ErrorCode.AUTH_FAILED, "nope")
 
     monkeypatch.setattr(terminal, "resolve_websocket_user", _bad)
     ws = _FakeWS(server)

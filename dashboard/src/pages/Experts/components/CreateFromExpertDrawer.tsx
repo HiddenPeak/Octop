@@ -14,7 +14,7 @@ import {
 import { message } from "@/utils/antdMessage";
 
 import { request } from "../../../api/request";
-import { octopAgentsApi } from "../../../api/modules/octopAgents";
+import { inhereBoxAgentsApi } from "../../../api/modules/inhereBoxAgents";
 import {
   expertMarketApi,
   type MarketExpert,
@@ -519,7 +519,7 @@ export default function CreateFromExpertDrawer({
       warnComposerPartial(body, t);
       if (avatarFile) {
         try {
-          await octopAgentsApi.uploadAvatar(body.agent_id, avatarFile);
+          await inhereBoxAgentsApi.uploadAvatar(body.agent_id, avatarFile);
         } catch {
           message.warning(t("experts.avatarUploadLater"));
         }

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.agentcomputer.preparation_lock import preparation_lock
+from inhere_box.infra.agentcomputer.preparation_lock import preparation_lock
 
 
 def test_second_process_cannot_steal_live_lock(tmp_path: Path) -> None:
@@ -21,7 +21,7 @@ def test_second_process_cannot_steal_live_lock(tmp_path: Path) -> None:
             [
                 sys.executable,
                 "-c",
-                "from pathlib import Path; import sys; from octop.infra.agentcomputer.preparation_lock import preparation_lock\nwith preparation_lock(Path(sys.argv[1])) as owned: print(owned)",
+                "from pathlib import Path; import sys; from inhere_box.infra.agentcomputer.preparation_lock import preparation_lock\nwith preparation_lock(Path(sys.argv[1])) as owned: print(owned)",
                 str(path),
             ],
             capture_output=True,
@@ -40,7 +40,7 @@ def test_process_exit_releases_lock_without_a_lease(tmp_path: Path) -> None:
         [
             sys.executable,
             "-c",
-            "import os,sys; from pathlib import Path; from octop.infra.agentcomputer.preparation_lock import preparation_lock\nwith preparation_lock(Path(sys.argv[1])) as owned:\n assert owned\n os._exit(0)",
+            "import os,sys; from pathlib import Path; from inhere_box.infra.agentcomputer.preparation_lock import preparation_lock\nwith preparation_lock(Path(sys.argv[1])) as owned:\n assert owned\n os._exit(0)",
             str(path),
         ],
         check=True,

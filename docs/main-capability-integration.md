@@ -4,7 +4,7 @@
 
 整合分支：`codex/integrate-main-capabilities`。本地基线为主工作目录的
 `feature/agentcomputer-foundation@6cbb83ad`，上游来源为
-`TencentCloud/Octop main@890111b7`（1.0.3b1）。本次按功能移植，不执行整分支合并；
+`TencentCloud/inhere-box main@890111b7`（1.0.3b1）。本次按功能移植，不执行整分支合并；
 整分支只读预演有 54 个冲突文件。
 
 ## 已整合节点与后续防重
@@ -14,7 +14,7 @@
 | 本地整合前基线 | `6cbb83adf89a8d9a8a4e47a671bc9bf258329a7c` | 当时主工作目录的 `feature/agentcomputer-foundation` |
 | 本地能力整合交付 | `ddf3f566569086551a6a70d0e148eae9a8cd9e3c` | 已提交到 `codex/integrate-main-capabilities`；未推送、未合回原分支 |
 | 本地接口审查修复 | `f1695a7d057ea10691c34fe5f83fe0effe440c97` | 同一整合分支的后续修复：记忆调用参数与 Bridge 账号大小写；未推送、未合回原分支 |
-| 上游本次审查截止节点 | `890111b7879665840414ca28ab168b05b0db0921` | `TencentCloud/Octop main`；仅下表列出的范围已选择性移植 |
+| 上游本次审查截止节点 | `890111b7879665840414ca28ab168b05b0db0921` | `TencentCloud/inhere-box main`；仅下表列出的范围已选择性移植 |
 
 后续比较或合并上游时，必须先核对本记录和目标分支代码：
 

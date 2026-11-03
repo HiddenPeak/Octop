@@ -1,16 +1,16 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-rem Octop green portable launcher (Windows)
+rem inhere-box green portable launcher (Windows)
 rem Usage:
 rem   start.bat
-rem   start.bat --home D:\octop-data
+rem   start.bat --home D:\inhere-box-data
 rem   start.bat --home .\data --host 0.0.0.0 --port 8088
 
 set "ROOT=%~dp0"
 if "%ROOT:~-1%"=="\" set "ROOT=%ROOT:~0,-1%"
 
-if not defined OCTOP_HOME set "OCTOP_HOME=%ROOT%\data"
+if not defined INHERE_BOX_HOME set "INHERE_BOX_HOME=%ROOT%\data"
 set "HOST=127.0.0.1"
 set "PORT=8088"
 set "EXTRA="
@@ -22,7 +22,7 @@ if /I "%~1"=="--home" (
     echo start.bat: --home requires a path
     exit /b 1
   )
-  set "OCTOP_HOME=%~2"
+  set "INHERE_BOX_HOME=%~2"
   shift
   shift
   goto parse
@@ -54,18 +54,18 @@ shift
 goto parse
 
 :help
-echo Octop green portable launcher
+echo inhere-box green portable launcher
 echo.
-echo Usage: start.bat [--home DIR] [--host HOST] [--port PORT] [octop run args...]
+echo Usage: start.bat [--home DIR] [--host HOST] [--port PORT] [inhere-box run args...]
 echo.
 echo Defaults:
-echo   OCTOP_HOME / --home   %%ROOT%%\data
+echo   INHERE_BOX_HOME / --home   %%ROOT%%\data
 echo   --host                127.0.0.1
 echo   --port                8088
 exit /b 0
 
 :run
-if not exist "%OCTOP_HOME%" mkdir "%OCTOP_HOME%"
+if not exist "%INHERE_BOX_HOME%" mkdir "%INHERE_BOX_HOME%"
 
 set "PY=%ROOT%\runtime\python.exe"
 if not exist "%PY%" (
@@ -82,7 +82,7 @@ rem Prefer launch.py (site.addsitedir + pywin32 DLL path). Do not set PYTHONPATH
 set "PYTHONNOUSERSITE=1"
 set "PYTHONPATH="
 
-echo [octop] home=%OCTOP_HOME%
-echo [octop] http://%HOST%:%PORT%
+echo [inhere-box] home=%INHERE_BOX_HOME%
+echo [inhere-box] http://%HOST%:%PORT%
 "%PY%" "%ROOT%\launch.py" run --host %HOST% --port %PORT% %EXTRA%
 exit /b %ERRORLEVEL%

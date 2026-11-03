@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildSkillMarkdown,
   isValidSkillName,
-  OCTOP_EMOJI_META_KEY,
+  INHERE_BOX_EMOJI_META_KEY,
   parseSkillEmojiAndMetadata,
 } from "./SkillDrawer";
 
@@ -25,7 +25,7 @@ describe("isValidSkillName", () => {
 });
 
 describe("SkillDrawer emoji metadata", () => {
-  it("writes octop.emoji into frontmatter from the emoji field", () => {
+  it("writes inhere_box.emoji into frontmatter from the emoji field", () => {
     const md = buildSkillMarkdown({
       name: "demo",
       description: "A demo skill",
@@ -34,10 +34,10 @@ describe("SkillDrawer emoji metadata", () => {
       body: "Do things.",
     });
     expect(md).toMatch(/emoji:\s*"?⚙️"?/);
-    expect(md).toContain("octop:");
+    expect(md).toContain("inhere-box:");
   });
 
-  it("writes localized presentation fields into octop metadata", () => {
+  it("writes localized presentation fields into inhere-box metadata", () => {
     const md = buildSkillMarkdown({
       name: "demo",
       description: "Agent trigger description",
@@ -60,10 +60,12 @@ describe("SkillDrawer emoji metadata", () => {
 
   it("extracts emoji from flattened metadata and keeps other keys", () => {
     const { emoji, metadata } = parseSkillEmojiAndMetadata([
-      { key: OCTOP_EMOJI_META_KEY, value: "🔧" },
-      { key: "octop.requires.bins", value: "git" },
+      { key: INHERE_BOX_EMOJI_META_KEY, value: "🔧" },
+      { key: "inhere_box.requires.bins", value: "git" },
     ]);
     expect(emoji).toBe("🔧");
-    expect(metadata).toEqual([{ key: "octop.requires.bins", value: "git" }]);
+    expect(metadata).toEqual([
+      { key: "inhere_box.requires.bins", value: "git" },
+    ]);
   });
 });

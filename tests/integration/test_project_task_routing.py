@@ -14,8 +14,8 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage, message_to_dict
 from PIL import Image
 
-from octop.infra.projects import runtime, task_submission
-from octop.infra.projects.routing_classifier import DifficultyAssessment
+from inhere_box.infra.projects import runtime, task_submission
+from inhere_box.infra.projects.routing_classifier import DifficultyAssessment
 from tests.support.auth import create_user
 from tests.support.http import ws_connect, ws_token
 
@@ -97,7 +97,7 @@ async def _submit(
         response = await client.post(url, headers=auth, json=body)
         assert response.status_code == status, response.text
         return response.json()
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws") as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws") as ws:
         await ws.send_json({"type": "authenticate", "token": ws_token(auth)})
         assert (await ws.receive_json())["type"] == "ready"
         command_id = "routing-" + uuid4().hex

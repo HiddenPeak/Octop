@@ -7,7 +7,7 @@ import threading
 
 import pytest
 
-from octop.infra.projects import resident_tasks
+from inhere_box.infra.projects import resident_tasks
 from tests.integration.test_resident_runtime_recovery import _setup, _wait_status
 from tests.support.harness import patch_resident_stream
 

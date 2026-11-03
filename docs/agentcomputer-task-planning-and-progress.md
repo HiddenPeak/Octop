@@ -1,17 +1,17 @@
 # AgentComputer APP 任务计划与动作链路接入指南
 
-Octop 的计划面板和动作链路是两种互斥的过程展示。有可见计划时，面板展示步骤、结果、当前短活动、已知时间与产物入口；不把思考、公开进展和工具详情列表嵌入步骤。无计划或本轮未启用步骤面板时，才由本轮动作链路开关决定过程区样式。2026 年 10 月 27 日服务端新增逐轮 `presentation` 快照，网页据此保持历史展示。本次按用户范围不修改 APP：当前 APP 仍读取全局偏好，以下逐轮配置、DTO、缓存与展示规则是后续客户端接线要求，尚不能宣称 APP 与网页已经一致。
+inhere-box 的计划面板和动作链路是两种互斥的过程展示。有可见计划时，面板展示步骤、结果、当前短活动、已知时间与产物入口；不把思考、公开进展和工具详情列表嵌入步骤。无计划或本轮未启用步骤面板时，才由本轮动作链路开关决定过程区样式。2026 年 10 月 27 日服务端新增逐轮 `presentation` 快照，网页据此保持历史展示。本次按用户范围不修改 APP：当前 APP 仍读取全局偏好，以下逐轮配置、DTO、缓存与展示规则是后续客户端接线要求，尚不能宣称 APP 与网页已经一致。
 
-以下组件与真实模型验收依据保留 2026 年 10 月 19 日核对结果：实际 APP `/Users/fangyuan/Desktop/code/AgentComputer/` 的当时基线为 `feature/0.0.2/octp @ 4be12673af766308c6516b69ea2c6cd0be94174d`；参考版为 AgentComputer2 `da4a8afdf19d3aa654d8040629758b4b80b4d03a`，服务端为 Octop `04c17f55` 加未提交改动。APP 当时已完成安全设置、互斥展示、原计划面板，以及原阶段式 Process、工具行和命令卡复用，显式开场与权威整轮计时也已贯通。依据为[原组件记录](/Users/fangyuan/Desktop/code/AgentComputer/SPEC/029-octop-box-integration.md:64) 与 [H/I 真实复验](/Users/fangyuan/Desktop/code/AgentComputer/SPEC/029-octop-box-integration.md:76)。这些历史结果不作为本次逐轮展示快照的验收，也不能将 H/I 的 brief 实测当作后续宿主错误分支的验收。
+以下组件与真实模型验收依据保留 2026 年 10 月 19 日核对结果：实际 APP `/Users/fangyuan/Desktop/code/AgentComputer/` 的当时基线为 `feature/0.0.2/octp @ 4be12673af766308c6516b69ea2c6cd0be94174d`；参考版为 AgentComputer2 `da4a8afdf19d3aa654d8040629758b4b80b4d03a`，服务端为 inhere-box `04c17f55` 加未提交改动。APP 当时已完成安全设置、互斥展示、原计划面板，以及原阶段式 Process、工具行和命令卡复用，显式开场与权威整轮计时也已贯通。依据为[原组件记录](/Users/fangyuan/Desktop/code/AgentComputer/SPEC/029-inhere-box-box-integration.md:64) 与 [H/I 真实复验](/Users/fangyuan/Desktop/code/AgentComputer/SPEC/029-inhere-box-box-integration.md:76)。这些历史结果不作为本次逐轮展示快照的验收，也不能将 H/I 的 brief 实测当作后续宿主错误分支的验收。
 
 ## 配置入口与优先级
 
-管理员在“应用设置 → 任务设置”（`/admin/advanced?tab=tasks`）通过开关维护两个全局默认值，缺省均为 `true`；原环境变量 API 和部署配置继续兼容，环境变量页面不再列出这两项。管理页通过 `PUT /api/project-tasks/settings` 同时提交两个严格布尔值，需要 `envs` 权限，仅更新当前 Octop 服务的两个默认值，不覆盖其他变量，无需重启。Bridge 继续只开放读取，远端配置在对端管理页修改。新合同中安全接口用于读取新轮默认值；APP 接线后已有轮次显示时应只读取本轮 `presentation`，不能用当前全局设置或本机偏好覆盖。
+管理员在“应用设置 → 任务设置”（`/admin/advanced?tab=tasks`）通过开关维护两个全局默认值，缺省均为 `true`；原环境变量 API 和部署配置继续兼容，环境变量页面不再列出这两项。管理页通过 `PUT /api/project-tasks/settings` 同时提交两个严格布尔值，需要 `envs` 权限，仅更新当前 inhere-box 服务的两个默认值，不覆盖其他变量，无需重启。Bridge 继续只开放读取，远端配置在对端管理页修改。新合同中安全接口用于读取新轮默认值；APP 接线后已有轮次显示时应只读取本轮 `presentation`，不能用当前全局设置或本机偏好覆盖。
 
 | 环境变量 | 作用 |
 | --- | --- |
-| `OCTOP_TASK_ACTION_TIMELINE_ENABLED` | 新轮次是否启用公开进展/动作说明生成，以及动作链路展示的默认值 |
-| `OCTOP_TASK_STEP_PANEL_ENABLED` | 新轮次是否显示已有计划步骤面板的默认值；不启停规划，不改变执行顺序 |
+| `INHERE_BOX_TASK_ACTION_TIMELINE_ENABLED` | 新轮次是否启用公开进展/动作说明生成，以及动作链路展示的默认值 |
+| `INHERE_BOX_TASK_STEP_PANEL_ENABLED` | 新轮次是否显示已有计划步骤面板的默认值；不启停规划，不改变执行顺序 |
 
 支持大小写不敏感、允许两端空白的 `true/false`、`1/0`、`yes/no`、`on/off`。保存前校验这两项，非法值返回 `400 TASK_SETTINGS_INVALID`，不保存任何本次修改；错误只包含设置名，不回显其值。不要把这两个显示/生成开关当作权限开关。
 
@@ -28,7 +28,7 @@ Authorization: Bearer <access token>
 
 响应使用 `Cache-Control: no-store`，只返回两个新轮默认布尔值。不要让 APP 读取 `/api/envs` 或整个环境文件。该 HTTP 接口不属于 WebSocket 命令，未新增协议帧。
 
-服务端每次读取持久化的 `~/.octop/env`（自定义安装使用对应 `OCTOP_HOME/env`）。文件存在时，文件是这两项的权威来源：缺键回到 `true`，不回退其他 worker 可能残留的旧 `os.environ`；仅整个文件不存在时才读取启动进程环境，再缺省为 `true`。管理员保存后，新请求即可读取，多 worker 不依赖环境变量广播，不需为这两个键重启服务。
+服务端每次读取持久化的 `~/.inhere-box/env`（自定义安装使用对应 `INHERE_BOX_HOME/env`）。文件存在时，文件是这两项的权威来源：缺键回到 `true`，不回退其他 worker 可能残留的旧 `os.environ`；仅整个文件不存在时才读取启动进程环境，再缺省为 `true`。管理员保存后，新请求即可读取，多 worker 不依赖环境变量广播，不需为这两个键重启服务。
 
 生成配置的优先级为：**本轮 `options.action_timeline_enabled` 显式布尔值 → 入队时全局默认值**。省略或 `null` 继承，不能用字符串或数字代替布尔值：
 
@@ -75,20 +75,20 @@ APP 接线后，展示与生成都应按轮冻结。例如某轮入队时两项�
 
 原版依据：[阶段构树、规划行过滤与阶段结果](/Users/fangyuan/Desktop/code/AgentComputer2/AgentComputer/Core/TaskConversationPresentationModels.swift:611)、[阶段组件与竖线](/Users/fangyuan/Desktop/code/AgentComputer2/AgentComputer/Features/Workspace/TaskConversationProcessSectionContainer.swift:53)、[工具语义及文件入口](/Users/fangyuan/Desktop/code/AgentComputer2/AgentComputer/Features/Workspace/TaskConversationToolCell.swift:103)。远端资源仍通过已有附件/鉴权下载能力处理，不能把服务端路径直接交给本机工作区文件打开器，也不能从 brief 猜附件。
 
-此外，状态卡仍使用固定的本地执行/token 节省比例，见 [状态卡入口](/Users/fangyuan/Desktop/code/AgentComputer/AgentComputer/Features/Workspace/TaskConversationView.swift:3264) 与 [原型文案](/Users/fangyuan/Desktop/code/AgentComputer/AgentComputer/Core/Strings.swift:1364)。这是既有原型信息，不能当作 Octop 实测统计；远端计划面板已省略该底栏，状态卡尚未一致处理。答案中的合法附件链接继续使用原渲染器；工具行复用不等于远端获得任意本机文件访问能力。
+此外，状态卡仍使用固定的本地执行/token 节省比例，见 [状态卡入口](/Users/fangyuan/Desktop/code/AgentComputer/AgentComputer/Features/Workspace/TaskConversationView.swift:3264) 与 [原型文案](/Users/fangyuan/Desktop/code/AgentComputer/AgentComputer/Core/Strings.swift:1364)。这是既有原型信息，不能当作 inhere-box 实测统计；远端计划面板已省略该底栏，状态卡尚未一致处理。答案中的合法附件链接继续使用原渲染器；工具行复用不等于远端获得任意本机文件访问能力。
 
-原版完成 Process 可显示整轮处理耗时；远端现已使用 TaskTurn 的 started_at、finished_at、processing_duration_ms，见 [数据源映射](/Users/fangyuan/Desktop/code/AgentComputer/AgentComputer/Services/Box/OctopWorkspaceDataSource.swift:978)。计时组按 updated_at 选择权威快照，updated_at 自身不是结束时间；未知时间不从消息创建时间、更新时间、工具耗时之和或本机时钟补造。工具毫秒独立保留，0ms 也是有效事实。运行中“思考中”与终态“已处理”本身属于正常状态切换。
+原版完成 Process 可显示整轮处理耗时；远端现已使用 TaskTurn 的 started_at、finished_at、processing_duration_ms，见 [数据源映射](/Users/fangyuan/Desktop/code/AgentComputer/AgentComputer/Services/Box/InhereBoxWorkspaceDataSource.swift:978)。计时组按 updated_at 选择权威快照，updated_at 自身不是结束时间；未知时间不从消息创建时间、更新时间、工具耗时之和或本机时钟补造。工具毫秒独立保留，0ms 也是有效事实。运行中“思考中”与终态“已处理”本身属于正常状态切换。
 
 ## 服务端生成规则与参考差异
 
 下表保留此前对比依据并注明当前状态。服务端曾补齐规划独占提示、开场通知门控、带工具正文分类和适用工作工具必填 brief；开场/brief 已由异步旁路替代，2026 年 10 月 22 日正文合同改为保留模型原始类型并立即增量发布。APP 原组件接线已完成，历史验收与当前合同分别记录。
 
-| 位置 | 原版 | 当前 Octop 与影响 |
+| 位置 | 原版 | 当前 inhere-box 与影响 |
 | --- | --- | --- |
-| [PlanningFlow.swift](/Users/fangyuan/Desktop/code/AgentComputer2/AgentComputer/Services/AI/PlanningFlow.swift:132) / [中文提示](../src/octop/i18n/zh.json:950) | create 与 mark_step 的提示都明确要求独占工具响应，宿主也拒绝混批 | 已补齐独占提示与混批拒绝，不再仅依赖失败反馈 |
-| [AgentRuntime.swift](/Users/fangyuan/Desktop/code/AgentComputer2/AgentComputer/Services/AI/AgentRuntime.swift:1130) / [execution.py](../src/octop/infra/projects/execution.py:234) | 公开动作模式下，宿主要求有效开场通知先保存，规划 create/get 和提问有明确豁免 | 已要求本轮开场先持久化，并在下一模型响应才放行业务；同批通知、旧轮通知或失败通知均不授权工作 |
-| [AgentProgress.swift](/Users/fangyuan/Desktop/code/AgentComputer2/AgentComputer/Domain/AgentRuntime/AgentProgress.swift:84) / [execution.py](../src/octop/infra/projects/execution.py:61) | 仅对指定的 19 个自有内置工作工具收紧已有 brief | 动作生成开启时，有无计划均要求适用工作工具的宿主 brief；还向 MCP 等无同名业务字段的工作工具投影元数据。保留本项目 240 字符合同，不引入参考版单行或 2048 字节规则 |
-| [原版正文缓冲](/Users/fangyuan/Desktop/code/AgentComputer2/AgentComputer/Services/AI/AgentRuntime.swift:875) / [Octop 主模型事件投影](../src/octop/infra/projects/runtime.py) | 建计划前的正文先缓冲，确定同一响应带工具后归过程；计划执行中普通正文也归过程 | Octop 已撤销这项分类：主模型公开正文收到即进入 text/reply，工具前、建计划前及计划内均保留原类型；APP 不按文字猜来源 |
+| [PlanningFlow.swift](/Users/fangyuan/Desktop/code/AgentComputer2/AgentComputer/Services/AI/PlanningFlow.swift:132) / [中文提示](../src/inhere_box/i18n/zh.json:950) | create 与 mark_step 的提示都明确要求独占工具响应，宿主也拒绝混批 | 已补齐独占提示与混批拒绝，不再仅依赖失败反馈 |
+| [AgentRuntime.swift](/Users/fangyuan/Desktop/code/AgentComputer2/AgentComputer/Services/AI/AgentRuntime.swift:1130) / [execution.py](../src/inhere_box/infra/projects/execution.py:234) | 公开动作模式下，宿主要求有效开场通知先保存，规划 create/get 和提问有明确豁免 | 已要求本轮开场先持久化，并在下一模型响应才放行业务；同批通知、旧轮通知或失败通知均不授权工作 |
+| [AgentProgress.swift](/Users/fangyuan/Desktop/code/AgentComputer2/AgentComputer/Domain/AgentRuntime/AgentProgress.swift:84) / [execution.py](../src/inhere_box/infra/projects/execution.py:61) | 仅对指定的 19 个自有内置工作工具收紧已有 brief | 动作生成开启时，有无计划均要求适用工作工具的宿主 brief；还向 MCP 等无同名业务字段的工作工具投影元数据。保留本项目 240 字符合同，不引入参考版单行或 2048 字节规则 |
+| [原版正文缓冲](/Users/fangyuan/Desktop/code/AgentComputer2/AgentComputer/Services/AI/AgentRuntime.swift:875) / [inhere-box 主模型事件投影](../src/inhere_box/infra/projects/runtime.py) | 建计划前的正文先缓冲，确定同一响应带工具后归过程；计划执行中普通正文也归过程 | inhere-box 已撤销这项分类：主模型公开正文收到即进入 text/reply，工具前、建计划前及计划内均保留原类型；APP 不按文字猜来源 |
 
 此前截图核对曾找到候选轮 `task_01M59C7F0AFV101TYS38KVZW85 / turn_01M59C7F0AFV101TYS38KVZW86`。检查点首批为 `planning(create) + ls`，两条失败属于 mixed_batch，均无执行起止时间；随后单独建计划成功，并已有实际完成的工作工具。采样时该轮没有 progress/notify 记录；两段建计划前的带工具正文被存为 text，后续计划内正文被存为 reasoning。截图未给轮次 ID，因此不将候选身份描述为已经由截图独立确认，也不把后续等待工具当作已执行失败。当时混批调用带 brief，其红色失败不由 brief 缺失导致；这些历史记录不被新合同重写。
 
@@ -98,7 +98,7 @@ APP 接线后，展示与生成都应按轮冻结。例如某轮入队时两项�
 
 - 动作生成开启时，工作和 planning.mark_step 之前必须已有本轮成功保存的开场。通知需独占响应，等待成功后再工作；planning.create/get 和提问豁免。通知与工作同批即使通知先完成也不放行工作，恢复检查点后仍维持此规则。关闭动作生成时不要求开场。
 - 动作生成开启时，适用工作工具新注入的宿主 brief 必填、非空且最多 240 字符，有无计划均适用；planning、通知和提问缺失 brief 豁免，显式非法参数仍校验。业务同名字段保留原合同，关闭动作生成时不注入、不要求宿主 brief。每次工作调用都校验，不按曾开始的 call_id 豁免；已派发客户端结果仍按原 call_id 消费，原生 respond 恢复不重新调用 handler。
-- HITL 中的宿主准入错误使用内部 octop_host_error 分支，保留原调用身份、工具名、本地化原因及 ToolMessage status=error；不添加用户拒绝前缀或套旧 JSON 错误包。真实用户 deny 仍走 native reject，客户端实际 result_json 仍走原 respond；这些都是服务端内部恢复语义，不新增 APP 命令或公开审批选项。
+- HITL 中的宿主准入错误使用内部 inhere_box_host_error 分支，保留原调用身份、工具名、本地化原因及 ToolMessage status=error；不添加用户拒绝前缀或套旧 JSON 错误包。真实用户 deny 仍走 native reject，客户端实际 result_json 仍走原 respond；这些都是服务端内部恢复语义，不新增 APP 命令或公开审批选项。
 - progress.introduction 是可空严格布尔值，来自宿主：本轮首条成功保存通知为 true，后续通知为 false，旧数据为 null。通知先持久化再返回工具成功；同调用重放不重复追加，旧轮开场不会授权新轮，历史缺标记不按文字补造。
 - 主模型投影后的 token 收到即进入 text/reply，不等待工具意图或完整响应，工具前、建计划前及计划执行阶段均保持公开正文。reasoning/reasoning_summary 只保留模型实际返回的对应类型，progress 使用独立公开进展来源。异常、取消和暂停保留已收到的部分正文；完整响应不重复追加，APP 不按内容文字修正来源。
 - TaskTurn.started_at 为首次实际开始时间，finished_at 为完成/失败/取消时间；processing_duration_ms 为两者间墙钟毫秒数，包含审批、暂停和恢复等待、排除首次排队。运行中或任一边界未知时为 null。恢复不重置开始时间，旧轮不回填，不能将该字段冒充单个工具执行耗时。
@@ -150,7 +150,7 @@ WebSocket 仍为 v3，连接 `/api/project-tasks/ws`，沿用 `task.create/messa
 
 每次工作调用都校验 brief，不按曾开始的 call_id 豁免。未执行的新旧调用缺失/无效 brief 时，在审批授权消费与实际派发前返回工具错误供模型纠正，不能修改已批准参数来补全。已派发客户端结果仍按原 call_id 消费，原生 respond 恢复不重新调用 handler，不因补 brief 重新派发；历史完成记录保持原值。通过校验及现有审批后，只剥离宿主元数据再派发。APP 不额外把这些元数据加入工具定义或调度参数，也不从命令或 reasoning 猜摘要。公开工具输出不包含私有 artifact、additional_kwargs 或加密 reasoning。底层工具已经截断的内容不能在客户端补回。
 
-若缺 brief、开场/步骤/批次门控或 question_limit 等宿主错误发生于 HITL 检查点，服务端通过内部 `octop_host_error` 决定恢复，核对原 call_id 和工具名，再返回原本地化原因的 `ToolMessage(status="error")`。客户端收到 failed 工具块和原始错误字符串 output，不再收到新套的 JSON 错误包或错误的 `User rejected…` 前缀；真正用户 deny 仍保留原生 reject 语义。已派发客户端的实际 result_json 仍走原 respond，不能拿成功 respond 伪装宿主失败。
+若缺 brief、开场/步骤/批次门控或 question_limit 等宿主错误发生于 HITL 检查点，服务端通过内部 `inhere_box_host_error` 决定恢复，核对原 call_id 和工具名，再返回原本地化原因的 `ToolMessage(status="error")`。客户端收到 failed 工具块和原始错误字符串 output，不再收到新套的 JSON 错误包或错误的 `User rejected…` 前缀；真正用户 deny 仍保留原生 reject 语义。已派发客户端的实际 result_json 仍走原 respond，不能拿成功 respond 伪装宿主失败。
 
 `output` 的公开 DTO 仍为任意 JSON，不改成仅字符串，也不要求 UI 根据错误文字判断来源。该内部决定不暴露为 WebSocket 命令或 allowed_decisions。任务 HITL 中间件按原名称替换既有槽位，保持检查点拓扑；主任务审批映射不继承给子代理/peer 的独立配置。已完成 I 的真实旧输出、G 的 null brief 和其他历史记录不修改；本轮只读审计没有待恢复的旧 inline 错误项，不新增历史迁移。
 
@@ -160,7 +160,7 @@ WebSocket 仍为 v3，连接 `/api/project-tasks/ws`，沿用 `task.create/messa
 
 ## APP brief 真实复验 H/I
 
-[客户端 SPEC029 第 76～85 行](/Users/fangyuan/Desktop/code/AgentComputer/SPEC/029-octop-box-integration.md:76) 记录了两条独立真实模型任务，使用原组件界面，没有为此修改 Swift/UI、工具定义或模型提示，也没有重新运行此前构建和定向单测。
+[客户端 SPEC029 第 76～85 行](/Users/fangyuan/Desktop/code/AgentComputer/SPEC/029-inhere-box-box-integration.md:76) 记录了两条独立真实模型任务，使用原组件界面，没有为此修改 Swift/UI、工具定义或模型提示，也没有重新运行此前构建和定向单测。
 
 - H 有两步计划，实际 brief 为“打印验收标记，核对真实命令链路”，原工具行显示这条具体说明；参数只有 command，实际执行退出码 0、工具 12ms。待审批时步骤保留 in_progress、中性静态暂停图标，工具为“等待执行”，输出及执行时间全为空。冷启动期间用户处理了审批，因此只核对原 turn/start/plan/call/brief 身份持续一致，不能宣称恢复前后完整快照 hash 相同。
 - I 无计划，首次 execute 缺 brief，在审批前保存 failed 工具块，没有任何关联审批或执行开始/结束/耗时。模型换用新 call 并补说明后，只有新 call 获批并实际执行一次，退出码 0、19ms；最终仍保留首次失败和随后成功两条事实。该首次失败当时被错误包装成 `User rejected the tool call…`，并没有真实用户拒绝；原记录保持，后续宿主错误分支修正不能算作已完成 I 的实测结果。
@@ -181,4 +181,4 @@ WebSocket 仍为 v3，连接 `/api/project-tasks/ws`，沿用 `task.create/messa
 - 严格顺序：只能结束当前步，宿主自动推进；未完成或受阻不误报轮次成功；混批与子代理不能改主计划。
 - 缓存与历史：完整字段、presentation 和 cursor 一致往返；冷重开和历史分页保持展示，旧缓存缺字段采用固定兼容值，分叉保留源轮快照，不补造身份或执行时间。
 
-此前客户端 [SPEC029 第 64～73 行](/Users/fangyuan/Desktop/code/AgentComputer/SPEC/029-octop-box-integration.md:64) 已记录原阶段树、工具行/命令卡、占位互斥、缓存与整轮计时接线，以及核心协议定向 48 项、应用定向 133 个用例和 macOS/iOS Simulator 双端构建通过。真实 G 展示两阶段及结果、一次实际 execute 和整轮计时，冷重开保持轮次与游标。随后 H 的真实待审批已补充观察中性静态状态，H/I 的具体 brief 及缺失补正结果见上节。真实 iOS、VoiceOver、真正断网、中途暂停/失败和更长链路仍未验收。以上均来自客户端既有记录，本次文档工作未修改或重新构建 APP，也不将它们计作宿主错误归因修正的最新联合测试或在线加载结论。
+此前客户端 [SPEC029 第 64～73 行](/Users/fangyuan/Desktop/code/AgentComputer/SPEC/029-inhere-box-box-integration.md:64) 已记录原阶段树、工具行/命令卡、占位互斥、缓存与整轮计时接线，以及核心协议定向 48 项、应用定向 133 个用例和 macOS/iOS Simulator 双端构建通过。真实 G 展示两阶段及结果、一次实际 execute 和整轮计时，冷重开保持轮次与游标。随后 H 的真实待审批已补充观察中性静态状态，H/I 的具体 brief 及缺失补正结果见上节。真实 iOS、VoiceOver、真正断网、中途暂停/失败和更长链路仍未验收。以上均来自客户端既有记录，本次文档工作未修改或重新构建 APP，也不将它们计作宿主错误归因修正的最新联合测试或在线加载结论。

@@ -9,8 +9,8 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from octop.infra.cron.trigger import build_trigger
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.cron.trigger import build_trigger
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 def test_interval_seconds():
@@ -87,18 +87,18 @@ def test_date_iso():
 
 
 def test_unknown_kind_raises():
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         build_trigger("webhook:foo")
     assert ei.value.code is ErrorCode.CRON_TRIGGER_INVALID
 
 
 def test_missing_colon_raises():
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         build_trigger("interval60")
 
 
 def test_malformed_cron_raises():
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         build_trigger("cron:not a cron")
 
 
@@ -113,14 +113,14 @@ def test_malformed_cron_raises():
     ],
 )
 def test_cron_rejects_invalid_weekday(weekday: str):
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         build_trigger(f"cron:0 9 * * {weekday}")
 
 
 @pytest.mark.parametrize("spec", ["interval:0", "interval:-5", "interval:-1"])
 def test_interval_rejects_non_positive_seconds(spec: str) -> None:
     """A zero or negative interval is an unbounded hot loop, not a schedule."""
-    with pytest.raises(OctopError, match="positive integer"):
+    with pytest.raises(InhereBoxError, match="positive integer"):
         build_trigger(spec)
 
 

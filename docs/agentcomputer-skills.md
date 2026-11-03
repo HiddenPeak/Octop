@@ -1,6 +1,6 @@
 # AgentComputer 技能接口接入说明
 
-AgentComputer 可以直接调用 Octop 已有的技能接口，复用网页登录所用的用户 Bearer token。项目选择技能使用 SkillHub 目录和当前账号的项目资源接口，管理技能库使用技能包接口。新建技能包默认私有，显式分享后才对同一 Octop 实例的其他账号可见；客户端适配、旧服务隐私兼容及验收见[私有与分享交接](agentcomputer-skill-sharing-handoff.md)。以下路径均为完整 HTTP 路径，直接请求当前连接的 Octop 服务。
+AgentComputer 可以直接调用 inhere-box 已有的技能接口，复用网页登录所用的用户 Bearer token。项目选择技能使用 SkillHub 目录和当前账号的项目资源接口，管理技能库使用技能包接口。新建技能包默认私有，显式分享后才对同一 inhere-box 实例的其他账号可见；客户端适配、旧服务隐私兼容及验收见[私有与分享交接](agentcomputer-skill-sharing-handoff.md)。以下路径均为完整 HTTP 路径，直接请求当前连接的 inhere-box 服务。
 
 ## 认证和权限
 
@@ -12,7 +12,7 @@ Accept-Language: zh
 Content-Type: application/json
 ```
 
-收到响应头 `X-Octop-Access-Token` 时更新保存的 token，以支持滑动续期。
+收到响应头 `X-Inhere-Box-Access-Token` 时更新保存的 token，以支持滑动续期。
 
 | 接口范围 | 权限要求 |
 | --- | --- |
@@ -21,7 +21,7 @@ Content-Type: application/json
 | `/api/skill-packages` 及其全部子路径 | 账号具有 `skill_packages` 权限；管理员自动通过 |
 | 修改、删除技能包及其中技能 | 在模块权限之外，还要求是该包创建者或管理员 |
 
-技能包管理接口没有 Bridge 转发入口，AgentComputer 应直连目标 Octop。远端项目和 Task 沿用[统一会话的 Bridge 接线](agentcomputer-unified-conversations-handoff.md#11-已实现的远程-task-协议与迁移接线)，不能据此推导技能包管理也可转发；没有 `/api/agentcomputer/v1` 技能专用协议。
+技能包管理接口没有 Bridge 转发入口，AgentComputer 应直连目标 inhere-box。远端项目和 Task 沿用[统一会话的 Bridge 接线](agentcomputer-unified-conversations-handoff.md#11-已实现的远程-task-协议与迁移接线)，不能据此推导技能包管理也可转发；没有 `/api/agentcomputer/v1` 技能专用协议。
 
 ## 为项目选择技能
 
@@ -115,7 +115,7 @@ Content-Type: application/json
 
 `skills` 省略表示保持原选择，`[]` 表示全部移除，不接受 `null`。SkillHub 的 `name` 必填，`description` 可省略。避免重复引用，并避免不同来源使用相同 `slug`，运行时技能名不能冲突。版本冲突返回 `409 PROJECT_REVISION_CONFLICT`，应重新读取详情后处理冲突。更多项目字段见 [项目和任务接口](api.md)。
 
-保存项目只保存引用，不下载或执行 SkillHub 技能。发送任务消息时才加载本轮项目配置：已安装技能从服务端技能包读取，SkillHub 引用由 Octop 下载后加载到任务工作区。修改后的选择在下一轮消息生效。技能包管理的安装操作则立即写入 Octop 服务端目标包，不会写入用户电脑的客户端目录，也不会自动将私有包改为分享。
+保存项目只保存引用，不下载或执行 SkillHub 技能。发送任务消息时才加载本轮项目配置：已安装技能从服务端技能包读取，SkillHub 引用由 inhere-box 下载后加载到任务工作区。修改后的选择在下一轮消息生效。技能包管理的安装操作则立即写入 inhere-box 服务端目标包，不会写入用户电脑的客户端目录，也不会自动将私有包改为分享。
 
 ## 管理技能包
 
@@ -198,7 +198,7 @@ AgentComputer 如果需要操作已有专家的工作区技能，可以继续调
 | POST | `/api/agents/{agent_id}/skills/{name}/push-to-package` | 将工作区技能复制到可写包，另需 `skill_packages` 权限 |
 | POST | `/api/agents/{agent_id}/skills/copy` | 从本人有权访问的另一专家复制工作区技能 |
 
-复制创建快照，后续不自动同步。完整请求字段可在启用 API 文档的 Octop 实例查看 `/api/docs` 的 `skills`、`skill-packages` 和 `projects` 分组，OpenAPI 为 `/api/openapi.json`。
+复制创建快照，后续不自动同步。完整请求字段可在启用 API 文档的 inhere-box 实例查看 `/api/docs` 的 `skills`、`skill-packages` 和 `projects` 分组，OpenAPI 为 `/api/openapi.json`。
 
 ## 错误处理
 

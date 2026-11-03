@@ -19,17 +19,20 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.proactive_care_config import ProactiveCareConfig, ProactiveCareConfigRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.proactive.scheduler import (
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.proactive_care_config import (
+    ProactiveCareConfig,
+    ProactiveCareConfigRepo,
+)
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.proactive.scheduler import (
     ProactiveCareScheduler,
     compute_next_trigger,
     is_in_active_hours,
 )
-from octop.infra.utils.ulid import new_ulid
+from inhere_box.infra.utils.ulid import new_ulid
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -295,7 +298,7 @@ async def test_scheduler_cancel_stops_task(
     db: SqlitePool,
 ):
     """cancel should stop the scheduled task."""
-    from octop.infra.db.repos.sessions import SessionRepo
+    from inhere_box.infra.db.repos.sessions import SessionRepo
 
     care_service = AsyncMock()
     session_repo = SessionRepo(db)
@@ -327,7 +330,7 @@ async def test_scheduler_reschedule_disabled(
     db: SqlitePool,
 ):
     """reschedule should cancel the task when enabled=false."""
-    from octop.infra.db.repos.sessions import SessionRepo
+    from inhere_box.infra.db.repos.sessions import SessionRepo
 
     care_service = AsyncMock()
     session_repo = SessionRepo(db)
@@ -355,7 +358,7 @@ async def test_scheduler_start_all_no_enabled(
     db: SqlitePool,
 ):
     """start_all should not create tasks when no agent is enabled."""
-    from octop.infra.db.repos.sessions import SessionRepo
+    from inhere_box.infra.db.repos.sessions import SessionRepo
 
     care_service = AsyncMock()
     session_repo = SessionRepo(db)
@@ -375,7 +378,7 @@ async def test_scheduler_start_all_includes_default_on_agent(
     db: SqlitePool,
 ):
     """start_all should schedule agents that never saved a proactive-care row."""
-    from octop.infra.db.repos.sessions import SessionRepo
+    from inhere_box.infra.db.repos.sessions import SessionRepo
 
     care_service = AsyncMock()
     scheduler = ProactiveCareScheduler(
@@ -396,7 +399,7 @@ async def test_shutdown_cancels_long_sleep_quickly(
     db: SqlitePool,
 ) -> None:
     """A default-on loop sleeps for hours; shutdown must not wait that out."""
-    from octop.infra.db.repos.sessions import SessionRepo
+    from inhere_box.infra.db.repos.sessions import SessionRepo
 
     scheduler = ProactiveCareScheduler(
         care_service=AsyncMock(),
@@ -415,7 +418,7 @@ async def test_suspend_skips_new_schedules(
     config_repo: ProactiveCareConfigRepo,
     db: SqlitePool,
 ) -> None:
-    from octop.infra.db.repos.sessions import SessionRepo
+    from inhere_box.infra.db.repos.sessions import SessionRepo
 
     scheduler = ProactiveCareScheduler(
         care_service=AsyncMock(),

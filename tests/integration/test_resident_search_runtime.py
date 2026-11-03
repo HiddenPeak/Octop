@@ -14,8 +14,8 @@ from octop_harness import HarnessAgent
 from octop_harness.llm.factory import ChatModelFactory
 from pydantic import Field
 
-from octop.infra.projects import resident_tasks
-from octop.infra.projects.tasks import now_ms
+from inhere_box.infra.projects import resident_tasks
+from inhere_box.infra.projects.tasks import now_ms
 
 
 def _json(response, status=200):
@@ -68,7 +68,7 @@ async def test_http_resident_task_real_graph_keeps_accepted_search_policy(
                 tool_calls=[
                     {
                         "name": "searchfree_search",
-                        "args": {"query": "current Octop information"},
+                        "args": {"query": "current inhere-box information"},
                         "id": "native-search",
                     }
                 ],
@@ -134,7 +134,7 @@ async def test_http_resident_task_real_graph_keeps_accepted_search_policy(
             assert receipts[0].status == "error"
             assert json.loads(receipts[0].content)["error_code"] == "FORBIDDEN"
         else:
-            assert queries == ["current Octop information"]
+            assert queries == ["current inhere-box information"]
             assert model.visible and all("searchfree_search" in names for names in model.visible)
             assert all(
                 not names.intersection({"execute", "web_fetch", "browser_use", "read_file"})

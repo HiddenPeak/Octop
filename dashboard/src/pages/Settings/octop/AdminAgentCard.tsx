@@ -15,7 +15,7 @@ import {
   User,
 } from "lucide-react";
 import { request } from "../../../api/request";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import MbtiPersonaTag from "../../../components/MbtiPersonaTag";
 import { formatAgentError } from "../../../utils/agentError";
 import { iconForName } from "../../Experts/components/iconForName";
@@ -35,9 +35,9 @@ const STATE_COLORS: Record<string, string> = {
 const STARTABLE = new Set(["stopped", "created", "error", "failed"]);
 
 interface AdminAgentCardProps {
-  agent: OctopAgent;
+  agent: InhereBoxAgent;
   onRefresh: () => void;
-  onOpenDetail?: (agent: OctopAgent) => void;
+  onOpenDetail?: (agent: InhereBoxAgent) => void;
 }
 
 export const AdminAgentCard = memo(function AdminAgentCard({

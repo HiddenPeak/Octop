@@ -11,16 +11,16 @@ from typing import Any
 import pytest
 from tests.support.fakes import fake_bin_path
 
-from octop.infra.connectors.builder import validate_create_credentials
-from octop.infra.connectors.catalog import get_catalog_entry
-from octop.infra.connectors.gateway.adapters import agently_cli
-from octop.infra.connectors.gateway.langchain import build_gateway_langchain_tools
-from octop.infra.connectors.gateway.protocol import handle_mcp_request
+from inhere_box.infra.connectors.builder import validate_create_credentials
+from inhere_box.infra.connectors.catalog import get_catalog_entry
+from inhere_box.infra.connectors.gateway.adapters import agently_cli
+from inhere_box.infra.connectors.gateway.langchain import build_gateway_langchain_tools
+from inhere_box.infra.connectors.gateway.protocol import handle_mcp_request
 
 
 @pytest.fixture
 def cli(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> list[dict[str, Any]]:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     monkeypatch.setattr(agently_cli, "resolve_binary", lambda _: fake_bin_path("agently-cli"))
     calls: list[dict[str, Any]] = []
 

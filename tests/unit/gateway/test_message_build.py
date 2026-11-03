@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 from octop_gateway.models import ImageContent, TextContent
 
-from octop.infra.gateway.media.tool_media import iter_media_blocks
-from octop.infra.gateway.process import (
+from inhere_box.infra.gateway.media.tool_media import iter_media_blocks
+from inhere_box.infra.gateway.process import (
     build_content,
     build_harness_request,
     content_from_parts,
@@ -93,7 +93,7 @@ def test_build_harness_request_with_messages_override():
 async def test_block_to_content_part_base64_image():
     from tests.support.fakes import FakeHarnessAgent
 
-    from octop.infra.gateway.media.tool_media import block_to_content_part
+    from inhere_box.infra.gateway.media.tool_media import block_to_content_part
 
     part = await block_to_content_part(
         {

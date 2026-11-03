@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from octop.config import load_config
-from octop.infra.db.factory import should_defer_control_plane_db
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import load_config
+from inhere_box.infra.db.factory import should_defer_control_plane_db
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def test_box_mode_loads_from_file_and_prepares_its_database(tmp_path: Path) -> None:
@@ -25,9 +25,9 @@ def test_account_mode_default_and_environment(
 ) -> None:
     config_path = tmp_path / "config.json"
     assert load_config(config_path).account_mode == "server"
-    monkeypatch.setenv("OCTOP_ACCOUNT_MODE", "box_local")
+    monkeypatch.setenv("INHERE_BOX_ACCOUNT_MODE", "box_local")
     assert load_config(config_path).account_mode == "box_local"
-    monkeypatch.setenv("OCTOP_ACCOUNT_MODE", "unknown")
+    monkeypatch.setenv("INHERE_BOX_ACCOUNT_MODE", "unknown")
     with pytest.raises(ValueError, match="account_mode"):
         load_config(config_path)
 
@@ -40,7 +40,7 @@ def test_invalid_account_mode_fails_instead_of_falling_back(tmp_path: Path, valu
         load_config(config_path)
 
 
-def test_box_http_origins_requires_explicit_configuration(tmp_path: Path) -> None:
+def test_legacy_box_http_origins_remains_readable(tmp_path: Path) -> None:
     path = tmp_path / "config.json"
     assert load_config(path).box_http_origins == []
     path.write_text(

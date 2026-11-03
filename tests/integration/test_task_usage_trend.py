@@ -16,7 +16,7 @@ from tests.integration.test_task_usage_summary import (
     _task,
     _tokens,
 )
-from tests.support.app import octop_client, write_octop_config
+from tests.support.app import inhere_box_client, write_inhere_box_config
 from tests.support.auth import create_user, resolve_user_id
 
 
@@ -217,9 +217,9 @@ async def test_trend_rejects_invalid_or_unbounded_ranges(env: Any, window: str) 
     assert "366 个自然日" in response.json()["error"]["message"]
 
 
-async def test_trend_openapi_has_typed_chart_contract(tmp_octop_home: Path) -> None:
-    write_octop_config(tmp_octop_home, enable_api_docs=True)
-    async with octop_client(tmp_octop_home) as (client, _):
+async def test_trend_openapi_has_typed_chart_contract(tmp_inhere_box_home: Path) -> None:
+    write_inhere_box_config(tmp_inhere_box_home, enable_api_docs=True)
+    async with inhere_box_client(tmp_inhere_box_home) as (client, _):
         response = await client.get("/api/openapi.json")
         assert response.status_code == 200
         schema = response.json()

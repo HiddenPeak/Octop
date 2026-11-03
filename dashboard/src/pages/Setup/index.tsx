@@ -259,10 +259,10 @@ export default function SetupPage() {
               <img
                 src={
                   isDark
-                    ? "/logo_horizontal_white.png"
-                    : "/logo_horizontal_dark.png"
+                    ? "/inhere-box-wordmark-white.svg"
+                    : "/inhere-box-wordmark-dark.svg"
                 }
-                alt="Octop"
+                alt="inhere-box"
                 className={styles.wizardHeaderLogo}
               />
               <div className={styles.wizardHeaderBrandText}>

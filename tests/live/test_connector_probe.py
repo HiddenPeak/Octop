@@ -1,7 +1,7 @@
 """Live connectivity probes for bundled token / api_key connectors.
 
 Each connector is probed with REAL credentials through the very same
-:func:`octop.infra.connectors.probe.probe_connector` the dashboard calls when a
+:func:`inhere_box.infra.connectors.probe.probe_connector` the dashboard calls when a
 user adds / verifies a connector — so a green probe means the real key reaches
 the real upstream MCP endpoint.
 
@@ -26,10 +26,10 @@ import asyncio
 import pytest
 from tests.support.secrets import require_env
 
-from octop.config import OctopConfig
-from octop.infra.connectors.builder import validate_create_credentials
-from octop.infra.connectors.catalog import get_catalog_entry
-from octop.infra.connectors.probe import probe_connector
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.connectors.builder import validate_create_credentials
+from inhere_box.infra.connectors.catalog import get_catalog_entry
+from inhere_box.infra.connectors.probe import probe_connector
 
 pytestmark = pytest.mark.live
 
@@ -79,7 +79,7 @@ def test_connector_probe_with_real_credentials(kind: str) -> None:
     except ValueError as exc:
         pytest.fail(f"{kind} credential format invalid: {exc}")
 
-    config = OctopConfig()
+    config = InhereBoxConfig()
     result = asyncio.run(probe_connector(entry, payload, instance_id=f"live-{kind}", config=config))
     if result.get("ok"):
         return

@@ -10,7 +10,7 @@ import pytest
 from deepagents.backends import FilesystemBackend
 from octop_harness.backends.workspace import BackendWorkspace
 
-from octop.api.routers.agent_files import (
+from inhere_box.api.routers.agent_files import (
     StrongMemoryBody,
     UserProfileBody,
     get_manual_memory_review,
@@ -20,7 +20,7 @@ from octop.api.routers.agent_files import (
     put_user_profile,
     review_manual_memory,
 )
-from octop.infra.errors import OctopError
+from inhere_box.infra.errors import InhereBoxError
 
 
 def _server(ws: BackendWorkspace) -> SimpleNamespace:
@@ -96,7 +96,7 @@ async def test_shared_agent_does_not_allow_non_owner_to_edit_strong_memory(
         if filename == "MEMORY.md"
         else (put_user_profile, UserProfileBody)
     )
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await put_file("a1", body_type(content="forbidden"), user=other_user, server=server)
     assert not ws.exists(filename)
     server.app_runtime.agent_registry.save_manual_memory_document.assert_not_awaited()
@@ -106,7 +106,7 @@ async def test_shared_agent_does_not_allow_non_owner_to_edit_strong_memory(
 async def test_review_is_owner_only_and_reports_candidates(tmp_path: Path) -> None:
     ws = BackendWorkspace(FilesystemBackend(root_dir=str(tmp_path), virtual_mode=True), tmp_path)
     server = _server(ws)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await review_manual_memory("a1", user=SimpleNamespace(id=2, is_admin=False), server=server)
     server.app_runtime.agent_registry.review_manual_memory_documents.assert_not_awaited()
     result = await review_manual_memory(
@@ -123,8 +123,8 @@ async def test_review_status_reads_current_files_without_running_audit(
     ws.write_text("USER.md", "Current owner profile", force=True)
     server = _server(ws)
     rpc = MagicMock(return_value={"status": "stale"})
-    monkeypatch.setattr("octop.api.routers.agent_files.call_memory_rpc", rpc)
-    with pytest.raises(OctopError):
+    monkeypatch.setattr("inhere_box.api.routers.agent_files.call_memory_rpc", rpc)
+    with pytest.raises(InhereBoxError):
         await get_manual_memory_review(
             "a1", user=SimpleNamespace(id=2, is_admin=False), server=server
         )
@@ -144,7 +144,7 @@ async def test_review_status_reads_current_files_without_running_audit(
 def test_candidate_approval_supplies_current_workspace_documents(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from octop.api.common.memory_client import call_memory_rpc
+    from inhere_box.api.common.memory_client import call_memory_rpc
 
     ws = BackendWorkspace(FilesystemBackend(root_dir=str(tmp_path), virtual_mode=True), tmp_path)
     ws.write_text("USER.md", "Updated profile", force=True)
@@ -155,7 +155,7 @@ def test_candidate_approval_supplies_current_workspace_documents(
     )
     bridge = SimpleNamespace(handle=MagicMock(return_value={"result": {"promoted": 0}}))
     monkeypatch.setattr(
-        "octop.api.common.memory_client._open_memory_for_agent", lambda *_: (memory, bridge)
+        "inhere_box.api.common.memory_client._open_memory_for_agent", lambda *_: (memory, bridge)
     )
     call_memory_rpc(
         agent_id="a1",

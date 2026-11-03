@@ -2,7 +2,7 @@
 
 import asyncio
 
-from octop.infra.conversations.updates import CommittedUpdates, PendingUpdates
+from inhere_box.infra.conversations.updates import CommittedUpdates, PendingUpdates
 
 
 def test_committed_updates_keep_resource_scopes_separate():

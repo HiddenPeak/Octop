@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.agents.providers.health import (
+from inhere_box.infra.agents.providers.health import (
     FailureScope,
     ModelHealthRegistry,
     classify_model_failure,

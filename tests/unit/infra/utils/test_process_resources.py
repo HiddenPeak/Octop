@@ -1,4 +1,4 @@
-"""Runtime NOFILE guard covers direct and container starts (Octop#2060)."""
+"""Runtime NOFILE guard covers direct and container starts (inhere-box#2060)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from octop.infra.utils import process_resources
+from inhere_box.infra.utils import process_resources
 
 
 @pytest.mark.parametrize(

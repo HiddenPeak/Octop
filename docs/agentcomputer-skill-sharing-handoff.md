@@ -1,21 +1,21 @@
 # AgentComputer 技能包私有与分享：客户端交接
 
-更新日期：2026-10-26。适配目标是已部署包含 `ddf3f566569086551a6a70d0e148eae9a8cd9e3c` 技能包实现的 Octop 后端；本文从 `codex/integrate-main-capabilities @ cc5dfdfa80dc9011c789051c2d0220e6dbe01936` 核对。本文交给客户端实施，不表示 AgentComputer Swift/UI 已完成适配。通用技能与项目接口见[技能接口说明](agentcomputer-skills.md)。
+更新日期：2026-10-26。适配目标是已部署包含 `ddf3f566569086551a6a70d0e148eae9a8cd9e3c` 技能包实现的 inhere-box 后端；本文从 `codex/integrate-main-capabilities @ cc5dfdfa80dc9011c789051c2d0220e6dbe01936` 核对。本文交给客户端实施，不表示 AgentComputer Swift/UI 已完成适配。通用技能与项目接口见[技能接口说明](agentcomputer-skills.md)。
 
 ## 当前差异和最低改造
 
-当前 AgentComputer 的 `Services/Box/OctopSkillUpload.swift` 中，`PackageCreation` 只有 `name`，`Package` 只读取 `id`、`name`、`can_write`；`OctopWorkspaceClient.createSkillPackage` 因而仅发送名称。`Core/Strings.swift` 的技能入口仍使用 “Octop shared library” 和上传到共享库的文案。新服务端收到此请求会创建私有包，上传成功不等于已经分享。
+当前 AgentComputer 的 `Services/Box/InhereBoxSkillUpload.swift` 中，`PackageCreation` 只有 `name`，`Package` 只读取 `id`、`name`、`can_write`；`InhereBoxWorkspaceClient.createSkillPackage` 因而仅发送名称。`Core/Strings.swift` 的技能入口仍使用 “inhere-box shared library” 和上传到共享库的文案。新服务端收到此请求会创建私有包，上传成功不等于已经分享。
 
 客户端最低需要完成以下改动：
 
-1. 将默认文案改为当前 Octop 的“技能库”，新建默认“仅自己可用”。用户明确选择分享后才发送 `shared: true`，说明其含义是向同一 Octop 实例的其他账号开放查看和使用。服务端不恢复默认全局共享。
+1. 将默认文案改为当前 inhere-box 的“技能库”，新建默认“仅自己可用”。用户明确选择分享后才发送 `shared: true`，说明其含义是向同一 inhere-box 实例的其他账号开放查看和使用。服务端不恢复默认全局共享。
 2. 创建请求显式携带 `shared: false`；增加由用户触发的分享/取消分享操作，调用包元数据的 `PATCH`，无需重新上传文件。
 3. 扩充包 DTO，分别保存可见性、所有权展示和操作权限；兼容缺失字段，不将未知状态显示成私有。
 4. 写操作后重新读取包详情及项目资源；迁移旧缓存为“待刷新”，按当前主机和账号重新取数。不要批量修改旧包的分享状态。
 
 ## 连接与接口
 
-直接请求当前连接的 Octop host，复用 `POST /api/auth/login` 获得的用户 token：
+直接请求当前连接的 inhere-box host，复用 `POST /api/auth/login` 获得的用户 token：
 
 ```http
 Authorization: Bearer <access_token>
@@ -23,7 +23,7 @@ Accept-Language: zh
 Content-Type: application/json
 ```
 
-收到 `X-Octop-Access-Token` 响应头时沿用既有 token 续期逻辑。下列技能包接口全部要求账号有 `skill_packages` 模块权限，管理员自动通过；项目资源接口只要求登录。`package_id` 是不透明字符串，`slug` 和查询参数分别按 URL 路径段、查询值编码。
+收到 `X-Inhere-Box-Access-Token` 响应头时沿用既有 token 续期逻辑。下列技能包接口全部要求账号有 `skill_packages` 模块权限，管理员自动通过；项目资源接口只要求登录。`package_id` 是不透明字符串，`slug` 和查询参数分别按 URL 路径段、查询值编码。
 
 | 方法 | 完整 URL | 结果 |
 | --- | --- | --- |
@@ -38,7 +38,7 @@ Content-Type: application/json
 | POST | `/api/skill-packages/from-skillhub` | 201，从合集新建包，同样默认 `shared=false` |
 | DELETE | `/api/skill-packages/{package_id}` | 204，删除包；仅创建者或管理员可操作 |
 
-这些接口没有 `/api/agentcomputer/v1` 版本，也没有技能包 Bridge 转发入口。分享只作用于当前 Octop host 内的账号，不表示跨主机发布或公开到 SkillHub。
+这些接口没有 `/api/agentcomputer/v1` 版本，也没有技能包 Bridge 转发入口。分享只作用于当前 inhere-box host 内的账号，不表示跨主机发布或公开到 SkillHub。
 
 ## DTO 和权限语义
 
@@ -184,4 +184,4 @@ Content-Type: application/json
 - [ ] 完整 files 上传含配套文件；PUT content 只改说明且保留配套文件，PUT files/POST overwrite 的完整替换有明确用户意图。
 - [ ] 操作后包详情、可写列表与项目资源刷新；不再可见的旧选择提示处理；取消分享不声称已删除既有工作区副本或历史。
 
-契约依据：[路由及请求模型](../src/octop/api/routers/skill_packages.py)、[包可见性和操作策略](../src/octop/infra/skills/skill_package_store.py)、[包响应字段](../src/octop/infra/db/repos/skill_packages.py)、[项目资源过滤](../src/octop/infra/projects/service.py)、[专家挂载校验](../src/octop/infra/agents/manager.py)。
+契约依据：[路由及请求模型](../src/inhere_box/api/routers/skill_packages.py)、[包可见性和操作策略](../src/inhere_box/infra/skills/skill_package_store.py)、[包响应字段](../src/inhere_box/infra/db/repos/skill_packages.py)、[项目资源过滤](../src/inhere_box/infra/projects/service.py)、[专家挂载校验](../src/inhere_box/infra/agents/manager.py)。

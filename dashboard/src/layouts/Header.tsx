@@ -22,8 +22,8 @@ interface HeaderProps {
 export default function Header({ onToggle, isMobile }: HeaderProps) {
   const { isDark } = useTheme();
   const mobileLogoSrc = isDark
-    ? "/logo_horizontal_white.png"
-    : "/logo_horizontal_dark.png";
+    ? "/inhere-box-wordmark-white.svg"
+    : "/inhere-box-wordmark-dark.svg";
 
   if (!isMobile) return null;
 
@@ -79,7 +79,7 @@ export default function Header({ onToggle, isMobile }: HeaderProps) {
         )}
         <img
           src={mobileLogoSrc}
-          alt="octop"
+          alt="inhere-box"
           style={{
             height: 36,
             width: "auto",

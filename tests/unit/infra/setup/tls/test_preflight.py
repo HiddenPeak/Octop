@@ -9,9 +9,9 @@ from urllib.parse import urlparse
 import httpx
 import pytest
 
-from octop.config import OctopConfig, TlsConfig
-from octop.infra.setup.tls import preflight as preflight_mod
-from octop.infra.setup.tls.preflight import (
+from inhere_box.config import InhereBoxConfig, TlsConfig
+from inhere_box.infra.setup.tls import preflight as preflight_mod
+from inhere_box.infra.setup.tls.preflight import (
     _METADATA_PUBLIC_IP_URLS,
     _PUBLIC_IP_HTTPS_URLS,
     _fetch_public_ip,
@@ -60,19 +60,21 @@ class _ErrorResponse:
 
 
 def test_preflight_requires_domain():
-    result = run_preflight("", OctopConfig())
+    result = run_preflight("", InhereBoxConfig())
     assert not result.ok
     assert any(c.id == "domain" and not c.ok for c in result.checks)
 
 
 def test_preflight_bind_host_and_port(tmp_path):
-    cfg = OctopConfig(bind_host="127.0.0.1", port=8088)
+    cfg = InhereBoxConfig(bind_host="127.0.0.1", port=8088)
     with (
-        patch("octop.infra.setup.tls.preflight._port_available", return_value=True),
-        patch("octop.infra.setup.tls.preflight._fetch_public_ip", return_value=_PUBLIC_IP),
-        patch("octop.infra.setup.tls.preflight._resolve_domain_ips", return_value={_PUBLIC_IP}),
+        patch("inhere_box.infra.setup.tls.preflight._port_available", return_value=True),
+        patch("inhere_box.infra.setup.tls.preflight._fetch_public_ip", return_value=_PUBLIC_IP),
+        patch(
+            "inhere_box.infra.setup.tls.preflight._resolve_domain_ips", return_value={_PUBLIC_IP}
+        ),
     ):
-        result = run_preflight("octop.example.com", cfg)
+        result = run_preflight("inhere_box.example.com", cfg)
     assert not result.ok
     ids = {c.id for c in result.checks}
     assert "bind_host" in ids
@@ -84,65 +86,73 @@ def test_preflight_bind_host_and_port(tmp_path):
 
 
 def test_preflight_ok_when_all_match():
-    cfg = OctopConfig(
+    cfg = InhereBoxConfig(
         bind_host="0.0.0.0",
         port=80,
         tls=TlsConfig(enabled=False),
     )
     with (
-        patch("octop.infra.setup.tls.preflight._port_available", return_value=True),
-        patch("octop.infra.setup.tls.preflight._fetch_public_ip", return_value=_PUBLIC_IP),
-        patch("octop.infra.setup.tls.preflight._resolve_domain_ips", return_value={_PUBLIC_IP}),
+        patch("inhere_box.infra.setup.tls.preflight._port_available", return_value=True),
+        patch("inhere_box.infra.setup.tls.preflight._fetch_public_ip", return_value=_PUBLIC_IP),
+        patch(
+            "inhere_box.infra.setup.tls.preflight._resolve_domain_ips", return_value={_PUBLIC_IP}
+        ),
     ):
-        result = run_preflight("octop.example.com", cfg)
+        result = run_preflight("inhere_box.example.com", cfg)
     assert result.ok
     assert all(c.ok for c in result.checks)
 
 
 def test_preflight_rejects_when_tls_already_enabled():
-    cfg = OctopConfig(
+    cfg = InhereBoxConfig(
         bind_host="0.0.0.0",
         port=8088,
         tls=TlsConfig(enabled=True),
     )
     with (
-        patch("octop.infra.setup.tls.preflight._port_available", return_value=True),
-        patch("octop.infra.setup.tls.preflight._fetch_public_ip", return_value=_PUBLIC_IP),
-        patch("octop.infra.setup.tls.preflight._resolve_domain_ips", return_value={_PUBLIC_IP}),
+        patch("inhere_box.infra.setup.tls.preflight._port_available", return_value=True),
+        patch("inhere_box.infra.setup.tls.preflight._fetch_public_ip", return_value=_PUBLIC_IP),
+        patch(
+            "inhere_box.infra.setup.tls.preflight._resolve_domain_ips", return_value={_PUBLIC_IP}
+        ),
     ):
-        result = run_preflight("octop.example.com", cfg)
+        result = run_preflight("inhere_box.example.com", cfg)
     assert not result.ok
     assert any(c.id == "tls_enabled" and not c.ok for c in result.checks)
 
 
 def test_preflight_renewal_mode_dual_port():
-    cfg = OctopConfig(
+    cfg = InhereBoxConfig(
         bind_host="0.0.0.0",
         port=443,
         tls=TlsConfig(enabled=True, http_port=80),
     )
     with (
-        patch("octop.infra.setup.tls.preflight._fetch_public_ip", return_value=_PUBLIC_IP),
-        patch("octop.infra.setup.tls.preflight._resolve_domain_ips", return_value={_PUBLIC_IP}),
+        patch("inhere_box.infra.setup.tls.preflight._fetch_public_ip", return_value=_PUBLIC_IP),
+        patch(
+            "inhere_box.infra.setup.tls.preflight._resolve_domain_ips", return_value={_PUBLIC_IP}
+        ),
     ):
-        result = run_preflight("octop.example.com", cfg)
+        result = run_preflight("inhere_box.example.com", cfg)
     assert result.renewal
     assert result.ok
     assert any(c.id == "dual_port" and c.ok for c in result.checks)
 
 
 def test_preflight_fails_when_public_ip_unavailable():
-    cfg = OctopConfig(
+    cfg = InhereBoxConfig(
         bind_host="0.0.0.0",
         port=80,
         tls=TlsConfig(enabled=False),
     )
     with (
-        patch("octop.infra.setup.tls.preflight._port_available", return_value=True),
-        patch("octop.infra.setup.tls.preflight._fetch_public_ip", return_value=None),
-        patch("octop.infra.setup.tls.preflight._resolve_domain_ips", return_value={_PUBLIC_IP}),
+        patch("inhere_box.infra.setup.tls.preflight._port_available", return_value=True),
+        patch("inhere_box.infra.setup.tls.preflight._fetch_public_ip", return_value=None),
+        patch(
+            "inhere_box.infra.setup.tls.preflight._resolve_domain_ips", return_value={_PUBLIC_IP}
+        ),
     ):
-        result = run_preflight("octop.example.com", cfg, locale="zh")
+        result = run_preflight("inhere_box.example.com", cfg, locale="zh")
     assert not result.ok
     check = next(c for c in result.checks if c.id == "public_ip")
     assert not check.ok
@@ -150,20 +160,20 @@ def test_preflight_fails_when_public_ip_unavailable():
 
 
 def test_preflight_dns_mismatch():
-    cfg = OctopConfig(
+    cfg = InhereBoxConfig(
         bind_host="0.0.0.0",
         port=80,
         tls=TlsConfig(enabled=False),
     )
     with (
-        patch("octop.infra.setup.tls.preflight._port_available", return_value=True),
-        patch("octop.infra.setup.tls.preflight._fetch_public_ip", return_value=_PUBLIC_IP),
+        patch("inhere_box.infra.setup.tls.preflight._port_available", return_value=True),
+        patch("inhere_box.infra.setup.tls.preflight._fetch_public_ip", return_value=_PUBLIC_IP),
         patch(
-            "octop.infra.setup.tls.preflight._resolve_domain_ips",
+            "inhere_box.infra.setup.tls.preflight._resolve_domain_ips",
             return_value={"9.9.9.9"},
         ),
     ):
-        result = run_preflight("octop.example.com", cfg, locale="zh")
+        result = run_preflight("inhere_box.example.com", cfg, locale="zh")
     assert not result.ok
     check = next(c for c in result.checks if c.id == "dns")
     assert not check.ok
@@ -219,7 +229,7 @@ def test_fetch_public_ip_falls_back_past_unreachable_endpoints() -> None:
                 "https://4.ipw.cn/",
             ),
         ),
-        patch("octop.infra.setup.tls.preflight.httpx.Client", _fake_client(handler)),
+        patch("inhere_box.infra.setup.tls.preflight.httpx.Client", _fake_client(handler)),
     ):
         assert _fetch_public_ip() == _PUBLIC_IP
     assert calls == [
@@ -255,7 +265,7 @@ def test_fetch_public_ip_skips_non_public_bodies() -> None:
                 "https://example.test/ok",
             ),
         ),
-        patch("octop.infra.setup.tls.preflight.httpx.Client", _fake_client(handler)),
+        patch("inhere_box.infra.setup.tls.preflight.httpx.Client", _fake_client(handler)),
     ):
         assert _fetch_public_ip() == _PUBLIC_IP
     assert calls == [
@@ -278,7 +288,7 @@ def test_fetch_public_ip_prefers_cloud_metadata() -> None:
             ("http://metadata.tencentyun.com/latest/meta-data/public-ipv4",),
         ),
         patch.object(preflight_mod, "_PUBLIC_IP_HTTPS_URLS", ("https://should-not-call/",)),
-        patch("octop.infra.setup.tls.preflight.httpx.Client", _fake_client(handler)),
+        patch("inhere_box.infra.setup.tls.preflight.httpx.Client", _fake_client(handler)),
     ):
         assert _fetch_public_ip() == _PUBLIC_IP
 
@@ -306,7 +316,7 @@ def test_fetch_public_ip_falls_through_metadata_to_https() -> None:
             "_PUBLIC_IP_HTTPS_URLS",
             ("https://4.ipw.cn/",),
         ),
-        patch("octop.infra.setup.tls.preflight.httpx.Client", _fake_client(handler)),
+        patch("inhere_box.infra.setup.tls.preflight.httpx.Client", _fake_client(handler)),
     ):
         assert _fetch_public_ip() == _PUBLIC_IP
     assert calls == [
@@ -335,6 +345,6 @@ def test_fetch_public_ip_returns_none_when_all_sources_fail() -> None:
                 "https://example.test/connect-error",
             ),
         ),
-        patch("octop.infra.setup.tls.preflight.httpx.Client", _fake_client(handler)),
+        patch("inhere_box.infra.setup.tls.preflight.httpx.Client", _fake_client(handler)),
     ):
         assert _fetch_public_ip() is None

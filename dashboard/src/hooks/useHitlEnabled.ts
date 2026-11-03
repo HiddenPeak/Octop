@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { octopSettingsApi } from "../api/modules/settings";
+import { inhereBoxSettingsApi } from "../api/modules/settings";
 
 /** Whether tool-approval UI should show (HITL or command-guard require_approval). */
 export function useHitlEnabled(): boolean {
@@ -7,7 +7,7 @@ export function useHitlEnabled(): boolean {
 
   useEffect(() => {
     let cancelled = false;
-    void octopSettingsApi
+    void inhereBoxSettingsApi
       .hitl()
       .then((data) => {
         if (!cancelled) setEnabled(Boolean(data.show_approval_ui));

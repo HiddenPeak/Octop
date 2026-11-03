@@ -1,4 +1,4 @@
-/** Client-side mirror of ``octop.infra.users.password.validate_password_policy``. */
+/** Client-side mirror of ``inhere_box.infra.users.password.validate_password_policy``. */
 
 export const MIN_PASSWORD_LENGTH = 8;
 

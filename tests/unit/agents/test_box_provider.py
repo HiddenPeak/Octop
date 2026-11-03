@@ -13,14 +13,14 @@ from langchain_core.messages import HumanMessage, ToolMessage
 from octop_harness import HarnessAgentConfig
 from octop_harness.config import ModelConfig, ProviderConfig
 
-from octop.infra.agents.providers.box import (
+from inhere_box.infra.agents.providers.box import (
     BoxProviderConfig,
-    OctopChatModelFactory,
-    OctopHarnessAgent,
+    InhereBoxChatModelFactory,
+    InhereBoxHarnessAgent,
     build_box_chat_model,
     build_box_provider_config,
 )
-from octop.infra.agents.providers.harness_factory import OctopHarnessAgentManager
+from inhere_box.infra.agents.providers.harness_factory import InhereBoxHarnessAgentManager
 
 
 def box_provider() -> ProviderConfig:
@@ -152,7 +152,7 @@ def test_sync_box_and_cloud_keep_distinct_authentication(wire):
 
 
 async def test_async_stream_and_tool_result_rounds_omit_authentication(wire):
-    factory = OctopChatModelFactory([box_provider()])
+    factory = InhereBoxChatModelFactory([box_provider()])
     model = factory.get_chat_model("appliance/RM-01 VLM")
     try:
         assert (await model.ainvoke("synthetic")).content == "box ok"
@@ -180,10 +180,10 @@ async def test_async_stream_and_tool_result_rounds_omit_authentication(wire):
 
 
 async def test_shared_factory_boot_and_hot_updates_keep_box_adapter(tmp_path, wire):
-    manager = OctopHarnessAgentManager(log_dir=tmp_path / "logs")
+    manager = InhereBoxHarnessAgentManager(log_dir=tmp_path / "logs")
     manager.add_provider(box_provider())
     factory = manager.shared_factory
-    assert isinstance(factory, OctopChatModelFactory)
+    assert isinstance(factory, InhereBoxChatModelFactory)
     first = factory.get_chat_model("appliance/RM-01 VLM")
     await first.ainvoke("synthetic")
     manager.add_provider(box_provider())
@@ -192,8 +192,8 @@ async def test_shared_factory_boot_and_hot_updates_keep_box_adapter(tmp_path, wi
     await second.ainvoke("synthetic")
     assert_box_wire(wire)
     await manager.aclose()
-    manager = OctopHarnessAgentManager(providers=[box_provider()], log_dir=tmp_path / "boot")
-    assert isinstance(manager.shared_factory, OctopChatModelFactory)
+    manager = InhereBoxHarnessAgentManager(providers=[box_provider()], log_dir=tmp_path / "boot")
+    assert isinstance(manager.shared_factory, InhereBoxChatModelFactory)
     await manager.aclose()
 
 
@@ -201,8 +201,8 @@ async def test_shared_factory_boot_and_hot_updates_keep_box_adapter(tmp_path, wi
 async def test_factory_lifetime_preserves_standalone_and_injected_ownership(
     tmp_path, monkeypatch, injected
 ):
-    shared = OctopChatModelFactory([box_provider()]) if injected else None
-    agent = OctopHarnessAgent(
+    shared = InhereBoxChatModelFactory([box_provider()]) if injected else None
+    agent = InhereBoxHarnessAgent(
         HarnessAgentConfig(
             name="box-offline",
             workspace_dir=str(tmp_path),
@@ -212,7 +212,7 @@ async def test_factory_lifetime_preserves_standalone_and_injected_ownership(
         ),
         model_factory=shared,
     )
-    assert isinstance(agent.model_factory, OctopChatModelFactory)
+    assert isinstance(agent.model_factory, InhereBoxChatModelFactory)
     close = AsyncMock()
     monkeypatch.setattr(agent.model_factory, "aclose", close)
     await agent.aclose()

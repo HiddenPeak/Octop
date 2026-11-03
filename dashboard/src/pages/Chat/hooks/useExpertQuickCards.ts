@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { agentChatApi } from "../../../api/modules/agentChat";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import { pickLocale, type LocalizedText } from "../../../utils/localizedText";
 import type { WelcomeQuickCard } from "../components/WelcomeScreen";
 
@@ -28,7 +28,7 @@ function mapQuickPrompts(
   }));
 }
 
-export function useExpertChatWelcome(agent: OctopAgent | null): {
+export function useExpertChatWelcome(agent: InhereBoxAgent | null): {
   quickCards: WelcomeQuickCard[];
   welcomeSuffix: string | null;
 } {

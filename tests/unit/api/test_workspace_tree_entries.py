@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.api.common.workspace import reanchor_entry_path
+from inhere_box.api.common.workspace import reanchor_entry_path
 
 
 def test_root_listing_entry_keeps_basename_only() -> None:
@@ -27,7 +27,7 @@ def test_empty_entry_path_is_dropped_to_parent() -> None:
 
 
 def test_dedupe_tree_rows_drops_parent_and_duplicate_dir_marker() -> None:
-    from octop.infra.backend.tree_listing import dedupe_tree_rows
+    from inhere_box.infra.backend.tree_listing import dedupe_tree_rows
 
     rows = dedupe_tree_rows(
         [
@@ -46,7 +46,7 @@ def test_dedupe_tree_rows_drops_parent_and_duplicate_dir_marker() -> None:
 
 
 def test_dedupe_tree_rows_drops_self_when_listing_subdir() -> None:
-    from octop.infra.backend.tree_listing import dedupe_tree_rows
+    from inhere_box.infra.backend.tree_listing import dedupe_tree_rows
 
     rows = dedupe_tree_rows(
         [

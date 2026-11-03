@@ -1,4 +1,4 @@
-"""Unit tests for Octop plugin manager."""
+"""Unit tests for inhere-box plugin manager."""
 
 from __future__ import annotations
 
@@ -12,14 +12,14 @@ from typing import Any
 import pytest
 from octop_harness.plugins import PluginRegistry
 
-from octop.infra.agents.plugins.manager import (
+from inhere_box.infra.agents.plugins.manager import (
     PluginManager,
     normalize_plugin_download_url,
     parse_plugin_group,
     parse_plugin_icon,
     parse_plugin_ui_meta,
 )
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 _FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "plugins" / "echo-tool"
 
@@ -117,10 +117,10 @@ def test_install_url_rejects_non_zip(tmp_path: Path, monkeypatch: pytest.MonkeyP
             return b"<!DOCTYPE html><html>blob page</html>"
 
     monkeypatch.setattr(
-        "octop.infra.agents.plugins.manager.urllib.request.urlopen",
+        "inhere_box.infra.agents.plugins.manager.urllib.request.urlopen",
         lambda *args, **kwargs: FakeResponse(),
     )
-    with pytest.raises(OctopError) as excinfo:
+    with pytest.raises(InhereBoxError) as excinfo:
         mgr.install_url("https://example.com/not-a-plugin.zip")
     assert excinfo.value.code is ErrorCode.PLUGIN_INVALID_ARCHIVE
     assert excinfo.value.status == 400
@@ -154,7 +154,7 @@ def test_install_url_accepts_valid_zip(tmp_path: Path, monkeypatch: pytest.Monke
             return chunk
 
     monkeypatch.setattr(
-        "octop.infra.agents.plugins.manager.urllib.request.urlopen",
+        "inhere_box.infra.agents.plugins.manager.urllib.request.urlopen",
         lambda *args, **kwargs: FakeResponse(),
     )
     loaded = mgr.install_url("https://example.com/echo-tool.zip", force=True)
@@ -183,8 +183,8 @@ def test_install_archive_rejects_too_many_entries(
     with zipfile.ZipFile(archive, "w") as zf:
         zf.writestr("plugin.yaml", "id: echo-tool\nversion: 1.0.0\nname: Echo\nkind: tool\n")
         zf.writestr("extra.txt", "x")
-    monkeypatch.setattr("octop.infra.agents.plugins.manager._MAX_PLUGIN_ZIP_ENTRIES", 1)
-    with pytest.raises(OctopError, match="too many entries"):
+    monkeypatch.setattr("inhere_box.infra.agents.plugins.manager._MAX_PLUGIN_ZIP_ENTRIES", 1)
+    with pytest.raises(InhereBoxError, match="too many entries"):
         mgr.install_archive(archive)
 
 
@@ -195,7 +195,7 @@ def test_install_archive_rejects_path_traversal(tmp_path: Path) -> None:
     archive = tmp_path / "traversal.zip"
     with zipfile.ZipFile(archive, "w") as zf:
         zf.writestr("../escape.txt", "x")
-    with pytest.raises(OctopError, match="path traversal"):
+    with pytest.raises(InhereBoxError, match="path traversal"):
         mgr.install_archive(archive)
 
 
@@ -218,12 +218,12 @@ def test_install_url_rejects_download_over_limit(
         def read(self, _size: int) -> bytes:
             return b"x" * 8
 
-    monkeypatch.setattr("octop.infra.agents.plugins.manager._MAX_PLUGIN_ARCHIVE_BYTES", 4)
+    monkeypatch.setattr("inhere_box.infra.agents.plugins.manager._MAX_PLUGIN_ARCHIVE_BYTES", 4)
     monkeypatch.setattr(
-        "octop.infra.agents.plugins.manager.urllib.request.urlopen",
+        "inhere_box.infra.agents.plugins.manager.urllib.request.urlopen",
         lambda *args, **kwargs: FakeResponse(),
     )
-    with pytest.raises(OctopError, match="download exceeds"):
+    with pytest.raises(InhereBoxError, match="download exceeds"):
         mgr.install_url("https://example.com/plugin.zip")
 
 
@@ -233,7 +233,7 @@ def test_install_archive_rejects_non_zip(tmp_path: Path) -> None:
     mgr = PluginManager(plugins_dir=tmp_path / "plugins", config_path=config_path)
     archive = tmp_path / "not-a-zip.zip"
     archive.write_text("not a zip", encoding="utf-8")
-    with pytest.raises(OctopError) as excinfo:
+    with pytest.raises(InhereBoxError) as excinfo:
         mgr.install_archive(archive)
     assert excinfo.value.code is ErrorCode.PLUGIN_INVALID_ARCHIVE
     assert excinfo.value.status == 400
@@ -244,7 +244,7 @@ def test_install_path_already_exists(tmp_path: Path) -> None:
     config_path.write_text("{}", encoding="utf-8")
     mgr = PluginManager(plugins_dir=tmp_path / "plugins", config_path=config_path)
     mgr.install_path(_FIXTURE, force=True)
-    with pytest.raises(OctopError) as excinfo:
+    with pytest.raises(InhereBoxError) as excinfo:
         mgr.install_path(_FIXTURE, force=False)
     assert excinfo.value.code is ErrorCode.PLUGIN_ALREADY_EXISTS
     assert excinfo.value.status == 409
@@ -295,7 +295,7 @@ def test_parse_plugin_ui_meta_and_list(tmp_path: Path) -> None:
     }
     resolved = mgr.resolve_ui_file("with-ui", "dist/index.js")
     assert resolved.name == "index.js"
-    with pytest.raises(OctopError) as excinfo:
+    with pytest.raises(InhereBoxError) as excinfo:
         mgr.resolve_ui_file("with-ui", "../plugin.yaml")
     assert excinfo.value.code is ErrorCode.NOT_FOUND
 
@@ -413,7 +413,7 @@ def test_set_enabled_refuses_corrupt_config_and_preserves_bytes(tmp_path: Path) 
 
     corrupt = '{"bind_host": "0.0.0.0", "database": {"driver": "postgresql"},}'
     config_path.write_text(corrupt, encoding="utf-8")
-    with pytest.raises(OctopError) as excinfo:
+    with pytest.raises(InhereBoxError) as excinfo:
         mgr.set_enabled("echo-tool", False)
     assert excinfo.value.code is ErrorCode.CONFIG_FILE_CORRUPT
     assert config_path.read_text(encoding="utf-8") == corrupt

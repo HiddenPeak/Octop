@@ -5,14 +5,14 @@
 ## 使用流程
 
 1. 在已验证的盒子 Project 中导入一个 `.md` 或 `.txt` 文档。文件名只允许 1–128 个字母、数字、点、下划线或连字符，不能以点开头，也不能包含目录或 `documents/` 前缀。UTF-8 内容最多 16,384 字节。
-2. 客户端可调用 `PUT /api/agentcomputer/v1/projects/{projectID}/documents/{filename}`，JSON 正文为 `{"content":"..."}`。成功返回 201；同名文件返回 409，接口不会覆盖原文件。`GET /projects/{projectID}/documents` 返回排序后的 `items`，`GET /projects/{projectID}/documents/{filename}` 返回 `filename` 与 `content`。三条路由均使用完整的 `/api/agentcomputer/v1` 前缀和当前 Octop 用户 Bearer 会话，且只访问本人项目。
+2. 客户端可调用 `PUT /api/agentcomputer/v1/projects/{projectID}/documents/{filename}`，JSON 正文为 `{"content":"..."}`。成功返回 201；同名文件返回 409，接口不会覆盖原文件。`GET /projects/{projectID}/documents` 返回排序后的 `items`，`GET /projects/{projectID}/documents/{filename}` 返回 `filename` 与 `content`。三条路由均使用完整的 `/api/agentcomputer/v1` 前缀和当前 inhere-box 用户 Bearer 会话，且只访问本人项目。
 3. 在该项目的 Task 中发问，并明确指定要读取的文件名，例如“请读取 `brief.md`，再回答其中的项目代号”。模型可发出一次 `read_project_document({"path":"brief.md"})`；工具参数不能写路径前缀或跨目录。客户端等待 Run 成功后通过原 `/runs/{runID}/result` 读取最终回答。
 
 已关联盒子项目的 AgentComputer 本地项目还可在“文件和资源”上传 `.md/.txt`，再从“项目文档 → 从本地项目资料选取”填入文档草稿。只有再次点击“添加文档”才会写入盒子。打开盒子文档后可点击“用此文档起草任务”，向同一项目的 Task 表单填入含裸文件名的可编辑读取提示；已有文字草稿不会被覆盖。直接盒子项目也有这一入口。创建 Task 仍需在同一盒子项目的任务表单中明确提交；单看模型回答不能确认它读过文件，应检查当前 Run 的工具活动为 `read_project_document` 且 `status=ok`、`outcome=succeeded`。
 
 Task 页面还可通过 `GET /api/agentcomputer/v1/runs/{runID}/tool-activity` 读取本人 Run 的工具活动摘要。无工具调用时 `items=[]`；有一次文档读取时，只返回 `toolName`、`documents/<filename>`、`status` 与 `outcome`，不返回资料正文、原始工具参数、私有收据或盒子文件路径。`pending` 和 `unknown` 不表示文件已经读取成功。旧版盒子没有此接口时，客户端仍可显示原 Run 和答案。
 
-导入只接受已有且已验证的受管项目工作区，不启动模型。资料不存在、超过限额或无法读取时，工具会返回有界的 `notFound`、`tooLarge` 或 `unreadable` 状态，不把其他路径内容交给模型。HTTP 读取超限文件返回 413；非法文件名或正文返回 422。项目资料和 Task 仍属于盒子上的 Octop 用户会话，目前没有设备配对或跨账号共享。
+导入只接受已有且已验证的受管项目工作区，不启动模型。资料不存在、超过限额或无法读取时，工具会返回有界的 `notFound`、`tooLarge` 或 `unreadable` 状态，不把其他路径内容交给模型。HTTP 读取超限文件返回 413；非法文件名或正文返回 422。项目资料和 Task 仍属于盒子上的 inhere-box 用户会话，目前没有设备配对或跨账号共享。
 
 ## Run 完成证据
 

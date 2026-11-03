@@ -21,21 +21,24 @@ from octop_harness.registry import AgentEntry, AgentRegistry
 from octop_harness.teams.team_manager import TeamManager
 from octop_harness.teams.util import derive_peer_thread_id
 
-from octop.infra.agents import resident_context
-from octop.infra.agents.providers.box import OctopChatModelFactory, build_box_provider_config
-from octop.infra.cron.delivery import CronDeliveryCommand, CronDeliveryService
-from octop.infra.db.repos.model_calls import ModelCallRow
-from octop.infra.proactive.service import ProactiveCareService
-from octop.infra.projects import runtime, task_submission
-from octop.infra.projects.routing_classifier import DifficultyAssessment
-from octop.infra.usage.model_calls import current_model_call_scope, model_call_scope
+from inhere_box.infra.agents import resident_context
+from inhere_box.infra.agents.providers.box import (
+    InhereBoxChatModelFactory,
+    build_box_provider_config,
+)
+from inhere_box.infra.cron.delivery import CronDeliveryCommand, CronDeliveryService
+from inhere_box.infra.db.repos.model_calls import ModelCallRow
+from inhere_box.infra.proactive.service import ProactiveCareService
+from inhere_box.infra.projects import runtime, task_submission
+from inhere_box.infra.projects.routing_classifier import DifficultyAssessment
+from inhere_box.infra.usage.model_calls import current_model_call_scope, model_call_scope
 from tests.integration.test_project_task_routing import _configure, _seed_models, _settled
 from tests.support.auth import create_agent, create_user, resolve_user_id
 
 
 @pytest.fixture
 def observed_model(monkeypatch: pytest.MonkeyPatch) -> Any:
-    """Use the production Octop factory; replace only its protocol's transport builder."""
+    """Use the production inhere-box factory; replace only its protocol's transport builder."""
     import octop_harness.llm.factory as harness_factory
 
     options: dict[str, Any] = {}
@@ -93,7 +96,7 @@ def observed_model(monkeypatch: pytest.MonkeyPatch) -> Any:
                 models=[model],
             )
         )
-        factory = OctopChatModelFactory([provider])
+        factory = InhereBoxChatModelFactory([provider])
         return factory.get_chat_model(f"{provider_name}/{model_id}")
 
     return create

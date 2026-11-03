@@ -4,7 +4,7 @@
 
 ## 查询契约
 
-请求必须在 `Authorization` 头携带 Octop 用户 Bearer token。服务端从当前会话确定 owner，不接受客户端指定 owner。审批 ID 只能用于审批路由，提问 ID 只能用于提问路由。未知 ID、类型不匹配和其他用户的 ID 对普通用户与管理员都返回相同 404；合法且属于本人的暂停返回 200 和类型化 `RunPauseStatus`，不会返回 JSON `null`。与 `GET /runs/{runID}/pause` 不同，这两个路由按暂停本身的 UUID 查询，适合已知 ID 的状态回查，不能据此发现未知暂停。
+请求必须在 `Authorization` 头携带 inhere-box 用户 Bearer token。服务端从当前会话确定 owner，不接受客户端指定 owner。审批 ID 只能用于审批路由，提问 ID 只能用于提问路由。未知 ID、类型不匹配和其他用户的 ID 对普通用户与管理员都返回相同 404；合法且属于本人的暂停返回 200 和类型化 `RunPauseStatus`，不会返回 JSON `null`。与 `GET /runs/{runID}/pause` 不同，这两个路由按暂停本身的 UUID 查询，适合已知 ID 的状态回查，不能据此发现未知暂停。
 
 响应仅有 `pauseID`、`kind`、`runID`、`turnID`、`phase`、`revision`、`restoreEpoch`、`executionEpoch`、`expiresAt`、`createdAt`、`updatedAt` 和可空的 `decisionCommandID`。`phase=pending` 表示仍保存待裁决状态；`phase=decided` 仅表示裁决事实已存，`decisionCommandID` 可用于按原命令 ID 查询裁决收据；`phase=expired` 表示旧暂停已被保守收紧。客户端还应读取 Run 当前状态，不应从任一阶段推断工具获准、效果完成或引擎续跑。
 
@@ -14,11 +14,11 @@
 
 ```sh
 curl -i \
-  -H "Authorization: Bearer ${OCTOP_BEARER_TOKEN}" \
+  -H "Authorization: Bearer ${INHERE_BOX_BEARER_TOKEN}" \
   "http://127.0.0.1:8090/api/agentcomputer/v1/approvals/${APPROVAL_ID}"
 
 curl -i \
-  -H "Authorization: Bearer ${OCTOP_BEARER_TOKEN}" \
+  -H "Authorization: Bearer ${INHERE_BOX_BEARER_TOKEN}" \
   "http://127.0.0.1:8090/api/agentcomputer/v1/questions/${QUESTION_ID}"
 ```
 

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.utils.json_file import (
+from inhere_box.infra.utils.json_file import (
     JsonFileCorruptError,
     read_json_object,
     write_json_atomic,
@@ -75,7 +75,7 @@ def test_failed_replace_leaves_original_intact_and_cleans_temp(
     def boom(*_args: object, **_kwargs: object) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr("octop.infra.utils.json_file.os.replace", boom)
+    monkeypatch.setattr("inhere_box.infra.utils.json_file.os.replace", boom)
     with pytest.raises(OSError, match="disk full"):
         write_json_atomic(path, {"port": 1})
     assert path.read_text(encoding="utf-8") == original
@@ -97,7 +97,7 @@ def test_write_new_file_uses_umask_default_not_mkstemp_0600(tmp_path: Path) -> N
     """mkstemp's 0600 must not leak into a new config.json.
 
     A root-created 0600 file would be unreadable to the service user after
-    ``octop service start --scope system``; the two pre-existing config.json
+    ``inhere-box service start --scope system``; the two pre-existing config.json
     writers (``db/rebind.py``, ``backup/auto.py``) produce the umask default.
     """
     mask = os.umask(0o022)

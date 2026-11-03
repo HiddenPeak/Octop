@@ -2,8 +2,8 @@ import { Button, Result, Spin } from "antd";
 import { Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { OctopEmptyMascot } from "../../../components/EmptyState";
-import type { OctopAgent } from "../../../context/AgentContext";
+import { InhereBoxEmptyMascot } from "../../../components/EmptyState";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import {
   formatAgentError,
   isAgentModelConfigError,
@@ -11,7 +11,7 @@ import {
 import styles from "../index.module.less";
 
 interface AgentNotReadyScreenProps {
-  agent: OctopAgent | null;
+  agent: InhereBoxAgent | null;
   noAgents?: boolean;
   loading?: boolean;
 }
@@ -37,7 +37,7 @@ export default function AgentNotReadyScreen({
       <div className={styles.noAgentsEmpty}>
         <div className={styles.noAgentsEmptyInner}>
           <div className={styles.noAgentsEmptyIcon}>
-            <OctopEmptyMascot className={styles.noAgentsEmptyMascot} />
+            <InhereBoxEmptyMascot className={styles.noAgentsEmptyMascot} />
           </div>
           <h1 className={styles.noAgentsEmptyTitle}>
             {t("chat.noAgentsTitle")}

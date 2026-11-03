@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 
-from octop.infra.agents.experts.default_agent import default_home_local_backend
-from octop.infra.utils.host_dirs import host_fs_tree_root
+from inhere_box.infra.agents.experts.default_agent import default_home_local_backend
+from inhere_box.infra.utils.host_dirs import host_fs_tree_root
 
 
 async def test_invite_create_list_redeem_and_one_time(env) -> None:

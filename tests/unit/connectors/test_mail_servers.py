@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from octop.infra.connectors import mail_servers
-from octop.infra.connectors.gateway.adapters import qq_mail
-from octop.infra.connectors.mail_servers import (
+from inhere_box.infra.connectors import mail_servers
+from inhere_box.infra.connectors.gateway.adapters import qq_mail
+from inhere_box.infra.connectors.mail_servers import (
     correct_netease_imap_host,
     correct_netease_smtp_host,
     resolve_mail_servers,
@@ -76,7 +76,7 @@ def test_imap_login_sends_id_and_uses_corrected_host() -> None:
     fake_imap.login.return_value = ("OK", [b"LOGIN completed"])
 
     with patch(
-        "octop.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
+        "inhere_box.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
         return_value=fake_imap,
     ) as ssl_ctor:
         imap = qq_mail._imap_login(
@@ -104,7 +104,7 @@ def test_imap_login_skips_id_for_qq() -> None:
     fake_imap.login.return_value = ("OK", [b"LOGIN completed"])
 
     with patch(
-        "octop.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
+        "inhere_box.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
         return_value=fake_imap,
     ):
         qq_mail._imap_login(

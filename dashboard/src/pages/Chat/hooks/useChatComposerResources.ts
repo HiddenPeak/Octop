@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { connectorsApi } from "../../../api/modules/connectors";
 import { providerApi } from "../../../api/modules/provider";
 import { preferencesApi } from "../../../api/modules/preferences";
-import { octopThreadsApi } from "../../../api/modules/octopThreads";
+import { inhereBoxThreadsApi } from "../../../api/modules/inhereBoxThreads";
 import {
   knowledgeBasesApi,
   type KnowledgeBase,
@@ -474,7 +474,7 @@ export function useChatComposerResources(
         activeThreadId &&
         !isPendingThread(activeThreadId)
       ) {
-        void octopThreadsApi.patch(resolvedAgentId, activeThreadId, {
+        void inhereBoxThreadsApi.patch(resolvedAgentId, activeThreadId, {
           model_ref: model,
           reasoning_mode: nextMode,
           reasoning_effort: nextEffort,
@@ -503,7 +503,7 @@ export function useChatComposerResources(
         activeThreadId &&
         !isPendingThread(activeThreadId)
       ) {
-        void octopThreadsApi.patch(resolvedAgentId, activeThreadId, {
+        void inhereBoxThreadsApi.patch(resolvedAgentId, activeThreadId, {
           reasoning_mode: mode,
           reasoning_effort: effort,
         });
@@ -528,7 +528,7 @@ export function useChatComposerResources(
         activeThreadId &&
         !isPendingThread(activeThreadId)
       ) {
-        void octopThreadsApi.patch(resolvedAgentId, activeThreadId, {
+        void inhereBoxThreadsApi.patch(resolvedAgentId, activeThreadId, {
           conversation_mode: mode,
         });
       }
@@ -549,7 +549,7 @@ export function useChatComposerResources(
         activeThreadId &&
         !isPendingThread(activeThreadId)
       ) {
-        void octopThreadsApi.patch(resolvedAgentId, activeThreadId, {
+        void inhereBoxThreadsApi.patch(resolvedAgentId, activeThreadId, {
           hitl_policy: next,
         });
       }

@@ -5,15 +5,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.user_roles import BUILTIN_USER_ROLE_IDS, UserRoleRepo, parse_policies
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.users.permissions import BASELINE_PERMISSIONS
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.user_roles import BUILTIN_USER_ROLE_IDS, UserRoleRepo, parse_policies
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.users.permissions import BASELINE_PERMISSIONS
 
 
 def test_seeded_roles_leave_existing_users_unchanged(tmp_path: Path) -> None:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     users = UserRepo(db)
     uid = users.create(
@@ -56,7 +56,7 @@ def test_policies_array_omits_disabled_names() -> None:
 
 
 def test_role_repo_roundtrip(tmp_path: Path) -> None:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     roles = UserRoleRepo(db)
     created = roles.create(
@@ -76,9 +76,9 @@ def test_role_repo_roundtrip(tmp_path: Path) -> None:
 
 
 def test_cli_and_seed_follow_preset_user_role(tmp_path: Path) -> None:
-    from octop.cli.support.offline_ops import create_user_offline
-    from octop.infra.db.repos.user_roles import seeded_user_role_assignment
-    from octop.infra.users.permissions import BASELINE_PERMISSIONS
+    from inhere_box.cli.support.offline_ops import create_user_offline
+    from inhere_box.infra.db.repos.user_roles import seeded_user_role_assignment
+    from inhere_box.infra.users.permissions import BASELINE_PERMISSIONS
 
     home = tmp_path / "home"
     created = create_user_offline(
@@ -88,7 +88,7 @@ def test_cli_and_seed_follow_preset_user_role(tmp_path: Path) -> None:
         home=home,
     )
     assert created["role"] == "user"
-    db = SqlitePool(home / "octop.db")
+    db = SqlitePool(home / "inhere-box.db")
     row = UserRepo(db).get_by_username("cliuser")
     assert row is not None
     assert row.role == "user"

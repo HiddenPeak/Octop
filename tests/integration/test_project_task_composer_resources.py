@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import pytest
 
-from octop.infra.projects.expert_profiles import _workspace
+from inhere_box.infra.projects.expert_profiles import _workspace
 from tests.integration.test_project_tasks import task_env as task_env
 from tests.support.auth import create_user
 

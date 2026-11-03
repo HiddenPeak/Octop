@@ -7,14 +7,14 @@ import asyncio
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import runtime
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import runtime
 from tests.support.auth import create_user, resolve_user_id
 from tests.support.http import ws_connect, ws_token
 
 
 async def connected(client, auth):
-    session = ws_connect(client._octop_app, "/api/project-tasks/ws")
+    session = ws_connect(client._inhere_box_app, "/api/project-tasks/ws")
     ws = await session.__aenter__()
     await ws.send_json({"type": "authenticate", "token": ws_token(auth)})
     assert await ws.receive_json() == {"type": "ready", "protocol_version": 3}
@@ -44,7 +44,7 @@ async def assert_connection_error(ws, *, status, code, close_code):
 
 @pytest.fixture
 async def ws_env(env_with_provider, monkeypatch):
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     client, server, auth = env_with_provider
     monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 0.01)
@@ -253,7 +253,7 @@ async def test_ws_disconnect_keeps_execution_and_resumes_without_replaying(ws_en
 async def test_ws_service_recovery_restores_task_with_same_token_without_replaying(
     ws_env, monkeypatch
 ):
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     client, _, auth, calls, _ = ws_env
     session, ws = await connected(client, auth)
@@ -277,7 +277,7 @@ async def test_ws_service_recovery_restores_task_with_same_token_without_replayi
         assert len(calls) == 1
 
         def unavailable(*_args, **_kwargs):
-            raise OctopError(ErrorCode.INTERNAL_ERROR, "temporary policy failure", status=503)
+            raise InhereBoxError(ErrorCode.INTERNAL_ERROR, "temporary policy failure", status=503)
 
         with monkeypatch.context() as patch:
             patch.setattr(project_tasks_ws.approval_policy, "current", unavailable)
@@ -348,7 +348,7 @@ async def test_ws_scopes_commands_and_cursors_without_dropping_other_tasks(ws_en
 
 async def test_ws_requires_authentication(env):
     client, _, _ = env
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws?token=not-accepted") as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws?token=not-accepted") as ws:
         await ws.send_json({"type": "authenticate", "token": "invalid-token"})
         assert (await ws.receive_json())["error"]["code"] == "AUTH_FAILED"
         with pytest.raises(WebSocketDisconnect) as closed:
@@ -362,7 +362,7 @@ async def test_ws_unbound_database_accepts_before_reporting_service_unavailable(
         patch.setattr(server, "services", None)
         # Entering the session proves the first ASGI event is accept, not a
         # pre-handshake close that a real server would turn into HTTP 403.
-        async with ws_connect(client._octop_app, "/api/project-tasks/ws") as ws:
+        async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws") as ws:
             await assert_connection_error(ws, status=503, code="SETUP_REQUIRED", close_code=1013)
 
 
@@ -380,7 +380,7 @@ async def test_ws_unbound_database_accepts_before_reporting_service_unavailable(
 async def test_ws_connection_failures_do_not_claim_login_expired(
     env, monkeypatch, phase, code, status, close_code
 ):
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     client, _, auth = env
     monkeypatch.setattr(project_tasks_ws, "_AUTH_CHECK_SECONDS", 0 if phase == "idle" else 3600)
@@ -389,11 +389,11 @@ async def test_ws_connection_failures_do_not_claim_login_expired(
     )
 
     def unavailable(*_args, **_kwargs):
-        raise OctopError(code, "injected connection failure", status=status)
+        raise InhereBoxError(code, "injected connection failure", status=status)
 
     if phase == "initial":
         monkeypatch.setattr(project_tasks_ws, "resolve_user_from_token", unavailable)
-        async with ws_connect(client._octop_app, "/api/project-tasks/ws", headers=auth) as ws:
+        async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws", headers=auth) as ws:
             await assert_connection_error(ws, status=status, code=code.value, close_code=close_code)
         return
 
@@ -418,30 +418,30 @@ async def test_ws_missing_jwt_secret_reports_internal_error(env, monkeypatch):
         "get",
         lambda key: None if key == "jwt" else original_get(key),
     )
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws") as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws") as ws:
         await ws.send_json({"type": "authenticate", "token": ws_token(auth)})
         await assert_connection_error(ws, status=500, code="INTERNAL_ERROR", close_code=1011)
 
 
 async def test_ws_expired_token_still_reports_authentication_failure(env):
-    from octop.api.deps import sign_token
+    from inhere_box.api.deps import sign_token
 
     client, server, _ = env
     secret = server.services.secret_repo.get("jwt")
     assert secret is not None
     expired = sign_token(secret, sub=1, uname="expired", role="user", ttl_seconds=-1)
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws") as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws") as ws:
         await ws.send_json({"type": "authenticate", "token": expired})
         await assert_connection_error(ws, status=401, code="TOKEN_EXPIRED", close_code=4401)
 
 
 async def test_ws_command_service_failure_keeps_connection(env_with_provider, monkeypatch):
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     client, _, auth = env_with_provider
 
     def unavailable(*_args, **_kwargs):
-        raise OctopError(ErrorCode.INTERNAL_ERROR, "injected command failure", status=503)
+        raise InhereBoxError(ErrorCode.INTERNAL_ERROR, "injected command failure", status=503)
 
     monkeypatch.setattr(project_tasks_ws.tasks, "send", unavailable)
     session, ws = await connected(client, auth)
@@ -477,7 +477,7 @@ async def test_ws_worker_unavailable_does_not_create_empty_task(env_with_provide
 
 async def test_ws_native_header_auth_and_invalid_command_receipt(env):
     client, _, auth = env
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws", headers=auth) as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws", headers=auth) as ws:
         assert (await ws.receive_json())["type"] == "ready"
         invalid = await command(
             ws, "task.create", "invalid-command", data={"request_id": "valid-request", "prompt": ""}
@@ -487,7 +487,7 @@ async def test_ws_native_header_auth_and_invalid_command_receipt(env):
 
 
 async def test_ws_rechecks_user_status_while_idle(env, monkeypatch):
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     client, _, admin = env
     alice = await create_user(client, admin, username="ws-reader")
@@ -514,7 +514,7 @@ async def test_task_docs_render_rest_schemas_and_websocket_entry(env, monkeypatc
 
     import httpx
 
-    from octop.api.app import build_app
+    from inhere_box.api.app import build_app
 
     _, server, _ = env
     monkeypatch.setattr(

@@ -13,12 +13,12 @@ from urllib.parse import parse_qs, urlsplit
 import httpx
 import pytest
 
-from octop.infra.connectors.custom_mcp import CUSTOM_MCP_KIND
-from octop.infra.connectors.oauth.registry import save_oauth_ctx
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.utils.ssrf_guard import UnsafeOutboundUrl
-from octop.infra.utils.ulid import new_ulid
-from tests.support.app import octop_client, write_octop_config
+from inhere_box.infra.connectors.custom_mcp import CUSTOM_MCP_KIND
+from inhere_box.infra.connectors.oauth.registry import save_oauth_ctx
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.utils.ssrf_guard import UnsafeOutboundUrl
+from inhere_box.infra.utils.ulid import new_ulid
+from tests.support.app import inhere_box_client, write_inhere_box_config
 from tests.support.auth import auth_header, bootstrap_admin, create_user, resolve_user_id
 from tests.support.http import ws_chat_turn
 
@@ -370,7 +370,7 @@ async def test_create_and_edit_instance_description(env):
 
 async def test_probe_returns_tools(env, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.qq_mail.probe_credentials",
+        "inhere_box.infra.connectors.gateway.adapters.qq_mail.probe_credentials",
         lambda _creds: None,
     )
     c, _, auth, _ = env
@@ -392,7 +392,7 @@ async def test_probe_returns_tools(env, monkeypatch: pytest.MonkeyPatch):
 
 async def test_internal_mcp_tools_list(env, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.qq_mail.probe_credentials",
+        "inhere_box.infra.connectors.gateway.adapters.qq_mail.probe_credentials",
         lambda _creds: None,
     )
     c, _, auth, _ = env
@@ -425,13 +425,15 @@ async def test_auth_info(env):
 
 
 @pytest.mark.parametrize("kind", ["notion", "qcc"])
-async def test_oauth_start_public_http_notion_error_is_actionable(tmp_octop_home: Path, kind: str):
-    write_octop_config(tmp_octop_home)
-    async with octop_client(tmp_octop_home) as (c, _srv):
-        await bootstrap_admin(c, tmp_octop_home)
+async def test_oauth_start_public_http_notion_error_is_actionable(
+    tmp_inhere_box_home: Path, kind: str
+):
+    write_inhere_box_config(tmp_inhere_box_home)
+    async with inhere_box_client(tmp_inhere_box_home) as (c, _srv):
+        await bootstrap_admin(c, tmp_inhere_box_home)
         auth = await auth_header(c)
         mocked_start = AsyncMock()
-        with patch("octop.api.routers.connectors.start_oauth_for_target", mocked_start):
+        with patch("inhere_box.api.routers.connectors.start_oauth_for_target", mocked_start):
             r = await c.post(
                 f"/api/connectors/oauth/{kind}/start",
                 headers={**auth, "host": "58.87.70.170"},
@@ -467,7 +469,7 @@ async def test_oauth_start_failure_reports_cause_without_credentials(env, failur
     else:
         exc = RuntimeError(secret)
 
-    with patch("octop.api.routers.connectors.start_oauth_for_target", side_effect=exc):
+    with patch("inhere_box.api.routers.connectors.start_oauth_for_target", side_effect=exc):
         r = await c.post(
             "/api/connectors/oauth/start",
             headers={**auth, "Accept-Language": locale, "Host": "localhost"},
@@ -497,8 +499,8 @@ async def test_oauth_start_failure_reports_cause_without_credentials(env, failur
 
 async def test_oauth_start_preserves_domain_error(env):
     c, _, auth, _ = env
-    exc = OctopError(ErrorCode.CONNECTOR_MCP_HTTPS_REQUIRED, "HTTPS required")
-    with patch("octop.api.routers.connectors.start_oauth_for_target", side_effect=exc):
+    exc = InhereBoxError(ErrorCode.CONNECTOR_MCP_HTTPS_REQUIRED, "HTTPS required")
+    with patch("inhere_box.api.routers.connectors.start_oauth_for_target", side_effect=exc):
         r = await c.post(
             "/api/connectors/oauth/openalex/start", headers={**auth, "Host": "localhost"}, json={}
         )
@@ -510,7 +512,7 @@ async def test_oauth_start_normalizes_target_and_does_not_log_extra_credentials(
     c, _, auth, _ = env
     secret = "synthetic-target-client-secret"
     mocked_start = AsyncMock(side_effect=httpx.ConnectError("synthetic-network-secret"))
-    with patch("octop.api.routers.connectors.start_oauth_for_target", mocked_start):
+    with patch("inhere_box.api.routers.connectors.start_oauth_for_target", mocked_start):
         response = await c.post(
             "/api/connectors/oauth/start",
             headers={**auth, "Host": "localhost"},
@@ -544,7 +546,7 @@ async def test_custom_oauth_local_server_is_a_configuration_error_without_networ
     mocked_request = AsyncMock(
         side_effect=AssertionError("local OAuth must not access the network")
     )
-    with patch("octop.infra.connectors.oauth.discovery.safe_request", mocked_request):
+    with patch("inhere_box.infra.connectors.oauth.discovery.safe_request", mocked_request):
         response = await c.post(
             "/api/connectors/oauth/start",
             headers={**auth, "Host": "localhost", "Accept-Language": locale},
@@ -585,23 +587,23 @@ async def test_oauth_without_dynamic_registration_is_a_configuration_error(
         target = {"type": "custom_mcp", "server_name": "remote-server"}
     with (
         patch(
-            "octop.infra.connectors.oauth.registry.fetch_authorization_metadata",
+            "inhere_box.infra.connectors.oauth.registry.fetch_authorization_metadata",
             AsyncMock(return_value=metadata),
         ),
         patch(
-            "octop.infra.connectors.oauth.discovery._probe_401_resource_metadata",
+            "inhere_box.infra.connectors.oauth.discovery._probe_401_resource_metadata",
             AsyncMock(return_value=None),
         ),
         patch(
-            "octop.infra.connectors.oauth.discovery._fetch_prm_document",
+            "inhere_box.infra.connectors.oauth.discovery._fetch_prm_document",
             AsyncMock(return_value={"authorization_servers": ["https://auth.example.com"]}),
         ),
         patch(
-            "octop.infra.connectors.oauth.discovery.fetch_authorization_metadata",
+            "inhere_box.infra.connectors.oauth.discovery.fetch_authorization_metadata",
             AsyncMock(return_value=metadata),
         ),
         patch(
-            "octop.infra.connectors.oauth.registry.register_dynamic_client",
+            "inhere_box.infra.connectors.oauth.registry.register_dynamic_client",
             AsyncMock(side_effect=AssertionError("unsupported DCR must not register a client")),
         ) as register,
     ):
@@ -621,7 +623,7 @@ async def test_oauth_without_dynamic_registration_is_a_configuration_error(
 async def test_oauth_start_keeps_authentication_and_target_validation_errors(env):
     c, _, auth, _ = env
     mocked_start = AsyncMock(side_effect=AssertionError("invalid input must not start OAuth"))
-    with patch("octop.api.routers.connectors.start_oauth_for_target", mocked_start):
+    with patch("inhere_box.api.routers.connectors.start_oauth_for_target", mocked_start):
         anonymous = await c.post(
             "/api/connectors/oauth/start", json={"target": {"type": "catalog", "kind": "openalex"}}
         )
@@ -683,15 +685,15 @@ async def test_obsidian_cli_install_registers_binary(
     monkeypatch.setenv("USERPROFILE", str(home))
     monkeypatch.setenv("PATH", os.environ.get("PATH", ""))
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.cli_install.obsidian_bundle_candidates",
+        "inhere_box.infra.connectors.gateway.cli_install.obsidian_bundle_candidates",
         lambda: [str(source)],
     )
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.cli_install._prefix_writable",
+        "inhere_box.infra.connectors.gateway.cli_install._prefix_writable",
         lambda _prefix: False,
     )
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.cli_install._read_version",
+        "inhere_box.infra.connectors.gateway.cli_install._read_version",
         lambda _path: "1.12.7",
     )
     dest_name = "obsidian.exe" if os.name == "nt" else "obsidian"
@@ -703,7 +705,7 @@ async def test_obsidian_cli_install_registers_binary(
         return None
 
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.cli_install.shutil.which",
+        "inhere_box.infra.connectors.gateway.cli_install.shutil.which",
         _which,
     )
 
@@ -749,7 +751,7 @@ async def test_install_cli_admin_ok_mocked(env, monkeypatch: pytest.MonkeyPatch)
         }
 
     monkeypatch.setattr(
-        "octop.api.routers.connectors.install_connector_cli",
+        "inhere_box.api.routers.connectors.install_connector_cli",
         _fake_install,
     )
     r = await c.post("/api/connectors/feishu-cli/install-cli", headers=auth)
@@ -763,7 +765,7 @@ async def test_cli_status_available_to_non_admin(env, monkeypatch: pytest.Monkey
     c, _, admin_auth, _ = env
     user_auth = await create_user(c, admin_auth, username="cli_status_user")
     monkeypatch.setattr(
-        "octop.api.routers.connectors.cli_install_status",
+        "inhere_box.api.routers.connectors.cli_install_status",
         lambda kind: {
             "ok": True,
             "kind": kind,
@@ -896,7 +898,7 @@ async def test_custom_mcp_oauth_callback_applies_tokens(env):
     )
 
     with patch(
-        "octop.api.routers.connectors.exchange_oauth_code",
+        "inhere_box.api.routers.connectors.exchange_oauth_code",
         new_callable=AsyncMock,
         return_value={
             "access_token": "new-access-token",
@@ -946,8 +948,8 @@ async def test_custom_mcp_oauth_start_unified(env):
         )
     )
     with (
-        patch("octop.api.routers.connectors._is_public_http_uri", return_value=False),
-        patch("octop.api.routers.connectors.start_oauth_for_target", mocked_start),
+        patch("inhere_box.api.routers.connectors._is_public_http_uri", return_value=False),
+        patch("inhere_box.api.routers.connectors.start_oauth_for_target", mocked_start),
     ):
         r = await c.post(
             "/api/connectors/oauth/start",
@@ -969,8 +971,8 @@ async def test_custom_mcp_oauth_start_unified(env):
 
 @pytest.mark.parametrize("oauth", [False, True])
 async def test_qcc_gateway_auth_five_resources_and_disconnect(env, monkeypatch, oauth):
-    from octop.api.routers.internal_mcp import _service
-    from octop.infra.connectors import qcc
+    from inhere_box.api.routers.internal_mcp import _service
+    from inhere_box.infra.connectors import qcc
 
     c, srv, auth, _ = env
     revoke = AsyncMock()
@@ -1051,7 +1053,7 @@ async def test_oauth_callback_safely_renders_stored_redirect(env, redirect_after
         redirect_after=redirect_after,
     )
     with patch(
-        "octop.api.routers.connectors.exchange_oauth_code",
+        "inhere_box.api.routers.connectors.exchange_oauth_code",
         new_callable=AsyncMock,
         return_value={"access_token": "test-token"},
     ):
@@ -1093,7 +1095,7 @@ async def test_oauth_callback_escapes_error_html(env, exchange_error):
         redirect_after="/connectors",
     )
     with patch(
-        "octop.api.routers.connectors.exchange_oauth_code",
+        "inhere_box.api.routers.connectors.exchange_oauth_code",
         new_callable=AsyncMock,
         side_effect=ValueError(payload),
     ):

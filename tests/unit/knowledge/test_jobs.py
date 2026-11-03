@@ -9,14 +9,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.knowledge import KnowledgeRepo
-from octop.infra.db.repos.settings import SettingsRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.knowledge import jobs
-from octop.infra.knowledge.files import write_document
-from octop.infra.knowledge.index import KnowledgeIndex
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.knowledge import KnowledgeRepo
+from inhere_box.infra.db.repos.settings import SettingsRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.knowledge import jobs
+from inhere_box.infra.knowledge.files import write_document
+from inhere_box.infra.knowledge.index import KnowledgeIndex
 
 
 def test_enqueue_index_document_limits_concurrency(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -60,8 +60,8 @@ def test_enqueue_index_document_limits_concurrency(monkeypatch: pytest.MonkeyPat
 def test_process_document_marks_empty_extract_as_failed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path / "home"))
-    pool = SqlitePool(tmp_path / "octop.db")
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path / "home"))
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     repo = KnowledgeRepo(pool)
     owner_id = UserRepo(pool).create(username="owner", password_hash="h", role="user")
@@ -90,8 +90,8 @@ def test_process_document_marks_empty_extract_as_failed(
 def test_process_document_indexes_chunks_and_marks_ready(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path / "home"))
-    pool = SqlitePool(tmp_path / "octop.db")
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path / "home"))
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     repo = KnowledgeRepo(pool)
     owner_id = UserRepo(pool).create(username="owner", password_hash="h", role="user")
@@ -118,8 +118,8 @@ def test_process_document_indexes_chunks_and_marks_ready(
 
 
 def test_process_document_indexes_ocr_text(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path / "home"))
-    pool = SqlitePool(tmp_path / "octop.db")
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path / "home"))
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     repo = KnowledgeRepo(pool)
     owner_id = UserRepo(pool).create(username="owner", password_hash="h", role="user")
@@ -144,7 +144,7 @@ def test_process_document_indexes_ocr_text(tmp_path: Path, monkeypatch: pytest.M
 def test_reindex_all_updates_base_model_marks_documents_pending_and_enqueues(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     repo = KnowledgeRepo(pool)
     owner_id = UserRepo(pool).create(username="owner", password_hash="h", role="user")
@@ -172,7 +172,7 @@ def test_reindex_all_updates_base_model_marks_documents_pending_and_enqueues(
 def test_resume_pending_index_jobs_resets_processing_and_enqueues(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     repo = KnowledgeRepo(pool)
     owner_id = UserRepo(pool).create(username="owner", password_hash="h", role="user")

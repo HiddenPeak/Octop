@@ -1,10 +1,10 @@
-"""The HTTP engine surface is typed, passive, and usable without an Octop model."""
+"""The HTTP engine surface is typed, passive, and usable without an inhere-box model."""
 
 from __future__ import annotations
 
 import asyncio
 
-from octop.infra.projects import runtime
+from inhere_box.infra.projects import runtime
 from tests.support.auth import resolve_user_id
 from tests.unit.projects.test_execution_engines import ready
 

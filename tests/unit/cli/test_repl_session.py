@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from octop.cli.repl.session import ReplSession
-from octop.cli.repl.toolbar import format_repl_toolbar
+from inhere_box.cli.repl.session import ReplSession
+from inhere_box.cli.repl.toolbar import format_repl_toolbar
 
 
 def test_apply_slash_text_sets_model_from_zh_reply() -> None:

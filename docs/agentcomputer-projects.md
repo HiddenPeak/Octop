@@ -8,7 +8,7 @@
 
 ```http
 POST /api/agentcomputer/v1/projects
-Authorization: Bearer <Octop 用户登录令牌>
+Authorization: Bearer <inhere-box 用户登录令牌>
 Content-Type: application/json
 ```
 

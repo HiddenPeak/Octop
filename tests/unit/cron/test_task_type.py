@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.cron.task_type import (
+from inhere_box.infra.cron.task_type import (
     CRON_NAME_FALLBACK_LEN,
     CRON_NAME_MAX_LEN,
     CRON_PROMPT_MAX_LEN,

@@ -1,9 +1,9 @@
 Unicode true
 
-# Octop desktop NSIS installer.
+# inhere-box desktop NSIS installer.
 # Built by `wails3 task package` on a Windows runner:
-#   makensis -DARG_WAILS_AMD64_BINARY=..\..\..\bin\Octop.exe project.nsi
-#   makensis -DARG_WAILS_ARM64_BINARY=..\..\..\bin\Octop.exe project.nsi
+#   makensis -DARG_WAILS_AMD64_BINARY=..\..\..\bin\inhere-box.exe project.nsi
+#   makensis -DARG_WAILS_ARM64_BINARY=..\..\..\bin\inhere-box.exe project.nsi
 
 # Written by stamp_version.py nsis-defines (pep440 display + X.X.X.X file version).
 !include /nonfatal "version_defines.nsh"

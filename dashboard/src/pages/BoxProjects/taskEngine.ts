@@ -5,8 +5,8 @@ import type {
   TaskExecutionOptions,
 } from "../../api/modules/projects";
 
-export const OCTOP_ENGINE: EngineSelection = {
-  engine_id: "octop",
+export const INHERE_BOX_ENGINE: EngineSelection = {
+  engine_id: "inhere-box",
   connection_id: null,
   model_id: null,
 };
@@ -59,18 +59,20 @@ export function engineCapabilities(
 ): EngineCapabilities {
   return (
     engineEntry(engine, catalog)?.capabilities ??
-    (engine.engine_id === "octop" ? NATIVE_CAPABILITIES : ACP_CAPABILITIES)
+    (engine.engine_id === "inhere-box" ? NATIVE_CAPABILITIES : ACP_CAPABILITIES)
   );
 }
 export function engineLabel(engine: EngineSelection): string {
-  return engine.engine_id === "octop" ? "Octop" : engine.connection_id || "ACP";
+  return engine.engine_id === "inhere-box"
+    ? "inhere-box"
+    : engine.connection_id || "ACP";
 }
-/** Octop model routing stays in the draft when switching; ACP receives its own model id. */
+/** inhere-box model routing stays in the draft when switching; ACP receives its own model id. */
 export function taskOptionsForEngine(
   options: TaskExecutionOptions,
   engine: EngineSelection,
 ): TaskExecutionOptions {
-  if (engine.engine_id === "octop") return options;
+  if (engine.engine_id === "inhere-box") return options;
   const {
     model_ref: _model,
     reasoning_mode: _reasoning,

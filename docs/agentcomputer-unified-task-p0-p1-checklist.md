@@ -6,7 +6,7 @@
 
 这份清单是客户端实施要求，未勾选项不代表已完成。本轮只交付服务端补丁与文档，不修改或构建客户端。先完成 P0，再完成 P1；工作台、记忆、批迁、跨主机和语音等 P2 能力随后接入。完整字段和边界见[统一接入文档](agentcomputer-unified-conversations-handoff.md)，REST 模型以部署服务的 `/api/openapi.json` 为准。
 
-正式链路：`OctopWorkspaceDataSource → OctopTaskSessionService → ConversationRunController → TaskConversationView`。由 `WorkspaceTaskRunCoordinator` 装配，macOS/iOS 入口为 `ProjectWorkspaceView`、`MobileWorkspaceView`。不要在旧 `OctopBoxTaskViewModel` UUID Box 路径增加这批功能。
+正式链路：`InhereBoxWorkspaceDataSource → InhereBoxTaskSessionService → ConversationRunController → TaskConversationView`。由 `WorkspaceTaskRunCoordinator` 装配，macOS/iOS 入口为 `ProjectWorkspaceView`、`MobileWorkspaceView`。不要在旧 `InhereBoxBoxTaskViewModel` UUID Box 路径增加这批功能。
 
 ## P0：保障现有使用
 
@@ -25,7 +25,7 @@
 
 ### 2. 为正式会话新增持久发送意图
 
-- [ ] `OctopTaskSessionService.Submission` 当前只在内存。为正式链路新增持久 pending/outbox，不能以旧 Box 存储代替。
+- [ ] `InhereBoxTaskSessionService.Submission` 当前只在内存。为正式链路新增持久 pending/outbox，不能以旧 Box 存储代替。
 - [ ] 在发出请求前保存账号/服务地址作用域、请求种类、Task/重试目标、原 `request_id`、完整原始请求体及受理状态。未来接远程时进一步增加 host 范围。
 - [ ] 收到受理回执后保存服务端 Task/Turn 对应关系；App 强退或切后台后仍能恢复同一意图，不能悄悄生成新 ID。
 - [ ] 重启后先恢复权威状态与观察。结果未知时保留待核对项，不自动作为新工作发送；用户显式重传仍使用原体。
@@ -39,7 +39,7 @@
 - [ ] Turn 保留本轮实际专家名称/版本、行动模式、两类目录和项目版本；历史显示冻结快照，不用输入框当前选择回填。
 - [ ] 保留 `history_only`、全部来源 ID、`source_status`、`legacy_attachments`、`source_trajectory`；缺失附件显示不可用。
 - [ ] 内容块保留 `speaker_agent_id`、`speaker_name`；团队成员输出不平铺丢失身份。正文、计划、交互继续按各自版本替换完整快照。
-- [ ] `OctopWorkspaceCache` 与 `OctopTaskBodyCache` 同时升级；旧缓存缺少版本时先刷新权威状态再开放新发送。正文事件、历史分页和列表同步游标分别保存。
+- [ ] `InhereBoxWorkspaceCache` 与 `InhereBoxTaskBodyCache` 同时升级；旧缓存缺少版本时先刷新权威状态再开放新发送。正文事件、历史分页和列表同步游标分别保存。
 - [ ] `history_only` 轮次不显示旧执行的 retry/resume；已完成历史仍显示 fork/edit/regenerate，并在当前 Task 直接创建新分支，不要求跳回原 Task。其工具只展示保存的公开结果，不请求 ToolHost。Task 本身仍可接受正常的新消息。
 
 验收：新旧缓存、含团队成员的历史、分支复制的只读轮次和缺失附件均能重开；历史不会变成可执行检查点，成员身份不会在投影或缓存后丢失。
@@ -47,7 +47,7 @@
 ### 4. 全部会话列表与 sync 同步改造
 
 - [ ] `GET /api/project-tasks?scope=all` 和 `/api/project-tasks/sync?scope=all` 同时接入。
-- [ ] 给列表增加明确范围，不把现有 `projectID=nil` 的“无项目”缓存直接解释为“全部”。修改 `OctopWorkspaceClient` 的 projectID 响应校验、缓存键、去重和分页。
+- [ ] 给列表增加明确范围，不把现有 `projectID=nil` 的“无项目”缓存直接解释为“全部”。修改 `InhereBoxWorkspaceClient` 的 projectID 响应校验、缓存键、去重和分页。
 - [ ] 全部/无项目/单项目、归档和筛选范围分别保存列表状态。范围改变后重建对应游标，不跨筛选复用。
 - [ ] 全部列表不要再拼接各项目列表；Task 详情和草稿继续按 Task 身份管理。
 

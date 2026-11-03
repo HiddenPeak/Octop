@@ -40,7 +40,7 @@ import styles from "./Sidebar.module.less";
 import { typeSize } from "../utils/mobileTypeScale";
 import { DESKTOP_DRAG_REGION_CLASS } from "../utils/desktopChrome";
 
-const NAV_GROUPS_STORAGE_KEY = "octop:sidebar-nav-groups";
+const NAV_GROUPS_STORAGE_KEY = "inhere-box:sidebar-nav-groups";
 const LEGACY_COLLAPSED_GROUP_IDS: Record<string, string> = {
   "nav.settings": "settings",
   "nav.control": "control",
@@ -434,8 +434,8 @@ export default function Sidebar({
 
   const isRailCollapsed = collapsed && !isMobile;
   const wordmarkSrc = isDark
-    ? "/logo_horizontal_white.png"
-    : "/logo_horizontal_dark.png";
+    ? "/inhere-box-wordmark-white.svg"
+    : "/inhere-box-wordmark-dark.svg";
 
   const selectMinimalPane = useCallback(
     (pane: MinimalNavPane, opts?: { expand?: boolean }) => {
@@ -498,7 +498,7 @@ export default function Sidebar({
     <>
       <img
         src={isRailCollapsed ? "/pwa-192.png" : wordmarkSrc}
-        alt="Octop"
+        alt="inhere-box"
         style={{
           height: isRailCollapsed ? 32 : isMobile ? 38 : 36,
           width: isRailCollapsed ? 32 : "auto",

@@ -5,14 +5,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from octop.infra.agents.settings.profile import (
+from inhere_box.infra.agents.settings.profile import (
     extract_profile_from_config,
     strip_profile_config,
     welcome_from_row,
 )
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRow
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRow
 
 
 def test_extract_profile_from_config_lifts_legacy_keys() -> None:
@@ -83,13 +83,13 @@ def test_welcome_from_row_requires_nonempty_text() -> None:
 
 
 def test_migration_007_backfills_profile_columns(tmp_path: Path) -> None:
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     with pool.connect() as conn:
         conn.executescript(
             (
                 Path(__file__).resolve().parents[3]
-                / "src/octop/infra/db/migrations/001_initial.sql"
+                / "src/inhere_box/infra/db/migrations/001_initial.sql"
             ).read_text()
         )
         conn.execute("UPDATE _schema_version SET version = 6")
@@ -134,13 +134,13 @@ def test_migration_007_backfills_profile_columns(tmp_path: Path) -> None:
 
 
 def test_legacy_zh_en_welcome_collapses_to_single_column(tmp_path: Path) -> None:
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     with pool.connect() as conn:
         conn.executescript(
             (
                 Path(__file__).resolve().parents[3]
-                / "src/octop/infra/db/migrations/001_initial.sql"
+                / "src/inhere_box/infra/db/migrations/001_initial.sql"
             ).read_text()
         )
         conn.execute("ALTER TABLE agents ADD COLUMN welcome_message_zh TEXT")

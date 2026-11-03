@@ -9,15 +9,15 @@ from typing import Any
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-from tests.support.app import octop_client
+from tests.support.app import inhere_box_client
 from tests.support.auth import auth_header, bootstrap_admin, ensure_users
 from tests.support.http import ws_connect, ws_token
 
 
 @pytest.fixture
-async def env(tmp_octop_home: Path) -> AsyncIterator[Any]:
-    async with octop_client(tmp_octop_home) as (c, srv):
-        await bootstrap_admin(c, tmp_octop_home)
+async def env(tmp_inhere_box_home: Path) -> AsyncIterator[Any]:
+    async with inhere_box_client(tmp_inhere_box_home) as (c, srv):
+        await bootstrap_admin(c, tmp_inhere_box_home)
         admin_auth = await auth_header(c)
         users = await ensure_users(c, admin_auth, "alice", "bob")
         yield c, srv, users["alice"], users["bob"]
@@ -25,7 +25,7 @@ async def env(tmp_octop_home: Path) -> AsyncIterator[Any]:
 
 def _notifications_ws(c: Any, auth: dict[str, str] | None = None) -> Any:
     query = f"?token={ws_token(auth)}" if auth else ""
-    return ws_connect(c._octop_app, f"/api/notifications/ws{query}")
+    return ws_connect(c._inhere_box_app, f"/api/notifications/ws{query}")
 
 
 async def test_notifications_ws_ping_pong(env: Any) -> None:

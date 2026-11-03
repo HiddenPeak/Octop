@@ -1,4 +1,4 @@
-"""Tests for `octop run`."""
+"""Tests for `inhere-box run`."""
 
 from __future__ import annotations
 
@@ -10,9 +10,9 @@ from typing import Any
 import pytest
 from click.testing import CliRunner
 
-from octop.cli.main import cli
-from octop.infra.agentcomputer.bootstrap import DaemonBootstrap
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.cli.main import cli
+from inhere_box.infra.agentcomputer.bootstrap import DaemonBootstrap
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 def test_run_help_lists_finnie_aligned_flags() -> None:
@@ -40,7 +40,7 @@ def test_conflicting_daemon_options_and_ssl_do_not_write_config(monkeypatch, tmp
     with DaemonBootstrap(tmp_path / "agentcomputer-control"):
         result = CliRunner().invoke(cli, ["run", "--host", "0.0.0.0", "--port", "8091", "--ssl"])
     assert result.exit_code == 1
-    assert isinstance(result.exception.__cause__, OctopError)
+    assert isinstance(result.exception.__cause__, InhereBoxError)
     assert result.exception.__cause__.code == ErrorCode.CONTROL_PLANE_BUSY
     assert config.read_bytes() == original
     assert not (tmp_path / "ssl").exists()
@@ -52,7 +52,7 @@ def test_run_dispatches_to_uvicorn(monkeypatch: pytest.MonkeyPatch) -> None:
     def _fake(**kw: object) -> None:
         captured.update(kw)
 
-    import octop.cli.commands.run as run_cmd
+    import inhere_box.cli.commands.run as run_cmd
 
     monkeypatch.setattr(run_cmd, "_run_uvicorn", _fake)
     runner = CliRunner()
@@ -65,13 +65,13 @@ def test_run_dispatches_to_uvicorn(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def _patch_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Point PathLayout.from_env() at a fresh tmp directory."""
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
 
 
 def test_run_reads_host_port_from_config_by_default(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """`octop run` with no args should fall back to config.json values."""
+    """`inhere-box run` with no args should fall back to config.json values."""
     _patch_home(monkeypatch, tmp_path)
     (tmp_path / "config.json").write_text(
         json.dumps({"bind_host": "1.2.3.4", "port": 9000}), encoding="utf-8"
@@ -82,7 +82,7 @@ def test_run_reads_host_port_from_config_by_default(
     def _fake(**kw: object) -> None:
         captured.update(kw)
 
-    import octop.cli.commands.run as run_cmd
+    import inhere_box.cli.commands.run as run_cmd
 
     monkeypatch.setattr(run_cmd, "_run_uvicorn", _fake)
 
@@ -108,7 +108,7 @@ def test_run_cli_args_override_config(monkeypatch: pytest.MonkeyPatch, tmp_path:
     def _fake(**kw: object) -> None:
         captured.update(kw)
 
-    import octop.cli.commands.run as run_cmd
+    import inhere_box.cli.commands.run as run_cmd
 
     monkeypatch.setattr(run_cmd, "_run_uvicorn", _fake)
 
@@ -126,14 +126,14 @@ def test_run_rejects_unbindable_port_before_saving_config(
 
     Before the range check, Click accepted the value, ``_save_configfile_overrides``
     persisted it, and uvicorn died in ``socket.bind`` with ``OverflowError`` — so
-    every later ``octop run`` inherited the unusable port from config.json.
+    every later ``inhere-box run`` inherited the unusable port from config.json.
     """
     _patch_home(monkeypatch, tmp_path)
 
     def _fake(**_kw: object) -> None:
         raise AssertionError("uvicorn must not be started")
 
-    import octop.cli.commands.run as run_cmd
+    import inhere_box.cli.commands.run as run_cmd
 
     monkeypatch.setattr(run_cmd, "_run_uvicorn", _fake)
 
@@ -155,7 +155,7 @@ def test_run_accepts_zero_port_as_os_assigned(
     def _fake(**kw: object) -> None:
         captured.update(kw)
 
-    import octop.cli.commands.run as run_cmd
+    import inhere_box.cli.commands.run as run_cmd
 
     monkeypatch.setattr(run_cmd, "_run_uvicorn", _fake)
 
@@ -179,7 +179,7 @@ def test_run_writes_config_before_uvicorn_starts(
         if config_path.exists():
             written_before_uvicorn.update(json.loads(config_path.read_text(encoding="utf-8")))
 
-    import octop.cli.commands.run as run_cmd
+    import inhere_box.cli.commands.run as run_cmd
 
     monkeypatch.setattr(run_cmd, "_run_uvicorn", _fake)
 
@@ -208,7 +208,7 @@ def test_run_writes_config_even_on_uvicorn_failure(
     def _fake(**_kw: object) -> None:
         raise RuntimeError("port already in use")
 
-    import octop.cli.commands.run as run_cmd
+    import inhere_box.cli.commands.run as run_cmd
 
     monkeypatch.setattr(run_cmd, "_run_uvicorn", _fake)
 
@@ -234,7 +234,7 @@ def test_run_merges_with_existing_config(monkeypatch: pytest.MonkeyPatch, tmp_pa
     def _fake(**_kw: object) -> None:
         return None
 
-    import octop.cli.commands.run as run_cmd
+    import inhere_box.cli.commands.run as run_cmd
 
     monkeypatch.setattr(run_cmd, "_run_uvicorn", _fake)
 
@@ -270,7 +270,7 @@ def test_run_reports_corrupt_config_cleanly(
     def _fake(**kw: object) -> None:
         captured.update(kw)
 
-    import octop.cli.commands.run as run_cmd
+    import inhere_box.cli.commands.run as run_cmd
 
     monkeypatch.setattr(run_cmd, "_run_uvicorn", _fake)
 
@@ -291,7 +291,7 @@ def test_run_does_not_overwrite_corrupt_config(
 
     Supersedes the old "treat a malformed file as empty so the next run rewrites
     it cleanly" contract. That rewrite destroyed every other setting: one
-    trailing comma plus ``octop run --port`` wiped the ``database`` section and
+    trailing comma plus ``inhere-box run --port`` wiped the ``database`` section and
     silently flipped a PostgreSQL instance back to a greenfield SQLite one, with
     no warning in the log (issue #730).
     """
@@ -302,7 +302,7 @@ def test_run_does_not_overwrite_corrupt_config(
     def _fake(**_kw: object) -> None:
         return None
 
-    import octop.cli.commands.run as run_cmd
+    import inhere_box.cli.commands.run as run_cmd
 
     monkeypatch.setattr(run_cmd, "_run_uvicorn", _fake)
 
@@ -326,7 +326,7 @@ def test_run_port_zero_not_overridden_by_config(
     def _fake(**kw: object) -> None:
         captured.update(kw)
 
-    import octop.cli.commands.run as run_cmd
+    import inhere_box.cli.commands.run as run_cmd
 
     monkeypatch.setattr(run_cmd, "_run_uvicorn", _fake)
 
@@ -351,7 +351,7 @@ def test_run_reads_legacy_host_key_for_compatibility(
     def _fake(**kw: object) -> None:
         captured.update(kw)
 
-    import octop.cli.commands.run as run_cmd
+    import inhere_box.cli.commands.run as run_cmd
 
     monkeypatch.setattr(run_cmd, "_run_uvicorn", _fake)
 

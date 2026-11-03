@@ -16,10 +16,10 @@ from octop_harness.config import ModelConfig, ProviderConfig
 from octop_memory.core import Memory
 from octop_memory.types import Candidate
 
-from octop.config import OctopConfig
-from octop.infra.agents.memory.backend import open_memory_kwargs
-from octop.infra.agents.resident_identity import ensure_resident_identity
-from octop.infra.agents.resident_memory import (
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.memory.backend import open_memory_kwargs
+from inhere_box.infra.agents.resident_identity import ensure_resident_identity
+from inhere_box.infra.agents.resident_memory import (
     ResidentMemoryDeprecate,
     ResidentMemoryReplace,
     ResidentMemoryWrite,
@@ -34,12 +34,12 @@ from octop.infra.agents.resident_memory import (
     resident_memory_context,
     resident_memory_sources,
 )
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import OctopError
-from octop.infra.usage.model_calls import attach_model_observer
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.usage.model_calls import attach_model_observer
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -48,7 +48,7 @@ def private_memory(tmp_path):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     services.user_repo.create(username="owner", password_hash="x", role="user")
     binding = asyncio.run(ensure_resident_identity(services, 1))
     yield services, binding
@@ -68,7 +68,7 @@ def test_manual_management_is_the_existing_agent_memory_namespace_without_a_mode
     namespace, backend, config = open_memory_kwargs(
         agent_id=binding.agent_id,
         cfg=cfg,
-        octop_config=services.config,
+        inhere_box_config=services.config,
         workspace_dir=services.paths.agent_workspace(binding.agent_id),
     )
     memory = Memory(namespace=namespace, backend=backend, backend_config=config)
@@ -193,7 +193,7 @@ def test_memory_source_turn_is_verified_and_source_location_survives(private_mem
     assert evidence.items[0].history_item_id == f"turn:{source.turn_id}"
     assert evidence.items[0].source_message_id == f"resident:{source.turn_id}:user"
     assert "My preferred style." not in evidence.items[0].content
-    with pytest.raises(OctopError) as raised:
+    with pytest.raises(InhereBoxError) as raised:
         create_resident_memory(
             *args, ResidentMemoryWrite(assertion="Unverified", source_turn_id="not-mine")
         )
@@ -232,7 +232,7 @@ async def test_extraction_blocks_exhausted_quota_before_starting_or_calling_a_mo
     services, binding = private_memory
     registry, factory = _extraction_registry(AIMessage(content='{"candidates": []}'))
     services.user_policy_repo.set(1, "token_quota", "0")
-    with pytest.raises(OctopError) as raised:
+    with pytest.raises(InhereBoxError) as raised:
         await extract_resident_candidates(
             services, registry, 1, binding.agent_id, binding.thread_id, "synthetic/test"
         )
@@ -328,7 +328,7 @@ async def test_parser_retry_rechecks_quota_and_does_not_make_an_unbilled_second_
         )
     )
     services.user_policy_repo.set(1, "token_quota", "18")
-    with pytest.raises(OctopError) as raised:
+    with pytest.raises(InhereBoxError) as raised:
         await extract_resident_candidates(
             services, registry, 1, binding.agent_id, binding.thread_id, "synthetic/test"
         )

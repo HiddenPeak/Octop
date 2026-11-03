@@ -9,12 +9,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from octop.infra.bridge.ids import PROTOCOL_VERSION
-from octop.infra.bridge.manager import BridgeManager, observe_ws_client_host
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.bridge_connections import BridgeConnectionRepo
-from octop.infra.db.repos.users import UserRepo
+from inhere_box.infra.bridge.ids import PROTOCOL_VERSION
+from inhere_box.infra.bridge.manager import BridgeManager, observe_ws_client_host
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.bridge_connections import BridgeConnectionRepo
+from inhere_box.infra.db.repos.users import UserRepo
 
 
 class _HoldSocket:
@@ -83,7 +83,7 @@ def test_observe_ws_client_host_prefers_forwarded_when_peer_is_loopback() -> Non
 
 @pytest.mark.asyncio
 async def test_two_logins_to_same_account_stay_separate(tmp_path: Path) -> None:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     users = UserRepo(pool)
     uid = users.create(username="jubaoliang", password_hash="x", role="admin")
@@ -143,7 +143,7 @@ async def test_two_logins_to_same_account_stay_separate(tmp_path: Path) -> None:
 def _manager(
     tmp_path: Path, *, advertise_base_url: str
 ) -> tuple[BridgeManager, SimpleNamespace, int]:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     users = UserRepo(pool)
     uid = users.create(username="jubaoliang", password_hash="x", role="admin")

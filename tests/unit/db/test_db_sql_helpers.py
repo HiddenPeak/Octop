@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from octop.infra.db.repos._base import insert_returning_id, sql_in_placeholders, sql_unix_day_bucket
+from inhere_box.infra.db.repos._base import (
+    insert_returning_id,
+    sql_in_placeholders,
+    sql_unix_day_bucket,
+)
 
 
 def test_sql_in_placeholders():
@@ -19,8 +23,8 @@ def test_sql_unix_day_bucket_postgresql():
 
 
 def test_insert_returning_id(tmp_path):
-    from octop.infra.db.migrate import run_migrations
-    from octop.infra.db.pool import SqlitePool
+    from inhere_box.infra.db.migrate import run_migrations
+    from inhere_box.infra.db.pool import SqlitePool
 
     db = SqlitePool(tmp_path / "x.db")
     run_migrations(db)

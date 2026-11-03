@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.utils import docker_env as docker_mod
-from octop.infra.utils.docker_env import docker_status, ensure_docker, install_script
+from inhere_box.infra.utils import docker_env as docker_mod
+from inhere_box.infra.utils.docker_env import docker_status, ensure_docker, install_script
 
 
 def test_install_script_linux() -> None:

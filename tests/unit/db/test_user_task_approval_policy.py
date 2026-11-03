@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.user_task_approval_policies import UserTaskApprovalPolicyRepo
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.user_task_approval_policies import UserTaskApprovalPolicyRepo
 
 
 def test_global_policy_migration_advances_old_versions_and_preserves_snapshots(tmp_path: Path):

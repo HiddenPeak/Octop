@@ -3,11 +3,11 @@ import * as chatStore from "../../pages/Chat/hooks/chatStore";
 import i18n from "../../i18n";
 import {
   mergePatchedToolOutput,
-  parseOctopToolOutput,
+  parseInhereBoxToolOutput,
 } from "./parseToolOutput";
 import { registerToolRenderer } from "./registry";
 import type {
-  OctopPluginUIHost,
+  InhereBoxPluginUIHost,
   ToolRenderContext,
   ToolRendererRegistration,
 } from "./types";
@@ -42,7 +42,7 @@ function readTheme(): "light" | "dark" {
   return "light";
 }
 
-function createHost(defaultPluginId: string): OctopPluginUIHost {
+function createHost(defaultPluginId: string): InhereBoxPluginUIHost {
   return {
     registerRenderer(reg) {
       const pluginId = reg.pluginId ?? defaultPluginId;
@@ -79,11 +79,11 @@ function createHost(defaultPluginId: string): OctopPluginUIHost {
 }
 
 /** Host bound to ``builtin`` for first-party renderers. */
-export const builtinPluginHost: OctopPluginUIHost = createHost("builtin");
+export const builtinPluginHost: InhereBoxPluginUIHost = createHost("builtin");
 
 /** Build a host scoped to an installed plugin id (for dynamic UI modules). */
-export function createPluginUiHost(pluginId: string): OctopPluginUIHost {
+export function createPluginUiHost(pluginId: string): InhereBoxPluginUIHost {
   return createHost(pluginId);
 }
 
-export { parseOctopToolOutput, mergePatchedToolOutput };
+export { parseInhereBoxToolOutput, mergePatchedToolOutput };

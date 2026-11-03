@@ -6,18 +6,18 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.sessions import SessionRepo
-from octop.infra.db.repos.threads import ThreadRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.gateway.threads import ThreadRegistry
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.sessions import SessionRepo
+from inhere_box.infra.db.repos.threads import ThreadRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.gateway.threads import ThreadRegistry
 
 
 @pytest.fixture
 def repos(tmp_path: Path):
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     UserRepo(db).create(username="u", password_hash="h", role="user")
     AgentRepo(db).create(agent_id="a1", user_id=1, name="Agent 1")

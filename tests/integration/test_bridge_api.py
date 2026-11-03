@@ -39,7 +39,7 @@ async def test_bridge_probe_returns_expert_list(env: Any) -> None:
 
     with (
         patch(
-            "octop.infra.bridge.manager.login_peer",
+            "inhere_box.infra.bridge.manager.login_peer",
             new=AsyncMock(
                 return_value={
                     "access_token": "peer-token",
@@ -47,9 +47,9 @@ async def test_bridge_probe_returns_expert_list(env: Any) -> None:
                 }
             ),
         ),
-        patch("octop.infra.bridge.manager.httpx.AsyncClient", return_value=mock_client),
+        patch("inhere_box.infra.bridge.manager.httpx.AsyncClient", return_value=mock_client),
         patch(
-            "octop.infra.bridge.peer_auth.socket.getaddrinfo",
+            "inhere_box.infra.bridge.peer_auth.socket.getaddrinfo",
             return_value=[(2, 1, 6, "", ("203.0.113.1", 443))],
         ),
     ):

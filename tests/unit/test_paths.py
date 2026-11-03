@@ -4,25 +4,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def test_root_paths(tmp_path: Path):
     p = PathLayout(tmp_path / ".octop")
     assert p.root == tmp_path / ".octop"
-    assert p.db == tmp_path / ".octop" / "octop.db"
+    assert p.db == tmp_path / ".octop" / "inhere-box.db"
     assert p.logs_dir == tmp_path / ".octop" / "logs"
-    assert p.log == tmp_path / ".octop" / "logs" / "octop.log"
+    assert p.log == tmp_path / ".octop" / "logs" / "inhere-box.log"
     assert p.config == tmp_path / ".octop" / "config.json"
-    assert p.wizard_password_file == tmp_path / ".octop" / "octop-login.txt"
+    assert p.wizard_password_file == tmp_path / ".octop" / "inhere-box-login.txt"
 
 
 def test_log_dir_creation(tmp_path: Path):
     p = PathLayout(tmp_path / ".octop")
     assert not (tmp_path / ".octop" / "logs").exists()
-    assert p.ensure_log() == tmp_path / ".octop" / "logs" / "octop.log"
+    assert p.ensure_log() == tmp_path / ".octop" / "logs" / "inhere-box.log"
     assert (tmp_path / ".octop" / "logs").is_dir()
-    assert p.log == tmp_path / ".octop" / "logs" / "octop.log"
+    assert p.log == tmp_path / ".octop" / "logs" / "inhere-box.log"
 
 
 def test_user_dir_uses_username(tmp_path: Path):
@@ -62,10 +62,10 @@ def test_knowledge_dir(tmp_path: Path) -> None:
 
 
 def test_path_layout_from_env_defaults_to_dot_octop(monkeypatch) -> None:
-    monkeypatch.delenv("OCTOP_HOME", raising=False)
-    assert PathLayout.from_env().root == Path.home() / ".octop"
+    monkeypatch.delenv("INHERE_BOX_HOME", raising=False)
+    assert PathLayout.from_env().root == Path.home() / ".inhere-box"
 
 
-def test_path_layout_from_env_honors_octop_home(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+def test_path_layout_from_env_honors_inhere_box_home(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     assert PathLayout.from_env().root == tmp_path

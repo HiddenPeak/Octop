@@ -7,10 +7,10 @@ from unittest.mock import AsyncMock
 
 from octop_harness import HarnessAgentConfig
 
-from octop.infra.projects import expert_profiles, expert_teams
-from octop.infra.projects.collaboration import TaskTeam
-from octop.infra.projects.content import TaskContent
-from octop.infra.projects.models import ProjectFields
+from inhere_box.infra.projects import expert_profiles, expert_teams
+from inhere_box.infra.projects.collaboration import TaskTeam
+from inhere_box.infra.projects.content import TaskContent
+from inhere_box.infra.projects.models import ProjectFields
 
 
 def test_member_configuration_uses_project_and_member_without_host_abilities(monkeypatch):

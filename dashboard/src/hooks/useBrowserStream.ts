@@ -39,7 +39,7 @@ interface ConnectOptions {
   scopeRevision?: string;
   /** Harness profile for the current user. The WebSocket also binds from JWT. */
   sessionId?: string | null;
-  /** When set, screencast is relayed to the peer Octop via Bridge. */
+  /** When set, screencast is relayed to the peer inhere-box via Bridge. */
   bridgeConnectionId?: string | null;
 }
 

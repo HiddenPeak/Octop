@@ -11,8 +11,8 @@ from langchain_core.messages import AIMessage
 from octop_harness import HarnessAgent
 from octop_harness.llm.factory import ChatModelFactory
 
-from octop.infra.projects import runtime
-from octop.infra.projects.expert_profiles import _workspace
+from inhere_box.infra.projects import runtime
+from inhere_box.infra.projects.expert_profiles import _workspace
 from tests.integration.test_project_tasks import settled
 from tests.support.auth import resolve_user_id
 

@@ -1,4 +1,4 @@
-"""Demo UI Card — backend tool that returns an ``octop_ui`` envelope.
+"""Demo UI Card — backend tool that returns an ``inhere_box_ui`` envelope.
 
 The matching frontend renderer lives in ``ui/dist/`` and is loaded by the
 Dashboard into the chat tool-result registry.
@@ -14,7 +14,7 @@ from octop_harness.plugins import PluginContext
 async def demo_ui_card(title: str = "Hello from plugin UI", count: int = 1) -> str:
     """Return a structured card payload for the Dashboard plugin renderer."""
     payload = {
-        "octop_ui": {"renderer": "demo_card", "version": 1},
+        "inhere_box_ui": {"renderer": "demo_card", "version": 1},
         "data": {
             "title": title,
             "count": int(count),

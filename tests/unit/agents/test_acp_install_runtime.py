@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from octop.infra.agents import acp_install_runtime as runtime
+from inhere_box.infra.agents import acp_install_runtime as runtime
 
 posix_only = pytest.mark.skipif(os.name != "posix", reason="POSIX file modes and symlinks")
 
@@ -143,7 +143,7 @@ async def test_node_install_uses_fixed_hash_and_is_shared_across_runners(
         )
     ]
     assert "downloading_runtime" in progress and "installing_runtime" in progress
-    assert (root / "runtime/node/.octop-install-complete").is_file()
+    assert (root / "runtime/node/.inhere-box-install-complete").is_file()
     assert not list((root / "runtime").glob(".node-install-*"))
 
 

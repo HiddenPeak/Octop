@@ -1,6 +1,6 @@
 # Task 审批模式与远端独立 Reviewer
 
-更新日期：2026 年 10 月 27 日。Octop 服务端和现有网页已实现下述 **v3** 契约。当前登录账号的所有项目及已有、新建、运行中 Task 共用一套三档审批模式，由 Octop 保存；三种模式始终可选，无需管理员开放。独立 Reviewer 在 Octop 远端运行，执行权限留在各执行端。AgentComputer 已接入账号全局模式同步；此前真机验收覆盖两个已有会话和 New Task 原菜单读取同一权威状态，未在运行账号切档或派发工具，具体证据和边界见下文。本次新增 Cron 独立显式授权已部署到本机 8088 并核对在线 OpenAPI；执行与审批边界通过隔离运行测试验证，APP 本轮未接入此开关。
+更新日期：2026 年 10 月 27 日。inhere-box 服务端和现有网页已实现下述 **v3** 契约。当前登录账号的所有项目及已有、新建、运行中 Task 共用一套三档审批模式，由 inhere-box 保存；三种模式始终可选，无需管理员开放。独立 Reviewer 在 inhere-box 远端运行，执行权限留在各执行端。AgentComputer 已接入账号全局模式同步；此前真机验收覆盖两个已有会话和 New Task 原菜单读取同一权威状态，未在运行账号切档或派发工具，具体证据和边界见下文。本次新增 Cron 独立显式授权已部署到本机 8088 并核对在线 OpenAPI；执行与审批边界通过隔离运行测试验证，APP 本轮未接入此开关。
 
 暂停、提问和人工回应的完整手册见[交互协议](project-task-interactions.md)，客户端操作字段和接线顺序见[AgentComputer 交接说明](agentcomputer-task-interactions.md)。
 
@@ -20,7 +20,7 @@
 
 `POST /api/cron`、`PATCH /api/cron/{cron_id}` 和 `CronResponse` 新增布尔字段 `skip_confirmation`，旧专家路径同样支持。创建默认 `false`，旧记录迁移也保持 `false`；此时生成轮次沿用账号现有审批规则。PATCH 省略或 `null` 保留原值，`true` 开启，`false` 关闭。完整请求与返回示例见[定时任务接口](cron-api.md#显式跳过工具确认)；CLI 本轮不新增选项。
 
-这是对该 Cron 生成的 Octop 内置执行引擎轮次的明确授权，不修改账号全局 `approval_policy`，也不扩大全局 `full_access` 的工具范围。开启后，服务端可跳过该轮的 `execute`、MCP、发送和发布等工具确认，但必须同时满足原安全策略允许 `allow_once`、未被管理员 `require_human_tools` 强制人工、未触发禁止规则或既有拒绝。客户端电脑的目录及命令授权、ACP 原生权限和问题回答保持原规则；暂停、取消与来源或资源撤权仍阻止派发。
+这是对该 Cron 生成的 inhere-box 内置执行引擎轮次的明确授权，不修改账号全局 `approval_policy`，也不扩大全局 `full_access` 的工具范围。开启后，服务端可跳过该轮的 `execute`、MCP、发送和发布等工具确认，但必须同时满足原安全策略允许 `allow_once`、未被管理员 `require_human_tools` 强制人工、未触发禁止规则或既有拒绝。客户端电脑的目录及命令授权、ACP 原生权限和问题回答保持原规则；暂停、取消与来源或资源撤权仍阻止派发。
 
 一次触发受理时，服务端在 occurrence 和生成轮次固定 `skip_confirmation`；后续编辑只影响之后受理的触发。授权只对该次 Cron 轮次有效，不继承给同一 Task 的手动追问、fork 或 retry。每次实际放行保存 `allow_once` 与 `source="cron_skip_confirmation"`，沿用原动作摘要、参数和单次派发审计，不伪装为人工批准。普通消息、工具内容或客户端提交的同名字段不能建立可信 Cron 来源。
 
@@ -28,14 +28,14 @@
 
 | 层级 | 保存的事实 | 不能替代的权限 |
 | --- | --- | --- |
-| Octop 管理员设置 | 强制人工工具和既有安全限制。 | 用户模式不能覆盖管理员限制。 |
-| Octop 账号 | 所有 Task 共用 `approval_policy:{mode,revision,updated_at}`，独立表为唯一权威。 | 不代表执行电脑已同意采用增强模式。 |
+| inhere-box 管理员设置 | 强制人工工具和既有安全限制。 | 用户模式不能覆盖管理员限制。 |
+| inhere-box 账号 | 所有 Task 共用 `approval_policy:{mode,revision,updated_at}`，独立表为唯一权威。 | 不代表执行电脑已同意采用增强模式。 |
 | 单个动作 | 原参数、执行端、模式版本、动作摘要和决定来源。 | 之后切模式不能改写该动作或替代另一次批准。 |
 | 执行电脑 | 目录 bookmark、目录/命令授权身份、本机模式同意及执行 journal。 | 远端 mode、Reviewer 允许或领取成功都不授予本机权限。 |
 
 新账号默认 `ask_for_approval`；一处修改后，所有项目、已有任务、运行中任务的后续动作和未来新任务统一采用当前全局模式。新建任务只读取账号策略，不写回模式；旧客户端顶层 `approval_mode` 仍可解析但被忽略，也不参与创建幂等比较，避免旧版默认值重置全局。后续消息和重试同样继承全局模式，每轮在 `approval_policy_at_start` 留下入队快照。动作实际使用创建动作时的账号全局策略，不能只依赖轮次开始值。
 
-输入框审批模式选择器代表当前账号全部任务。它显示远端已确认状态，模式请求未确认前保留原值；丢回执后显式重试原请求，或读取当前模式。首次选择服务端完全访问会说明真实范围：`execution_profile=host_process`，命令在 Octop 宿主进程内，以其操作系统身份和实际权限执行，工作目录不是 OS 沙盒。该确认不授权任何电脑。
+输入框审批模式选择器代表当前账号全部任务。它显示远端已确认状态，模式请求未确认前保留原值；丢回执后显式重试原请求，或读取当前模式。首次选择服务端完全访问会说明真实范围：`execution_profile=host_process`，命令在 inhere-box 宿主进程内，以其操作系统身份和实际权限执行，工作目录不是 OS 沙盒。该确认不授权任何电脑。
 
 管理员在现有安全设置的 Task 审批区域配置强制人工工具：
 
@@ -76,7 +76,7 @@
 
 ## 服务端裁决流程
 
-普通 `execute` 及已有安全规则产生审批后，Octop 固定原调用与动作模式，在原生检查点落盘后释放主任务执行槽。顺序为：
+普通 `execute` 及已有安全规则产生审批后，inhere-box 固定原调用与动作模式，在原生检查点落盘后释放主任务执行槽。顺序为：
 
 1. 同一轮相同服务端参数与配置已被拒绝时，直接保存 `previous_denial`，不重新发起 Reviewer。
 2. 强制人工工具和原安全策略不允许 `allow_once` 的审批保持人工。
@@ -110,7 +110,7 @@ Reviewer 使用本轮已选模型，以独立请求处理固定提案，不带�
 
 ## 执行电脑接入
 
-Octop 已提供 `tool.review`，结果是审查建议，不是本机执行授权。客户端先完成 `client.attach` 和原调用 `tool.claim`，保留 claim_token，再使用原 call 的 `approval_context.action_digest` 与固定的本机执行上下文请求审查。接口只支持可自动审查的 `exec_command`，原调用冻结模式不是 `approve_for_me` 时返回 `TASK_APPROVAL_MODE_UNAVAILABLE`；不能审查任意服务端目标或覆盖强制人工工具。
+inhere-box 已提供 `tool.review`，结果是审查建议，不是本机执行授权。客户端先完成 `client.attach` 和原调用 `tool.claim`，保留 claim_token，再使用原 call 的 `approval_context.action_digest` 与固定的本机执行上下文请求审查。接口只支持可自动审查的 `exec_command`，原调用冻结模式不是 `approve_for_me` 时返回 `TASK_APPROVAL_MODE_UNAVAILABLE`；不能审查任意服务端目标或覆盖强制人工工具。
 
 本机上下文包含真实 `working_directory`、`workspace_authorization_digest`、`command_authorization_id`、`execution_profile` 和完整 `context_digest`。模式、参数和服务端动作摘要从服务端原调用取值；请求不能替换原参数。首个提案在原 call 上持久固定，后续相同提案返回相同 review，不重复花费模型用量；更换上下文或摘要返回冲突，不能靠新 request_id 重审。
 
@@ -128,20 +128,20 @@ Octop 已提供 `tool.review`，结果是审查建议，不是本机执行授权
 
 只有本机同意与资源权限仍有效，才可把匹配的自动建议记为本机 `auto_reviewer` 单次授权；完全访问同样需要本机明确范围确认。`requires_user` 走现有本机 Dock，不新建服务端人工卡。决定来源不能伪装为用户批准，执行开始与实际结果先落盘再按原调用回传。断网、状态未知、暂停或撤权时禁止新派发；恢复沿用原调用，不重新创建执行。
 
-审查会把原 argv 和必要目录、授权身份摘要等执行元数据发送给 Octop 及审查模型。服务端不读取或上传本机文件内容；客户端不可补传环境变量、凭据或文件来“帮助审查”。无法安全提供足够信息时保留人工路径。本机同意、journal 和派发检查仍由 AgentComputer 执行；本轮全局状态同步验收不代替真实命令执行和权限边界专项验收。
+审查会把原 argv 和必要目录、授权身份摘要等执行元数据发送给 inhere-box 及审查模型。服务端不读取或上传本机文件内容；客户端不可补传环境变量、凭据或文件来“帮助审查”。无法安全提供足够信息时保留人工路径。本机同意、journal 和派发检查仍由 AgentComputer 执行；本轮全局状态同步验收不代替真实命令执行和权限边界专项验收。
 
 ## 验证与客户端验收
 
 2026-10-19 本轮全局修复已完成运行验收。后端审批/Reviewer/Socket 57 项、数据库迁移与计时 95 项、任务入队/项目/设置/交互及持久性 87 项通过（迁移用例重叠 1 项）；相关 Ruff、严格类型检查和差异检查通过。覆盖跨项目、归档和未打开任务、新 Task 继承、无订阅全局推送、跨 Task CAS、未知回执重放，以及运行中下一动作采用新模式且既有人工卡保持原快照。网页 82 项、TypeScript 检查和构建通过。AgentComputer 客户端 63 个独立用例、80 次运行及核心 62 项通过，macOS/iOS 构建成功。
 
-现有 8088 服务按原参数 `run --workers 1` 重启（PID 90116），schema 从 44 升至 45。重启前的一致备份为 `/private/tmp/octop-before-global-policy-live-20261019/octop.db`；升级后 20 张原 `project_task*`/`ac_*` 表按原列比较，行数与 SHA-256 全部一致，证据为同目录 `after-migration-check.json`。实际全局 revision 6 写入后再次核对，除 `project_tasks` 的预期摘要变化外，其余 19 张原 Task/ac 表按原列哈希全部相同，`changed tables` 为空，证据为 `final-frozen-data-check.json`。
+现有 8088 服务按原参数 `run --workers 1` 重启（PID 90116），schema 从 44 升至 45。重启前的一致备份为 `/private/tmp/inhere-box-before-global-policy-live-20261019/inhere-box.db`；升级后 20 张原 `project_task*`/`ac_*` 表按原列比较，行数与 SHA-256 全部一致，证据为同目录 `after-migration-check.json`。实际全局 revision 6 写入后再次核对，除 `project_tasks` 的预期摘要变化外，其余 19 张原 Task/ac 表按原列哈希全部相同，`changed tables` 为空，证据为 `final-frozen-data-check.json`。
 
 主工程明确的 `mainDerivedData` 构建包已运行（PID 90552）。人工进入两个已有会话及 New Task 的原审批菜单，均读取相同账号全局 `approve_for_me`、revision 6；本轮未在该运行账号切档或派发工具。期间其他客户端写入的全局选择予以保留，未重置。以上真机结果确认多个入口读取同一权威；真实供应商审查、PostgreSQL 实库及新增命令派发未在本轮重复实测。完整门禁未重复运行，UI 自动化按用户约定禁用；人工界面核对不记为 UI 自动化通过。本轮全局修复按用户要求纳入本次本地提交，未推送。
 
 2026-10-16 最终验证：后端相关 **456 项通过**，网页相关 **59 项通过**；37 个服务端源文件严格类型检查、定向 Ruff/Prettier 和 `make build-frontend` 均通过。协议 Schema 已重新导出为 v3，文档 51 个 JSON 示例及本地链接检查通过。后端定向命令为：
 
 ```bash
-UV_CACHE_DIR=/private/tmp/octop-task-uv-cache uv run --no-sync pytest tests/integration/test_project*.py tests/integration/test_security_api.py tests/integration/test_usage_api.py tests/unit/projects tests/unit/db/test_db_pool.py tests/unit/db/test_usage_window.py tests/unit/test_usage_thread_totals.py tests/unit/users/test_resource_policy.py tests/unit/i18n -x -q --disable-warnings --basetemp=/private/tmp/octop-approval-final-2
+UV_CACHE_DIR=/private/tmp/inhere-box-task-uv-cache uv run --no-sync pytest tests/integration/test_project*.py tests/integration/test_security_api.py tests/integration/test_usage_api.py tests/unit/projects tests/unit/db/test_db_pool.py tests/unit/db/test_usage_window.py tests/unit/test_usage_thread_totals.py tests/unit/users/test_resource_policy.py tests/unit/i18n -x -q --disable-warnings --basetemp=/private/tmp/inhere-box-approval-final-2
 ```
 
 网页定向命令在 `dashboard/` 运行：
@@ -156,7 +156,7 @@ npx vitest run src/api/modules/projectTaskSocket.test.ts src/pages/BoxProjects/T
 
 ## 源码定位
 
-- Octop 策略和模型：`src/octop/infra/projects/approval_policy.py`、`approval_models.py`。
+- inhere-box 策略和模型：`src/inhere_box/infra/projects/approval_policy.py`、`approval_models.py`。
 - 服务端动作：`approval_runtime.py`、`control.py`；独立请求与 Worker：`approval_reviewer.py`。
 - 客户端契约与审查：`client_tool_models.py`、`client_reviews.py`、`client_tools.py`。
-- AgentComputer 客户端：`AgentToolModels.swift` 的三模式和动作快照、`ApprovalReviewer.swift` 的独立审查、`OctopClientToolRunner.swift` 的本机审批与 journal。
+- AgentComputer 客户端：`AgentToolModels.swift` 的三模式和动作快照、`ApprovalReviewer.swift` 的独立审查、`InhereBoxClientToolRunner.swift` 的本机审批与 journal。

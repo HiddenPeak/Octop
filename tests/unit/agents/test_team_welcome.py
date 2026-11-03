@@ -10,8 +10,8 @@ import pytest
 from deepagents.backends.local_shell import LocalShellBackend
 from octop_harness.backends.workspace import BackendWorkspace
 
-from octop.infra.agents.teams.welcome import team_host_welcome_payload
-from octop.infra.db.repos.agents import AgentRow
+from inhere_box.infra.agents.teams.welcome import team_host_welcome_payload
+from inhere_box.infra.db.repos.agents import AgentRow
 
 
 def _row(*, agent_id: str, kind: str = "expert", welcome: str | None = None) -> AgentRow:

@@ -7,11 +7,11 @@ import sys
 
 import pytest
 
-from octop.infra.utils import runtime_packages as mod
+from inhere_box.infra.utils import runtime_packages as mod
 
 
 def test_find_uv_binary_from_path(monkeypatch) -> None:
-    monkeypatch.setenv("OCTOP_UV_BIN", "")
+    monkeypatch.setenv("INHERE_BOX_UV_BIN", "")
     monkeypatch.setattr(mod.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
     assert mod.find_uv_binary() == "/usr/bin/uv"
 
@@ -19,7 +19,7 @@ def test_find_uv_binary_from_path(monkeypatch) -> None:
 def test_find_uv_binary_from_env_override(monkeypatch, tmp_path) -> None:
     uv = tmp_path / "custom-uv"
     uv.write_text("", encoding="utf-8")
-    monkeypatch.setenv("OCTOP_UV_BIN", str(uv))
+    monkeypatch.setenv("INHERE_BOX_UV_BIN", str(uv))
     monkeypatch.setattr(mod.shutil, "which", lambda _name: None)
     assert mod.find_uv_binary() == str(uv)
 
@@ -107,13 +107,13 @@ def test_install_packages_extra_fallback(monkeypatch) -> None:
     spec = mod.PackageInstallSpec(packages=("fastembed>=0.4",), extra_fallback="local-embedding")
     with pytest.raises(RuntimeError, match="Could not install optional Python components"):
         mod.install_packages(spec, is_satisfied=lambda: False)
-    assert any("octop[local-embedding]" in cmd for cmd in calls)
+    assert any("inhere-box[local-embedding]" in cmd for cmd in calls)
 
 
 def test_find_uv_binary_uses_custom_search_paths(monkeypatch, tmp_path) -> None:
     uv = tmp_path / "uv"
     uv.write_text("", encoding="utf-8")
-    monkeypatch.setenv("OCTOP_UV_BIN", "")
+    monkeypatch.setenv("INHERE_BOX_UV_BIN", "")
     monkeypatch.setattr(mod.shutil, "which", lambda _name: None)
     monkeypatch.setattr(mod, "_uv_search_paths", lambda: (uv,))
     assert mod.find_uv_binary() == str(uv)

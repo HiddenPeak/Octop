@@ -11,8 +11,8 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 from starlette.websockets import WebSocketDisconnect
 
-from octop.api.common.box_auth import browser_cookie_name
-from tests.support.app import octop_client, write_octop_config
+from inhere_box.api.common.box_auth import browser_cookie_name
+from tests.support.app import inhere_box_client, write_inhere_box_config
 from tests.support.box_accounts import _claim, _management_key
 from tests.support.http import ASGIWebSocketSession
 
@@ -20,19 +20,19 @@ ORIGIN = "https://box.test"
 
 
 @pytest.fixture
-async def browser_box(tmp_octop_home: Path) -> AsyncIterator[tuple[Any, ...]]:
-    write_octop_config(tmp_octop_home, account_mode="box_local")
-    async with octop_client(tmp_octop_home) as (client, server):
+async def browser_box(tmp_inhere_box_home: Path) -> AsyncIterator[tuple[Any, ...]]:
+    write_inhere_box_config(tmp_inhere_box_home, account_mode="box_local")
+    async with inhere_box_client(tmp_inhere_box_home) as (client, server):
         client.base_url = httpx.URL(ORIGIN)
         key, client_id, native_auth = await _claim(client, server)
         yield client, server, key, client_id, native_auth
 
 
 async def _browser_login(client, key, client_id, *, csrf: str | None = None):
-    management_key = await _management_key(client._octop_app.state.octop_server)
+    management_key = await _management_key(client._inhere_box_app.state.inhere_box_server)
     headers = {"Origin": str(client.base_url).rstrip("/")}
     if csrf is not None:
-        headers["X-Octop-Box-CSRF"] = csrf
+        headers["X-Inhere-Box-CSRF"] = csrf
     response = await client.post(
         "/api/auth/browser/sessions", headers=headers, json={"management_key": management_key}
     )
@@ -54,6 +54,7 @@ async def test_cookie_is_httponly_scoped_and_reloads_without_exposing_jwt(browse
     }
     assert body["paired_client_id"] is None and body["expires_in"] == 86400
     cookie = response.headers["set-cookie"]
+    assert cookie.startswith("inhere_box_session_")
     assert "HttpOnly" in cookie and "Secure" in cookie and "SameSite=strict" in cookie
     assert "Path=/api" in cookie and "Max-Age=86400" in cookie and "Domain=" not in cookie
     assert server.box_account_service is not None
@@ -71,7 +72,7 @@ async def test_cookie_is_httponly_scoped_and_reloads_without_exposing_jwt(browse
         response = await client.get(path, headers={"Sec-Fetch-Site": "same-origin"})
         assert response.status_code == 200, (path, response.text)
         assert response.headers["cache-control"] == "no-store"
-        assert "x-octop-access-token" not in response.headers
+        assert "x-inhere-box-access-token" not in response.headers
     assert (await client.get("/api/auth/browser/session")).status_code == 403
     response = await client.get(
         "/api/auth/browser/session", headers={"Referer": ORIGIN + "/projects"}
@@ -91,9 +92,9 @@ async def test_cookie_mutations_require_origin_and_session_bound_csrf(browser_bo
     for headers in [
         {},
         {"Origin": ORIGIN},
-        {"Origin": ORIGIN, "X-Octop-Box-CSRF": "0" * 64},
-        {"X-Octop-Box-CSRF": info["csrf_token"], "Sec-Fetch-Site": "same-origin"},
-        {"Origin": "https://attacker.test", "X-Octop-Box-CSRF": info["csrf_token"]},
+        {"Origin": ORIGIN, "X-Inhere-Box-CSRF": "0" * 64},
+        {"X-Inhere-Box-CSRF": info["csrf_token"], "Sec-Fetch-Site": "same-origin"},
+        {"Origin": "https://attacker.test", "X-Inhere-Box-CSRF": info["csrf_token"]},
     ]:
         denied = await client.post("/api/auth/logout", headers=headers)
         assert denied.status_code == 403, denied.text
@@ -109,7 +110,7 @@ async def test_cookie_mutations_require_origin_and_session_bound_csrf(browser_bo
     assert (await client.get("/api/box/account", headers=native_auth)).status_code == 200
     signed_out = await client.post(
         "/api/auth/logout",
-        headers={"Origin": ORIGIN, "X-Octop-Box-CSRF": info["csrf_token"]},
+        headers={"Origin": ORIGIN, "X-Inhere-Box-CSRF": info["csrf_token"]},
     )
     assert signed_out.status_code == 204, signed_out.text
     assert "Max-Age=0" in signed_out.headers["set-cookie"]
@@ -127,7 +128,7 @@ async def test_browser_refresh_replaces_only_previous_session_and_rotates_csrf(b
     assert denied.status_code == 403
     response = await client.post(
         "/api/auth/browser/refresh",
-        headers={"Origin": ORIGIN, "X-Octop-Box-CSRF": first["csrf_token"]},
+        headers={"Origin": ORIGIN, "X-Inhere-Box-CSRF": first["csrf_token"]},
         json={},
     )
     assert response.status_code == 200, response.text
@@ -139,7 +140,7 @@ async def test_browser_refresh_replaces_only_previous_session_and_rotates_csrf(b
     ).status_code == 401
     assert (await client.get("/api/box/account", headers=native_auth)).status_code == 200
     denied = await client.post(
-        "/api/auth/logout", headers={"Origin": ORIGIN, "X-Octop-Box-CSRF": first["csrf_token"]}
+        "/api/auth/logout", headers={"Origin": ORIGIN, "X-Inhere-Box-CSRF": first["csrf_token"]}
     )
     assert denied.status_code == 403
     assert denied.json()["error"]["details"]["reason"] == "box_csrf_invalid"
@@ -150,30 +151,35 @@ async def test_browser_refresh_replaces_only_previous_session_and_rotates_csrf(b
     assert fresh.json()["session_id"] != second["session_id"]
 
 
-async def test_browser_login_requires_origin_and_localhost_for_http(browser_box) -> None:
-    client, _server, key, client_id, _native = browser_box
+async def test_browser_login_requires_same_origin_for_all_http_hosts(browser_box) -> None:
+    client, _server, _key, _client_id, _native = browser_box
     management_key = await _management_key(_server)
     for headers in [{}, {"Origin": "https://attacker.test"}, {"Origin": "null"}]:
         response = await client.post(
             "/api/auth/browser/sessions", headers=headers, json={"management_key": management_key}
         )
         assert response.status_code == 403
-    client.base_url = httpx.URL("http://box.test")
-    response = await client.post(
-        "/api/auth/browser/sessions",
-        headers={"Origin": "http://box.test"},
-        json={"management_key": management_key},
-    )
-    assert response.status_code == 403
-    client.base_url = httpx.URL("http://localhost:8088")
-    response = await client.post(
-        "/api/auth/browser/sessions",
-        headers={"Origin": "http://localhost:8088"},
-        json={"management_key": management_key},
-    )
-    assert response.status_code == 200, response.text
-    assert "Secure" not in response.headers["set-cookie"]
-    assert "HttpOnly" in response.headers["set-cookie"]
+    for origin in (
+        "http://box.test",
+        "http://192.168.1.77:8088",
+        "http://octop-dhcp.local:8088",
+        "http://localhost:8088",
+    ):
+        client.base_url = httpx.URL(origin)
+        denied = await client.post(
+            "/api/auth/browser/sessions",
+            headers={"Origin": "http://attacker.test"},
+            json={"management_key": management_key},
+        )
+        assert denied.status_code == 403
+        response = await client.post(
+            "/api/auth/browser/sessions",
+            headers={"Origin": origin},
+            json={"management_key": management_key},
+        )
+        assert response.status_code == 200, response.text
+        assert "Secure" not in response.headers["set-cookie"]
+        assert "HttpOnly" in response.headers["set-cookie"]
 
 
 class BrowserSocket(ASGIWebSocketSession):
@@ -197,7 +203,7 @@ async def test_cookie_task_socket_checks_origin_and_closes_on_logout(browser_box
         headers = {"Cookie": cookie}
         if origin is not None:
             headers["Origin"] = origin
-        socket = BrowserSocket(client._octop_app, "/api/project-tasks/ws", headers=headers)
+        socket = BrowserSocket(client._inhere_box_app, "/api/project-tasks/ws", headers=headers)
         try:
             with pytest.raises(WebSocketDisconnect) as denied:
                 await socket.connect(timeout=3)
@@ -205,7 +211,7 @@ async def test_cookie_task_socket_checks_origin_and_closes_on_logout(browser_box
         finally:
             await socket.close()
     socket = BrowserSocket(
-        client._octop_app,
+        client._inhere_box_app,
         "/api/project-tasks/ws",
         headers={"Cookie": cookie, "Origin": ORIGIN},
     )
@@ -216,7 +222,7 @@ async def test_cookie_task_socket_checks_origin_and_closes_on_logout(browser_box
         result = await socket.receive_json(timeout=3)
         assert result["type"] == "result" and result["id"] == "cookie-ping"
         response = await client.post(
-            "/api/auth/logout", headers={"Origin": ORIGIN, "X-Octop-Box-CSRF": info["csrf_token"]}
+            "/api/auth/logout", headers={"Origin": ORIGIN, "X-Inhere-Box-CSRF": info["csrf_token"]}
         )
         assert response.status_code == 204
         with pytest.raises(WebSocketDisconnect) as closed:
@@ -227,14 +233,14 @@ async def test_cookie_task_socket_checks_origin_and_closes_on_logout(browser_box
 
 
 async def test_web_does_not_claim_a_native_slot_and_management_key_remains_reusable(
-    tmp_octop_home,
+    tmp_inhere_box_home,
 ) -> None:
-    write_octop_config(tmp_octop_home, account_mode="box_local")
-    async with octop_client(tmp_octop_home) as (client, server):
+    write_inhere_box_config(tmp_inhere_box_home, account_mode="box_local")
+    async with inhere_box_client(tmp_inhere_box_home) as (client, server):
         client.base_url = httpx.URL(ORIGIN)
         await _management_key(server)
         info = (await _browser_login(client, None, None)).json()
-        headers = {"Origin": ORIGIN, "X-Octop-Box-CSRF": info["csrf_token"]}
+        headers = {"Origin": ORIGIN, "X-Inhere-Box-CSRF": info["csrf_token"]}
         account = (await client.get("/api/box/account", headers=headers)).json()
         assert account["role"] == "admin" and account["primary_client_id"] is None
         assert (await client.get("/api/box/clients", headers=headers)).json() == []
@@ -261,7 +267,7 @@ async def test_rotate_key_revokes_web_sessions_and_shares_but_keeps_native_clien
     client, server, key, client_id, native = browser_box
     old_key = await _management_key(server)
     info = (await _browser_login(client, key, client_id)).json()
-    headers = {"Origin": ORIGIN, "X-Octop-Box-CSRF": info["csrf_token"]}
+    headers = {"Origin": ORIGIN, "X-Inhere-Box-CSRF": info["csrf_token"]}
     share = await client.post(
         "/api/box/pairing-grants", headers=headers, json={"request_id": "rotate-share"}
     )

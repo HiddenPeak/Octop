@@ -5,14 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.threads import ThreadRepo
-from octop.infra.db.repos.trajectory_events import TrajectoryEventRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.history.trajectory.store import TrajectoryStore
-from octop.infra.history.trajectory.types import TrajectoryEvent
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.threads import ThreadRepo
+from inhere_box.infra.db.repos.trajectory_events import TrajectoryEventRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.history.trajectory.store import TrajectoryStore
+from inhere_box.infra.history.trajectory.types import TrajectoryEvent
 
 
 def _seed_threads(db: SqlitePool, *thread_ids: str, agent_id: str = "A1") -> None:
@@ -55,7 +55,7 @@ def _event(
 
 
 def _store(tmp_path: Path) -> TrajectoryStore:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     _seed_threads(db, "T1")
     return TrajectoryStore(TrajectoryEventRepo(db))
@@ -74,7 +74,7 @@ def test_append_is_idempotent_on_duplicate_event_id(tmp_path: Path) -> None:
 
 
 def test_append_clips_oversized_payload_and_summary(tmp_path: Path) -> None:
-    from octop.infra.history.trajectory.settings import PAYLOAD_MAX_CHARS, SUMMARY_MAX_CHARS
+    from inhere_box.infra.history.trajectory.settings import PAYLOAD_MAX_CHARS, SUMMARY_MAX_CHARS
 
     store = _store(tmp_path)
     huge = "x" * (PAYLOAD_MAX_CHARS + 50)

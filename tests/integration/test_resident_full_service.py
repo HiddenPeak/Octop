@@ -15,9 +15,9 @@ from langchain_core.messages import AIMessage, convert_to_messages
 from octop_memory.pipeline.extractor import CandidateExtractor, ExtractionResult
 from octop_memory.types import Candidate
 
-from octop.infra.agents.experts.catalog import ExpertCatalog
-from octop.infra.agents.resident_memory import _memory
-from octop.infra.agents.resident_profiles import (
+from inhere_box.infra.agents.experts.catalog import ExpertCatalog
+from inhere_box.infra.agents.resident_memory import _memory
+from inhere_box.infra.agents.resident_profiles import (
     ResidentProfileArchive,
     ResidentProfileCreate,
     archive_profile,
@@ -43,7 +43,7 @@ def _json(response: httpx.Response, status: int = 200) -> dict[str, Any]:
 
 @pytest.fixture(autouse=True)
 def enable_api_docs(monkeypatch):
-    monkeypatch.setenv("OCTOP_ENABLE_API_DOCS", "true")
+    monkeypatch.setenv("INHERE_BOX_ENABLE_API_DOCS", "true")
 
 
 async def _send(client, auth, binding, text):
@@ -308,7 +308,7 @@ def _note_body(text="Send the authorized reminder."):
 async def test_followup_requires_explicit_authorization_and_cancelled_versions_stay_inactive(
     full_service,
 ):
-    from octop.infra.agents.resident_followups import poll_followups
+    from inhere_box.infra.agents.resident_followups import poll_followups
 
     client, server, auth, primary, _requests, _template, _catalog = full_service
     url = f"{_base(primary)}/conversation/followups"
@@ -419,7 +419,7 @@ async def test_read_watermark_is_monotonic_and_keeps_messages_arriving_concurren
 async def test_task_watch_is_quiet_until_change_and_stops_after_one_terminal_notice(
     full_service, monkeypatch
 ):
-    from octop.infra.agents.resident_followups import poll_followups
+    from inhere_box.infra.agents.resident_followups import poll_followups
 
     client, server, auth, primary, _requests, _template, _catalog = full_service
     runtime = server.app_runtime.resident_conversations
@@ -508,7 +508,7 @@ async def test_task_watch_is_quiet_until_change_and_stops_after_one_terminal_not
 
 @pytest.mark.parametrize("action", ["update", "cancel"])
 async def test_followup_edits_and_cancellation_discard_old_pending_delivery(full_service, action):
-    from octop.infra.agents.resident_followups import poll_followups
+    from inhere_box.infra.agents.resident_followups import poll_followups
 
     client, server, auth, primary, _requests, _template, _catalog = full_service
     runtime = server.app_runtime.resident_conversations
@@ -764,7 +764,7 @@ async def test_full_service_routes_are_documented_typed_and_owner_scoped(full_se
 async def test_scheduled_task_uses_normal_admission_and_survives_later_followup_stop(
     full_service, monkeypatch, stop
 ):
-    from octop.infra.agents.resident_followups import poll_followups
+    from inhere_box.infra.agents.resident_followups import poll_followups
 
     client, server, auth, primary, _requests, _template, catalog = full_service
     profile = (

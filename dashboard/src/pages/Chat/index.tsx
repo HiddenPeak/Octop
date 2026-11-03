@@ -61,7 +61,7 @@ import {
 } from "./utils/chromeInstallGate";
 import { isFileToolName } from "./constants";
 import { browserApi } from "../../api/modules/browser";
-import { octopThreadsApi } from "../../api/modules/octopThreads";
+import { inhereBoxThreadsApi } from "../../api/modules/inhereBoxThreads";
 import { projectTasksApi } from "../../api/modules/projects";
 import LegacyConversationContinuation from "../BoxProjects/LegacyConversationContinuation";
 import { useTaskMessageQueue } from "../BoxProjects/useTaskMessageQueue";
@@ -1198,7 +1198,7 @@ function ChatPageInner() {
       if (turnsFromEnd < 1) return;
       setForking(true);
       try {
-        const created = await octopThreadsApi.fork(agent, activeThreadId, {
+        const created = await inhereBoxThreadsApi.fork(agent, activeThreadId, {
           message_id: messageId,
           content: assistantMsg.content,
           assistant_turns_from_end: turnsFromEnd,
@@ -1238,7 +1238,7 @@ function ChatPageInner() {
       }
       setForking(true);
       try {
-        const created = await octopThreadsApi.fork(agent, threadId, {
+        const created = await inhereBoxThreadsApi.fork(agent, threadId, {
           assistant_turns_from_end: 1,
         });
         await navigateToForkedThread(agent, created);
@@ -1320,7 +1320,7 @@ function ChatPageInner() {
       onSelectSession={(sessionId, agentId) => {
         setActiveAgent(agentId);
         if (agentId && agentId !== resolvedAgentId) {
-          void octopThreadsApi.rebind(agentId, sessionId).catch(() => {});
+          void inhereBoxThreadsApi.rebind(agentId, sessionId).catch(() => {});
           navigate(`/chat/${agentId}/${sessionId}`);
           if (isMobile) setSidebarOpen(false);
           return;

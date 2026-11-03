@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.agents.manager import AgentCreateSpec, AgentManager, skill_package_ids_list
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.manager import AgentCreateSpec, AgentManager, skill_package_ids_list
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def manager(tmp_path: Path) -> AgentManager:
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     services.user_repo.create(username="owner", password_hash="x", role="user")
     return AgentManager(repos=services.repos, paths=services.paths)
 
@@ -38,7 +38,7 @@ async def test_private_package_cannot_enter_via_create_or_config_patch(
 ) -> None:
     owner = manager._repos.user_repo.create(username="other", password_hash="x", role="user")
     manager._repos.skill_package_repo.create(id="PRIVATE", name="Private", created_by="1")
-    with pytest.raises(OctopError) as created:
+    with pytest.raises(InhereBoxError) as created:
         await manager.create(
             AgentCreateSpec(name="Denied", user_id=owner, skill_package_ids=["PRIVATE"])
         )
@@ -48,7 +48,7 @@ async def test_private_package_cannot_enter_via_create_or_config_patch(
         manager.update,
         manager.update_config_json,
     ):
-        with pytest.raises(OctopError) as patched:
+        with pytest.raises(InhereBoxError) as patched:
             await operation("OTHER", config_json='{"skill_package_ids":["PRIVATE"]}')
         assert patched.value.code == ErrorCode.SKILL_PACKAGE_NOT_FOUND
     assert manager.get_config("OTHER").get("skill_package_ids", []) == []
@@ -68,7 +68,7 @@ def test_revoked_share_is_removed_when_runtime_mounts_are_resolved(manager: Agen
     assert manager._resolve_skill_package_dirs("VIEWER")
     manager._repos.skill_package_repo.update("SHARED", shared=0)
     assert manager._resolve_skill_package_dirs("VIEWER") == []
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         manager.validate_skill_package_ids(["SHARED"], owner_id=owner)
 
 
@@ -122,7 +122,7 @@ async def test_persist_skill_package_ids_rejects_non_host_root_backend(
     )
     manager._repos.skill_package_repo.create(id=package_id, name="Package", created_by="1")
 
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         await manager.persist_skill_package_ids(agent_id, [package_id])
 
     assert exc_info.value.code is ErrorCode.SKILL_PACKAGE_BACKEND_UNSUPPORTED
@@ -131,7 +131,7 @@ async def test_persist_skill_package_ids_rejects_non_host_root_backend(
 def test_assert_backend_supports_skill_packages_rejects_non_host_root(
     manager: AgentManager,
 ) -> None:
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         manager.assert_backend_supports_skill_packages(
             {"type": "local_shell", "root_dir": "/tmp/octop", "virtual_mode": True}
         )
@@ -280,7 +280,7 @@ async def test_persist_skill_package_ids_rejects_unknown_package(
 ) -> None:
     manager._repos.agent_repo.create(agent_id="AGENT01", user_id=1, name="agent")
 
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         await manager.persist_skill_package_ids("AGENT01", ["MISSING"])
 
     assert exc_info.value.code is ErrorCode.SKILL_PACKAGE_NOT_FOUND
@@ -390,10 +390,10 @@ async def test_refresh_agents_for_package_hot_syncs_only_mounted_agents(
 async def test_list_skill_summaries_relabels_mounted_package_skills(
     manager: AgentManager,
 ) -> None:
-    """Harness lists package dirs as workspace; Octop marks mounted package slugs."""
+    """Harness lists package dirs as workspace; inhere-box marks mounted package slugs."""
     from unittest.mock import AsyncMock, MagicMock
 
-    from octop.infra.skills.skill_package_store import SkillPackageStore
+    from inhere_box.infra.skills.skill_package_store import SkillPackageStore
 
     agent_id = "AGENT01"
     package_id = "PACK01"

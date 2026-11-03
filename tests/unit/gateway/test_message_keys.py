@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from octop_gateway.models import ChannelSubject, InboundMessage, TextContent
 
-from octop.infra.gateway.process.message_keys import (
+from inhere_box.infra.gateway.process.message_keys import (
     resolve_user_id_for_message,
     sanitize_im_metadata,
     session_key_from_message,

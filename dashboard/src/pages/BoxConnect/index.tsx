@@ -159,9 +159,9 @@ export default function BoxConnectPage() {
                     description={
                       <>
                         <p>{t("boxAccount.initializeHint")}</p>
-                        <code>octop box key init</code>
+                        <code>inhere-box box key init</code>
                         <p>{t("boxAccount.initializeLegacyHint")}</p>
-                        <code>octop box key init --upgrade-legacy</code>
+                        <code>inhere-box box key init --upgrade-legacy</code>
                       </>
                     }
                   />

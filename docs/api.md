@@ -72,7 +72,7 @@ Task 返回 `configuration_revision`、`selected_expert_id`、`action_mode`、`p
 
 ## Codex / Claude 数据导入（2026-10-20）
 
-客户端选择并转换的项目、会话与逐项配置统一导入 Octop：`POST /api/projects/import`、`POST /api/project-tasks/import`、`POST /api/projects/import/configurations`。项目保存客户端路径，会话保存为可继续追问的任务；Skill、MCP、插件、行动指南和设置各为独立的 `pendingActivation` 副本。配置列表与详情支持按本人读取，导入不自动安装或激活。完整字段、来源去重、附件上传和增量冲突规则见 [数据导入接入说明](project-data-import.md)。
+客户端选择并转换的项目、会话与逐项配置统一导入 inhere-box：`POST /api/projects/import`、`POST /api/project-tasks/import`、`POST /api/projects/import/configurations`。项目保存客户端路径，会话保存为可继续追问的任务；Skill、MCP、插件、行动指南和设置各为独立的 `pendingActivation` 副本。配置列表与详情支持按本人读取，导入不自动安装或激活。完整字段、来源去重、附件上传和增量冲突规则见 [数据导入接入说明](project-data-import.md)。
 
 ## 独立项目和任务接口（2026-10-15）
 
@@ -94,7 +94,7 @@ Task 返回 `configuration_revision`、`selected_expert_id`、`action_mode`、`p
 
 以上接口均需登录，响应 `Cache-Control: no-store`。其他账号的项目返回 404。项目名称在账号内唯一，重名或编辑版本冲突返回 409。新建与修改仅保存配置；发送任务消息时才实际加载项目选定的 Skill/MCP。
 
-请求字段：`name`（必填，最多128字符）、`description`、`directory`（服务端工作目录，在运行 Octop 的主机上验证，可为 null）、`client_directory`（客户端工作目录，用户电脑上的绝对路径，可为 null）、`instructions`、`skills`（多个 `{package_id, slug}`）、`mcp_servers`（多个连接引用）。`PATCH`/`PUT` 另外必填 `expected_revision`，成功后版本加一。`PATCH` 至少包含一个修改字段；省略保持原值，目录传 null 解除关联，Skill/MCP 传 [] 清空，文字字段清空使用空字符串。除两类目录外不接受 null。`PUT` 必须显式包含全部项目字段，不能用仅改名的请求清空其他配置。服务端工作目录遵守当前用户的目录访问范围，不创建、不移动、不删除目录。MCP 引用按账号校验，接口不返回连接密钥。
+请求字段：`name`（必填，最多128字符）、`description`、`directory`（服务端工作目录，在运行 inhere-box 的主机上验证，可为 null）、`client_directory`（客户端工作目录，用户电脑上的绝对路径，可为 null）、`instructions`、`skills`（多个 `{package_id, slug}`）、`mcp_servers`（多个连接引用）。`PATCH`/`PUT` 另外必填 `expected_revision`，成功后版本加一。`PATCH` 至少包含一个修改字段；省略保持原值，目录传 null 解除关联，Skill/MCP 传 [] 清空，文字字段清空使用空字符串。除两类目录外不接受 null。`PUT` 必须显式包含全部项目字段，不能用仅改名的请求清空其他配置。服务端工作目录遵守当前用户的目录访问范围，不创建、不移动、不删除目录。MCP 引用按账号校验，接口不返回连接密钥。
 
 创建项目必须传 `Idempotency-Key` 请求头（8–128 位字母、数字、下划线或短横线，推荐 UUID）。同一账号、同一标识、相同规范化请求重试，返回第一次创建的完整 201 响应，即使项目之后已被编辑；同一标识换内容返回 `409 PROJECT_REQUEST_CONFLICT`。该记录与项目在同一数据库事务中保存，跨重启保留；创建失败不消耗标识。不同用户的标识互不影响。网页保存失败后保留本次内容对应的标识以便重试。创建或编辑成功后再 GET 获取最新状态。
 
@@ -157,9 +157,9 @@ Task 是一段持久的多轮对话。发送首条消息时创建 Task；后续�
 
 TaskSummary/TaskDetail 返回当前账号全部任务共用的 `approval_policy={mode,revision,updated_at}`，轮次保留 `approval_policy_at_start`。`GET /api/project-tasks/approval-policy` 读取、`PUT /api/project-tasks/approval-policy` 提交 `{request_id,expected_revision,mode}` 并返回策略对象，无任务时也可用。原 `PUT /api/project-tasks/{task_id}/approval-policy` 和 `task.approval.set` 验证任务归属后也修改全局模式，返回 TaskDetail。全部项目、已有/运行/新任务统一生效，三种模式始终可选，新账号默认询问。创建顶层旧 `approval_mode` 已忽略，不可覆盖或重置全局。版本和幂等键为账号范围；网络重试复用原请求。新请求版本冲突返回 `TASK_APPROVAL_POLICY_CONFLICT`。切换不放行已有人工卡，不改动作/轮次旧快照、强制人工规则或本机资源授权。WebSocket 独立推送 `approval.policy` 事件，首次轮询及全局变化发送，不要求 task.subscribe。
 
-`GET /api/project-tasks/resources` 增加 `approval={allowed_modes,reviewer_ready,execution_profile:"host_process"}`，`allowed_modes` 固定返回三种模式。`reviewer_ready` 仅供状态展示，不限制选择帮我审批；执行时 Reviewer 不可用则转人工。管理员通过 `GET/PUT /api/admin/security/task-approvals` 仅保存 `{require_human_tools}`，无需配置可用模式。网页在选择完全访问前说明服务端命令使用 Octop 主机进程权限；本机权限仍由执行电脑授予。
+`GET /api/project-tasks/resources` 增加 `approval={allowed_modes,reviewer_ready,execution_profile:"host_process"}`，`allowed_modes` 固定返回三种模式。`reviewer_ready` 仅供状态展示，不限制选择帮我审批；执行时 Reviewer 不可用则转人工。管理员通过 `GET/PUT /api/admin/security/task-approvals` 仅保存 `{require_human_tools}`，无需配置可用模式。网页在选择完全访问前说明服务端命令使用 inhere-box 主机进程权限；本机权限仍由执行电脑授予。
 
-首版三档模式覆盖服务端 `execute` 与客户端 `exec_command`；其他需审批的工具保持人工，强制人工列表始终生效。自动审批使用 Octop 上独立且无工具的 Reviewer，沿用该轮已保存模型，只接收固定动作和本轮目标。45 秒超时、格式非法、不可用或配额不足均转人工。审查不占主任务执行槽，用量独立保存并计入用户累计配额。重启后不重复请求状态不明的已派发审查；取消后迟到结果只登记用量。
+首版三档模式覆盖服务端 `execute` 与客户端 `exec_command`；其他需审批的工具保持人工，强制人工列表始终生效。自动审批使用 inhere-box 上独立且无工具的 Reviewer，沿用该轮已保存模型，只接收固定动作和本轮目标。45 秒超时、格式非法、不可用或配额不足均转人工。审查不占主任务执行槽，用量独立保存并计入用户累计配额。重启后不重复请求状态不明的已派发审查；取消后迟到结果只登记用量。
 
 客户端新增领取凭证绑定的 `tool.review`，结果位于原 `ClientToolCall.review`，不会完成原调用或自动恢复模型。执行电脑须保留本机授权，核对动作和上下文摘要，并在派发前通过 `tool.get` 检查 `dispatch_allowed`、`manual_review_required`、暂停/取消和截止时间。服务端不探测客户端路径。完整字段见[任务协议](project-task-websocket.md#142-客户端远端审查-toolreview)及[客户端交接](agentcomputer-task-interactions.md)。本次未修改 AgentComputer。
 
@@ -404,7 +404,7 @@ Idempotency-Key: 2b30948c-0b02-42a1-b2ed-386f04cd758a
 
 ### 本轮执行选项
 
-客户端先调用 `GET /api/project-tasks/resources` 获取可选主模型，再把用户选择的完整 `model_ref` 放入创建、追问或重试的 `options.model_ref`。REST 请求使用 `Authorization: Bearer <Octop access_token>`，令牌来自现有 Octop 登录；这不是模型服务商的 API Key。POST 请求同时使用 `Content-Type: application/json`。上面的创建示例选择盒子，追问示例选择远端；模型引用均为示意，实际应直接使用资源接口返回值。
+客户端先调用 `GET /api/project-tasks/resources` 获取可选主模型，再把用户选择的完整 `model_ref` 放入创建、追问或重试的 `options.model_ref`。REST 请求使用 `Authorization: Bearer <inhere-box access_token>`，令牌来自现有 inhere-box 登录；这不是模型服务商的 API Key。POST 请求同时使用 `Content-Type: application/json`。上面的创建示例选择盒子，追问示例选择远端；模型引用均为示意，实际应直接使用资源接口返回值。
 
 资源响应中的模型相关字段示例如下；响应还包含其他项目能力字段：
 
@@ -430,7 +430,7 @@ Idempotency-Key: 2b30948c-0b02-42a1-b2ed-386f04cd758a
 }
 ```
 
-`models` 仅列出当前可用的主对话模型，ASR/TTS 语音模型不进入此列表；`default_model_ref` 是当前默认选择，无可用模型时可为 null。`name` 用于展示，`provider_kind=box` 用于将盒子模型单独分组；提交时仍传完整 `model_ref`，不能只传 `box`、展示名或去掉提供商前缀的模型 ID。其他连接类型可能是远端或其他自部署服务。此接口不返回模型服务地址、API Key 或其他连接凭据；调用模型由 Octop 服务端完成。
+`models` 仅列出当前可用的主对话模型，ASR/TTS 语音模型不进入此列表；`default_model_ref` 是当前默认选择，无可用模型时可为 null。`name` 用于展示，`provider_kind=box` 用于将盒子模型单独分组；提交时仍传完整 `model_ref`，不能只传 `box`、展示名或去掉提供商前缀的模型 ID。其他连接类型可能是远端或其他自部署服务。此接口不返回模型服务地址、API Key 或其他连接凭据；调用模型由 inhere-box 服务端完成。
 
 创建、追问和手动重试都接受 options，不写回项目或全局模型配置。例如：
 
@@ -558,7 +558,7 @@ options 还接受 reasoning_mode（auto/enabled/disabled）和 reasoning_effort�
 
 ### 错误和网络重试
 
-业务错误沿用 Octop 格式，例如：
+业务错误沿用 inhere-box 格式，例如：
 
 ```json
 {
@@ -632,7 +632,7 @@ App 根据 HTTP 状态和 `error.code` 分支，message 用于展示，不能作
 
 TaskTurn 的 `started_at/finished_at/processing_duration_ms` 分别为首次实际开始、终态及其墙钟毫秒跨度，包含审批/暂停等待、排除首次排队；历史或运行中的未知值为 null。主模型公开正文收到即增量进入 text/reply，不等待工具意图，也不因计划执行而改成思考；reasoning/reasoning_summary 保留模型原始类型。累计正文不代表最终结论或交付成功，交付纠正保留此前正文并建立新消息边界；真实附件收据、计划未完成/受阻约束和轮次状态继续决定结果。
 
-当前实现为 [`projects` 路由](../src/octop/api/routers/projects.py)、[项目请求模型](../src/octop/infra/projects/models.py)、[项目服务](../src/octop/infra/projects/service.py)、[任务服务](../src/octop/infra/projects/tasks.py)；验证依据为[项目集成用例](../tests/integration/test_projects.py)、[任务集成用例](../tests/integration/test_project_tasks.py)、[公开路由契约用例](../tests/integration/test_project_api_contract.py)。
+当前实现为 [`projects` 路由](../src/inhere_box/api/routers/projects.py)、[项目请求模型](../src/inhere_box/infra/projects/models.py)、[项目服务](../src/inhere_box/infra/projects/service.py)、[任务服务](../src/inhere_box/infra/projects/tasks.py)；验证依据为[项目集成用例](../tests/integration/test_projects.py)、[任务集成用例](../tests/integration/test_project_tasks.py)、[公开路由契约用例](../tests/integration/test_project_api_contract.py)。
 
 
 Every route is mounted under `/api`. JSON unless otherwise noted; SSE
@@ -640,23 +640,23 @@ endpoints emit `text/event-stream`; chat turns use a WebSocket
 described in [Chat (WebSocket)](#chat-websocket).
 
 > **Interactive docs** (Scalar) live at `/api/docs` when
-> `enable_api_docs=true` (or `OCTOP_ENABLE_API_DOCS=1`). The schema
+> `enable_api_docs=true` (or `INHERE_BOX_ENABLE_API_DOCS=1`). The schema
 > is at `/api/openapi.json`.
 
 项目和任务接口在 `/api/docs` 的 `projects` 分组中；不再提供 `agentcomputer` 分组。历史原型测试记录不表示当前接口或原生 App 已验收。
 
 ## Authentication
 
-调用方使用 `POST /api/auth/login` 返回的用户 Bearer token 访问项目和任务接口。响应中的 `X-Octop-Access-Token` 是滑动续期令牌，收到后应更新保存的 token。项目和任务 ID 是不透明字符串，不应转换为 UUID。
+调用方使用 `POST /api/auth/login` 返回的用户 Bearer token 访问项目和任务接口。响应中的 `X-Inhere-Box-Access-Token` 是滑动续期令牌，收到后应更新保存的 token。项目和任务 ID 是不透明字符串，不应转换为 UUID。
 
 | Header | Value |
 |--------|-------|
 | `Authorization` | `Bearer <access_token>` from `POST /api/auth/login` |
 
-Tokens expire after `OCTOP_ACCESS_TOKEN_TTL` seconds (default 24 h).
-Rotating the JWT secret (`octop admin rotate-jwt-secret`) invalidates
+Tokens expire after `INHERE_BOX_ACCESS_TOKEN_TTL` seconds (default 24 h).
+Rotating the JWT secret (`inhere-box admin rotate-jwt-secret`) invalidates
 every outstanding token immediately. Login attempts are rate-limited
-(`OCTOP_LOGIN_MAX_ATTEMPTS` / `OCTOP_LOGIN_LOCKOUT_SECONDS`); the
+(`INHERE_BOX_LOGIN_MAX_ATTEMPTS` / `INHERE_BOX_LOGIN_LOCKOUT_SECONDS`); the
 admin can clear the lockout with `POST /api/users/{id}/unlock-login`.
 
 ### Auth column legend
@@ -692,16 +692,16 @@ rejected before siteverify.
 
 Offline recovery: delete the `captcha.settings` row via local CLI /
 `settings_repo` if a settings-sourced strong provider is unreachable. If
-the process refused to start because `OCTOP_CAPTCHA_PROVIDER` is strong
-without both keys and no readable settings blob, edit `~/.octop/env` on
+the process refused to start because `INHERE_BOX_CAPTCHA_PROVIDER` is strong
+without both keys and no readable settings blob, edit `~/.inhere-box/env` on
 disk — the dashboard and `PUT /api/envs` are unreachable until the
-process starts. `GET /api/envs` redacts `OCTOP_CAPTCHA_SECRET` as
+process starts. `GET /api/envs` redacts `INHERE_BOX_CAPTCHA_SECRET` as
 `********`; sending that sentinel on PUT keeps the on-disk value.
 
 If you serve the dashboard behind a CSP, allow
 `challenges.cloudflare.com`; `js.hcaptcha.com`, `newassets.hcaptcha.com`,
 `api.hcaptcha.com`; `www.google.com`, `www.gstatic.com`;
-`turing.captcha.qcloud.com`, `captcha.qq.com`, `ssl.captcha.qq.com`. Octop
+`turing.captcha.qcloud.com`, `captcha.qq.com`, `ssl.captcha.qq.com`. inhere-box
 does not set these headers itself.
 
 ## Setup & auth
@@ -717,7 +717,7 @@ does not set these headers itself.
 | `POST`   | `/setup/test-provider` | public | Ping a provider draft (kind/base_url/api_key/model) |
 | `POST`   | `/setup/finish` | public | Finalise setup and unlock the rest of the API |
 | `GET`    | `/auth/captcha` | public | `{provider, site_key?}` for the login widget; 503 while setup is required |
-| `POST`   | `/auth/login` | public | body `{username, password, captcha_token?}` (`username` may be email) → `{access_token, role, user, ...}`. When no local password matches, the credentials are retried against the configured LDAP directory; a first directory login provisions an Octop account (unless `auto_provision` is off) and derives the role from `admin_groups` |
+| `POST`   | `/auth/login` | public | body `{username, password, captcha_token?}` (`username` may be email) → `{access_token, role, user, ...}`. When no local password matches, the credentials are retried against the configured LDAP directory; a first directory login provisions an inhere-box account (unless `auto_provision` is off) and derives the role from `admin_groups` |
 | `GET`    | `/auth/oidc/status` | public | OIDC login availability and provider display name |
 | `POST`   | `/auth/oidc/start` | public | body `{redirect_after?}` → identity-provider authorization URL |
 | `GET`    | `/auth/oidc/callback` | public | Identity-provider callback; redirects to dashboard login completion |
@@ -819,7 +819,7 @@ because each request is a one-shot continuation.
 
 **Tool result blocks.** `tool_result` blocks in history (and `tool_result`
 frames on the chat WebSocket) carry the tool's return value in `output`. When a
-plugin returns a large `octop_ui` payload, the backend offloads the envelope's
+plugin returns a large `inhere_box_ui` payload, the backend offloads the envelope's
 `data` field: `output` then contains the slim envelope with
 `data_ref: "artifact"`, and the full payload is on the block's `artifact` key
 (absent otherwise). An explicit `data` key always takes precedence over
@@ -899,7 +899,7 @@ occurrences retain the configuration captured when they were queued.
 `skip_confirmation` is a boolean accepted by POST/PATCH and included in
 `CronResponse`, defaulting to false for new and existing schedules. PATCH omission
 or null keeps its value; false disables it. True explicitly authorizes only that
-schedule's generated Octop turns to skip server tool confirmations, including
+schedule's generated inhere-box turns to skip server tool confirmations, including
 `execute`, MCP, sending and publishing. It does not change the account approval
 policy or broaden account `full_access`. Original `allow_once` eligibility,
 administrator `require_human_tools`, prohibitions and previous denials still
@@ -983,7 +983,7 @@ reloads running agents so the image and video tools receive the new configuratio
 | `GET`    | `/personas` | user | `[{code}, ...]` (compat shim) |
 | `GET`    | `/personas/{code}` | user | rendered template (compat shim) |
 
-Persona content lives in `src/octop/infra/agents/persona/mbti_profiles.py` —
+Persona content lives in `src/inhere_box/infra/agents/persona/mbti_profiles.py` —
 see [Personas](./personas.md).
 
 ## Experts
@@ -994,7 +994,7 @@ see [Personas](./personas.md).
 | `GET`    | `/experts/{expert_id}` | user | full expert template (SOUL.md, skills, files, `task_examples`) |
 | `POST`   | `/agents/from-expert/{expert_id}` | user | body `{name, locale?, quick_prompts?, ...}` → `201`; optional `quick_prompts` overwrites workspace cards after seed |
 
-Bundled experts live in `src/octop/infra/agents/experts/library/`
+Bundled experts live in `src/inhere_box/infra/agents/experts/library/`
 (en/zh divisions); the catalog is locale-aware via
 `Accept-Language` / user preference.
 
@@ -1110,7 +1110,7 @@ APP requests, response examples, OAuth/device login and per-turn MCP selection: 
 | `GET`    | `/connectors/oauth/callback` | public | OAuth redirect target |
 | `GET`    | `/connectors/oauth/pending/{state_id}` | user | poll the OAuth result |
 
-Custom MCP OAuth (streamable HTTP, public HTTPS URL only): Octop discovers the authorization
+Custom MCP OAuth (streamable HTTP, public HTTPS URL only): inhere-box discovers the authorization
 server from the MCP URL (401 / RFC 9728 protected-resource metadata), requires dynamic client
 registration (DCR), stores encrypted tokens in the custom MCP spec, and injects `Authorization:
 Bearer` when loading tools. Loopback and LAN MCP URLs may use HTTP and do not use remote OAuth
@@ -1153,7 +1153,7 @@ endpoint (public, mounted directly in `api/app.py`).
 | `WS`/`POST`/`GET`/… | `/agents/{aid}/terminal` | owner | AI-assisted remote PTY |
 | `GET` | `/agents/{aid}/terminal/context` | owner | recent terminal context for the AI helper |
 | `WS`/`POST`/`GET`/… | `/browser/...` | user | octop-browser sessions, live stream, record/replay |
-| `POST` | `/browser/shutdown` | user | stop the current user's Octop-managed Chrome |
+| `POST` | `/browser/shutdown` | user | stop the current user's inhere-box-managed Chrome |
 | `POST` | `/agents/{aid}/upload` | user | multipart upload → `{workspace}/inbound/` |
 | `POST` | `/agents/{aid}/files/access-urls` | user | refresh inbound media URLs (signed) |
 | `GET`  | `/agents/{aid}/files/{path}` | owner | read an inbound file |
@@ -1277,8 +1277,8 @@ Every non-2xx JSON response uses:
 { "error": { "code": "AGENT_NOT_FOUND", "message": "...", "details": { } } }
 ```
 
-`code` matches the `ErrorCode` enum in `octop.infra.errors`; the
-server-localized `message` is rendered by `OctopError.to_envelope`
+`code` matches the `ErrorCode` enum in `inhere_box.infra.errors`; the
+server-localized `message` is rendered by `InhereBoxError.to_envelope`
 with the locale from `Accept-Language` (falling back to `en`). The
 dashboard mirrors every code under `apiErrors.*` in
 `dashboard/src/locales/{en,zh}.json`.
@@ -1320,4 +1320,4 @@ dashboard mirrors every code under `apiErrors.*` in
 
 ## Task 执行引擎（2026-10-27）
 
-Task 创建、配置修改与分支支持独立的 `engine: {engine_id, connection_id, model_id}`；旧记录缺省 `octop`，ACP 连接使用执行盒子上当前账号的 runner。`GET /api/project-tasks/engines` 为被动目录，`POST /api/project-tasks/engines/inspect` 显式读取真实能力和模型。每轮 `execution_engine` 保存该轮身份，切换不新建 Task 或移动工作目录。数据、权限与兼容边界见 [执行引擎协议](task-execution-engines.md)。
+Task 创建、配置修改与分支支持独立的 `engine: {engine_id, connection_id, model_id}`；旧记录缺省 `inhere-box`，ACP 连接使用执行盒子上当前账号的 runner。`GET /api/project-tasks/engines` 为被动目录，`POST /api/project-tasks/engines/inspect` 显式读取真实能力和模型。每轮 `execution_engine` 保存该轮身份，切换不新建 Task 或移动工作目录。数据、权限与兼容边界见 [执行引擎协议](task-execution-engines.md)。

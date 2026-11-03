@@ -11,16 +11,16 @@ from typing import Any
 import httpx
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.settings import SettingsRepo
-from octop.infra.db.repos.voice_providers import VoiceProviderRepo, VoiceProviderRow
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.utils.box_models import validate_box_base_url
-from octop.infra.utils.ssrf_guard import UnsafeOutboundUrl
-from octop.infra.voice import adapters
-from octop.infra.voice.manager import VoiceManager, validate_voice_configuration
-from octop.infra.voice.presets import DEFAULT_BOX_VOICE_INSTRUCTIONS, load_voice_presets
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.settings import SettingsRepo
+from inhere_box.infra.db.repos.voice_providers import VoiceProviderRepo, VoiceProviderRow
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.utils.box_models import validate_box_base_url
+from inhere_box.infra.utils.ssrf_guard import UnsafeOutboundUrl
+from inhere_box.infra.voice import adapters
+from inhere_box.infra.voice.manager import VoiceManager, validate_voice_configuration
+from inhere_box.infra.voice.presets import DEFAULT_BOX_VOICE_INSTRUCTIONS, load_voice_presets
 
 
 def _row(
@@ -91,7 +91,7 @@ def test_box_urls_allow_local_lan_and_development_hosts(base_url: str) -> None:
 def test_box_urls_reject_ambiguous_or_non_http_addresses(base_url: str) -> None:
     with pytest.raises(ValueError):
         validate_box_base_url(base_url)
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         validate_voice_configuration(kind="box", capability="stt", base_url=base_url)
     assert exc.value.code == ErrorCode.SLASH_BAD_ARGS
     assert exc.value.details == {"field": "base_url"}
@@ -105,7 +105,7 @@ def test_box_presets_have_independent_local_endpoints_and_no_key() -> None:
     assert presets["box-tts"]["extra"]["model"] == "qwen3-tts"
     assert presets["box-stt"]["requires_key"] is False
     assert presets["box-tts"]["requires_key"] is False
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         validate_voice_configuration(kind="box", capability="both", base_url=None)
     assert exc.value.code == ErrorCode.VOICE_CAPABILITY_MISMATCH
 
@@ -207,7 +207,7 @@ async def test_box_probes_execute_without_key_and_remote_openai_still_requires_k
     }
     assert await adapters.test_tts(_row("stt"), "box", locale="zh") == {
         "ok": False,
-        "error": OctopError.localized(ErrorCode.VOICE_CAPABILITY_MISMATCH, "zh").message,
+        "error": InhereBoxError.localized(ErrorCode.VOICE_CAPABILITY_MISMATCH, "zh").message,
     }
 
 
@@ -226,7 +226,7 @@ async def test_openai_voice_retains_public_https_restriction() -> None:
 async def test_voice_manager_mixes_box_asr_and_remote_tts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     repo = VoiceProviderRepo(db)
     repo.create(name="box-stt", kind="box", capability="stt")
@@ -247,7 +247,7 @@ async def test_voice_manager_mixes_box_asr_and_remote_tts(
     assert (await manager.transcribe(b"audio", mime="audio/wav")).text == "spoken text"
     assert b"".join([chunk async for chunk in manager.synthesize("hello")]) == b"remote-audio"
     assert manager.media_type(None) == "audio/mpeg"
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         async for _ in manager.synthesize("hello", provider_name="box-stt"):
             pass
     assert exc.value.code == ErrorCode.VOICE_CAPABILITY_MISMATCH

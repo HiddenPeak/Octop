@@ -10,14 +10,14 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from octop.config import OctopConfig
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_reviews import ProjectTaskReviewRepo, TaskReviewRow
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import approval_reviewer as reviews
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_reviews import ProjectTaskReviewRepo, TaskReviewRow
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import approval_reviewer as reviews
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def job(**changes):
@@ -55,7 +55,7 @@ def services(tmp_path):
             "VALUES('turn_one','task_one','request_one','Read fixture','running','{}','chosen/model',1000,1000)"
         )
     try:
-        yield SharedServices(PathLayout(tmp_path), OctopConfig(), RepoBundle.from_pool(db))
+        yield SharedServices(PathLayout(tmp_path), InhereBoxConfig(), RepoBundle.from_pool(db))
     finally:
         db.close()
 
@@ -254,7 +254,7 @@ async def test_worker_fallbacks_are_durable_and_do_not_request_a_second_review(
         monkeypatch.setattr(reviews, "_GENERATION_TIMEOUT", 0.01)
     else:
         exc = (
-            OctopError(ErrorCode.TOKEN_QUOTA_EXCEEDED, "private quota details")
+            InhereBoxError(ErrorCode.TOKEN_QUOTA_EXCEEDED, "private quota details")
             if failure == "quota"
             else RuntimeError("private provider details")
         )

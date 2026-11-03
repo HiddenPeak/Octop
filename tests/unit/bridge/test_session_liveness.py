@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from octop.infra.bridge.transport import BridgeSession
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.bridge.transport import BridgeSession
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 @pytest.mark.asyncio
@@ -128,7 +128,7 @@ async def test_next_queue_item_aborts_when_session_closes() -> None:
 
 @pytest.mark.asyncio
 async def test_require_live_session_drops_stale_immediately() -> None:
-    from octop.infra.bridge.manager import BridgeManager
+    from inhere_box.infra.bridge.manager import BridgeManager
 
     mgr = BridgeManager(
         bridge_repo=MagicMock(),
@@ -141,7 +141,7 @@ async def test_require_live_session_drops_stale_immediately() -> None:
     stale._last_recv = 0.0  # noqa: SLF001
     mgr._sessions["cid1"] = stale
 
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await mgr._require_live_session("cid1")
     assert ei.value.code == ErrorCode.BRIDGE_NOT_CONNECTED
     assert stale.closed is True
@@ -150,7 +150,7 @@ async def test_require_live_session_drops_stale_immediately() -> None:
 
 @pytest.mark.asyncio
 async def test_require_live_session_waits_for_outbound_supervisor() -> None:
-    from octop.infra.bridge.manager import BridgeManager
+    from inhere_box.infra.bridge.manager import BridgeManager
 
     mgr = BridgeManager(
         bridge_repo=MagicMock(),
@@ -176,7 +176,7 @@ async def test_require_live_session_waits_for_outbound_supervisor() -> None:
 
 @pytest.mark.asyncio
 async def test_session_replacement_waits_for_old_task_stream_disconnect() -> None:
-    from octop.infra.bridge.manager import BridgeManager
+    from inhere_box.infra.bridge.manager import BridgeManager
 
     manager = BridgeManager(
         bridge_repo=MagicMock(),
@@ -209,7 +209,7 @@ async def test_session_replacement_waits_for_old_task_stream_disconnect() -> Non
 
 @pytest.mark.asyncio
 async def test_old_transport_finalizer_preserves_new_task_stream() -> None:
-    from octop.infra.bridge.manager import BridgeManager
+    from inhere_box.infra.bridge.manager import BridgeManager
 
     manager = BridgeManager(
         bridge_repo=MagicMock(),
@@ -237,7 +237,7 @@ async def test_old_transport_finalizer_preserves_new_task_stream() -> None:
 
 @pytest.mark.asyncio
 async def test_old_turn_relay_failure_preserves_replacement_session() -> None:
-    from octop.infra.bridge.manager import BridgeManager
+    from inhere_box.infra.bridge.manager import BridgeManager
 
     manager = BridgeManager(
         bridge_repo=MagicMock(),
@@ -254,7 +254,7 @@ async def test_old_turn_relay_failure_preserves_replacement_session() -> None:
 
     old = BridgeSession(connection_id="cid", send_text=replace_while_sending)
     manager._sessions["cid"] = old
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await manager.relay_user_turn(
             connection_id="cid",
             owner_user_id=1,
@@ -269,8 +269,8 @@ async def test_old_turn_relay_failure_preserves_replacement_session() -> None:
 
 @pytest.mark.asyncio
 async def test_relay_user_turn_fails_fast_when_session_closes() -> None:
-    from octop.infra.bridge.manager import BridgeManager
-    from octop.infra.db.repos.bridge_connections import BridgeConnectionRow
+    from inhere_box.infra.bridge.manager import BridgeManager
+    from inhere_box.infra.db.repos.bridge_connections import BridgeConnectionRow
 
     row = BridgeConnectionRow(
         pk=1,
@@ -307,7 +307,7 @@ async def test_relay_user_turn_fails_fast_when_session_closes() -> None:
 
     asyncio.create_task(killer())
     frames: list[dict[str, Any]] = []
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         await mgr.relay_user_turn(
             connection_id="cid1",
             owner_user_id=1,

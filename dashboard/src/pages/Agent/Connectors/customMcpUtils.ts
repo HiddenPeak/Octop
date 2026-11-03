@@ -24,7 +24,7 @@ export interface ServerCardState {
   oauthExpiresAt?: number;
 }
 
-export const PROBE_ON_SAVE_KEY = "octop.customMcp.probeOnSave";
+export const PROBE_ON_SAVE_KEY = "inhere_box.customMcp.probeOnSave";
 
 export const EXAMPLE_JSON = `{
   "deepwiki": {
@@ -255,7 +255,7 @@ export function newCard(
 }
 
 /** Notify chat composer to refresh connector list after custom MCP save. */
-export const CONNECTORS_CHANGED_EVENT = "octop:connectors-changed";
+export const CONNECTORS_CHANGED_EVENT = "inhere-box:connectors-changed";
 
 export function notifyConnectorsChanged(): void {
   window.dispatchEvent(new CustomEvent(CONNECTORS_CHANGED_EVENT));

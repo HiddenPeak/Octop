@@ -38,7 +38,7 @@
 
 首轮团队流程实际上已完成工具操作与文件写入，验收失败来自账本状态断言将 `succeeded` 写成 `completed`。修正测试断言后完整复验通过；这项断言修正不计为团队生产故障修复。
 
-安全证据：`/private/tmp/octop-live-team-2/test_live_team_uses_both_membe0/live-octop/team-live-evidence.json`。
+安全证据：`/private/tmp/inhere-box-live-team-2/test_live_team_uses_both_membe0/live-inhere-box/team-live-evidence.json`。
 
 ## 4. 专家记忆完整验收：修复后通过
 
@@ -48,7 +48,7 @@
 
 首轮真实 Task 已完成，后台记忆模型请求在 30 秒边界超时。job 进入 `uncertain/extracting`，错误码为 `extraction_failed`。该状态表示无法可靠确认请求结果，未将其视为成功，也未自动重试或重放。
 
-核对发现，普通 Task 已发送关闭思考的配置，后台抽取却直接使用模型默认配置。GLM-5 的已配置能力支持关闭思考。修复位于 `src/octop/infra/projects/expert_memory_extraction.py`：按实际解析后的抽取模型读取 reasoning capability，复用现有 `reasoning_request_parameters` 装配请求；支持关闭时关闭，不支持关闭时遵从能力约束。既有 provider 参数、30 秒上限、单次请求、用量记录和未知结果不重放语义保留。
+核对发现，普通 Task 已发送关闭思考的配置，后台抽取却直接使用模型默认配置。GLM-5 的已配置能力支持关闭思考。修复位于 `src/inhere_box/infra/projects/expert_memory_extraction.py`：按实际解析后的抽取模型读取 reasoning capability，复用现有 `reasoning_request_parameters` 装配请求；支持关闭时关闭，不支持关闭时遵从能力约束。既有 provider 参数、30 秒上限、单次请求、用量记录和未知结果不重放语义保留。
 
 修复后，使用记忆库实际提示词与合成 raw 的独立真实探针在 4.61 秒返回，`finish_reason=stop`，JSON 有效，解析出 1 个合法候选、0 条 warning。没有放宽超时来取得该结果。新增无网络测试覆盖可关闭思考、不可关闭思考及 `status_only` 模型，并检查原模型与能力配置未被修改。
 
@@ -64,14 +64,14 @@
 
 首轮 uncertain job 留在首轮临时库，第二轮使用新 nonce、新 Task 和新临时库完成上述流程。最终 live 的 warning 类别为 `DeprecationWarning`。
 
-安全证据：`/private/tmp/octop-live-memory-2/test_real_model_extraction_can0/memory-live-report.json`。
+安全证据：`/private/tmp/inhere-box-live-memory-2/test_real_model_extraction_can0/memory-live-report.json`。
 
 ## 5. 工作台本轮已修复的问题
 
 | 问题 | 修复 | 位置 |
 |---|---|---|
 | 文件右栏布局未提供有效高度，Monaco 与预览实际不可见 | 将右栏设为 flex 列并提供 600 像素高度，使编辑器与预览获得可用空间 | `dashboard/src/pages/BoxProjects/TaskFiles.tsx` |
-| 真实 GLM 使用项目 host 绝对路径调用 `write_file`，工具返回成功，文件却被写到项目下的 `private/tmp/...` 子树 | 新增 `TaskFilePathMiddleware`，将属于本轮 host workspace 的绝对前缀转换为虚拟根路径；仅处理原生文件工具的 `file_path/path` 参数并拒绝 `..`。接入主 Task 与团队成员运行时，并补充本地化提示 | `src/octop/infra/projects/file_paths.py`、`runtime.py`、`expert_team_runtime.py` |
+| 真实 GLM 使用项目 host 绝对路径调用 `write_file`，工具返回成功，文件却被写到项目下的 `private/tmp/...` 子树 | 新增 `TaskFilePathMiddleware`，将属于本轮 host workspace 的绝对前缀转换为虚拟根路径；仅处理原生文件工具的 `file_path/path` 参数并拒绝 `..`。接入主 Task 与团队成员运行时，并补充本地化提示 | `src/inhere_box/infra/projects/file_paths.py`、`runtime.py`、`expert_team_runtime.py` |
 | Task 工作台显示了没有点击处理的桌面“打开浏览器窗口”按钮 | 在 Task 环境隐藏该无效入口 | `dashboard/src/components/BrowserWorkspace/index.tsx` |
 
 以上为已完成的生产修复，最终真实页面、工具操作及截图验收结论见下一节。
@@ -88,9 +88,9 @@
 | 录制与应用 | 通过浏览器画面输入并点击后，页面实际显示 `Saved: ui-browser-proof`；录制包含 4 个事件、3 个步骤，生成 1611 字符 Skill，明确应用并保存 |
 | 下一轮真实模型 | 同一新 GLM-5 轮次完成 `write_file`、`read_file`、`browser_use`；随机标记文件落在项目根目录 `model-proof.txt`，未产生重复主机路径；该轮 `resources/skills.json` 的 Skill 内容与应用文件逐字节一致；页面实际渲染工具参数及成功的 DOM 结果 |
 
-录制流程最初的验收断言固定要求名称 `acceptance-skill`，而实际 UI/SDK 返回名称为 `Octop acceptance playground`。这属于验收脚本错误；已按实际名称修正，并对已保存的录制、应用文件和同一模型轮次的资源快照作只读补验，结果通过。没有为补验重发模型请求，也没有把这项断言修正计为生产修复。
+录制流程最初的验收断言固定要求名称 `acceptance-skill`，而实际 UI/SDK 返回名称为 `inhere-box acceptance playground`。这属于验收脚本错误；已按实际名称修正，并对已保存的录制、应用文件和同一模型轮次的资源快照作只读补验，结果通过。没有为补验重发模型请求，也没有把这项断言修正计为生产修复。
 
-证据目录为 `/private/tmp/octop-workbench-live-hjh5zydx/evidence-ui/`。`final-report.json` 汇总五组通过结果、真实 Turn、文件落点、Skill 摘要和进程清理；`flow-report.json` 保留原流程及名称误断言，`report.json` 记录纠正名称后的录制、快照和结果展示验证。`actual-rendered-tool-result.png` 已人工查看，展示真实工具参数与成功 DOM 结果；加载中的旧截图不作为通过证据。
+证据目录为 `/private/tmp/inhere-box-workbench-live-hjh5zydx/evidence-ui/`。`final-report.json` 汇总五组通过结果、真实 Turn、文件落点、Skill 摘要和进程清理；`flow-report.json` 保留原流程及名称误断言，`report.json` 记录纠正名称后的录制、快照和结果展示验证。`actual-rendered-tool-result.png` 已人工查看，展示真实工具参数与成功 DOM 结果；加载中的旧截图不作为通过证据。
 
 本地 HTML/PDF 是验收输入，PTY、Chrome、模型请求、录制和文件持久化均真实执行。本轮没有配置真实外部 MCP、自定义 renderer 或语音供应商，因此这些外部集成不列入 live 通过范围；已有确定性回归结果仍单独记录。
 
@@ -100,7 +100,7 @@
 
 ```sh
 PYTHONPATH=src:. PYTHONDONTWRITEBYTECODE=1 \
-UV_CACHE_DIR=/private/tmp/octop-unify-uv-cache \
+UV_CACHE_DIR=/private/tmp/inhere-box-unify-uv-cache \
 uv run --no-sync python -m pytest -q \
   tests/unit/projects/test_file_paths.py \
   tests/unit/projects/test_expert_team_runtime.py \
@@ -117,58 +117,58 @@ uv run --no-sync python -m pytest -q \
 
 ```sh
 PYTHONPATH=src:. PYTHONDONTWRITEBYTECODE=1 \
-UV_CACHE_DIR=/private/tmp/octop-unify-uv-cache \
+UV_CACHE_DIR=/private/tmp/inhere-box-unify-uv-cache \
 uv run --no-sync python -m mypy --strict --follow-imports=silent \
-  src/octop/infra/projects/runtime.py \
-  src/octop/infra/projects/file_paths.py \
-  src/octop/infra/projects/expert_team_runtime.py \
-  src/octop/infra/projects/expert_memory_extraction.py \
-  src/octop/api/routers/project_tasks_ws.py
+  src/inhere_box/infra/projects/runtime.py \
+  src/inhere_box/infra/projects/file_paths.py \
+  src/inhere_box/infra/projects/expert_team_runtime.py \
+  src/inhere_box/infra/projects/expert_memory_extraction.py \
+  src/inhere_box/api/routers/project_tasks_ws.py
 
 git diff --check
 (cd dashboard && npm run build)
 ```
 
-最终运行日志分别为 `/private/tmp/octop-live-final-regression.log`、`/private/tmp/octop-live-final-types.log`、`/private/tmp/octop-live-final-build.log`。这些结果针对本轮受影响范围，不等于完整门禁或所有 Provider 的兼容性验收。
+最终运行日志分别为 `/private/tmp/inhere-box-live-final-regression.log`、`/private/tmp/inhere-box-live-final-types.log`、`/private/tmp/inhere-box-live-final-build.log`。这些结果针对本轮受影响范围，不等于完整门禁或所有 Provider 的兼容性验收。
 
 ## 8. 重复真实模型验收
 
 在包含当前改造、依赖已准备的仓库中执行。源数据库路径使用本机明确选定的只读配置源；以下占位路径需替换，不能把临时验收目录指向用户正常 home。每次创建新的临时根目录，团队与记忆串行运行。
 
 ```sh
-export OCTOP_LIVE_PROVIDER_DB='/absolute/path/to/source/octop.db'
-export OCTOP_LIVE_MODEL_REF='Zhipu Coding Plan (BigModel)/glm-5'
+export INHERE_BOX_LIVE_PROVIDER_DB='/absolute/path/to/source/inhere-box.db'
+export INHERE_BOX_LIVE_MODEL_REF='Zhipu Coding Plan (BigModel)/glm-5'
 export PYTHONPATH=src:.
 export PYTHONDONTWRITEBYTECODE=1
-export UV_CACHE_DIR=/private/tmp/octop-unify-uv-cache
-OCTOP_LIVE_ACCEPTANCE_ROOT="$(mktemp -d /private/tmp/octop-unified-live.XXXXXX)"
+export UV_CACHE_DIR=/private/tmp/inhere-box-unify-uv-cache
+INHERE_BOX_LIVE_ACCEPTANCE_ROOT="$(mktemp -d /private/tmp/inhere-box-unified-live.XXXXXX)"
 
 uv run --no-sync python -m pytest \
   tests/live/test_unified_task_team_live.py -m live -q \
-  --basetemp="$OCTOP_LIVE_ACCEPTANCE_ROOT/team" \
-  > "$OCTOP_LIVE_ACCEPTANCE_ROOT/team.log" 2>&1
+  --basetemp="$INHERE_BOX_LIVE_ACCEPTANCE_ROOT/team" \
+  > "$INHERE_BOX_LIVE_ACCEPTANCE_ROOT/team.log" 2>&1
 
 uv run --no-sync python -m pytest \
   tests/live/test_unified_task_memory_live.py -m live -q \
-  --basetemp="$OCTOP_LIVE_ACCEPTANCE_ROOT/memory" \
-  > "$OCTOP_LIVE_ACCEPTANCE_ROOT/memory.log" 2>&1
+  --basetemp="$INHERE_BOX_LIVE_ACCEPTANCE_ROOT/memory" \
+  > "$INHERE_BOX_LIVE_ACCEPTANCE_ROOT/memory.log" 2>&1
 ```
 
-`live_task_env` 负责创建临时 Octop 环境，不连接正常用户服务。网络受限的执行环境需允许本次已授权的真实模型请求。不要公开原始全日志、临时数据库或含认证信息的会话 JSON；对外核对采用上述白名单证据。
+`live_task_env` 负责创建临时 inhere-box 环境，不连接正常用户服务。网络受限的执行环境需允许本次已授权的真实模型请求。不要公开原始全日志、临时数据库或含认证信息的会话 JSON；对外核对采用上述白名单证据。
 
 工作台复验另需先准备独立的 localhost 服务与临时 session JSON，其 `root`、`project_directory` 必须位于同一可丢弃临时目录，并配置该服务的临时登录信息与 `model_ref`。当前脚本使用本机 Chrome 路径，因此应在具备对应 Chrome 的验收机器上运行：
 
 ```sh
-OCTOP_LIVE_SESSION_JSON='/absolute/path/to/disposable/session.json'
+INHERE_BOX_LIVE_SESSION_JSON='/absolute/path/to/disposable/session.json'
 uv run --no-sync python scripts/verify_task_workbench_live.py \
-  "$OCTOP_LIVE_SESSION_JSON"
+  "$INHERE_BOX_LIVE_SESSION_JSON"
 ```
 
 该命令用于重复本机验收，需自行准备独立临时服务；不要将真实用户服务或日常浏览器 profile 用作验收环境。
 
 ## 9. 扩展范围：远程统一 Task 的真实双实例验收
 
-扩展范围基线为 `feature/agentcomputer-foundation @ f7500b3` 叠加当前未提交改造。入口为 `tests/live/test_unified_task_remote_live.py`，独立临时本机/peer 两个 OctopServer，peer 由 uvicorn 在临时 localhost 端口提供真实 HTTP/Bridge WebSocket。两个实例均未替换模型；选定 Provider 仍只从源库只读复制到临时环境。
+扩展范围基线为 `feature/agentcomputer-foundation @ f7500b3` 叠加当前未提交改造。入口为 `tests/live/test_unified_task_remote_live.py`，独立临时本机/peer 两个 InhereBoxServer，peer 由 uvicorn 在临时 localhost 端口提供真实 HTTP/Bridge WebSocket。两个实例均未替换模型；选定 Provider 仍只从源库只读复制到临时环境。
 
 首次完整流程 **1 passed，19.40 秒**；所有后续修正合并后，最终代码再用新隔离环境完整复验，**1 passed，22.78 秒**。本机通过 Bridge 的能力握手、Task WebSocket 和 HTTP 代理创建远端项目与任务，远端专家真实调用模型、读取合成 `seed.txt` 并写入项目 `proof.txt`，文件内容匹配随机标记。
 
@@ -181,10 +181,10 @@ uv run --no-sync python scripts/verify_task_workbench_live.py \
 | 离线索引 | 明确断开 Bridge 后，本机仍能读取缓存的远端任务摘要 |
 | 会话令牌 | 观察到的转发帧中 peer `session` 令牌帧为 0；不覆盖本机登录状态 |
 
-最终安全证据：`/private/tmp/octop-remote-live-final4/test_live_remote_task_uses_pee0/live-octop/remote-live-evidence.json`；运行日志为 `/private/tmp/octop-remote-live-final4.log`。首次通过记录保留在 `/private/tmp/octop-remote-live3/`。前两次验收脚本使用过短的命令 ID，被真实协议拒绝，未创建 Task、未产生模型调用；修正脚本后完整通过。这不计为模型或远程执行故障，也未重放结果未知的请求。
+最终安全证据：`/private/tmp/inhere-box-remote-live-final4/test_live_remote_task_uses_pee0/live-inhere-box/remote-live-evidence.json`；运行日志为 `/private/tmp/inhere-box-remote-live-final4.log`。首次通过记录保留在 `/private/tmp/inhere-box-remote-live3/`。前两次验收脚本使用过短的命令 ID，被真实协议拒绝，未创建 Task、未产生模型调用；修正脚本后完整通过。这不计为模型或远程执行故障，也未重放结果未知的请求。
 
 独立审读后补充了 Bridge 双侧 Task 命令白名单，阻断共用原生流中的私人 resident 订阅；初始化失败会清理 stream 并关闭观察者。单元测试覆盖这两个边界、错误认证帧以及令牌/响应头过滤。Bridge 仍使用既有 32 MiB 消息上限，Task HTTP 每请求/响应限制为 16 MiB，超限返回 413，不断开其他复用流；这不是无限文件流能力。
 
 本项覆盖同机双实例的真实网络、模型与文件链路；不宣称已经验证跨操作系统远端 Chrome/PTY、真实 IM 平台投递、断网重连、所有共享撤权场景、STT/TTS 或 APP 真机。迁移的真实数据副本演练和 IM/cron/resident 定向结果分别记录在[扩展状态表](unified-task-all-entrypoints-plan.md#当前实施与验收状态)。
 
-最终后端增量整合 **263 passed，18 warnings，33.78 秒**，日志 `/private/tmp/octop-unified-final2.log`。覆盖迁移、入口/删除重放、外部 IM 私人记忆与本人审批、团队/自动抽取、频道/cron、远程流与 HTTP、会话四尾项及服务生命周期。此前 281 项整合集合、旧 gateway 465 项、来源/记忆/团队/cron/i18n 292 项和私人助手 73 项分别通过，集合有重叠，不加总。最新源文件的 strict mypy/Ruff 与 diff 检查通过；WebSocket Schema 87 个定义、106 处引用均能解析。未重复完整发布门禁。
+最终后端增量整合 **263 passed，18 warnings，33.78 秒**，日志 `/private/tmp/inhere-box-unified-final2.log`。覆盖迁移、入口/删除重放、外部 IM 私人记忆与本人审批、团队/自动抽取、频道/cron、远程流与 HTTP、会话四尾项及服务生命周期。此前 281 项整合集合、旧 gateway 465 项、来源/记忆/团队/cron/i18n 292 项和私人助手 73 项分别通过，集合有重叠，不加总。最新源文件的 strict mypy/Ruff 与 diff 检查通过；WebSocket Schema 87 个定义、106 处引用均能解析。未重复完整发布门禁。

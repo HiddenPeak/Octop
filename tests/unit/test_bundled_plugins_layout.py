@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from octop.infra.agents.plugins.bundled import default_bundled_plugins_root
-from octop.infra.agents.plugins.manager import PluginManager
-from octop.infra.agents.plugins.seed import seed_bundled_plugins
+from inhere_box.infra.agents.plugins.bundled import default_bundled_plugins_root
+from inhere_box.infra.agents.plugins.manager import PluginManager
+from inhere_box.infra.agents.plugins.seed import seed_bundled_plugins
 
 
 def _catalog_ids() -> set[str]:

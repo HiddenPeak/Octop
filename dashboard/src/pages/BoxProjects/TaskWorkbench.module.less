@@ -28,7 +28,7 @@
   padding: 6px 10px;
   border-bottom: 1px solid var(--fn-border-secondary, rgba(127, 127, 127, 0.15));
 
-  > :global(:is(.ant-typography, .octop-typography)) {
+  > :global(:is(.ant-typography, .inhere-box-typography)) {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -70,21 +70,21 @@
 .tabs {
   min-width: 0;
 
-  :global(:is(.ant-tabs-nav, .octop-tabs-nav)) {
+  :global(:is(.ant-tabs-nav, .inhere-box-tabs-nav)) {
     margin-bottom: 8px;
   }
 
-  :global(:is(.ant-tabs-tab, .octop-tabs-tab)) {
+  :global(:is(.ant-tabs-tab, .inhere-box-tabs-tab)) {
     margin-left: 12px;
     padding-block: 8px;
     font-size: 12px;
   }
 
-  :global(:is(.ant-tabs-tab, .octop-tabs-tab):first-child) {
+  :global(:is(.ant-tabs-tab, .inhere-box-tabs-tab):first-child) {
     margin-left: 0;
   }
 
-  :global(:is(.ant-tabs-content-holder, .octop-tabs-content-holder)) {
+  :global(:is(.ant-tabs-content-holder, .inhere-box-tabs-content-holder)) {
     min-width: 0;
   }
 }

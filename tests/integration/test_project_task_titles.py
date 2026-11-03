@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from octop.infra.projects import runtime, tasks, title
+from inhere_box.infra.projects import runtime, tasks, title
 from tests.support.auth import create_user, resolve_user_id
 
 

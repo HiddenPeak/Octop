@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, it, vi } from "vitest";
 import TaskEngineSelect from "./TaskEngineSelect";
-import { engineCapabilities, OCTOP_ENGINE } from "./taskEngine";
+import { engineCapabilities, INHERE_BOX_ENGINE } from "./taskEngine";
 import type { EngineCatalogEntry } from "../../api/modules/projects";
 const currentUser = vi.hoisted(() => ({
   role: "admin" as string | null,
@@ -25,11 +25,11 @@ const acp = {
 } as const;
 const catalog: EngineCatalogEntry[] = [
   {
-    engine: OCTOP_ENGINE,
-    label: "Octop",
+    engine: INHERE_BOX_ENGINE,
+    label: "inhere-box",
     available: true,
     unavailable_reason: null,
-    capabilities: engineCapabilities(OCTOP_ENGINE),
+    capabilities: engineCapabilities(INHERE_BOX_ENGINE),
     models: [],
   },
   {
@@ -45,7 +45,7 @@ it("uses host-scoped engine entries and never offers local setup for remote Task
   const change = vi.fn();
   render(
     <TaskEngineSelect
-      value={OCTOP_ENGINE}
+      value={INHERE_BOX_ENGINE}
       catalog={catalog}
       disabled={false}
       hostID="peer"
@@ -66,7 +66,7 @@ it("uses host-scoped engine entries and never offers local setup for remote Task
 it("offers model and ACP configuration for the local box", () => {
   render(
     <TaskEngineSelect
-      value={OCTOP_ENGINE}
+      value={INHERE_BOX_ENGINE}
       catalog={catalog}
       disabled={false}
       hostID={null}
@@ -87,7 +87,7 @@ it.each(["user", null])(
     currentUser.role = role;
     render(
       <TaskEngineSelect
-        value={OCTOP_ENGINE}
+        value={INHERE_BOX_ENGINE}
         catalog={catalog}
         disabled={false}
         hostID={null}
@@ -106,7 +106,7 @@ it.each(["user", null])(
 it("shows remote setup guidance before an unavailable external engine can be selected", () => {
   render(
     <TaskEngineSelect
-      value={OCTOP_ENGINE}
+      value={INHERE_BOX_ENGINE}
       catalog={[
         catalog[0],
         { ...catalog[1], available: false, unavailable_reason: "disabled" },
@@ -127,11 +127,11 @@ it("shows remote setup guidance before an unavailable external engine can be sel
   ).not.toBeInTheDocument();
 });
 
-it("guides an unconfigured Octop box to models or ACP and lets it refresh", async () => {
+it("guides an unconfigured inhere-box box to models or ACP and lets it refresh", async () => {
   const refresh = vi.fn();
   render(
     <TaskEngineSelect
-      value={OCTOP_ENGINE}
+      value={INHERE_BOX_ENGINE}
       catalog={[
         {
           ...catalog[0],
@@ -164,7 +164,7 @@ it("allows delegated model configuration without exposing admin-only ACP", () =>
   currentUser.permissions = ["providers"];
   render(
     <TaskEngineSelect
-      value={OCTOP_ENGINE}
+      value={INHERE_BOX_ENGINE}
       catalog={catalog}
       disabled={false}
       hostID={null}

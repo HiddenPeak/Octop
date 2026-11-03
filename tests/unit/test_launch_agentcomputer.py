@@ -4,21 +4,21 @@ from __future__ import annotations
 
 import pytest
 
-from octop import launch
-from octop.infra.agentcomputer.bootstrap import DaemonBootstrap
-from octop.infra.server import OctopServer
+from inhere_box import launch
+from inhere_box.infra.agentcomputer.bootstrap import DaemonBootstrap
+from inhere_box.infra.server import InhereBoxServer
 
 
 @pytest.mark.parametrize("planning_fails", [False, True])
 async def test_foreground_constructs_daemon_and_cleans_on_serve_or_planning_exit(
-    tmp_octop_home, monkeypatch, planning_fails
+    tmp_inhere_box_home, monkeypatch, planning_fails
 ):
     constructions = []
     instances = []
 
     def construct(**kwargs):
         constructions.append(kwargs)
-        server = OctopServer(home=tmp_octop_home, **kwargs)
+        server = InhereBoxServer(home=tmp_inhere_box_home, **kwargs)
         instances.append(server)
         return server
 
@@ -26,12 +26,12 @@ async def test_foreground_constructs_daemon_and_cleans_on_serve_or_planning_exit
         server = instances[0]
         assert server._agentcomputer_bootstrap is not None
         other = DaemonBootstrap(server.paths.agentcomputer_identity.parent)
-        from octop.infra.errors import OctopError
+        from inhere_box.infra.errors import InhereBoxError
 
-        with pytest.raises(OctopError):
+        with pytest.raises(InhereBoxError):
             await other.acquire()
 
-    monkeypatch.setattr(launch, "OctopServer", construct)
+    monkeypatch.setattr(launch, "InhereBoxServer", construct)
     monkeypatch.setattr(launch, "_schedule_linux_bubblewrap_ensure", lambda: None)
     monkeypatch.setattr(launch, "_serve", serve)
     if planning_fails:
@@ -39,7 +39,7 @@ async def test_foreground_constructs_daemon_and_cleans_on_serve_or_planning_exit
         def fail(*args, **kwargs):
             raise RuntimeError("fixture listen planning failure")
 
-        monkeypatch.setattr("octop.infra.setup.tls.listeners.build_listen_plan", fail)
+        monkeypatch.setattr("inhere_box.infra.setup.tls.listeners.build_listen_plan", fail)
     kwargs = {
         "host": "127.0.0.1",
         "port": 8099,

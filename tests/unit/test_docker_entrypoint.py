@@ -10,9 +10,9 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.errors import OctopError
-from octop.infra.setup.password_file import read_password
-from octop.infra.users.password import _COMMON_PASSWORDS, validate_password_policy
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.setup.password_file import read_password
+from inhere_box.infra.users.password import _COMMON_PASSWORDS, validate_password_policy
 
 posix_only = pytest.mark.skipif(os.name != "posix", reason="bash entrypoint helpers")
 # Same tests, but runnable anywhere a bash is on PATH (e.g. Git Bash on Windows).
@@ -24,7 +24,7 @@ ENTRYPOINT = REPO / "docker" / "docker-entrypoint.sh"
 
 
 def _source_helpers() -> str:
-    return f'OCTOP_ENTRYPOINT_LIB=1; source "{ENTRYPOINT}"'
+    return f'INHERE_BOX_ENTRYPOINT_LIB=1; source "{ENTRYPOINT}"'
 
 
 def _bash(script: str, *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -44,8 +44,8 @@ def _bash(script: str, *, env: dict[str, str] | None = None) -> subprocess.Compl
 @posix_only
 def test_entrypoint_common_passwords_match_python() -> None:
     text = ENTRYPOINT.read_text(encoding="utf-8")
-    match = re.search(r'^_OCTOP_COMMON_PASSWORDS="([^"]+)"$', text, re.MULTILINE)
-    assert match, "entrypoint must declare _OCTOP_COMMON_PASSWORDS"
+    match = re.search(r'^_INHERE_BOX_COMMON_PASSWORDS="([^"]+)"$', text, re.MULTILINE)
+    assert match, "entrypoint must declare _INHERE_BOX_COMMON_PASSWORDS"
     shell_set = set(match.group(1).split())
     assert shell_set == set(_COMMON_PASSWORDS)
 
@@ -91,7 +91,7 @@ _INVALID_PASSWORDS = (
 @pytest.mark.parametrize("password", _VALID_PASSWORDS)
 def test_entrypoint_accepts_passwords_that_meet_policy(password: str) -> None:
     validate_password_policy(password)
-    result = _bash(_source_helpers() + f"\noctop_validate_password {password!r}\n")
+    result = _bash(_source_helpers() + f"\ninhere_box_validate_password {password!r}\n")
     assert result.returncode == 0, result.stderr
 
 
@@ -99,9 +99,9 @@ def test_entrypoint_accepts_passwords_that_meet_policy(password: str) -> None:
 @pytest.mark.parametrize("password", _INVALID_PASSWORDS)
 def test_entrypoint_rejects_passwords_that_miss_policy(password: str) -> None:
     if password:
-        with pytest.raises(OctopError):
+        with pytest.raises(InhereBoxError):
             validate_password_policy(password)
-    result = _bash(_source_helpers() + f"\noctop_validate_password {password!r}\n")
+    result = _bash(_source_helpers() + f"\ninhere_box_validate_password {password!r}\n")
     assert result.returncode != 0
     assert result.stderr.strip()
 
@@ -109,24 +109,24 @@ def test_entrypoint_rejects_passwords_that_miss_policy(password: str) -> None:
 @posix_only
 def test_seed_wizard_password_writes_volume_and_home_link(tmp_path: Path) -> None:
     home = tmp_path / "data"
-    octop_home = home / ".octop"
+    inhere_box_home = home / ".octop"
     home.mkdir()
-    script = _source_helpers() + "\noctop_seed_wizard_password\noctop_write_setup_hint\n"
+    script = _source_helpers() + "\ninhere_box_seed_wizard_password\ninhere_box_write_setup_hint\n"
     result = _bash(
         script,
         env={
             "HOME": str(home),
-            "OCTOP_HOME": str(octop_home),
+            "INHERE_BOX_HOME": str(inhere_box_home),
             "PORT": "8088",
         },
     )
     assert result.returncode == 0, result.stderr
-    wizard = octop_home / "octop-login.txt"
+    wizard = inhere_box_home / "inhere-box-login.txt"
     assert wizard.is_file()
     pw = wizard.read_text(encoding="utf-8").strip()
     assert pw
     assert read_password(home) == pw
-    hint = (octop_home / "credential.txt").read_text(encoding="utf-8")
+    hint = (inhere_box_home / "credential.txt").read_text(encoding="utf-8")
     assert "Setup Required" in hint
     assert pw in hint
     assert "Username:" not in hint
@@ -136,7 +136,7 @@ def test_seed_wizard_password_writes_volume_and_home_link(tmp_path: Path) -> Non
 def test_entrypoint_does_not_retry_init_with_random_admin() -> None:
     text = ENTRYPOINT.read_text(encoding="utf-8")
     assert "改用随机密码重试" not in text
-    assert "octop_start_setup_wizard" in text
+    assert "inhere_box_start_setup_wizard" in text
     assert "不自动创建管理员" in text
 
 
@@ -148,13 +148,13 @@ def _run_first_boot(
     args: str = "true",
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     home = tmp_path / "data"
-    octop_home = home / ".octop"
+    inhere_box_home = home / ".octop"
     home.mkdir(exist_ok=True)
     stub = (
         run_init
         or """
-octop_run_init() {
-  printf '%s' "$1" > "$OCTOP_HOME/init-password.txt"
+inhere_box_run_init() {
+  printf '%s' "$1" > "$INHERE_BOX_HOME/init-password.txt"
   : > "$2"
   return 0
 }
@@ -162,26 +162,26 @@ octop_run_init() {
     )
     env = {
         "HOME": str(home),
-        "OCTOP_HOME": str(octop_home),
+        "INHERE_BOX_HOME": str(inhere_box_home),
         "PORT": "8088",
-        "OCTOP_ADMIN_USERNAME": "admin",
-        "OCTOP_DEFAULT_PASSWORD": "" if password is None else password,
+        "INHERE_BOX_ADMIN_USERNAME": "admin",
+        "INHERE_BOX_DEFAULT_PASSWORD": "" if password is None else password,
     }
-    script = _source_helpers() + "\n" + stub + f"\noctop_entrypoint_main {args}\n"
-    return _bash(script, env=env), octop_home
+    script = _source_helpers() + "\n" + stub + f"\ninhere_box_entrypoint_main {args}\n"
+    return _bash(script, env=env), inhere_box_home
 
 
 @posix_only
 @pytest.mark.parametrize("password", _VALID_PASSWORDS)
 def test_first_boot_valid_password_creates_admin(tmp_path: Path, password: str) -> None:
-    result, octop_home = _run_first_boot(tmp_path, password=password)
+    result, inhere_box_home = _run_first_boot(tmp_path, password=password)
     assert result.returncode == 0, result.stderr + result.stdout
-    assert (octop_home / "init-password.txt").read_text(encoding="utf-8") == password
-    cred = (octop_home / "credential.txt").read_text(encoding="utf-8")
-    assert "Octop Login Credential" in cred
+    assert (inhere_box_home / "init-password.txt").read_text(encoding="utf-8") == password
+    cred = (inhere_box_home / "credential.txt").read_text(encoding="utf-8")
+    assert "inhere-box Login Credential" in cred
     assert f"Password: {password}" in cred
     assert "Username: admin" in cred
-    assert not (octop_home / "octop-login.txt").exists()
+    assert not (inhere_box_home / "inhere-box-login.txt").exists()
 
 
 @posix_only
@@ -201,27 +201,27 @@ def test_first_boot_valid_password_creates_admin(tmp_path: Path, password: str) 
 def test_first_boot_invalid_or_missing_password_starts_wizard(
     tmp_path: Path, password: str | None
 ) -> None:
-    result, octop_home = _run_first_boot(tmp_path, password=password)
+    result, inhere_box_home = _run_first_boot(tmp_path, password=password)
     assert result.returncode == 0, result.stderr + result.stdout
-    assert not (octop_home / "init-password.txt").exists()
-    wizard = octop_home / "octop-login.txt"
+    assert not (inhere_box_home / "init-password.txt").exists()
+    wizard = inhere_box_home / "inhere-box-login.txt"
     assert wizard.is_file()
-    hint = (octop_home / "credential.txt").read_text(encoding="utf-8")
+    hint = (inhere_box_home / "credential.txt").read_text(encoding="utf-8")
     assert "Setup Required" in hint
     assert "Username:" not in hint
     if password:
         assert "未通过密码策略" in result.stdout
     else:
-        assert "未设置 OCTOP_DEFAULT_PASSWORD" in result.stdout
+        assert "未设置 INHERE_BOX_DEFAULT_PASSWORD" in result.stdout
 
 
 @posix_only
 def test_first_boot_init_policy_rejection_falls_back_to_wizard(tmp_path: Path) -> None:
-    result, octop_home = _run_first_boot(
+    result, inhere_box_home = _run_first_boot(
         tmp_path,
         password="GoodPass1",
         run_init="""
-octop_run_init() {
+inhere_box_run_init() {
   printf '%s\\n' "Error: password is too common" > "$2"
   return 1
 }
@@ -229,17 +229,17 @@ octop_run_init() {
     )
     assert result.returncode == 0, result.stderr + result.stdout
     assert "改为启动设置向导" in result.stdout
-    assert (octop_home / "octop-login.txt").is_file()
-    assert "Setup Required" in (octop_home / "credential.txt").read_text(encoding="utf-8")
+    assert (inhere_box_home / "inhere-box-login.txt").is_file()
+    assert "Setup Required" in (inhere_box_home / "credential.txt").read_text(encoding="utf-8")
 
 
 @posix_only
 def test_first_boot_non_policy_init_failure_exits(tmp_path: Path) -> None:
-    result, octop_home = _run_first_boot(
+    result, inhere_box_home = _run_first_boot(
         tmp_path,
         password="GoodPass1",
         run_init="""
-octop_run_init() {
+inhere_box_run_init() {
   printf '%s\\n' "database is locked" > "$2"
   return 1
 }
@@ -247,18 +247,18 @@ octop_run_init() {
     )
     assert result.returncode != 0
     assert "不是密码策略问题" in result.stderr
-    assert not (octop_home / "octop-login.txt").exists()
+    assert not (inhere_box_home / "inhere-box-login.txt").exists()
 
 
 @posix_only
 def test_existing_db_skips_password_init(tmp_path: Path) -> None:
     home = tmp_path / "data"
-    octop_home = home / ".octop"
-    octop_home.mkdir(parents=True)
-    (octop_home / "octop.db").write_text("stub", encoding="utf-8")
+    inhere_box_home = home / ".octop"
+    inhere_box_home.mkdir(parents=True)
+    (inhere_box_home / "inhere-box.db").write_text("stub", encoding="utf-8")
     result, _ = _run_first_boot(tmp_path, password="GoodPass1")
     assert result.returncode == 0, result.stderr + result.stdout
-    assert not (octop_home / "init-password.txt").exists()
+    assert not (inhere_box_home / "init-password.txt").exists()
 
 
 @posix_only
@@ -266,9 +266,9 @@ def test_random_wizard_password_meets_policy() -> None:
     script = (
         _source_helpers()
         + """
-pw="$(octop_random_password)"
+pw="$(inhere_box_random_password)"
 printf '%s\\n' "$pw"
-octop_validate_password "$pw"
+inhere_box_validate_password "$pw"
 """
     )
     result = _bash(script)
@@ -280,19 +280,19 @@ octop_validate_password "$pw"
 
 # ---------------------------------------------------------------------------
 # Init guard across restarts (issue #1866). PostgreSQL / external backends
-# never create ``octop.db`` in the data volume, so "already bootstrapped"
+# never create ``inhere-box.db`` in the data volume, so "already bootstrapped"
 # must be tracked with a backend-agnostic marker written by the entrypoint
-# after a successful ``octop init``.
+# after a successful ``inhere-box init``.
 # ---------------------------------------------------------------------------
 
-_STUB_OCTOP = r"""#!/usr/bin/env bash
-printf '%s\n' "$*" >> "$OCTOP_STUB_LOG"
+_STUB_INHERE_BOX = r"""#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$INHERE_BOX_STUB_LOG"
 if [ "$1" = "init" ]; then
-    if [ "${OCTOP_STUB_INIT_FAIL:-0}" = "1" ]; then
+    if [ "${INHERE_BOX_STUB_INIT_FAIL:-0}" = "1" ]; then
         echo "unexpected database error" >&2
         exit 1
     fi
-    if [ "${OCTOP_STUB_INIT_ALREADY_EXISTS:-0}" = "1" ]; then
+    if [ "${INHERE_BOX_STUB_INIT_ALREADY_EXISTS:-0}" = "1" ]; then
         printf "  admin user 'octop' already exists, skipping.\n"
     fi
 fi
@@ -315,21 +315,21 @@ def _run_entrypoint(
     home = tmp_path / "data"
     stub_dir = tmp_path / "stub-bin"
     stub_dir.mkdir(exist_ok=True)
-    stub = stub_dir / "octop"
+    stub = stub_dir / "inhere-box"
     if not stub.exists():
-        stub.write_text(_STUB_OCTOP, encoding="utf-8", newline="\n")
+        stub.write_text(_STUB_INHERE_BOX, encoding="utf-8", newline="\n")
         stub.chmod(0o755)
-    log = tmp_path / "octop-calls.log"
+    log = tmp_path / "inhere-box-calls.log"
     log.write_text("", encoding="utf-8")
     env = os.environ.copy()
     env.update(
         {
             "HOME": str(home),
-            "OCTOP_HOME": str(home / ".octop"),
+            "INHERE_BOX_HOME": str(home / ".octop"),
             "PATH": str(stub_dir) + os.pathsep + env.get("PATH", ""),
-            "OCTOP_STUB_LOG": str(log),
-            "OCTOP_DEFAULT_PASSWORD": "Str0ngPass1",
-            "OCTOP_PORT": "8088",
+            "INHERE_BOX_STUB_LOG": str(log),
+            "INHERE_BOX_DEFAULT_PASSWORD": "Str0ngPass1",
+            "INHERE_BOX_PORT": "8088",
         }
     )
     if extra_env:
@@ -349,16 +349,16 @@ def _run_entrypoint(
 
 @bash_only
 def test_entrypoint_restart_skips_init_for_external_db(tmp_path: Path) -> None:
-    """Issue #1866: with PostgreSQL there is no octop.db; a restart must not re-run init."""
+    """Issue #1866: with PostgreSQL there is no inhere-box.db; a restart must not re-run init."""
     pg_env = {
-        "OCTOP_DATABASE_DRIVER": "postgresql",
-        "OCTOP_DATABASE_URL": "postgresql://octop:octop@postgres:5432/octop",
+        "INHERE_BOX_DATABASE_DRIVER": "postgresql",
+        "INHERE_BOX_DATABASE_URL": "postgresql://octop:octop@postgres:5432/octop",
     }
     first, calls = _run_entrypoint(tmp_path, extra_env=pg_env)
     assert first.returncode == 0, first.stderr
     assert any(call.startswith("init ") for call in calls), calls
     assert any(call.startswith("run --host") for call in calls), calls
-    assert not (tmp_path / "data" / ".octop" / "octop.db").exists()
+    assert not (tmp_path / "data" / ".octop" / "inhere-box.db").exists()
     assert _init_marker(tmp_path).is_file(), first.stdout
 
     second, calls = _run_entrypoint(tmp_path, extra_env=pg_env)
@@ -369,10 +369,10 @@ def test_entrypoint_restart_skips_init_for_external_db(tmp_path: Path) -> None:
 
 @bash_only
 def test_entrypoint_sqlite_install_skips_init_without_marker(tmp_path: Path) -> None:
-    """Backward compat: an existing octop.db still short-circuits the guard."""
-    octop_home = tmp_path / "data" / ".octop"
-    octop_home.mkdir(parents=True)
-    (octop_home / "octop.db").write_text("", encoding="utf-8")
+    """Backward compat: an existing inhere-box.db still short-circuits the guard."""
+    inhere_box_home = tmp_path / "data" / ".octop"
+    inhere_box_home.mkdir(parents=True)
+    (inhere_box_home / "inhere-box.db").write_text("", encoding="utf-8")
 
     result, calls = _run_entrypoint(tmp_path)
     assert result.returncode == 0, result.stderr
@@ -383,12 +383,12 @@ def test_entrypoint_sqlite_install_skips_init_without_marker(tmp_path: Path) -> 
 @bash_only
 def test_entrypoint_adopts_existing_admin_without_rewriting_credentials(tmp_path: Path) -> None:
     """Upgrade path: init now no-ops on an already-bootstrapped DB; the credential card must survive."""
-    octop_home = tmp_path / "data" / ".octop"
-    octop_home.mkdir(parents=True)
-    credential = octop_home / "credential.txt"
+    inhere_box_home = tmp_path / "data" / ".octop"
+    inhere_box_home.mkdir(parents=True)
+    credential = inhere_box_home / "credential.txt"
     credential.write_text("ORIGINAL CREDENTIALS\n", encoding="utf-8")
 
-    result, _ = _run_entrypoint(tmp_path, extra_env={"OCTOP_STUB_INIT_ALREADY_EXISTS": "1"})
+    result, _ = _run_entrypoint(tmp_path, extra_env={"INHERE_BOX_STUB_INIT_ALREADY_EXISTS": "1"})
     assert result.returncode == 0, result.stderr
     assert credential.read_text(encoding="utf-8") == "ORIGINAL CREDENTIALS\n"
     assert _init_marker(tmp_path).is_file()
@@ -400,7 +400,7 @@ def test_entrypoint_adopts_existing_admin_without_rewriting_credentials(tmp_path
 
 @bash_only
 def test_entrypoint_init_failure_leaves_no_marker_and_retries_next_boot(tmp_path: Path) -> None:
-    first, _ = _run_entrypoint(tmp_path, extra_env={"OCTOP_STUB_INIT_FAIL": "1"})
+    first, _ = _run_entrypoint(tmp_path, extra_env={"INHERE_BOX_STUB_INIT_FAIL": "1"})
     assert first.returncode == 1, first.stdout
     assert not _init_marker(tmp_path).exists()
 
@@ -413,5 +413,5 @@ def test_init_skip_message_couples_entrypoint_and_init_command() -> None:
     """The entrypoint greps init output for this message — keep both sides in sync."""
     marker_text = "already exists, skipping"
     assert marker_text in ENTRYPOINT.read_text(encoding="utf-8")
-    init_cmd = REPO / "src" / "octop" / "cli" / "commands" / "init.py"
+    init_cmd = REPO / "src" / "inhere_box" / "cli" / "commands" / "init.py"
     assert marker_text in init_cmd.read_text(encoding="utf-8")

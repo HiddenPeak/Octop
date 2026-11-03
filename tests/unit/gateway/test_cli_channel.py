@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from octop_gateway.models import ChannelSubject, InboundMessage, TextContent
 
-from octop.infra.gateway.cli import CLI_CHANNEL_ID, CLI_CONNECTION_META, CliChannel, CliHub
+from inhere_box.infra.gateway.cli import CLI_CHANNEL_ID, CLI_CONNECTION_META, CliChannel, CliHub
 
 
 @pytest.mark.asyncio

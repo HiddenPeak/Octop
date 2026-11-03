@@ -12,9 +12,9 @@ from deepagents.backends.local_shell import LocalShellBackend
 from langchain_core.messages import HumanMessage
 from octop_harness.backends.workspace import BackendWorkspace
 
-from octop.api.common.attachments import save_attachment
-from octop.infra.agents.middleware.workspace_image import WorkspaceImageMaterializeMiddleware
-from octop.infra.gateway.media.attachment_hints import make_workspace_image_ref
+from inhere_box.api.common.attachments import save_attachment
+from inhere_box.infra.agents.middleware.workspace_image import WorkspaceImageMaterializeMiddleware
+from inhere_box.infra.gateway.media.attachment_hints import make_workspace_image_ref
 
 _PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 

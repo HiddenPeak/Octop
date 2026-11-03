@@ -99,7 +99,7 @@ const settings = (
   step_panel_enabled: stepPanel,
 });
 const scopedPlan: TaskPlan = {
-  source: "octop_planning",
+  source: "inhere_box_planning",
   plan_id: "plan_a",
   title: "接口接入计划",
   revision: 5,
@@ -588,7 +588,7 @@ describe("过程区执行详情与旧记录", () => {
   it.each([
     ["acp", "completed", "已完成"],
     ["acp", "streaming", "未确认执行"],
-    ["octop", "completed", "未确认执行"],
+    ["inhere-box", "completed", "未确认执行"],
   ] as const)(
     "%s 工具直接报告 %s 不补造开始时间或耗时",
     (engineID, status, label) => {

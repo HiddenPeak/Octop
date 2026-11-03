@@ -9,27 +9,27 @@ from pathlib import Path
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage, message_to_dict
 
-from octop.config import OctopConfig
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.errors import OctopError
-from octop.infra.gateway.process.message_keys import INBOUND_ATTACHMENTS_KEY
-from octop.infra.history.projection import message_inputs
-from octop.infra.history.service import HistoryArchive
-from octop.infra.history.store import HistoryStore
-from octop.infra.history.trajectory.types import TrajectoryEvent
-from octop.infra.projects import conversation_migrations as migration
-from octop.infra.projects import source_routes, tasks
-from octop.infra.projects.expert_profiles import _workspace
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.gateway.process.message_keys import INBOUND_ATTACHMENTS_KEY
+from inhere_box.infra.history.projection import message_inputs
+from inhere_box.infra.history.service import HistoryArchive
+from inhere_box.infra.history.store import HistoryStore
+from inhere_box.infra.history.trajectory.types import TrajectoryEvent
+from inhere_box.infra.projects import conversation_migrations as migration
+from inhere_box.infra.projects import source_routes, tasks
+from inhere_box.infra.projects.expert_profiles import _workspace
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
 def source(tmp_path):
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
-    services = SharedServices(PathLayout(tmp_path), OctopConfig(), RepoBundle.from_pool(db))
+    services = SharedServices(PathLayout(tmp_path), InhereBoxConfig(), RepoBundle.from_pool(db))
     services.secret_repo.get_or_create("jwt", lambda: b"migration-test-secret")
     with db.transaction() as conn:
         conn.execute("INSERT INTO users(id,username,role,created_at) VALUES(1,'owner','user',1)")
@@ -106,9 +106,9 @@ async def test_all_ordinary_channels_copy_history_and_attachment_without_source_
     assert migration.legacy_link(services, 1, "thread").task_id == task.task_id
     with services.db.connect() as conn:
         assert conn.execute("SELECT COUNT(*) FROM model_calls").fetchone()[0] == 0
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         migration.detail(services, 2, batch.batch_id)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         migration.legacy_link(services, 2, "thread")
 
 
@@ -259,7 +259,7 @@ async def test_mixed_archive_reads_legacy_prefix_and_v2_without_touching_archive
     services, _workspace, _messages = source
     path = services.paths.root / "history_v2.sqlite"
     archive = HistoryArchive(
-        HistoryStore(path, identity=str(services.paths.root / "octop.db")),
+        HistoryStore(path, identity=str(services.paths.root / "inhere-box.db")),
         services.thread_message_repo,
         services.trajectory_event_repo,
         enabled=True,
@@ -345,7 +345,7 @@ async def test_mixed_trajectory_preserves_public_events_without_new_execution(so
     archive = HistoryArchive(
         HistoryStore(
             services.paths.root / "history_v2.sqlite",
-            identity=str(services.paths.root / "octop.db"),
+            identity=str(services.paths.root / "inhere-box.db"),
         ),
         services.thread_message_repo,
         services.trajectory_event_repo,
@@ -619,9 +619,9 @@ async def test_http_management_is_typed_and_owner_scoped(source):
     import httpx
     from fastapi import FastAPI
 
-    from octop.api.app import _install_exception_handlers
-    from octop.api.deps import current_user, get_server
-    from octop.api.routers.conversation_migrations import router
+    from inhere_box.api.app import _install_exception_handlers
+    from inhere_box.api.deps import current_user, get_server
+    from inhere_box.api.routers.conversation_migrations import router
 
     services, _workspace, _messages = source
     app = FastAPI()
@@ -653,7 +653,7 @@ def test_cli_preflight_and_offline_run_need_no_agent(source, monkeypatch):
 
     from click.testing import CliRunner
 
-    from octop.cli.commands import conversation_migrations as command
+    from inhere_box.cli.commands import conversation_migrations as command
 
     services, _workspace, _messages = source
 

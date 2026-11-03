@@ -48,7 +48,7 @@ export const residentStorageKey = (
   account: string | number,
   scope: ResidentScope,
 ) =>
-  `octop.resident.v1:${JSON.stringify([
+  `inhere_box.resident.v1:${JSON.stringify([
     String(account),
     scope.agent_id,
     scope.thread_id,

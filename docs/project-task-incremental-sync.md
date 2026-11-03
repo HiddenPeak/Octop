@@ -255,10 +255,10 @@
 ## 当前实现依据
 
 - [现有 API 说明](api.md)：标准项目/任务入口、项目字段、任务语义和实时状态续接方式。
-- `src/octop/api/routers/projects.py`：当前完整项目列表、分项目任务列表、无项目任务列表和详情入口。
-- `src/octop/infra/projects/service.py`：项目创建幂等和版本冲突检查。
-- `src/octop/infra/projects/tasks.py`：任务摘要与会话详情边界。
-- `src/octop/infra/projects/runtime.py`：后台执行、结束和中断恢复对任务摘要的更新。
+- `src/inhere_box/api/routers/projects.py`：当前完整项目列表、分项目任务列表、无项目任务列表和详情入口。
+- `src/inhere_box/infra/projects/service.py`：项目创建幂等和版本冲突检查。
+- `src/inhere_box/infra/projects/tasks.py`：任务摘要与会话详情边界。
+- `src/inhere_box/infra/projects/runtime.py`：后台执行、结束和中断恢复对任务摘要的更新。
 - `dashboard/src/pages/BoxProjects/TaskConversations.tsx`：约每 30 秒同步任务列表；`useTaskConversation.ts` 管理会话分页和实时续接。
 
 任务协议 v3 的 waiting_approval、waiting_answer、waiting_client_tool、paused 同样通过 list_revision 进入列表增量同步，均保留 active_turn_id。具体交互规则见[审批、提问和暂停恢复](project-task-interactions.md)。

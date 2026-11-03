@@ -8,12 +8,12 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.resident_conversations import ResidentConversationRepo
-from octop.infra.db.repos.threads import ThreadRepo
-from octop.infra.db.repos.users import UserRepo, UserRow
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.resident_conversations import ResidentConversationRepo
+from inhere_box.infra.db.repos.threads import ThreadRepo
+from inhere_box.infra.db.repos.users import UserRepo, UserRow
 
 _RESIDENT_TABLES = (
     "resident_conversations",

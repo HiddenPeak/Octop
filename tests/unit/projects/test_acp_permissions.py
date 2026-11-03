@@ -7,9 +7,9 @@ import pytest
 from tests.unit.projects.test_execution_engines import ready
 from tests.unit.projects.test_expert_execution import services  # noqa: F401
 
-from octop.infra.projects import interactions, tasks
-from octop.infra.projects.engines.base import EngineRequest
-from octop.infra.projects.engines.permissions import EnginePermissions
+from inhere_box.infra.projects import interactions, tasks
+from inhere_box.infra.projects.engines.base import EngineRequest
+from inhere_box.infra.projects.engines.permissions import EnginePermissions
 
 
 @pytest.mark.parametrize(

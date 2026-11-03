@@ -10,7 +10,7 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from octop.infra.auth.sso.id_token import verify_id_token
+from inhere_box.infra.auth.sso.id_token import verify_id_token
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ def _token(
     return jwt.encode(
         {
             "iss": issuer,
-            "aud": ["octop-client", "other-client"],
+            "aud": ["inhere-box-client", "other-client"],
             "exp": now + 300,
             "iat": now,
             "nonce": nonce,
@@ -57,7 +57,7 @@ def test_verify_id_token_accepts_issuer_with_trailing_slash(
         _token(signing_key, issuer=issuer),
         jwks_uri="https://issuer.example/jwks",
         issuer=issuer,
-        client_id="octop-client",
+        client_id="inhere-box-client",
         nonce="nonce",
         httpx=jwks_client,
     )
@@ -72,7 +72,7 @@ def test_verify_id_token_rejects_trailing_slash_mismatch(
             _token(signing_key, issuer="https://issuer.example/application/o/app/"),
             jwks_uri="https://issuer.example/jwks",
             issuer="https://issuer.example/application/o/app",
-            client_id="octop-client",
+            client_id="inhere-box-client",
             nonce="nonce",
             httpx=jwks_client,
         )
@@ -86,7 +86,7 @@ def test_verify_id_token_rejects_wrong_issuer(
             _token(signing_key, issuer="https://other-issuer.example"),
             jwks_uri="https://issuer.example/jwks",
             issuer="https://issuer.example",
-            client_id="octop-client",
+            client_id="inhere-box-client",
             nonce="nonce",
             httpx=jwks_client,
         )
@@ -100,7 +100,7 @@ def test_verify_id_token_rejects_wrong_nonce(
             _token(signing_key, nonce="unexpected"),
             jwks_uri="https://issuer.example/jwks",
             issuer="https://issuer.example",
-            client_id="octop-client",
+            client_id="inhere-box-client",
             nonce="nonce",
             httpx=jwks_client,
         )
@@ -113,7 +113,7 @@ def test_verify_id_token_rejects_disallowed_algorithm(
     hs_token = jwt.encode(
         {
             "iss": "https://issuer.example",
-            "aud": "octop-client",
+            "aud": "inhere-box-client",
             "exp": now + 300,
             "iat": now,
             "nonce": "nonce",
@@ -128,7 +128,7 @@ def test_verify_id_token_rejects_disallowed_algorithm(
             hs_token,
             jwks_uri="https://issuer.example/jwks",
             issuer="https://issuer.example",
-            client_id="octop-client",
+            client_id="inhere-box-client",
             nonce="nonce",
             httpx=jwks_client,
         )

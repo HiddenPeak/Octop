@@ -26,7 +26,7 @@ async def test_live_remote_task_uses_peer_model_workspace_and_saved_state(live_t
         sock.listen(128)
         http_server = uvicorn.Server(
             uvicorn.Config(
-                peer.client._octop_app,
+                peer.client._inhere_box_app,
                 host="127.0.0.1",
                 port=port,
                 lifespan="off",
@@ -127,7 +127,7 @@ async def test_live_remote_task_uses_peer_model_workspace_and_saved_state(live_t
             }
             frames = []
             async with ws_connect(
-                local.client._octop_app, prefix + "/project-tasks/ws", headers=local.auth
+                local.client._inhere_box_app, prefix + "/project-tasks/ws", headers=local.auth
             ) as ws:
                 ready = await ws.receive_json()
                 assert ready == {"type": "ready", "protocol_version": 3}

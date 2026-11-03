@@ -36,7 +36,7 @@ import { useTranslation } from "react-i18next";
 import { request } from "../../../api/request";
 import { useCardTableView } from "../../../hooks/useCardTableView";
 import { formatAgentError } from "../../../utils/agentError";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import PageShell from "../../../layouts/PageShell";
 import AgentProfileDrawer from "../../../components/AgentProfileDrawer";
 import { AdminAgentCard } from "./AdminAgentCard";
@@ -58,27 +58,27 @@ const STATE_COLORS: Record<string, string> = {
 const STARTABLE = new Set(["stopped", "created", "error", "failed"]);
 
 type ViewMode = "card" | "table";
-const VIEW_STORAGE_KEY = "octop:admin-agents-view";
+const VIEW_STORAGE_KEY = "inhere-box:admin-agents-view";
 
 function loadViewMode(): ViewMode {
   const stored = localStorage.getItem(VIEW_STORAGE_KEY);
   return stored === "table" ? "table" : "card";
 }
 
-export default function OctopAgentsPage() {
+export default function InhereBoxAgentsPage() {
   const { t } = useTranslation();
-  const [agents, setAgents] = useState<OctopAgent[]>([]);
+  const [agents, setAgents] = useState<InhereBoxAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const { isMobile, viewMode, setViewMode, showCardView } = useCardTableView(
     loadViewMode(),
   );
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
-  const [detailAgent, setDetailAgent] = useState<OctopAgent | null>(null);
+  const [detailAgent, setDetailAgent] = useState<InhereBoxAgent | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await request<OctopAgent[]>("/agents?scope=all");
+      const data = await request<InhereBoxAgent[]>("/agents?scope=all");
       setAgents(data);
     } catch (err: unknown) {
       message.error(
@@ -101,7 +101,7 @@ export default function OctopAgentsPage() {
   };
 
   const onAct = useCallback(
-    async (row: OctopAgent, action: "start" | "stop" | "reload") => {
+    async (row: InhereBoxAgent, action: "start" | "stop" | "reload") => {
       setActionLoadingId(row.agent_id);
       try {
         await request(`/agents/${row.agent_id}/${action}`, { method: "POST" });
@@ -121,7 +121,7 @@ export default function OctopAgentsPage() {
   );
 
   const onDelete = useCallback(
-    async (row: OctopAgent) => {
+    async (row: InhereBoxAgent) => {
       setActionLoadingId(row.agent_id);
       try {
         await request(`/agents/${row.agent_id}`, { method: "DELETE" });
@@ -138,14 +138,14 @@ export default function OctopAgentsPage() {
     [refresh, t],
   );
 
-  const columns: ColumnsType<OctopAgent> = useMemo(
+  const columns: ColumnsType<InhereBoxAgent> = useMemo(
     () => [
       {
         title: t("adminAgents.columns.name"),
         dataIndex: "name",
         width: 140,
         fixed: isMobile ? undefined : "left",
-        render: (name: string, row: OctopAgent) => (
+        render: (name: string, row: InhereBoxAgent) => (
           <button
             type="button"
             className={styles.nameLink}
@@ -179,7 +179,7 @@ export default function OctopAgentsPage() {
         title: t("adminAgents.columns.owner"),
         dataIndex: "owner_username",
         width: 120,
-        render: (owner: string | undefined, row: OctopAgent) =>
+        render: (owner: string | undefined, row: InhereBoxAgent) =>
           owner ? (
             <Tag icon={<User size={11} />}>{owner}</Tag>
           ) : row.user_id != null ? (
@@ -374,7 +374,7 @@ export default function OctopAgentsPage() {
         </Spin>
       ) : (
         <Card className={styles.tableCard} bordered={false}>
-          <Table<OctopAgent>
+          <Table<InhereBoxAgent>
             rowKey="agent_id"
             loading={loading}
             dataSource={agents}

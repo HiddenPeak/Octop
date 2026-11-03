@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.auth.ldap.client import LdapIdentity, rdn_value
-from octop.infra.auth.ldap.config import (
+from inhere_box.infra.auth.ldap.client import LdapIdentity, rdn_value
+from inhere_box.infra.auth.ldap.config import (
     DEFAULT_DISPLAY_NAME_ATTRIBUTE,
     DEFAULT_EMAIL_ATTRIBUTE,
     DEFAULT_GROUP_ATTRIBUTE,
@@ -16,7 +16,7 @@ from octop.infra.auth.ldap.config import (
     config_from_row,
     merge_config,
 )
-from octop.infra.db.repos.sso import SsoProviderRow
+from inhere_box.infra.db.repos.sso import SsoProviderRow
 
 SECURE_URL = "ldaps://directory.example.org"
 PLAIN_URL = "ldap://directory.example.org"
@@ -124,7 +124,7 @@ def test_defaults_and_round_trip_through_extra():
     assert config.allowed_groups == ()
     assert config.group_search is False
     # Provisioning is opt-in: a directory account should not silently gain an
-    # Octop account just because it matches the filter.
+    # inhere-box account just because it matches the filter.
     assert config.auto_provision is False
 
     restored = config_from_row(_row(**config.to_extra()))

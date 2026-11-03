@@ -12,16 +12,16 @@ import pytest
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from octop_memory.core import Memory
 
-from octop.config import OctopConfig
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRow
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.errors import OctopError
-from octop.infra.projects import runtime
-from octop.infra.projects import tasks as task_records
-from octop.infra.projects.expert_memory import ExpertMemory, memory_namespace
-from octop.infra.projects.expert_profiles import (
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRow
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.projects import runtime
+from inhere_box.infra.projects import tasks as task_records
+from inhere_box.infra.projects.expert_memory import ExpertMemory, memory_namespace
+from inhere_box.infra.projects.expert_profiles import (
     ExpertAccessMiddleware,
     _workspace,
     assert_profile_access,
@@ -29,9 +29,9 @@ from octop.infra.projects.expert_profiles import (
     runtime_plugin_configuration,
     validate_expert_workspace_skills,
 )
-from octop.infra.projects.models import ProjectFields
-from octop.infra.skills.skill_package_store import SkillPackageStore
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.projects.models import ProjectFields
+from inhere_box.infra.skills.skill_package_store import SkillPackageStore
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -42,7 +42,7 @@ def services(tmp_path):
     with db.transaction() as conn:
         conn.execute("INSERT INTO users(id,username,role,created_at) VALUES(1,'owner','user',1)")
         conn.execute("INSERT INTO users(id,username,role,created_at) VALUES(2,'another','user',1)")
-    result = SharedServices(PathLayout(tmp_path), OctopConfig(), repos)
+    result = SharedServices(PathLayout(tmp_path), InhereBoxConfig(), repos)
     config = {"workspace_dir": str(tmp_path / "expert"), "memory": {"capture_enabled": True}}
     repos.agent_repo.create(
         agent_id="expert-one",
@@ -70,7 +70,7 @@ def profile(services):
 async def test_slow_expert_snapshot_releases_database_and_rechecks_versions(
     services, monkeypatch, mutation
 ):
-    from octop.infra.projects import expert_profiles, service
+    from inhere_box.infra.projects import expert_profiles, service
 
     services.provider_repo.create(
         name="test",
@@ -130,7 +130,7 @@ async def test_slow_expert_snapshot_releases_database_and_rechecks_versions(
     finally:
         release.set()
     if mutation:
-        with pytest.raises(OctopError) as error:
+        with pytest.raises(InhereBoxError) as error:
             await pending
         assert error.value.code.value == (
             "PROJECT_REVISION_CONFLICT" if mutation == "project" else "TASK_REVISION_CONFLICT"
@@ -185,7 +185,7 @@ def test_plugin_parameters_are_bound_by_digest_without_persisting_secrets(servic
     assert runtime_plugin_configuration(services, 1, snapshot) == config["plugins"]
     config["plugins"]["proof"]["tools"]["configured"]["config"]["prefix"] = "changed value"
     services.agent_repo.update_config("expert-one", config_json=json.dumps(config))
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         runtime_plugin_configuration(services, 1, snapshot)
 
 
@@ -194,7 +194,7 @@ def test_workspace_skill_collision_requires_explicit_override_or_matching_packag
     selected = ProjectFields(
         name="Project", skills=[{"package_id": "another-package", "slug": "local-method"}]
     ).skills
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         validate_expert_workspace_skills(snapshot, selected, inherit_workspace=True)
     validate_expert_workspace_skills(snapshot, selected, inherit_workspace=False)
     store = SkillPackageStore(
@@ -209,7 +209,7 @@ def test_workspace_skill_collision_requires_explicit_override_or_matching_packag
     same = profile(services)
     assert same["workspace_skills"] == []
     (skill_root / "SKILL.md").write_bytes(b"A different method")
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         profile(services)
 
 
@@ -230,7 +230,7 @@ def test_unavailable_experts_and_invalid_teams_are_rejected(services, mutation):
                 "disabled": ("enabled", 0),
             }[mutation]
             conn.execute(f"UPDATE agents SET {column}=? WHERE agent_id='expert-one'", (value,))
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         profile(services)
 
 
@@ -264,7 +264,7 @@ def test_shared_expert_keeps_public_identity_but_excludes_owner_private_settings
 
 
 def test_team_snapshot_preserves_member_profiles_and_rechecks_shared_access(services):
-    from octop.infra.projects import tasks
+    from inhere_box.infra.projects import tasks
 
     services.agent_repo.create(agent_id="second", user_id=2, name="Second")
     services.agent_repo.set_shared("second", True)
@@ -284,9 +284,9 @@ def test_team_snapshot_preserves_member_profiles_and_rechecks_shared_access(serv
     assert configuration["team_enabled"] is True and configuration["subagents"] == []
     assert configuration["project_defaults"]["team_enabled"] is False
     services.agent_repo.set_shared("second", False)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         assert_profile_access(services, 1, team)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         resolve_expert_profile(services, 1, "host")
     assert "host" not in {item.expert_id for item in tasks.resources(services, 1).experts}
 
@@ -311,9 +311,9 @@ async def test_frozen_shared_profile_rechecks_access_before_model_and_tool(servi
                 services.resident_conversation_repo.reserve_in_transaction(
                     conn, 1, "expert-one", "resident-thread", 1
                 )
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await middleware.awrap_tool_call(None, handler)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await middleware.awrap_model_call(None, handler)
     handler.assert_awaited_once()
 
@@ -396,7 +396,7 @@ async def test_resumption_reuses_original_recall_text_and_rechecks_owner(service
     assert await fresh.prompt("Mercury project") != initial
     with services.db.transaction() as conn:
         conn.execute("UPDATE agents SET user_id=2 WHERE agent_id='expert-one'")
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await first.prompt("Mercury project")
 
 

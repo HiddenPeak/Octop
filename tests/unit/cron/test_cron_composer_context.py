@@ -8,12 +8,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain_core.messages import HumanMessage
 
-from octop.infra.cron.delivery import CronDeliveryCommand, CronDeliveryService
-from octop.infra.gateway.process.message_keys import (
+from inhere_box.infra.cron.delivery import CronDeliveryCommand, CronDeliveryService
+from inhere_box.infra.gateway.process.message_keys import (
     COMPOSER_CTX_KEY,
     build_composer_context,
 )
-from octop.infra.gateway.threads import ThreadRegistry
+from inhere_box.infra.gateway.threads import ThreadRegistry
 
 
 def test_cron_composer_context_includes_connectors_and_model() -> None:

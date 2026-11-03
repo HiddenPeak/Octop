@@ -9,9 +9,9 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from octop.infra.projects import client_tools, runtime
-from octop.infra.projects.client_tool_models import ClientToolDefinition
-from octop.infra.projects.tasks import TaskExecutionOptions
+from inhere_box.infra.projects import client_tools, runtime
+from inhere_box.infra.projects.client_tool_models import ClientToolDefinition
+from inhere_box.infra.projects.tasks import TaskExecutionOptions
 from tests.integration.test_project_tasks import settled
 from tests.integration.test_project_tasks_ws import command, connected, until
 from tests.support.auth import create_user
@@ -32,7 +32,7 @@ OPTIONS = {"client_id": CLIENT, "client_tools": [DEFINITION]}
 
 @pytest.fixture
 async def tool_env(env_with_provider, monkeypatch):
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 0.01)
     monkeypatch.setattr(client_tools, "_POLL_SECONDS", 0.01)
@@ -112,7 +112,7 @@ async def test_real_harness_waits_for_client_and_receives_actual_result(
     from octop_harness import HarnessAgent
     from octop_harness.llm.factory import ChatModelFactory
 
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     client, server, auth = env_with_provider
     monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 0.01)
@@ -440,7 +440,7 @@ async def test_two_connections_cannot_claim_with_different_request_ids(tool_env)
 async def test_stale_worker_preserves_calls_without_replaying_until_explicit_cancel(
     tool_env, claimed
 ):
-    from octop.infra.projects.tasks import now_ms
+    from inhere_box.infra.projects.tasks import now_ms
 
     client, server, auth, outputs = tool_env
     session, ws = await connected(client, auth)

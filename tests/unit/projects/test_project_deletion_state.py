@@ -8,17 +8,17 @@ from types import SimpleNamespace
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.cron import task_delivery
-from octop.infra.cron.delivery import CronDeliveryCommand
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRow
-from octop.infra.db.repos.project_tasks import ProjectTaskRow
-from octop.infra.db.repos.unified_sources import UnifiedSourceRouteRepo
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import (
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.cron import task_delivery
+from inhere_box.infra.cron.delivery import CronDeliveryCommand
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRow
+from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
+from inhere_box.infra.db.repos.unified_sources import UnifiedSourceRouteRepo
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import (
     branches,
     conversation_imports,
     deliveries,
@@ -28,17 +28,17 @@ from octop.infra.projects import (
     tasks,
     workbench,
 )
-from octop.infra.projects.conversation_import_models import ConversationImport
-from octop.infra.projects.deletion_state import assert_project_writable, assert_task_writable
-from octop.infra.projects.interaction_models import InteractionResponse, TaskControl
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.projects.conversation_import_models import ConversationImport
+from inhere_box.infra.projects.deletion_state import assert_project_writable, assert_task_writable
+from inhere_box.infra.projects.interaction_models import InteractionResponse, TaskControl
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
 def services(tmp_path):
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
-    result = SharedServices(PathLayout(tmp_path), OctopConfig(), RepoBundle.from_pool(db))
+    result = SharedServices(PathLayout(tmp_path), InhereBoxConfig(), RepoBundle.from_pool(db))
     with db.transaction() as conn:
         for owner in (1, 2):
             conn.execute(
@@ -87,7 +87,7 @@ def mark(services, project="project"):
 
 
 def assert_busy(operation):
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         operation()
     assert error.value.code == ErrorCode.PROJECT_TASKS_BUSY
     assert error.value.status == 409
@@ -209,7 +209,7 @@ async def test_queued_notification_rechecks_fence_at_final_admission(services):
         tasks.TaskCreate(request_id="placeholder", prompt="Notification", project_id="project"),
     )
     mark(services)
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         await ingress.admit(services, 1, receipt.inbox_id)
     assert error.value.code == ErrorCode.PROJECT_TASKS_BUSY
     assert ingress.get_receipt(services, 1, receipt.inbox_id).status == "received"
@@ -419,7 +419,7 @@ def test_task_delete_clears_pending_source_and_disables_target_cron(services):
             is None
         )
         assert list(conn.execute("PRAGMA foreign_key_check")) == []
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         ingress.receive(
             services,
             1,
@@ -477,7 +477,7 @@ async def test_deleted_cron_binding_blocks_manual_run_until_explicit_reselection
         if renamed:
             services.cron_repo.update("bound-job", name="Renamed", enabled=True)
         assert services.settings_repo.get("deleted_cron_binding:bound-job") == "1"
-        with pytest.raises(OctopError) as error:
+        with pytest.raises(InhereBoxError) as error:
             await task_delivery.deliver(service, command())
         assert error.value.code == ErrorCode.FORBIDDEN
     with services.db.connect() as conn:

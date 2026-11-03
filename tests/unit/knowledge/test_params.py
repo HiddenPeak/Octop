@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.knowledge import params
+from inhere_box.infra.knowledge import params
 
 
 def test_advanced_settings_use_defaults_when_unset() -> None:
@@ -41,7 +41,7 @@ def test_advanced_settings_persist_and_reject_invalid_overlap() -> None:
 
 
 def test_capability_includes_advanced_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
-    from octop.infra.knowledge import gate
+    from inhere_box.infra.knowledge import gate
 
     monkeypatch.setattr(gate, "local_embedding_deps_available", lambda: True)
     monkeypatch.setattr(gate, "is_model_downloaded", lambda _model: False)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.connectors.oauth.pkce import new_pkce_pair, s256_challenge
+from inhere_box.infra.connectors.oauth.pkce import new_pkce_pair, s256_challenge
 
 # RFC 7636 Appendix B.
 _VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"

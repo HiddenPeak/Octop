@@ -20,19 +20,19 @@
 | 现代频道与计划管理 | 顶层 owner-scoped 频道与 cron API 支持可选专家/项目；频道绑定即时重载，显式 null 清空。频道 HTTP 13 项与 cron 选择/通知测试通过 | 既有 Task 的项目和身份不被频道编辑改写；要在同一来源采用另一项目，先开启新上下文 |
 | AgentComputer APP | 已更新[统一接入交接](agentcomputer-unified-conversations-handoff.md)，只读核对 APP 代码切点 | Swift/UI 实现、原生构建、设备验证及应用发布均不包含在本阶段已完成项中 |
 
-副本报告：`/private/tmp/octop-migration-rehearsal-h3i_h8my/rehearsal-report.json`；CLI 与 i18n 组合日志：`/private/tmp/octop-cli-task-4.log`，最终 CLI/HITL 16 项日志：`/private/tmp/octop-cli-final-5.log`；此前迁移、CLI、cron、分支与 schema 的小范围组合 63 项通过（`/private/tmp/octop-data-final-4.log`）；随后新增迁移竞争测试后，迁移独立 24 项通过（`/private/tmp/octop-migration-fence-final.log`），schema 幂等/唯一约束独立 5 项通过（`/private/tmp/octop-schema-final-5.log`）。这些路径是本机临时证据，不是可公开分发的用户数据备份。后续完成真实实例迁移或新增验收时，应追加实际结果，不能把原始排期自动改成通过状态。
+副本报告：`/private/tmp/inhere-box-migration-rehearsal-h3i_h8my/rehearsal-report.json`；CLI 与 i18n 组合日志：`/private/tmp/inhere-box-cli-task-4.log`，最终 CLI/HITL 16 项日志：`/private/tmp/inhere-box-cli-final-5.log`；此前迁移、CLI、cron、分支与 schema 的小范围组合 63 项通过（`/private/tmp/inhere-box-data-final-4.log`）；随后新增迁移竞争测试后，迁移独立 24 项通过（`/private/tmp/inhere-box-migration-fence-final.log`），schema 幂等/唯一约束独立 5 项通过（`/private/tmp/inhere-box-schema-final-5.log`）。这些路径是本机临时证据，不是可公开分发的用户数据备份。后续完成真实实例迁移或新增验收时，应追加实际结果，不能把原始排期自动改成通过状态。
 
-私人助手 6 个受影响集成文件单轮 73 项全部通过：`/private/tmp/octop-resident-native-complete-9.log`。首轮整合回归 281 项通过：`/private/tmp/octop-unified-final1.log`。各集合有重叠，不加总为去重总数；未运行完整 `make all`，未修改运行主库，未提交或推送。
+私人助手 6 个受影响集成文件单轮 73 项全部通过：`/private/tmp/inhere-box-resident-native-complete-9.log`。首轮整合回归 281 项通过：`/private/tmp/inhere-box-unified-final1.log`。各集合有重叠，不加总为去重总数；未运行完整 `make all`，未修改运行主库，未提交或推送。
 
-最终增量整合 263 项通过：`/private/tmp/octop-unified-final2.log`；最终代码真实远程双实例复验 1 项通过、22.78 秒：`/private/tmp/octop-remote-live-final4.log`。后者仍为 peer 4 条模型账本、本机 0 条，细节见[实际验收记录第 9 节](unified-task-live-acceptance-2026-10-23.md#9-扩展范围远程统一-task-的真实双实例验收)。
+最终增量整合 263 项通过：`/private/tmp/inhere-box-unified-final2.log`；最终代码真实远程双实例复验 1 项通过、22.78 秒：`/private/tmp/inhere-box-remote-live-final4.log`。后者仍为 peer 4 条模型账本、本机 0 条，细节见[实际验收记录第 9 节](unified-task-live-acceptance-2026-10-23.md#9-扩展范围远程统一-task-的真实双实例验收)。
 
-普通 IM 没有与 Octop 登录身份的可信映射。频道 owner 授权不等于发送者本人：IM 不注入 owner 的 `USER.md`、专家/团队成员私人长期记忆和默认知识库，不采集到专家长期记忆，已有此类抽取 job 也会取消。Task 自身上下文保留；即使账号为 full_access，涉及写操作仍须本人在任务页按准确 interaction 批准，IM `/approve` 不能代批。核心 `/help /status /model /mode /compact /pending /new /stop` 已采用 Task 语义；`/switch /resume /delete` 等旧 thread 写入命令明确不支持，专家管理仍走专家设置。
+普通 IM 没有与 inhere-box 登录身份的可信映射。频道 owner 授权不等于发送者本人：IM 不注入 owner 的 `USER.md`、专家/团队成员私人长期记忆和默认知识库，不采集到专家长期记忆，已有此类抽取 job 也会取消。Task 自身上下文保留；即使账号为 full_access，涉及写操作仍须本人在任务页按准确 interaction 批准，IM `/approve` 不能代批。核心 `/help /status /model /mode /compact /pending /new /stop` 已采用 Task 语义；`/switch /resume /delete` 等旧 thread 写入命令明确不支持，专家管理仍走专家设置。
 
 ## 1. 最终产品形态
 
 - 网页、APP、IM、CLI、cron 都创建或追加同一种 Task/Turn，使用同一套受理、权限、模型路由、执行、审批、记忆、用量和成果规则。
 - 专家仍是独立配置与记忆身份；项目仍独立持有目录和资源；首条消息创建 Task，后续消息追加 Turn。
-- 远程专家在其所在 Octop 执行，远端 Task 是权威记录。本机只保存代理索引和观察进度，不再创建另一个可执行的镜像 Task。
+- 远程专家在其所在 inhere-box 执行，远端 Task 是权威记录。本机只保存代理索引和观察进度，不再创建另一个可执行的镜像 Task。
 - 普通旧会话完成批量转换后出现在统一列表，旧链接直接定位对应 Task。迁移原始数据和无法解释的数据继续保存，不能以隐藏异常冒充全量成功。
 - 私人管家保持唯一固定身份和专用产品入口；其底层接入统一执行需要专用适配，不能把私人管家变成可任意切换专家的普通 Task。
 
@@ -80,7 +80,7 @@ flowchart LR
 | `task_deliveries` | 目标渠道、Turn、输出阶段/块、投递状态、回执及可安全恢复的位置；不以模型重新执行修补投递失败 |
 | `cron_occurrences` | job、计划触发时间/手动触发 ID、Task/Turn、调度 claim 和结果状态，防止重启重复执行同次触发 |
 
-来源标识和执行身份由服务端可信适配器生成，不接受模型或外部请求任意声明 owner。IM sender 与 Octop owner 的可信绑定分别验证；“发送到了某专家的机器人”不等于“拥有这个专家或其私人记忆”。现有来源会话键不含 channel 实例、入站结构没有统一的一等 event ID，不能直接原样复用为新唯一键。
+来源标识和执行身份由服务端可信适配器生成，不接受模型或外部请求任意声明 owner。IM sender 与 inhere-box owner 的可信绑定分别验证；“发送到了某专家的机器人”不等于“拥有这个专家或其私人记忆”。现有来源会话键不含 channel 实例、入站结构没有统一的一等 event ID，不能直接原样复用为新唯一键。
 
 新消息有一个领域受理出口。来源路由、Task 创建和幂等记录应在可核对的事务边界发布；困难度分类等模型 I/O 仍位于事务之外，提交前再次校验版本与路由，不能持有数据库锁等待模型。现有 ChannelManager 入站队列和旧 HITL store 均不是持久收件箱；Task 忙碌时应让来源 inbox 按序等待或明确返回忙碌，不能另建 Task 偷绕同一会话约束。取消等控制消息需优先处理，不排在等待模型完成的消息之后。
 

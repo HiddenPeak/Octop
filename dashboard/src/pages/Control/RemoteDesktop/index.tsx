@@ -42,7 +42,7 @@ export default function RemoteDesktopPage() {
   const { activeTab, handleTabChange, isMounted } = usePathTabs({
     basePath: "/remote-desktop",
     tabs: REMOTE_DESKTOP_TABS,
-    storageKey: "octop:remote-desktop:tab",
+    storageKey: "inhere-box:remote-desktop:tab",
     defaultTab,
     isAllowed,
   });

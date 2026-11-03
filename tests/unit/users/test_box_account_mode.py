@@ -10,30 +10,30 @@ from typing import Any
 import pytest
 from click.testing import CliRunner
 
-from octop.cli.main import cli
-from octop.cli.support import offline_ops
-from octop.config import OctopConfig
-from octop.infra.auth.ldap.client import LdapIdentity
-from octop.infra.auth.ldap.service import LdapAuthService
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import SharedServices, build_shared_services
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.users.identity import User
-from octop.infra.users.invites import InviteService
-from octop.infra.users.manager import UserManager
-from octop.infra.utils.paths import PathLayout
+from inhere_box.cli.main import cli
+from inhere_box.cli.support import offline_ops
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.auth.ldap.client import LdapIdentity
+from inhere_box.infra.auth.ldap.service import LdapAuthService
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import SharedServices, build_shared_services
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.users.identity import User
+from inhere_box.infra.users.invites import InviteService
+from inhere_box.infra.users.manager import UserManager
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
 def box_services(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[SharedServices]:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     paths = PathLayout(tmp_path)
     paths.config.write_text(json.dumps({"account_mode": "box_local"}), encoding="utf-8")
     db = SqlitePool(paths.db)
     run_migrations(db)
     services = build_shared_services(
-        db=db, paths=paths, config=OctopConfig(account_mode="box_local")
+        db=db, paths=paths, config=InhereBoxConfig(account_mode="box_local")
     )
     # The claim transaction owns creation. Seed its resulting owner row without
     # going through the legacy manager or introducing real workspace I/O.
@@ -44,7 +44,7 @@ def box_services(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Sh
         db.close()
 
 
-def assert_mode_rejection(exc: OctopError) -> None:
+def assert_mode_rejection(exc: InhereBoxError) -> None:
     assert exc.code is ErrorCode.FORBIDDEN
     assert exc.status == 403
     assert exc.details == {"reason": "box_account_mode"}
@@ -91,7 +91,7 @@ async def test_legacy_manager_account_operations_are_blocked(
     manager.register_cached_user(
         User(id=owner.id, username=owner.username, role=owner.role, display_name=None)
     )
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         await getattr(manager, method)(*args, **kwargs)
     assert_mode_rejection(exc.value)
     assert box_services.user_repo.list(include_disabled=True) == before
@@ -124,14 +124,14 @@ def test_invites_cannot_create_or_advertise_legacy_signup(box_services: SharedSe
         code="old-invite", created_by=owner.id, expires_at=2**31
     )
     service = InviteService(box_services)
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         service.create(created_by=owner.id, actor_username="owner")
     assert_mode_rejection(exc.value)
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         service.validate(invite.code)
     assert_mode_rejection(exc.value)
     registered: list[User] = []
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         service.redeem(
             code=invite.code,
             username="second",
@@ -148,10 +148,10 @@ def test_invites_cannot_create_or_advertise_legacy_signup(box_services: SharedSe
 
 async def test_ldap_neither_authenticates_nor_provisions(box_services: SharedServices) -> None:
     service = LdapAuthService(box_services, UserManager(box_services))
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         service.directory_authenticate("owner", "TestPass12")
     assert_mode_rejection(exc.value)
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         await service.resolve_user(
             LdapIdentity(
                 dn="uid=second,dc=example,dc=com",
@@ -184,7 +184,7 @@ def test_offline_cli_cannot_bypass_box_account_mode(
     box_services: SharedServices, method: str, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> None:
     before = box_services.user_repo.list(include_disabled=True)
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         getattr(offline_ops, method)(*args, **kwargs, home=box_services.paths.root)
     assert_mode_rejection(exc.value)
     assert box_services.user_repo.list(include_disabled=True) == before
@@ -194,7 +194,7 @@ def test_offline_cli_cannot_bypass_box_account_mode(
 def test_init_cannot_replace_claim_or_wipe_box_state(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, force: bool
 ) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     config_path = tmp_path / "config.json"
     config_text = json.dumps({"account_mode": "box_local"})
     config_path.write_text(config_text, encoding="utf-8")
@@ -215,4 +215,4 @@ def test_init_cannot_replace_claim_or_wipe_box_state(
     assert "error:" in result.output
     assert config_path.read_text(encoding="utf-8") == config_text
     assert marker.read_text(encoding="utf-8") == "keep"
-    assert not (tmp_path / "octop.db").exists()
+    assert not (tmp_path / "inhere-box.db").exists()

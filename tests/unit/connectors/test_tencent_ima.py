@@ -31,13 +31,13 @@ def _install_httpx_mock(monkeypatch: pytest.MonkeyPatch, captured: dict[str, obj
             return _Resp()
 
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.tencent_ima.httpx.Client",
+        "inhere_box.infra.connectors.gateway.adapters.tencent_ima.httpx.Client",
         _Client,
     )
 
 
 def _call(name: str, args: dict[str, Any] | None = None) -> str:
-    from octop.infra.connectors.gateway.adapters.tencent_ima import call_tool
+    from inhere_box.infra.connectors.gateway.adapters.tencent_ima import call_tool
 
     return call_tool(
         {"api_key": "k", "client_id": "c"},
@@ -47,7 +47,7 @@ def _call(name: str, args: dict[str, Any] | None = None) -> str:
 
 
 def test_list_tools_covers_json_openapi_surface() -> None:
-    from octop.infra.connectors.gateway.adapters.tencent_ima import list_tools
+    from inhere_box.infra.connectors.gateway.adapters.tencent_ima import list_tools
 
     names = {t["name"] for t in list_tools()}
     assert names == {

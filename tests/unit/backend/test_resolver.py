@@ -13,7 +13,7 @@ from deepagents.backends import CompositeBackend
 from octop_harness.backends import resolve_backend
 from octop_harness.backends.workspace import BackendWorkspace
 
-from octop.infra.backend.resolver import (
+from inhere_box.infra.backend.resolver import (
     _is_host_root,
     backend_spec_supports_execution,
     default_agent_backend_spec,
@@ -24,7 +24,7 @@ from octop.infra.backend.resolver import (
 def test_default_agent_backend_spec_posix_uses_host_root(tmp_path: Path) -> None:
     ws = tmp_path / "agents" / "AGT001"
     ws.mkdir(parents=True)
-    with patch("octop.infra.backend.resolver.os", SimpleNamespace(name="posix")):
+    with patch("inhere_box.infra.backend.resolver.os", SimpleNamespace(name="posix")):
         spec = default_agent_backend_spec(ws)
     assert spec == {"type": "local_shell", "root_dir": "/", "virtual_mode": True}
 
@@ -68,7 +68,7 @@ def test_default_agent_backend_resolve_workspace_file_ops(tmp_path: Path) -> Non
 def test_default_agent_backend_spec_windows_scopes_to_workspace(tmp_path: Path) -> None:
     ws = tmp_path / "agents" / "AGT001"
     ws.mkdir(parents=True)
-    with patch("octop.infra.backend.resolver.os", SimpleNamespace(name="nt")):
+    with patch("inhere_box.infra.backend.resolver.os", SimpleNamespace(name="nt")):
         spec = default_agent_backend_spec(ws)
     assert spec == {
         "type": "local_shell",
@@ -92,7 +92,7 @@ def test_is_host_root_ignores_drive_root_and_missing() -> None:
 
 def test_windows_neutralize_is_passthrough_on_posix(tmp_path: Path) -> None:
     spec = {"type": "local_shell", "root_dir": "/", "virtual_mode": True}
-    with patch("octop.infra.backend.resolver.os", SimpleNamespace(name="posix")):
+    with patch("inhere_box.infra.backend.resolver.os", SimpleNamespace(name="posix")):
         out = windows_neutralize_host_root(spec, workspace_dir=tmp_path)
     assert out == spec
 
@@ -102,7 +102,7 @@ def test_windows_neutralize_local_shell_host_root_scopes_to_workspace(
 ) -> None:
     ws = tmp_path / "agents" / "AGT001"
     ws.mkdir(parents=True)
-    with patch("octop.infra.backend.resolver.os", SimpleNamespace(name="nt")):
+    with patch("inhere_box.infra.backend.resolver.os", SimpleNamespace(name="nt")):
         out = windows_neutralize_host_root(
             {"type": "local_shell", "root_dir": "/", "virtual_mode": True},
             workspace_dir=ws,
@@ -119,7 +119,7 @@ def test_windows_neutralize_filesystem_empty_root_scopes_to_workspace(
 ) -> None:
     ws = tmp_path / "agents" / "AGT001"
     ws.mkdir(parents=True)
-    with patch("octop.infra.backend.resolver.os", SimpleNamespace(name="nt")):
+    with patch("inhere_box.infra.backend.resolver.os", SimpleNamespace(name="nt")):
         out = windows_neutralize_host_root(
             {"type": "filesystem", "root_dir": "", "virtual_mode": True},
             workspace_dir=ws,
@@ -134,14 +134,14 @@ def test_windows_neutralize_filesystem_empty_root_scopes_to_workspace(
 
 def test_windows_neutralize_keeps_explicit_drive_root(tmp_path: Path) -> None:
     spec = {"type": "local_shell", "root_dir": "D:\\develop", "virtual_mode": True}
-    with patch("octop.infra.backend.resolver.os", SimpleNamespace(name="nt")):
+    with patch("inhere_box.infra.backend.resolver.os", SimpleNamespace(name="nt")):
         out = windows_neutralize_host_root(spec, workspace_dir=tmp_path)
     assert out == spec
 
 
 def test_windows_neutralize_keeps_missing_root_dir(tmp_path: Path) -> None:
     spec = {"type": "local_shell", "virtual_mode": True}
-    with patch("octop.infra.backend.resolver.os", SimpleNamespace(name="nt")):
+    with patch("inhere_box.infra.backend.resolver.os", SimpleNamespace(name="nt")):
         out = windows_neutralize_host_root(spec, workspace_dir=tmp_path)
     assert out == spec
 
@@ -154,7 +154,7 @@ def test_windows_neutralize_composite_default_host_root_scoped(tmp_path: Path) -
         "default": {"type": "local_shell", "root_dir": "/", "virtual_mode": True},
         "routes": {},
     }
-    with patch("octop.infra.backend.resolver.os", SimpleNamespace(name="nt")):
+    with patch("inhere_box.infra.backend.resolver.os", SimpleNamespace(name="nt")):
         out = windows_neutralize_host_root(spec, workspace_dir=ws)
     assert out["default"] == {
         "type": "local_shell",
@@ -176,6 +176,6 @@ def test_windows_neutralize_composite_healthy_default_kept(tmp_path: Path) -> No
             }
         },
     }
-    with patch("octop.infra.backend.resolver.os", SimpleNamespace(name="nt")):
+    with patch("inhere_box.infra.backend.resolver.os", SimpleNamespace(name="nt")):
         out = windows_neutralize_host_root(spec, workspace_dir=tmp_path)
     assert out == spec

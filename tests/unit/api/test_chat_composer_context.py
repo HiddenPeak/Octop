@@ -6,9 +6,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from octop.api.routers.chat.turn import resolve_thread_id
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.gateway.process.message_keys import build_composer_context
+from inhere_box.api.routers.chat.turn import resolve_thread_id
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.gateway.process.message_keys import build_composer_context
 
 
 class _ThreadRegistry:
@@ -27,7 +27,7 @@ class _ThreadRegistry:
 async def test_resolve_thread_id_rejects_another_users_thread() -> None:
     registry = _ThreadRegistry(SimpleNamespace(agent_id="shared-agent", user_id=1))
 
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         await resolve_thread_id(
             agent_id="shared-agent",
             user_id=2,

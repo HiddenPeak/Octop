@@ -9,19 +9,19 @@ from threading import Event
 
 import pytest
 
-from octop.infra.agentcomputer.bootstrap import DaemonBootstrap
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.agentcomputer.bootstrap import DaemonBootstrap
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 async def test_daemon_lock_survives_other_process_and_can_be_reacquired(tmp_path, monkeypatch):
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     guard = DaemonBootstrap(tmp_path / "agentcomputer-control")
     await guard.acquire()
     await guard.acquire()
     code = """
 import sys
 from pathlib import Path
-from octop.infra.agentcomputer.preparation_lock import preparation_lock
+from inhere_box.infra.agentcomputer.preparation_lock import preparation_lock
 with preparation_lock(Path(sys.argv[1])) as acquired:
     print(int(acquired))
 """
@@ -47,7 +47,7 @@ async def test_busy_guard_does_not_release_owner(tmp_path):
     await owner.acquire()
     try:
         for _ in range(2):
-            with pytest.raises(OctopError) as caught:
+            with pytest.raises(InhereBoxError) as caught:
                 await other.acquire()
             assert caught.value.code == ErrorCode.CONTROL_PLANE_BUSY
             await other.close()

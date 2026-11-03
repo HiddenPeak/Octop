@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from octop.api.routers.browser import harness as harness_mod
-from octop.infra.browser import sessions as browser_sessions
+from inhere_box.api.routers.browser import harness as harness_mod
+from inhere_box.infra.browser import sessions as browser_sessions
 
 
 def _fake_sess(*, active_id: str | None = "T1", port: int = 9222) -> SimpleNamespace:

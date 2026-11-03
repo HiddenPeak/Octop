@@ -4,12 +4,12 @@ import type { RefObject } from "react";
 import SessionList from "./SessionList";
 import MinimalAgentSessionNav from "./MinimalAgentSessionNav";
 import type { Session } from "../hooks/useSessions";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import RailEdgeControl from "../../../components/RailEdgeControl";
 import styles from "../index.module.less";
 
 /** Dispatched when the chat history rail expand control is clicked. */
-export const EXPAND_CHAT_RAIL_EVENT = "octop:expand-chat-rail";
+export const EXPAND_CHAT_RAIL_EVENT = "inhere-box:expand-chat-rail";
 
 interface ChatSidebarPanelProps {
   isMobile: boolean;
@@ -17,7 +17,7 @@ interface ChatSidebarPanelProps {
   sidebarWidth: number;
   isSidebarResizing?: boolean;
   sidebarElRef?: RefObject<HTMLDivElement>;
-  agents: OctopAgent[];
+  agents: InhereBoxAgent[];
   sessions: Session[];
   activeThreadId: string | null;
   resolvedAgentId: string | null | undefined;

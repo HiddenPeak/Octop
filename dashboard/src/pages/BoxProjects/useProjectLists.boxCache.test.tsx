@@ -57,7 +57,7 @@ it("isolates persisted project lists when the same origin and owner belong to a 
 it("preserves the existing server-mode cache key", () => {
   const project = { project_id: "legacy-project" };
   sessionStorage.setItem(
-    "octop:project-lists:v3:/api/:1:owner:local:local-identity:projects",
+    "inhere-box:project-lists:v3:/api/:1:owner:local:local-identity:projects",
     JSON.stringify({ items: [project], cursor: "legacy-cursor", page: null }),
   );
   const hook = renderHook(() => useProjectList());
@@ -67,7 +67,7 @@ it("isolates resident drafts and pending requests without changing server keys",
   const scope = { agent_id: "resident-agent", thread_id: "resident-thread" };
   const legacy = residentStorageKey(1, scope);
   expect(legacy).toBe(
-    'octop.resident.v1:["1","resident-agent","resident-thread"]',
+    'inhere_box.resident.v1:["1","resident-agent","resident-thread"]',
   );
   state.boxId = "box-a";
   const first = residentStorageKey(1, scope);

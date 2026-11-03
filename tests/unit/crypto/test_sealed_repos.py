@@ -6,23 +6,23 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.crypto.sealed_repos import (
+from inhere_box.infra.crypto.sealed_repos import (
     SealedBackendRepo,
     SealedProviderRepo,
     SealedVoiceProviderRepo,
 )
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.backends import BackendRepo
-from octop.infra.db.repos.providers import ProviderRepo
-from octop.infra.db.repos.secrets import SecretRepo
-from octop.infra.db.repos.voice_providers import VoiceProviderRepo
-from octop.infra.db.services import RepoBundle
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.backends import BackendRepo
+from inhere_box.infra.db.repos.providers import ProviderRepo
+from inhere_box.infra.db.repos.secrets import SecretRepo
+from inhere_box.infra.db.repos.voice_providers import VoiceProviderRepo
+from inhere_box.infra.db.services import RepoBundle
 
 
 @pytest.fixture
 def db(tmp_path: Path) -> SqlitePool:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     return pool
 

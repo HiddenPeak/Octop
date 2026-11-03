@@ -18,7 +18,7 @@ func TestPortableVersionPrefersNewestPackageMetadata(t *testing.T) {
 		t.Run(test.want, func(t *testing.T) {
 			root := t.TempDir()
 			for _, version := range test.versions {
-				path := filepath.Join(root, "packages", "octop-"+version+".dist-info", "METADATA")
+				path := filepath.Join(root, "packages", "inhere_box-"+version+".dist-info", "METADATA")
 				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 					t.Fatal(err)
 				}
@@ -26,7 +26,7 @@ func TestPortableVersionPrefersNewestPackageMetadata(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if err := os.WriteFile(filepath.Join(root, "VERSION.txt"), []byte("octop_version="+test.fromFile+"\n"), 0o644); err != nil {
+			if err := os.WriteFile(filepath.Join(root, "VERSION.txt"), []byte("inhere_box_version="+test.fromFile+"\n"), 0o644); err != nil {
 				t.Fatal(err)
 			}
 			if got := portableVersion(root); got != test.want {

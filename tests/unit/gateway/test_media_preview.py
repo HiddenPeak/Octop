@@ -10,7 +10,7 @@ import pytest
 from deepagents.backends.local_shell import LocalShellBackend
 from octop_harness.backends.workspace import BackendWorkspace
 
-from octop.infra.gateway.media.backend_files import (
+from inhere_box.infra.gateway.media.backend_files import (
     is_previewable_mime,
     media_preview_url,
     resolve_preview_payload,

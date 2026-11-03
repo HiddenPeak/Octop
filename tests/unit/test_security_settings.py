@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 from octop_harness.security.models import SecurityPolicy
 
-from octop.infra.agents.security import SecuritySettingsStore, tool_execution_may_pause
+from inhere_box.infra.agents.security import SecuritySettingsStore, tool_execution_may_pause
 
 
 def test_load_defaults_when_missing() -> None:

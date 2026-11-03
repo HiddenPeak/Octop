@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from octop.config import load_config
-from octop.infra.mobile.config_probe import persist_mobile_probe
-from octop.infra.mobile.probe import MobileProbeResult
+from inhere_box.config import load_config
+from inhere_box.infra.mobile.config_probe import persist_mobile_probe
+from inhere_box.infra.mobile.probe import MobileProbeResult
 
 
 def test_persist_mobile_probe_merges(tmp_path: Path) -> None:

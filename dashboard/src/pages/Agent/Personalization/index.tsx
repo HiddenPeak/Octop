@@ -72,7 +72,7 @@ export default function PersonalizationPage() {
   const { activeTab, handleTabChange, isMounted } = usePathTabs({
     basePath: "/personalization",
     tabs: PERSONALIZATION_TABS,
-    storageKey: "octop:personalization:tab",
+    storageKey: "inhere-box:personalization:tab",
     defaultTab: "skills",
     isAllowed,
   });

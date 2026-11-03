@@ -14,10 +14,10 @@ from typing import Any
 import httpx
 import pytest
 
-import octop.infra.voice.adapters as voice_adapters
-from octop.infra.db.repos.voice_providers import VoiceProviderRow
-from octop.infra.voice.adapters import STTResult, _probe_tone_wav
-from octop.infra.voice.adapters import test_stt as probe_stt
+import inhere_box.infra.voice.adapters as voice_adapters
+from inhere_box.infra.db.repos.voice_providers import VoiceProviderRow
+from inhere_box.infra.voice.adapters import STTResult, _probe_tone_wav
+from inhere_box.infra.voice.adapters import test_stt as probe_stt
 
 
 def _row(*, kind: str, api_key: str | None = "k", extra: dict[str, Any] | None = None):

@@ -5,19 +5,19 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.knowledge import KnowledgeRepo
-from octop.infra.db.repos.settings import SettingsRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.knowledge import retrieve as retrieve_module
-from octop.infra.knowledge.citations import CITATIONS_MARKER_PREFIX
-from octop.infra.knowledge.index import KnowledgeIndex
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.knowledge import KnowledgeRepo
+from inhere_box.infra.db.repos.settings import SettingsRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.knowledge import retrieve as retrieve_module
+from inhere_box.infra.knowledge.citations import CITATIONS_MARKER_PREFIX
+from inhere_box.infra.knowledge.index import KnowledgeIndex
 
 
 def test_retrieve_context_filters_unreadable_knowledge_base(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path / "home"))
-    pool = SqlitePool(tmp_path / "octop.db")
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path / "home"))
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     services = SimpleNamespace(
         knowledge_repo=KnowledgeRepo(pool),

@@ -1,11 +1,11 @@
 # AgentComputer 本机纯文本 Task 试用
 
-这一切片让 AgentComputer 的“盒子项目”页面创建 Task、提交文本 Turn、列出项目已有 Task 与最近 Run，并查看 Run 状态和最终回答。Octop 服务端可读取同一 Task 的多轮原文与结果；本机 GLM 已完成多轮问答，macOS 原生 App 已展示五轮历史。它只面向本机回环地址上的单进程 Octop，使用 Octop 用户 Bearer 会话。默认关闭；启用时固定一个已配置的模型，并要求 SQLite 控制库和 v2 历史。后续增加了[项目文档与一次受控读取](agentcomputer-project-documents.md)；其他工具、MCP、技能、子代理、任意文件操作、审批续跑和远端设备配对仍未开放。
+这一切片让 AgentComputer 的“盒子项目”页面创建 Task、提交文本 Turn、列出项目已有 Task 与最近 Run，并查看 Run 状态和最终回答。inhere-box 服务端可读取同一 Task 的多轮原文与结果；本机 GLM 已完成多轮问答，macOS 原生 App 已展示五轮历史。它只面向本机回环地址上的单进程 inhere-box，使用 inhere-box 用户 Bearer 会话。默认关闭；启用时固定一个已配置的模型，并要求 SQLite 控制库和 v2 历史。后续增加了[项目文档与一次受控读取](agentcomputer-project-documents.md)；其他工具、MCP、技能、子代理、任意文件操作、审批续跑和远端设备配对仍未开放。
 
 ## 本机启用
 
-1. 在运行这份代码的 Octop 实例中，通过管理界面配置一个可用的聊天 Provider。项目 `modelRef` 必须是该实例的 `Provider名/模型ID`；8088 和隔离的 8090 实例各有自己的控制库，不能把前者有 GLM 误认为后者也有。验证模型列表请使用不含密钥的 `/api/providers/resolved`，不要打印 `/api/providers` 的完整响应。
-2. 停止要升级的本机实例并完整备份其 `OCTOP_HOME`，包括 SQLite WAL 文件。仅修改该实例的 `config.json`：
+1. 在运行这份代码的 inhere-box 实例中，通过管理界面配置一个可用的聊天 Provider。项目 `modelRef` 必须是该实例的 `Provider名/模型ID`；8088 和隔离的 8090 实例各有自己的控制库，不能把前者有 GLM 误认为后者也有。验证模型列表请使用不含密钥的 `/api/providers/resolved`，不要打印 `/api/providers` 的完整响应。
+2. 停止要升级的本机实例并完整备份其 `INHERE_BOX_HOME`，包括 SQLite WAL 文件。仅修改该实例的 `config.json`：
 
    ```json
    {
@@ -16,8 +16,8 @@
    }
    ```
 
-   把这些字段合并进现有配置，不要覆盖数据库、TLS 和其他设置。GLM 可以继续作为模型；这里无需等待 Qwen 服务地址。启用后使用一个 worker 且不开 reload，例如 `octop run --host 127.0.0.1 --workers 1`。非回环监听或多 worker 会在启动前被拒绝。
-3. 使用该实例的 Octop 账号在 AgentComputer“设置 → 连接”登录。能力查询应显示 `projects/tasks/runs.available=true` 和 `supportedPermissionModes=["askForApproval"]`；若仍为 false，检查当前实例的 Provider、模型引用、v2 历史、SQLite 和监听地址。
+   把这些字段合并进现有配置，不要覆盖数据库、TLS 和其他设置。GLM 可以继续作为模型；这里无需等待 Qwen 服务地址。启用后使用一个 worker 且不开 reload，例如 `inhere-box run --host 127.0.0.1 --workers 1`。非回环监听或多 worker 会在启动前被拒绝。
+3. 使用该实例的 inhere-box 账号在 AgentComputer“设置 → 连接”登录。能力查询应显示 `projects/tasks/runs.available=true` 和 `supportedPermissionModes=["askForApproval"]`；若仍为 false，检查当前实例的 Provider、模型引用、v2 历史、SQLite 和监听地址。
 4. 在 AgentComputer“盒子项目”里创建使用同一 `modelRef` 的新项目。项目详情显示 `ready` 且 `executionReady=true` 后创建 Task，输入一条短文本并提交。客户端先持久保存命令 ID、幂等键和原始请求；丢失响应时先回查原收据，避免重复创建。重新打开项目时，客户端从服务端分页获取已有 Task 及最近 Run，包括本地索引中没有的 Task。Run 成功后只展示服务端从固定 v2 历史及完成收据共同验证的文本结果。
 
 已有的 `failed/providerUnavailable` 项目不会因为改了服务端模型就自动变成新模型项目；请新建与当前固定模型一致的项目。项目、Task 与 Turn 都按登录用户隔离。一次 Run 未完成时，该项目和 Task 的活动 lane 仍被占用；已交接的中断会保守保留 `reconciliationRequired`，不能盲目重投。

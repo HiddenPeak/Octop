@@ -11,7 +11,7 @@ import pytest
 from tests.live.unified_task_support import LiveTaskEnvironment, await_task, live_options
 from tests.support.auth import auth_header
 
-from octop.infra.projects.expert_profiles import _workspace
+from inhere_box.infra.projects.expert_profiles import _workspace
 
 pytestmark = pytest.mark.live
 

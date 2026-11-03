@@ -1,12 +1,15 @@
-# AgentComputer 与 Octop 集成
+# AgentComputer 与 inhere-box 集成
 
-## 当前接入导航（2026-10-23）
+## 当前接入导航（2026-11-03）
 
 APP 的普通会话统一使用多轮 Task，项目和专家均可选。REST 使用 `/api/projects`、`/api/project-tasks`，消息提交与实时观察使用主连接 `WS /api/project-tasks/ws`。私人 Resident 保留独立身份、会话和 REST 接口，通过同一主连接订阅正文。
 
 远程项目和 Task 已通过 Bridge 复用统一 REST/WS 协议；接入前须核对目标主机的能力与身份，按能力协商结果开放功能。服务端接口已实现不代表运行服务已经升级或 APP 已完成接线与设备验收。旧 `/api/agentcomputer/v1` 及其专用 Bridge 转发已移除。
 
-- [APP 统一会话接线](agentcomputer-unified-conversations-handoff.md)：当前接入范围、REST/WS、TaskRef、工作台与远程 Bridge 接线。
+- [APP 网络接入：局域网、外网 IP 与 Bonjour](app-network-connection-handoff.md)：最新连接入口、动态地址、默认 HTTP/WS、认证与 WS、验收边界。
+- [盒子账户接线](box-local-account-client.md)：管理密钥、自有设备/受邀设备登记、签名换票、多自有设备及缓存身份。
+- [APP 统一会话接线](agentcomputer-unified-conversations-handoff.md)：Task 业务接入范围、REST/WS、TaskRef、工作台与远程 Bridge 接线。
+- [Bonjour 局域网发现](bonjour-discovery.md)：服务类型、TXT 字段及 Mac/iOS 客户端接线；服务端广播不代表 APP 已实现搜索。
 - [当前接口契约](api.md)、[任务 WebSocket 指南](project-task-websocket.md)与 [WS JSON Schema](project-task-websocket.schema.json)：接口及报文；REST 机器契约和在线文档分别为 `GET /api/openapi.json`、`/api/docs`。
 - [Resident 共用正文流交接](agentcomputer-conversation-stream-handoff.md)：`resident.subscribe/unsubscribe`、正文快照及恢复规则。
 - [外围入口与旧数据方案](unified-task-all-entrypoints-plan.md)：IM/CLI/cron、批迁和远程 Task 的实施与验证范围。
@@ -25,9 +28,9 @@ APP 的普通会话统一使用多轮 Task，项目和专家均可选。REST 使
 
 > 2026-10-15 最新独立模型：项目与专家无关；正式网页项目与多轮任务已接入 `/api/projects`、`/api/project-tasks`，可选项目或无项目。8088 现有 GLM-5 已完成双轮会话与历史恢复。详见 [当前交付记录](agentcomputer-progress.md#2026-10-15-独立项目任务会话已接通) 和 [现有接口](api.md)。下文原托管专家/Bridge 实现为历史记录，不是新模型依赖。
 
-> 2026-10-15 最新方向：Octop「项目和任务」先交付独立项目新建与修改。项目独立持有目录、Skill/MCP、行动指南，不依赖专家。正式项目接口为 `/api/projects`；不迁移或兼容此前托管专家的项目原型。下文早期里程碑仅作历史记录，不代表新模型的任务执行已接入。
+> 2026-10-15 最新方向：inhere-box「项目和任务」先交付独立项目新建与修改。项目独立持有目录、Skill/MCP、行动指南，不依赖专家。正式项目接口为 `/api/projects`；不迁移或兼容此前托管专家的项目原型。下文早期里程碑仅作历史记录，不代表新模型的任务执行已接入。
 
-本项目把 Octop 作为 AgentComputer 的盒子执行引擎。首轮已建立认证能力查询和稳定服务身份；第二轮继续建立持久数据层、内部原子接收与已有收据查询，详细规则见 [第二轮数据层说明](agentcomputer-core.md)。
+本项目把 inhere-box 作为 AgentComputer 的盒子执行引擎。首轮已建立认证能力查询和稳定服务身份；第二轮继续建立持久数据层、内部原子接收与已有收据查询，详细规则见 [第二轮数据层说明](agentcomputer-core.md)。
 
 当前[本机 Task 试用](agentcomputer-local-text-task.md)在显式 opt-in、固定可用模型与回环单进程条件满足时，可从 AgentComputer 盒子项目创建 Task、提交 Turn、等待后台 worker、读取经完成收据和 v2 历史共同验证的回答。新增[项目文档与受控读取](agentcomputer-project-documents.md)：本人可导入、列出和读取项目中的小型文本文件，模型可调用一次 `read_project_document`，完成证据绑定工具日志、四条历史消息和最终回答。默认仍关闭；其他工具、审批续跑和远端设备配对未开放。8090 隔离实例已用 GLM-5 完成真实文档读取与结果验收，详见[进度记录](agentcomputer-progress.md)。
 
@@ -93,9 +96,9 @@ APP 的普通会话统一使用多轮 Task，项目和专家均可选。REST 使
 
 | 项目 | 位置或来源 | 依据 |
 |---|---|---|
-| 交付 fork | [RMinte/Octop](https://github.com/RMinte/Octop) | 用户指定的后续交付仓库 |
-| 上游 | [TencentCloud/Octop](https://github.com/TencentCloud/Octop) | 保留上游来源，后续升级先验证兼容性 |
-| 首轮 Octop 主目录基线 | `main` | `0c5a46ab5f82e5ad9d1a56fa09b00e542f042fda` |
+| 交付 fork | [RMinte/inhere-box](https://github.com/RMinte/Octop) | 用户指定的后续交付仓库 |
+| 上游 | [TencentCloud/inhere-box](https://github.com/TencentCloud/Octop) | 保留上游来源，后续升级先验证兼容性 |
+| 首轮 inhere-box 主目录基线 | `main` | `0c5a46ab5f82e5ad9d1a56fa09b00e542f042fda` |
 | AgentComputer 主目录基线 | `feature/0.0.2/all` | `81e7acb653865f5c31342e844f2e90a36116caa9` |
 | 实施分支与提交 | `feature/agentcomputer-foundation`，逐轮沿主目录最新本地提交开发；交付提交见 Git 历史 | 提交前重新核对主目录最新 HEAD |
 | 第五轮开工基线 | `feature/agentcomputer-foundation` | `bdff37f31340e9ceecf18aac7f848d6e51c93647`，开工时主目录干净 |
@@ -119,11 +122,11 @@ APP 的普通会话统一使用多轮 Task，项目和专家均可选。REST 使
 | 第二十三轮开工基线 | `feature/agentcomputer-foundation` | `fe39d2d2e8b70822fd20eb3fc1ac23d148cbb4d1`，开工时主目录干净；AgentComputer 主目录 `feature/0.0.2/all @ 67d203b` 的既有文档改动保留 |
 | 第二十四轮开工基线 | `feature/agentcomputer-foundation` | `12b3623d5cef1f9c49bd2e83faf00e95907198f4`，开工时主目录干净；本轮受托引擎与历史实现并行修改 |
 | 第二十五轮开工基线 | `feature/agentcomputer-foundation` | `6d6a988fa8a0635d42ccc8c87beb17d893398d07`，开工时主目录干净 |
-| 第二十六轮开工基线 | `feature/agentcomputer-foundation` | `a5c33187c0071bc157f65ecc70a6690b71af8b1d`，开工时主目录干净；本轮仅修改 Octop checkout |
+| 第二十六轮开工基线 | `feature/agentcomputer-foundation` | `a5c33187c0071bc157f65ecc70a6690b71af8b1d`，开工时主目录干净；本轮仅修改 inhere-box checkout |
 
 Git remote 的实际名称、推送分支、提交和 PR 由交付记录填写；仓库网址不等于已经推送。工作开始核对主目录 status、worktree、branch 和 HEAD，保留已有文档及代码改动。提交运行仓库 hooks，完成默认 `make all` 门禁后再交付；不跳过红测试。
 
-本文是 fork 内的集成入口文档；API 与运行说明见 [API](api.md)、[配置](configuration.md)、[CLI](cli.md)。AgentComputer 客户端的详细规划仍保存在其 `SPEC/029-octop-box-integration.md` 及步骤附录，本轮不把客户端代码移入 Octop。
+本文是 fork 内的集成入口文档；API 与运行说明见 [API](api.md)、[配置](configuration.md)、[CLI](cli.md)。AgentComputer 客户端的详细规划仍保存在其 `SPEC/029-inhere-box-box-integration.md` 及步骤附录，本轮不把客户端代码移入 inhere-box。
 
 ## 阶段安排
 
@@ -144,18 +147,18 @@ Git remote 的实际名称、推送分支、提交和 PR 由交付记录填写�
 
 以下为首轮历史交付范围；第二轮能力和表变化见文末记录。
 
-新增 `GET /api/agentcomputer/v1/capabilities`，复用 Octop 当前登录用户认证。只有认证及系统初始化条件满足后才能查询，未认证请求不得取得服务身份信息。
+新增 `GET /api/agentcomputer/v1/capabilities`，复用 inhere-box 当前登录用户认证。只有认证及系统初始化条件满足后才能查询，未认证请求不得取得服务身份信息。
 
-本轮返回的是“这个 Octop 服务的稳定身份及当前未开放的业务能力”。创建项目、执行 Task、审批、成果、文件、Shell、终端、Cron 和设备配对均不由该接口实现，也不创建项目/Task/Run 业务表。
+本轮返回的是“这个 inhere-box 服务的稳定身份及当前未开放的业务能力”。创建项目、执行 Task、审批、成果、文件、Shell、终端、Cron 和设备配对均不由该接口实现，也不创建项目/Task/Run 业务表。
 
 | 内容 | 本轮约定 |
 |---|---|
 | `boxID` | 稳定 UUID 服务身份；同一控制目录重启、改端口和重建服务后不变 |
-| 身份存储 | 独立控制目录，位于专家工作区和可替换业务数据库之外；`agentcomputer-control/identity.json`，相对于 OCTOP_HOME |
+| 身份存储 | 独立控制目录，位于专家工作区和可替换业务数据库之外；`agentcomputer-control/identity.json`，相对于 INHERE_BOX_HOME |
 | 身份故障 | 已有身份文件损坏或读取失败时明确拒绝，不能静默生成新身份 |
 | `deviceID` | `null`；当前没有可信的配对设备上下文 |
-| `authenticationMode` | `octopUserSession`；登录账号身份不冒充生产设备配对 |
-| 业务能力 | 全部 `unavailable`，并提供明确原因；不根据原 Octop 工具是否安装推断 AgentComputer 协议已实现 |
+| `authenticationMode` | `inhereBoxUserSession`；登录账号身份不冒充生产设备配对 |
+| 业务能力 | 全部 `unavailable`，并提供明确原因；不根据原 inhere-box 工具是否安装推断 AgentComputer 协议已实现 |
 | `limits` | 尚未测量的额度返回 `null`/unknown；不填写假定数字，不解释为无限制 |
 | 版本及时间 | 返回实际可确认的协议、服务版本、服务 UTC 时间和配置时区 |
 
@@ -170,7 +173,7 @@ Git remote 的实际名称、推送分支、提交和 PR 由交付记录填写�
 | 验收项 | 预期结果 | 实际证据 |
 |---|---|---|
 | 未认证查询 | 拒绝请求，不返回 boxID 或能力载荷 | 已验证 401；URL token 同样拒绝 |
-| 已认证查询 | 类型化响应，authenticationMode 为 octopUserSession | 实际独立实例返回 200 |
+| 已认证查询 | 类型化响应，authenticationMode 为 inhereBoxUserSession | 实际独立实例返回 200 |
 | deviceID 与业务能力 | deviceID 为 null，全部业务能力 unavailable | 已验证 deviceID=null，18 项业务能力均未实现 |
 | 未测限额 | null/unknown，不承诺无限额度 | 10 个限额均为 null，权限模式为空 |
 | 重复读取和进程重启 | 同一控制目录保留同一 boxID | 单测及真实进程重启后 identity 指纹一致 |
@@ -185,20 +188,20 @@ Git remote 的实际名称、推送分支、提交和 PR 由交付记录填写�
 
 ## 本地隔离启动
 
-仅使用回环地址 `127.0.0.1:8090`。不要复用默认 `~/.octop`，也不要改变用户已经使用的 `127.0.0.1:8088` 服务。
+仅使用回环地址 `127.0.0.1:8090`。不要复用默认 `~/.inhere-box`，也不要改变用户已经使用的 `127.0.0.1:8088` 服务。
 
 当前开发机已在此 checkout 使用独立 `.runtime/agentcomputer` 数据目录完成初始化、登录与重启验证。新克隆应先按 [CLI 初始化](cli.md) 在自己的独立目录创建管理员，后续重启继续使用同一目录；不要使用 --force 覆盖已有资料。启动模板：
 
 ```sh
-OCTOP_HOME="$PWD/.runtime/agentcomputer" \
-OCTOP_ENABLE_API_DOCS=1 \
-OCTOP_HISTORY_V2_ENABLED=true \
-.venv/bin/octop run --host 127.0.0.1 --port 8090 --workers 1
+INHERE_BOX_HOME="$PWD/.runtime/agentcomputer" \
+INHERE_BOX_ENABLE_API_DOCS=1 \
+INHERE_BOX_HISTORY_V2_ENABLED=true \
+.venv/bin/inhere-box run --host 127.0.0.1 --port 8090 --workers 1
 ```
 
 打开 [本地实验控制台](http://127.0.0.1:8090) 或 [协议文档](http://127.0.0.1:8090/api/docs#tag/agentcomputer)。本机专用账号为 local-admin，生成的密码仅在忽略目录 `.runtime/agentcomputer/local-credentials.json` 保存；不提交或写入普通日志。当前实例已启用固定 GLM 模型的本机文本 Task；创建项目和任务的步骤见[试用指南](agentcomputer-local-text-task.md)。8088 用户实例保持独立。
 
-如 8090 已被占用，先核对监听进程；不终止不明进程，也不自动回退到 8088。启动命令的 host/port 会写入所选数据目录配置，必须核对 `OCTOP_HOME`。日志和本机人工验证结果在交付时另行填写。
+如 8090 已被占用，先核对监听进程；不终止不明进程，也不自动回退到 8088。启动命令的 host/port 会写入所选数据目录配置，必须核对 `INHERE_BOX_HOME`。日志和本机人工验证结果在交付时另行填写。
 
 该回环 HTTP 方式只用于当前开发机。生产客户端仍需受认证 HTTPS、可信证书和设备绑定，不能照搬为 LAN 或公网部署方式。
 
@@ -208,16 +211,16 @@ AgentComputer 当前 RM-01 开发适配具有可复用的协议依据：
 
 - 历史模型 ID 为 `RM-01 VLM`，开发服务地址仍保留在客户端配置；联调使用经确认的入口，该模型接口不承担设备业务协议。
 - App 使用 Responses、原始 output item 重放、`store=false`，不发送 Authorization、`previous_response_id` 和厂商 reasoning 配置，发送 `chat_template_kwargs.enable_thinking=false`。
-- 历史记录含合成 `box_echo → BOX_OK` 工具续轮；旧成功不证明服务当前在线或 Octop 工具循环已经兼容。
+- 历史记录含合成 `box_echo → BOX_OK` 工具续轮；旧成功不证明服务当前在线或 inhere-box 工具循环已经兼容。
 - “独立算力能部署 Qwen 27B”是用户提供的目标条件说明；不能据此将它与 RM-01 模型 ID、协议或权重版本视为同一服务。
 
-Octop 的 `ProviderStore` 会筛除空 API Key，当前锁定的 `octop-harness 1.0.1` 的 `ProviderConfig` 也要求非空 Key。仅去掉 Octop 一处筛选不能实现免凭据访问。
+inhere-box 的 `ProviderStore` 会筛除空 API Key，当前锁定的 `octop-harness 1.0.1` 的 `ProviderConfig` 也要求非空 Key。仅去掉 inhere-box 一处筛选不能实现免凭据访问。
 
 Harness 普通 OpenAI 提供方默认采用 Chat Completions；已有 Swift Responses 实现不代表 Python 工厂同样工作。不得虚假声明 hosted tool search 来切换协议，也不使用未说明的占位 Key 掩盖认证差异。
 
 第十二轮的[离线 Provider wire 与工具续轮预检](agentcomputer-provider-wire-preflight.md)已通过一项定向用例：临时 Provider 经实际 harness 对合成 Chat Completions 服务完成工具调用与结果续轮、SSE 文本终态和 HTTP 401 错误传递，使用的 Key 仅在测试夹具中。它没有验证 Responses、免凭据、真实服务的流式/错误行为、取消或 Qwen。后续依据目标服务确认免凭据适配或盒子内部认证入口；真实模型探针需明确地址、模型 ID、鉴权、请求预算和合成数据，不把合成响应写成盒子已配对。
 
-第十五轮已按用户决定使用现有 GLM 进行[本地真实模型预检](agentcomputer-glm-live-preflight.md)。Octop 只读复用 8088 已配置的智谱 Coding Plan Provider，在临时 harness 工作区中完成 GLM-5 的合成工具调用、同 ID 结果续轮和最终答复；8090 实验实例不导入 Key 或更改项目状态。AgentComputer 自身当前本机设置仍选中历史 box 模型；它的 GLM Chat Completions 实现与 Octop 路径协议相近，但本次没有运行 Swift 客户端端到端任务。目标 Qwen 的路由、鉴权、协议、流式与取消仍在盒子上单独确认。
+第十五轮已按用户决定使用现有 GLM 进行[本地真实模型预检](agentcomputer-glm-live-preflight.md)。inhere-box 只读复用 8088 已配置的智谱 Coding Plan Provider，在临时 harness 工作区中完成 GLM-5 的合成工具调用、同 ID 结果续轮和最终答复；8090 实验实例不导入 Key 或更改项目状态。AgentComputer 自身当前本机设置仍选中历史 box 模型；它的 GLM Chat Completions 实现与 inhere-box 路径协议相近，但本次没有运行 Swift 客户端端到端任务。目标 Qwen 的路由、鉴权、协议、流式与取消仍在盒子上单独确认。
 
 第十六轮沿用同一 Provider 完成[真实 GLM 文本流与离线取消边界预检](agentcomputer-glm-stream-cancel-preflight.md)：一次 `stream=true` 请求收到 SSE、非空 token 和最终标记；另以阻塞的合成 SSE 验证 `agent.cancel(thread_id)` 截断本地消费、关闭流且不执行未完成工具。真实请求没有取消，离线夹具没有接触远端 GLM，二者均不能证明服务端停止生成或生产 Run 已停止。目标 Qwen 仍待盒子实测。
 
@@ -263,9 +266,9 @@ M1 的本地 Fixture 可以继续迭代；真正派发模型与工具前仍需 M
 - 实施分支：`feature/agentcomputer-foundation`，基线 `0c5a46a`；当前迭代的交付版本以该分支 Git 提交为准。
 - 实际改动：`infra/agentcomputer` 身份/能力领域、PathLayout 控制路径、版本化薄路由、scoped 认证与错误、OpenAPI、离线单测/集成测试及文档导航。
 - 验证：定向集合 105 passed / 6 Linux 专用 skipped；`make all` 的 Ruff、mypy 和非 live 全套通过，4342 passed / 23 skipped。跳过不计为通过；Linux/Windows 实机执行尚未完成。
-- 完整门禁命令：`make all RUN='uv run --offline --no-sync' PYTEST_JOBS=4`，使用当前已经安装的锁定环境；本机日志 `/private/tmp/octop-iteration-01-make-all-final.log`。首次沙盒拒绝本地端口，正常权限复验后补齐测试替身及平台标记，再取得通过结果。
+- 完整门禁命令：`make all RUN='uv run --offline --no-sync' PYTEST_JOBS=4`，使用当前已经安装的锁定环境；本机日志 `/private/tmp/inhere-box-iteration-01-make-all-final.log`。首次沙盒拒绝本地端口，正常权限复验后补齐测试替身及平台标记，再取得通过结果。
 - 本地 8090：已完成初始化、登录、认证/未认证检查、header-only 文档、进程重启及稳定身份核对；当前平台 Darwin/arm64，未将其当作 Ubuntu 实机结果。没有配置 Provider 或启动 Agent。
-- fork：`origin` 指向 RMinte/Octop，TencentCloud 来源保留为 `upstream`；功能分支推送状态在交付时核对，主分支不直接更新。
+- fork：`origin` 指向 RMinte/inhere-box，TencentCloud 来源保留为 `upstream`；功能分支推送状态在交付时核对，主分支不直接更新。
 - 真实模型、盒子部署、数据迁移及生产发布：未执行。
 
 离线门禁复核补齐了既有 Bridge DNS 和 ONNX/Knowledge 依赖替身；FnOS 进程生命周期用例依赖 Linux /proc，改为仅在 Linux 执行。macOS 跳过明确披露，Linux CI 仍执行这些测试。测试修正不改变业务行为。
@@ -278,7 +281,7 @@ M1 的本地 Fixture 可以继续迭代；真正派发模型与工具前仍需 M
 - 工程验证：最终 `make all RUN='uv run --offline --no-sync' PYTEST_JOBS=4` 的 Ruff、mypy 与全套非 live 测试通过，4432 passed / 23 skipped；必需提交 hook 另运行 testmon 与 Dashboard 构建。首次全套发现 9 个旧断言仍期望 schema20，已按语义改为 21，保留原低 watermark 和未来备份版本输入。
 - 关键评审修复：持久收据必须显式包含全部字段，缺失字段不使用模型默认值补造事实；重放还校验消息与 epoch 绑定。故障/竞争 Fixture 验证一次提交全部登记，响应丢失可查原收据；真实 PG 并发尚未测试。
 - 本地升级：停止并核对自有 8090 进程，完整备份忽略目录后启动新代码；schema20→21、原用户数量及 boxID 保持，六表为空、Agent/Provider 为 0。实际认证 capabilities 200、缺失收据 404、非法 ID 422、匿名/URL token 401，8088 健康仍 200。Scalar 的收据卡片、UUID、类型和示例已实际检查；200 收据由隔离 HTTP Fixture 验证，实验实例不人为填入已接受任务。
-- 本机证据：`/private/tmp/octop-iteration-02-make-all-final.log`、`/private/tmp/octop-local-02-evidence.json`；升级前完整目录位于忽略的 `.runtime/backups/iteration-02-before-schema-21-20261012T081646Z`。备份包含控制身份和本地凭据，保留原访问权限，不提交到 Git。
+- 本机证据：`/private/tmp/inhere-box-iteration-02-make-all-final.log`、`/private/tmp/inhere-box-local-02-evidence.json`；升级前完整目录位于忽略的 `.runtime/backups/iteration-02-before-schema-21-20261012T081646Z`。备份包含控制身份和本地凭据，保留原访问权限，不提交到 Git。
 - 完整 M1、生产设备绑定、模型工具续轮、恢复 fencing、Ubuntu/Linux/Windows 实机和 PostgreSQL 实测：尚未通过。
 
 ## 第三轮交付状态
@@ -290,7 +293,7 @@ M1 的本地 Fixture 可以继续迭代；真正派发模型与工具前仍需 M
 - 工程验证：最终 make all 的 Ruff、mypy 和全套非 live 测试通过，4573 passed / 23 skipped。首次全量发现旧 HITL 单元夹具缺普通专家记录、users-only 旧库缺基础表，两处修复后复验通过；迁移按 canonical 001 事务补缺表，保留已有用户、配置和水位后继续正常升级。必需提交 hook/testmon 与 Dashboard 构建随提交执行，交付仍使用用户 fork 的 feature/agentcomputer-foundation。
 - 关键复核：收据缺字段不能补默认事实，project/workspace/preparation 身份绑定均核对；PG 接收事务重放复用原连接。OS 锁不依赖 TTL，重复取消请求保持对资源准备的等待责任；旧入口的托管检查不因 enabled/state 改变被绕过。
 - 本地实操：核对并停止自有 8090 进程，完整备份后升级 schema21→22，原用户和 boxID 保持。合成项目 POST 201；原收据持续 pending，GET 为 failed/providerUnavailable，agent/workspace 步骤 verified。实际重启后同命令返回相同资源，只有一个 disabled/stopped 托管专家、一个项目/journal/命令；Provider、Task、Turn、Run、事件均为 0。旧启动入口 403、超限 413、匿名/URL token 401，Scalar 项目与收据卡片及类型已检查。8088 健康仍 200，没有模型请求。
-- 本机证据：/private/tmp/octop-iteration-03-make-all-final.log、/private/tmp/octop-local-03-evidence.json、/private/tmp/octop-local-03-evidence-restart.json；完整备份位于忽略的 .runtime/backups/iteration-03-before-schema-22-20261012T114129Z。凭据、控制身份和运行数据不提交到 Git。
+- 本机证据：/private/tmp/inhere-box-iteration-03-make-all-final.log、/private/tmp/inhere-box-local-03-evidence.json、/private/tmp/inhere-box-local-03-evidence-restart.json；完整备份位于忽略的 .runtime/backups/iteration-03-before-schema-22-20261012T114129Z。凭据、控制身份和运行数据不提交到 Git。
 - 阶段边界：M1-03 的本地资源准备部分已验证，ready 放行和托管执行入口尚未实现。M1-04 Task/thread、M1-06 派发、真实模型与执行隔离、设备配对和恢复 fencing 继续按步骤推进；PostgreSQL 只有静态核对，Ubuntu/Linux/Windows 实机未验，skipped 不计通过。
 
 ## 第四轮交付状态
@@ -302,7 +305,7 @@ M1 的本地 Fixture 可以继续迭代；真正派发模型与工具前仍需 M
 - 工程验证：最终 make all 的 Ruff、mypy 和全套非 live 测试通过，4671 passed / 23 skipped。初次多进程收集发现两个新测试参数使用随机 UUID，改为固定值后复验通过；必需提交 hook/testmon 与 Dashboard 构建随提交执行，交付仍为用户 fork 功能分支。
 - 关键复核：Task/thread/session/投影/收据全程同 conn；预留和任意后续失败整事务回滚，原收据保留 ready 映射事实与 executionReady=false。原始 session 缺字段、坏 JSON 或关联错配拒绝，不用兼容回填补造。当前 Task revision/状态不覆盖原 ACK。
 - 本地更新：核对并停止自有 8090 进程，完整备份后启动 0.4 适配；schema22 保持，原用户、停止专家、失败项目与收据字节、boxID 保持。真实数据库仍 0 Task/thread/session/Turn/Run/event；缺失 Task 404、非法 ID422、匿名/URLtoken401，Task 写路由不存在。Scalar Task 卡片、UUID、typed view 和不执行说明已检查；200 Task 由隔离 HTTP Fixture 验证。8088 健康仍 200，没有模型请求。
-- 本机证据：/private/tmp/octop-iteration-04-make-all-final.log、/private/tmp/octop-local-04-evidence.json；完整备份位于忽略的 .runtime/backups/iteration-04-before-adapter-04-20261012T122715Z，凭据和运行数据不推送。
+- 本机证据：/private/tmp/inhere-box-iteration-04-make-all-final.log、/private/tmp/inhere-box-local-04-evidence.json；完整备份位于忽略的 .runtime/backups/iteration-04-before-adapter-04-20261012T122715Z，凭据和运行数据不推送。
 - 阶段边界：M1-04 的内部映射与只读查询部分已验证。真实项目 ready、受控 Task 创建/列表/状态管理、M1-05 入站/固定配置、M1-06 托管引擎派发和完整 M0/M1 仍待后续；PG 只有 SQL/约束静态核对，盒子和 Windows/Linux 实机未验，skipped 不计通过。
 
 ## 第五轮交付状态
@@ -335,7 +338,7 @@ M1 的本地 Fixture 可以继续迭代；真正派发模型与工具前仍需 M
 ## 第七轮交付状态
 
 - 基线：主目录 `feature/agentcomputer-foundation @ ca904ae0f629fbbf49c1747b365a1277eb5a18bf`，继续同一用户 fork 功能分支；复用 schema23，没有客户端 Swift/UI 或新增公开 HTTP。
-- 启动边界：daemon 持有当前 OCTOP_HOME 的生命周期 OS mutex，冲突为本地化 CONTROL_PLANE_BUSY/409；在 runtime 创建前执行可信内部恢复扫描，embedded 默认跳过。mutex只协调采用07约定的当前home，不能证明旧0.6进程、模型或子进程已停止，不构成集群/全机器互斥。
+- 启动边界：daemon 持有当前 INHERE_BOX_HOME 的生命周期 OS mutex，冲突为本地化 CONTROL_PLANE_BUSY/409；在 runtime 创建前执行可信内部恢复扫描，embedded 默认跳过。mutex只协调采用07约定的当前home，不能证明旧0.6进程、模型或子进程已停止，不构成集群/全机器互斥。
 - 保守扫描：当前box、内部高水位和100条keyset分页，逐Run owner→Run锁内核对原接受图与journal，将未收敛claimed/dispatching/engineAccepted收紧为interrupted/reconciliationRequired，保留phase/epoch/双lane；吸收晚到确认，保留终态，重复扫描不重写原事件或ACK。没有重领、排队、模型resume、用户cancelRequested、停止/杀进程或许可释放。
 - 检查点边界：只经既有agent公开saver保存/探测固定关联元数据，不冷开文件、不恢复模型循环。匹配仅是保存过关联的证据，不证明started/completed/停止或无效果；应用ACK和checkpoint不原子，原生History Turn仍无映射或假预留身份。
 - 协议：adapter0.7.0/revision7，现有capability availability保持：projects/tasks/runs不可用、commandReceipts查询可用、recovery仍unsupported/notImplemented。权限模式空、deviceID=null、maxCommandBytes65536；Run GET保持12字段与五个phase样例，Project/Task executionReady=false，不新增HTTP恢复/取消流程。
@@ -350,7 +353,7 @@ M1 的本地 Fixture 可以继续迭代；真正派发模型与工具前仍需 M
 - 内部事实：固定 effect/toolCall 身份、Run/Turn/消息/项目工作区、派发主体与双 epoch，prepared 意图及事件同事务；dispatching 先提交再调用受控 callback，executionAttempt 只能为1，同 Run 未收敛效果由部分唯一索引约束。terminal receipt 与事件同事务，原接受收据格式与字节不变。
 - 结果与阻塞：prepared/dispatching 可收敛为 terminal 或 outcomeUnknown；dispatchStartedAt 的有无保留之前是否交接，不宣称 phase 完全不变。failed 可含部分效果，outcomeUnknown 缺可信耐久结果；输出 effects=unknown 即使报告 succeeded 也需对账。这些记录保持 Run reconciliationRequired 与 Task/project 双 active lane，不自动重放、递增 attempt、重建意图或释放许可。
 - 授权与生命周期：派发前通过可信 caller bool callback 重检授权，撤销且确定未交接才能 notDispatched；本轮没有验收生产 catalog/文件 before-after。请求取消等待数据库操作结算，不能伪造用户取消或 stopped；精确重复调用读取原 receipt，不重新进入 handler。结果中的文件/成果 UUID 只是 adapter reported 关联，不是正式发布或已核实文件效果。
-- 生产边界：默认 EngineEntryMiddleware.awrap_tool_call 始终拒绝，Fixture 内核不装配真实 Provider/工具或普通 Octop 旁路。原生检查点关联不证明工具效果，Swift 参数字符串与 Python 适配层 canonical 对象摘要互通、原生助手/历史身份映射仍未验收。
+- 生产边界：默认 EngineEntryMiddleware.awrap_tool_call 始终拒绝，Fixture 内核不装配真实 Provider/工具或普通 inhere-box 旁路。原生检查点关联不证明工具效果，Swift 参数字符串与 Python 适配层 canonical 对象摘要互通、原生助手/历史身份映射仍未验收。
 - 启动恢复：先扫描 Run，再扫描本box工具效果，两类分别固定高水位/100条分页；工具扫描覆盖 interrupted Run、停用 owner和旧epoch，不重放。内部report增加三项effects计数，默认0；无候选不读或创建控制身份。完整原接受图与effects校验，坏关联安全503不补建，公开字段不增加。
 - 协议：adapter0.8.0/revision8；现有 capability availability 保持，projects/tasks/runs 不可用、commandReceipts 已有查询可用、recovery/文件/成果/审批/取消仍未实现。权限模式空、deviceID=null、maxCommandBytes65536；Run GET保持12字段，Project/Task executionReady=false，无新HTTP工具/恢复入口。
 - 工程验证：最终 make all 通过：Ruff、strict mypy（592 个源文件），5175 passed / 23 skipped；跳过不计通过。提交还须通过仓库实际 pre-commit/testmon 与 Dashboard 构建。真实模型、live PostgreSQL、Ubuntu/Linux/Windows 实机及完整 M0/M1 尚未验证。隔离 Fixture 覆盖固定意图、精确重放、同 Run 竞争、派发前撤销、部分效果错误、取消/确认丢失、terminal与事件失败回滚、未知不重放及双 lane 保留；skipped/deselected不计通过。
@@ -358,17 +361,17 @@ M1 的本地 Fixture 可以继续迭代；真正派发模型与工具前仍需 M
 - 阶段边界：M1-07 部分通过，完整 M0/M1 未通过。生产 catalog/授权、实际文件 before/after、正式成果发布、工具隔离、原生历史/恢复、进程停止证明、持久取消/审批、公开事件/快照、恢复 fencing、设备配对、livePG与盒子实机继续逐项验收。
 
 
-## 2026-10-15 Octop 网页项目与 Task 接线
+## 2026-10-15 inhere-box 网页项目与 Task 接线
 
 - 基线：主工作目录 `feature/agentcomputer-foundation @ 9922d1c9a938ac26da7479c304b89f2b621cf35c`，目标仍为用户 fork 的同名分支。AgentComputer 独立分支及其已有 `.harness` 改动未触碰。
-- 页面：Dashboard 新增 `/box-projects`、项目详情和 Task 会话路由及侧栏入口；可选择当前 Octop 或已连接的 Bridge 目标，读取项目、Task、分页 Turn、Run 状态与核验后的最终回答，并在能力允许时创建项目、Task 和同 Task 追问。每次写入使用固定命令 ID 与幂等键；响应不明先查原回执，再用同一请求重试。原 `/chat` 与定时任务 `/tasks` 保持各自语义。
+- 页面：Dashboard 新增 `/box-projects`、项目详情和 Task 会话路由及侧栏入口；可选择当前 inhere-box 或已连接的 Bridge 目标，读取项目、Task、分页 Turn、Run 状态与核验后的最终回答，并在能力允许时创建项目、Task 和同 Task 追问。每次写入使用固定命令 ID 与幂等键；响应不明先查原回执，再用同一请求重试。原 `/chat` 与定时任务 `/tasks` 保持各自语义。
 - 服务端：Bridge 新增仅覆盖页面所需 AgentComputer v1 路径的同源代理，双方隧道策略仅放行明确列出的 GET/POST；当前连接的归属、Bearer 会话、远端响应类型和状态码均受约束，任意远端响应头与未列出的文本不透传。
 - 验证：Dashboard TypeScript 与生产构建通过；改动文件 ESLint、侧栏/路由 18 项、AgentComputer Bridge/权限/i18n 后端聚焦 101 项通过。全量 ESLint 因 `Channels/components/constants.test.ts` 与 `Chat/hooks/chatStore.ts` 的既有错误未通过；按用户要求未重复跑完整 `make all`。8090 重启后认证能力仍显示项目、Task、Run 均可用，真实数据只读查询得到 4 项项目、首个项目的 Task 与 Turn；8088 和 8090 的 `/box-projects` 均返回 200。
 - 未闭环：本地两库均尚无 Bridge 连接；8088 用户需在 `/bridge` 连接 8090 后选择该来源，网页登录及跨实例页面点验尚未完成。审批、正式成果、设备配对和目标 Ubuntu 盒子的阶段退出标准不因这一网页入口降低。最新进度见 [进度页](agentcomputer-progress.md)。
 
 ## 2026-10-15 网页连接与项目文档接线
 
-- 基线：主工作目录 `feature/agentcomputer-foundation @ c6d00a6fc8d299363317f02cdd4e2b8055078eb5`，本轮只改 Octop；AgentComputer 主目录已有改动保持原样。
+- 基线：主工作目录 `feature/agentcomputer-foundation @ c6d00a6fc8d299363317f02cdd4e2b8055078eb5`，本轮只改 inhere-box；AgentComputer 主目录已有改动保持原样。
 - 用户入口：`/box-projects` 无出站连接时直接给出 8090 地址、对端账号和密码表单，成功后切换来源并清空密码。项目准备状态自动查询到 ready/failed，页面随后启用 Task 和文档操作。ready 项目的文档列表、纯文本预览和单文件新增均走所选来源；写入结果不明时先刷新列表核对，不自动提交第二次。
 - 代理边界：Bridge 只增加文档列表 GET、单文件 GET/PUT，保持现有连接归属及双端 Bearer 用户会话。项目 ID 与文件名按协议校验；文件名只允许项目 `documents/` 下单层 `.md`/`.txt`，正文超过 16 KiB UTF-8 在本机 413 拒绝且不转发。对端响应只返回声明的类型化 JSON，不透传未知字段、敏感响应头或任意错误文本。
 - 验证：文档 API、Bridge 策略与代理共 21 项 pytest 通过，修改的 Python 文件 Ruff 和 strict mypy 通过；Dashboard TypeScript、生产构建、修改文件 Prettier/ESLint、路由与侧栏 18 项 Vitest 通过。8088 原实例确认无 AgentComputer Run 后重启，健康、`/box-projects` 与匿名新路由认证检查分别为 200、200、401；8090 保持运行并健康 200。完整 `make all` 按用户约定后置。
@@ -381,14 +384,14 @@ M1 的本地 Fixture 可以继续迭代；真正派发模型与工具前仍需 M
 - 代理：Bridge 只增加 Run `/output` 与 `/tool-activity` 两条精确 UUID 的 GET；仍要求本机登录、连接归属、对端认证及类型化响应，不转发未知对端字段/私有响应头。工具摘要限一条受控读取及 `documents/<filename>` 安全路径；无正文、原始参数或主机路径。非法对端数据按 502 安全失败。
 - 验证：相关后端接口和 Bridge 定向测试 19 passed，Ruff 与严格 mypy、Dashboard TypeScript/生产构建、改动文件 Prettier/ESLint、21 项路由/侧栏 Vitest 与 i18n 78 项通过。8088 和未重启的 8090 健康接口均返回 200，8088 `/box-projects` 返回 200，两条新增 Bridge 路由匿名访问均为 401。完整 `make all` 按用户要求后置。跨实例浏览器实测仍取决于 8088 用户建立到 8090 的 Bridge 连接；M0–M2 均未达到完整退出条件。
 
-## 2026-10-15 单 Octop 的无项目 Task 会话
+## 2026-10-15 单 inhere-box 的无项目 Task 会话
 
 - 基线：主工作目录 `feature/agentcomputer-foundation @ c34f5b735c13e4a46cf744e843cbc9a4985986e9`；已有工作树改动原样衔接。AgentComputer 另在 `feature/0.0.2/octp @ 601a3b145220d13ec3fa5c6d1ef789b881cc7d01`，其 `.harness/context/current-session.md` 已有改动不覆盖。
 - 语义：Task 是用户看到的会话，项目关联可选。v27 让 Task、Turn、Run 与派发/完成记录拥有真实的无项目作用域；无项目 Task 拥有自己的工作区、受控 Agent 与 Thread/Session，不创建隐藏项目。公开 `POST/GET /api/agentcomputer/v1/tasks`、`POST /tasks/{taskID}/turns` 与既有 Run、Turn、事件和快照读取共同组成单实例路径；项目 Task 保持原协议。下一轮提交以当前 Task revision 做并发条件，不能用上一轮收据 revision 推算。
 - Task 最近活动读取：当前开发树的本人 `GET /api/agentcomputer/v1/tasks` 仅列无项目 Task，按持久 `updatedAt`、Task UUID 倒序分页；`GET /projects/{projectID}/tasks` 保持按 `createdAt`、Task UUID 倒序。两类 Task view 增加可选的 UTC `createdAt`/`updatedAt`，本版从数据库非空毫秒时间字段填充，客户端应允许旧服务端缺字段。游标分别绑定排序键、盒子、用户、作用域和恢复代次；项目内原游标格式不变。27 项相关单测/HTTP 测试、Ruff、严格 mypy 与差异检查通过，未跑完整 `make all`；本轮只验证开发树，未将新排序单独计作 8088 在线验收。分页期间若尚未读取的 Task 发生新活动并前移，现有可变行无法提供严格历史快照。
-- 页面：`/box-projects` 改为读取当前 Octop 自己的项目及无项目 Task；此页移除历史 Bridge 来源选择。无项目 Task 的创建、网页会话发送、历史和经核验的结果均已接入。
+- 页面：`/box-projects` 改为读取当前 inhere-box 自己的项目及无项目 Task；此页移除历史 Bridge 来源选择。无项目 Task 的创建、网页会话发送、历史和经核验的结果均已接入。
 - 验证：无项目公开 HTTP 到本地 worker 的两轮纯文字集成测试通过，最终结果、Turn 列表、控制事件与 Task 快照均可读，Projects 表为 0；旧 Task revision 返回 409，跨用户读写返回 404。相关 HTTP 聚焦测试 60 passed、AgentComputer 核心单测 605 passed，Ruff 与严格 mypy 通过。8088 的 v26 数据库先在临时副本演练 v27，随后停止原进程、完整备份本机数据目录、配置原有 GLM Provider 并用当前开发树启动；实际 schema 升至 v27，用户和 Agent 数量未变，`foreign_key_check` 为 0、`quick_check=ok`，`/api/health` 正常。已登录网页创建无项目 Task `c21bc229-03d4-4a31-ae47-4b25b8dbe3f4`，使用 GLM 在同 Task 完成两轮问答，刷新后历史保留。完整 `make all` 按用户快速迭代要求后置。
 - 项目关联回归：同一 8088 网页创建项目 `b6854fc9-f650-4e15-84b1-d0fe86c1ac07` 及 Task `72e41f76-de38-4f8f-954d-a41a24919370`；GLM 首轮正常回复，第二轮从新建合成文档 `integration-smoke.md` 读取未写在提示中的校验标记，Run 成功且工具摘要确认 `read_project_document` 已执行。刷新后历史保留。四轮之后的只读库核查为 v27、项目 1、无项目 Task 1、项目 Task 1、Turn/Run 各 4、外键违规 0、`quick_check=ok`。
 - AgentComputer 原生协议与入口：Task/Run 的 `projectID` 可空，新增无项目 Task 列表、创建、收据与 Task-revision Turn 命令；已有项目 Task 的精确项目归属核验保留。macOS/iOS New Task 已接入“盒子任务”目录、创建、历史会话和同 Task 多轮发送；创建/Turn 响应丢失可按原命令回查。连接测试 19/19、既有 Task 测试 48 tests/49 runs、无项目会话测试 3/3 通过，macOS 与 iOS Simulator 构建通过；真实 8088 的原生实包登录点验尚未做，离线会话快照未完成。
 - 接口说明：本机 8088 的 `/api/docs#tag/agentcomputer` 已增加 25 条接口的中文用途表与中文操作标题，真实 OpenAPI 的 25 个已发布操作与说明逐项核对一致；文档单测、Ruff 和严格 mypy 通过。交互式文档仅在本机回环实例启用。
-- 剩余：AgentComputer 原生实包对单一 8088 的登录与双轮点验、Ubuntu 盒子及 M0–M5 阶段退出条件。8090 与 Bridge 的历史联调记录不代表当前产品的第二个 Octop 数据源。
+- 剩余：AgentComputer 原生实包对单一 8088 的登录与双轮点验、Ubuntu 盒子及 M0–M5 阶段退出条件。8090 与 Bridge 的历史联调记录不代表当前产品的第二个 inhere-box 数据源。

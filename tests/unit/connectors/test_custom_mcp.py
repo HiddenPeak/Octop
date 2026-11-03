@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.connectors.builder import build_mcp_server_configs_for_user, mcp_server_name
-from octop.infra.connectors.custom_mcp import (
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.connectors.builder import build_mcp_server_configs_for_user, mcp_server_name
+from inhere_box.infra.connectors.custom_mcp import (
     CUSTOM_MCP_KIND,
     enabled_harness_configs,
     extract_servers,
@@ -16,18 +16,18 @@ from octop.infra.connectors.custom_mcp import (
     normalize_server_spec,
     validate_servers_map,
 )
-from octop.infra.connectors.service import ConnectorService
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.connectors import ConnectorRepo
-from octop.infra.db.repos.secrets import SecretRepo
-from octop.infra.db.repos.settings import SettingsRepo
-from octop.infra.utils.ulid import new_ulid
+from inhere_box.infra.connectors.service import ConnectorService
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.connectors import ConnectorRepo
+from inhere_box.infra.db.repos.secrets import SecretRepo
+from inhere_box.infra.db.repos.settings import SettingsRepo
+from inhere_box.infra.utils.ulid import new_ulid
 
 
 @pytest.fixture
 def db(tmp_path: Path) -> SqlitePool:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     return pool
 
@@ -38,7 +38,7 @@ def svc(db: SqlitePool) -> ConnectorService:
         repo=ConnectorRepo(db),
         secret_repo=SecretRepo(db),
         settings_repo=SettingsRepo(db),
-        config=OctopConfig(),
+        config=InhereBoxConfig(),
     )
 
 
@@ -125,9 +125,9 @@ def test_shared_custom_server_uses_collision_safe_name_for_viewer(
 
 
 def test_rejects_public_http_and_allows_lan():
-    from octop.infra.errors import ErrorCode, OctopError
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
-    with pytest.raises(OctopError) as http_exc:
+    with pytest.raises(InhereBoxError) as http_exc:
         normalize_server_spec(
             "bad",
             {"transport": "streamable_http", "url": "http://example.com/mcp"},
@@ -161,10 +161,10 @@ def test_allows_loopback_http_and_https():
 
 
 def test_mcp_url_invalid_error_code():
-    from octop.infra.connectors.custom_mcp import validate_mcp_http_url
-    from octop.infra.errors import ErrorCode, OctopError
+    from inhere_box.infra.connectors.custom_mcp import validate_mcp_http_url
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         validate_mcp_http_url("ftp://example.com/mcp")
     assert exc.value.code is ErrorCode.CONNECTOR_MCP_URL_INVALID
     assert exc.value.details.get("reason") == "url must be http or https"
@@ -318,7 +318,7 @@ def test_build_mcp_configs_merges_enabled_custom(svc: ConnectorService, db: Sqli
         user_id=uid,
         agent_id="agent-1",
         agent_user_id=uid,
-        config=OctopConfig(),
+        config=InhereBoxConfig(),
         log=False,
     )
     assert set(configs) == {"a"}
@@ -396,7 +396,7 @@ def test_list_default_open_mcp_server_names(svc: ConnectorService, db: SqlitePoo
         mcp_server_name=mcp_server_name("tencent-docs", iid),
         config_json='{"default_open": true}',
     )
-    from octop.infra.connectors.crypto import encrypt_credentials
+    from inhere_box.infra.connectors.crypto import encrypt_credentials
 
     blob = encrypt_credentials(svc._secret_repo, {"token": "t", "instance_id": iid})
     svc._repo.upsert_credentials(instance_id=iid, blob=blob)
@@ -453,7 +453,7 @@ async def test_ensure_fresh_custom_servers_marks_reauth_when_refresh_fails_expir
         resource="https://example.com/mcp",
     )
     with patch(
-        "octop.infra.connectors.service.refresh_custom_mcp_oauth",
+        "inhere_box.infra.connectors.service.refresh_custom_mcp_oauth",
         new_callable=AsyncMock,
         side_effect=ValueError("refresh failed"),
     ):
@@ -497,7 +497,7 @@ async def test_ensure_fresh_custom_servers_keeps_valid_token_when_refresh_fails(
         resource="https://example.com/mcp",
     )
     with patch(
-        "octop.infra.connectors.service.refresh_custom_mcp_oauth",
+        "inhere_box.infra.connectors.service.refresh_custom_mcp_oauth",
         new_callable=AsyncMock,
         side_effect=ValueError("refresh failed"),
     ):

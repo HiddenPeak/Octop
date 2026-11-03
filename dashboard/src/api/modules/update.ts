@@ -5,9 +5,9 @@ export interface UpdateStatus {
   latest_version: string | null;
   has_update: boolean;
   is_editable: boolean;
-  /** Non-null when the process was launched via `octop service start` (systemd or launchd). */
+  /** Non-null when the process was launched via `inhere-box service start` (systemd or launchd). */
   service_mode: "systemd" | "launchd" | null;
-  /** True when Octop is spawned by the Wails desktop shell (or ``OCTOP_DESKTOP=1``). */
+  /** True when inhere-box is spawned by the Wails desktop shell (or ``INHERE_BOX_DESKTOP=1``). */
   desktop?: boolean;
   error: string | null;
   /** Stable error code (e.g. "pypi_unreachable") for localized UI messages; null on success. */

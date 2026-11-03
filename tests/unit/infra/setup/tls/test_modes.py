@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from octop.config import OctopConfig, TlsConfig
-from octop.infra.setup.tls.modes import (
+from inhere_box.config import InhereBoxConfig, TlsConfig
+from inhere_box.infra.setup.tls.modes import (
     TlsIssueMode,
     is_issue_eligible,
     is_renewal_mode,
@@ -15,14 +15,14 @@ from octop.infra.setup.tls.modes import (
 
 
 def test_first_issue_mode():
-    cfg = OctopConfig(bind_host="0.0.0.0", port=80)
+    cfg = InhereBoxConfig(bind_host="0.0.0.0", port=80)
     assert tls_issue_mode(cfg) is TlsIssueMode.FIRST
     assert is_issue_eligible(cfg)
     assert not is_renewal_mode(cfg)
 
 
 def test_renewal_mode():
-    cfg = OctopConfig(
+    cfg = InhereBoxConfig(
         bind_host="0.0.0.0",
         port=443,
         tls=TlsConfig(enabled=True, http_port=80, domains=["a.example.com"]),
@@ -32,7 +32,7 @@ def test_renewal_mode():
 
 
 def test_validate_issue_domain_on_renewal():
-    cfg = OctopConfig(
+    cfg = InhereBoxConfig(
         bind_host="0.0.0.0",
         port=443,
         tls=TlsConfig(enabled=True, http_port=80, domains=["a.example.com"]),
@@ -43,6 +43,6 @@ def test_validate_issue_domain_on_renewal():
 
 
 def test_none_mode_when_wrong_port():
-    cfg = OctopConfig(bind_host="0.0.0.0", port=8088)
+    cfg = InhereBoxConfig(bind_host="0.0.0.0", port=8088)
     assert tls_issue_mode(cfg) is TlsIssueMode.NONE
     assert not is_issue_eligible(cfg)

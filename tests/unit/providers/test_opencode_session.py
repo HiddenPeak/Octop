@@ -10,15 +10,15 @@ from unittest.mock import patch
 import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
-from octop.infra.agents.providers.opencode_session import (
+from inhere_box.infra.agents.providers.opencode_session import (
     OPENCODE_SESSION_HEADER,
     ensure_opencode_session_header,
     is_opencode_base_url,
     is_opencode_preset,
     session_header_for_provider,
 )
-from octop.infra.agents.providers.probe import build_probe_chat_model
-from octop.infra.agents.providers.store import ProviderStore
+from inhere_box.infra.agents.providers.probe import build_probe_chat_model
+from inhere_box.infra.agents.providers.store import ProviderStore
 
 GO_PRESET_ID = "opencode-go-openai"
 GO_PRESET_NAME = "OpenCode Go (Compatible)"
@@ -121,7 +121,7 @@ def _probe_row(**overrides: Any) -> SimpleNamespace:
 
 
 def test_probe_chat_model_injects_throwaway_session_header() -> None:
-    with patch("octop.infra.agents.providers.box.build_chat_model") as mock_build:
+    with patch("inhere_box.infra.agents.providers.box.build_chat_model") as mock_build:
         mock_build.return_value = FakeListChatModel(responses=["ok"])
         build_probe_chat_model(_probe_row(), model_id="glm-5.2")
 
@@ -132,7 +132,7 @@ def test_probe_chat_model_injects_throwaway_session_header() -> None:
 
 def test_probe_chat_model_keeps_user_session_header() -> None:
     row = _probe_row(extra_json=json.dumps({"headers": {OPENCODE_SESSION_HEADER: "mine"}}))
-    with patch("octop.infra.agents.providers.box.build_chat_model") as mock_build:
+    with patch("inhere_box.infra.agents.providers.box.build_chat_model") as mock_build:
         mock_build.return_value = FakeListChatModel(responses=["ok"])
         build_probe_chat_model(row, model_id="glm-5.2")
 
@@ -142,7 +142,7 @@ def test_probe_chat_model_keeps_user_session_header() -> None:
 
 def test_probe_injects_for_custom_provider_on_go_url() -> None:
     row = _probe_row(name="my-relay")
-    with patch("octop.infra.agents.providers.box.build_chat_model") as mock_build:
+    with patch("inhere_box.infra.agents.providers.box.build_chat_model") as mock_build:
         mock_build.return_value = FakeListChatModel(responses=["ok"])
         build_probe_chat_model(row, model_id="glm-5.2")
 
@@ -228,7 +228,7 @@ def test_store_skips_custom_provider_on_other_host() -> None:
 
 
 def test_knowledge_remote_embedding_sends_session_header() -> None:
-    from octop.infra.knowledge import embed as embed_module
+    from inhere_box.infra.knowledge import embed as embed_module
 
     provider = SimpleNamespace(
         name=GO_PRESET_NAME,

@@ -49,7 +49,7 @@ async def test_storage_inspection_and_background_job(env_with_main_agent, monkey
             status.json()["job"]["report"]["inspection_after"]["checkpoint_counts"][0]["rows"] == 1
         )
         assert memory.get_tuple(cfg).checkpoint == cp
-        from octop.api.app import build_app
+        from inhere_box.api.app import build_app
 
         schema = build_app(srv).openapi()
         assert "/api/agents/{agent_id}/memory/storage/check" in schema["paths"]
@@ -171,7 +171,7 @@ async def test_backup_deletion_excludes_maintenance_and_restore(
     import asyncio
     import threading
 
-    from octop.infra.agents.memory import sqlite_restore
+    from inhere_box.infra.agents.memory import sqlite_restore
 
     client, srv, auth, aid = env_with_main_agent
     registry = srv.app_runtime.agent_registry

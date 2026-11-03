@@ -12,13 +12,13 @@ from deepagents.backends.local_shell import LocalShellBackend
 from octop_harness.backends import resolve_backend
 from octop_harness.backends.workspace import BackendWorkspace
 
-from octop.infra.backend.resolver import default_agent_backend_spec
-from octop.infra.gateway.media.backend_files import (
+from inhere_box.infra.backend.resolver import default_agent_backend_spec
+from inhere_box.infra.gateway.media.backend_files import (
     ensure_workspace_media_path,
 )
-from octop.infra.gateway.media.constants import INBOUND_DIR, OUTBOUND_DIR
-from octop.infra.gateway.media.ingress import AgentBackedMediaBackend
-from octop.infra.gateway.media.tool_media import (
+from inhere_box.infra.gateway.media.constants import INBOUND_DIR, OUTBOUND_DIR
+from inhere_box.infra.gateway.media.ingress import AgentBackedMediaBackend
+from inhere_box.infra.gateway.media.tool_media import (
     attachment_frames_from_tool_result,
     enrich_media_block_preview,
     enrich_tool_result_with_backend,
@@ -32,7 +32,7 @@ def _workspace(root: str, *, virtual_mode: bool = False) -> BackendWorkspace:
 
 
 def _default_virtual_workspace(root: str) -> BackendWorkspace:
-    """BackendWorkspace matching Octop's platform default agent backend.
+    """BackendWorkspace matching inhere-box's platform default agent backend.
 
     POSIX keeps host-rooted shell access; harness scopes deepagents artifacts
     to the agent workspace. Windows scopes the local-shell root to the
@@ -401,7 +401,7 @@ async def test_enrich_send_file_rewrites_path_to_dashboard_api() -> None:
 
 
 def test_dashboard_media_url_uses_path_agent_id() -> None:
-    from octop.infra.gateway.media.backend_files import dashboard_media_url
+    from inhere_box.infra.gateway.media.backend_files import dashboard_media_url
 
     path = "file:///Users/me/.octop/agents/W4MFVJ/outbound/screenshots/harness.png"
     url = dashboard_media_url("6X3Z7C", path)
@@ -416,7 +416,7 @@ async def test_resolve_preview_keeps_host_absolute_screenshot() -> None:
     from deepagents.backends.local_shell import LocalShellBackend
     from octop_harness.backends.workspace import BackendWorkspace
 
-    from octop.infra.gateway.media.backend_files import resolve_preview_payload
+    from inhere_box.infra.gateway.media.backend_files import resolve_preview_payload
 
     with tempfile.TemporaryDirectory() as ws:
         shots = Path(ws) / "outbound" / "screenshots"
@@ -439,7 +439,7 @@ async def test_resolve_preview_keeps_host_absolute_screenshot() -> None:
 
 @pytest.mark.asyncio
 async def test_enrich_plain_text_screenshot_output() -> None:
-    from octop.infra.gateway.media.tool_media import enrich_tool_output_string
+    from inhere_box.infra.gateway.media.tool_media import enrich_tool_output_string
 
     text = (
         "Screenshot saved to /Users/me/.octop/agents/A1/outbound/screenshots/harness.png "
@@ -460,14 +460,14 @@ async def test_enrich_plain_text_screenshot_output() -> None:
 
 @pytest.mark.parametrize("prefix", ["", "See ", '"', "'", "(", "\n"])
 def test_plain_text_outbound_image_at_token_boundary(prefix: str) -> None:
-    from octop.infra.gateway.media.tool_media import _plain_text_image_path
+    from inhere_box.infra.gateway.media.tool_media import _plain_text_image_path
 
     path = "/workspace/outbound/screenshots/chart.PNG"
     assert _plain_text_image_path(f"{prefix}{path})") == path
 
 
 def test_plain_text_image_scan_handles_long_web_output() -> None:
-    from octop.infra.gateway.media.tool_media import enrich_tool_output_string_sync
+    from inhere_box.infra.gateway.media.tool_media import enrich_tool_output_string_sync
 
     # A long URL/encoded token without an image used to stall the event loop.
     text = "Fetched page: https://example.com/" + "a" * 100_000
@@ -477,7 +477,7 @@ def test_plain_text_image_scan_handles_long_web_output() -> None:
 
 
 def test_is_media_push_tool_allowlist() -> None:
-    from octop.infra.gateway.media.tool_media import is_media_push_tool
+    from inhere_box.infra.gateway.media.tool_media import is_media_push_tool
 
     assert is_media_push_tool("send_file_to_user")
     assert is_media_push_tool("namespace/desktop_screenshot")
@@ -565,7 +565,7 @@ async def test_plain_text_media_invent_only_for_delivery_tools() -> None:
 
 
 def test_dedup_tool_result_messages_skips_replayed_ids() -> None:
-    from octop.infra.gateway.media.tool_media import dedup_tool_result_messages
+    from inhere_box.infra.gateway.media.tool_media import dedup_tool_result_messages
 
     emitted: set[str] = set()
     first = {
@@ -598,7 +598,7 @@ def test_dedup_tool_result_messages_skips_replayed_ids() -> None:
 @pytest.mark.asyncio
 async def test_iter_dashboard_attachment_frames_requires_live_tool_call() -> None:
     """Historical Overwrite dumps before any tool_call_chunk must not push."""
-    from octop.infra.gateway.media.tool_media import iter_dashboard_attachment_frames
+    from inhere_box.infra.gateway.media.tool_media import iter_dashboard_attachment_frames
 
     with tempfile.TemporaryDirectory() as ws:
         workspace = _workspace(ws)
@@ -687,7 +687,7 @@ async def test_iter_dashboard_attachment_frames_requires_live_tool_call() -> Non
 
 
 def test_attachment_frame_dedup_key_prefers_path() -> None:
-    from octop.infra.gateway.media.tool_media import attachment_frame_dedup_key
+    from inhere_box.infra.gateway.media.tool_media import attachment_frame_dedup_key
 
     assert (
         attachment_frame_dedup_key(

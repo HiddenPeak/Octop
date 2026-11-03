@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from octop.api.routers import skills as skills_router
-from octop.infra.utils.frontmatter import parse_frontmatter
+from inhere_box.api.routers import skills as skills_router
+from inhere_box.infra.utils.frontmatter import parse_frontmatter
 
 
 def test_skills_router_uses_shared_parse_frontmatter() -> None:

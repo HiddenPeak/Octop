@@ -20,15 +20,15 @@ import {
  *
  * Plan §14.3: the dashboard fetches the current user's agents on login,
  * stores the list + selected id in this context, persists the selection
- * in ``localStorage`` (``octop:active-agent``), and pipes the selected id
+ * in ``localStorage`` (``inhere-box:active-agent``), and pipes the selected id
  * into ``api/request.ts`` so every agent-scoped HTTP call gets an
- * ``X-Octop-Agent-Id`` header.
+ * ``X-Inhere-Box-Agent-Id`` header.
  */
 
-export interface OctopAgent {
+export interface InhereBoxAgent {
   /** Surrogate integer primary key from the database. */
   id: number;
-  /** Public agent id used in API paths and ``X-Octop-Agent-Id``. */
+  /** Public agent id used in API paths and ``X-Inhere-Box-Agent-Id``. */
   agent_id: string;
   /** Owning user id (present on list responses). */
   user_id?: number | null;
@@ -84,11 +84,11 @@ export interface OctopAgent {
 
 interface AgentContextValue {
   /** Latest agents fetched from ``GET /api/agents``. */
-  agents: OctopAgent[];
+  agents: InhereBoxAgent[];
   /** Active agent id, or ``null`` when no agent is selected. */
   activeAgentId: string | null;
   /** Convenience: the full record for ``activeAgentId``. */
-  activeAgent: OctopAgent | null;
+  activeAgent: InhereBoxAgent | null;
   /** True while the initial fetch is in flight. */
   loading: boolean;
   /** Last fetch error message, or ``null``. */
@@ -112,7 +112,7 @@ export interface EnabledExpertsOptions {
   pinActive?: boolean;
 }
 
-const STORAGE_KEY = "octop:active-agent";
+const STORAGE_KEY = "inhere-box:active-agent";
 
 /**
  * Pure helper: narrow ``agents`` down to those that are "enabled" for the
@@ -126,10 +126,10 @@ const STORAGE_KEY = "octop:active-agent";
  * never leak into any chat-side surface.
  */
 export function selectEnabledExperts(
-  agents: OctopAgent[],
+  agents: InhereBoxAgent[],
   resolvedAgentId: string | null | undefined,
   options: EnabledExpertsOptions = {},
-): OctopAgent[] {
+): InhereBoxAgent[] {
   const { pinActive = false } = options;
   const enabled = agents.filter(
     (a) => a.state === "running" || Boolean(a.bridge_disconnected),
@@ -153,7 +153,7 @@ function sameMemberIds(left?: string[], right?: string[]): boolean {
  * consistent across surfaces — name/icon for the chip, shared badge for
  * the picker, owner_username for the current-user indicator.
  */
-export function projectChatAgentOption(agent: OctopAgent): {
+export function projectChatAgentOption(agent: InhereBoxAgent): {
   agent_id: string;
   name: string;
   icon_name: string | null;
@@ -200,14 +200,14 @@ const defaultValue: AgentContextValue = {
 const AgentContext = createContext<AgentContextValue>(defaultValue);
 
 interface ListAgentsResponse {
-  // Server returns OctopAgent[]; typed loosely so legacy agent.ts module
+  // Server returns InhereBoxAgent[]; typed loosely so legacy agent.ts module
   // (which has a different ``agentApi`` shape for finnie endpoints) stays
   // untouched.
-  list: () => Promise<OctopAgent[]>;
+  list: () => Promise<InhereBoxAgent[]>;
 }
 
 interface FetchAgentsResult {
-  agents: OctopAgent[];
+  agents: InhereBoxAgent[];
   liveConnectionIds: Set<string>;
 }
 
@@ -219,13 +219,13 @@ interface FetchAgentsResult {
 async function fetchAgents(): Promise<FetchAgentsResult> {
   const candidate = legacyAgentApi as Partial<ListAgentsResponse> &
     Record<string, unknown>;
-  let local: OctopAgent[] = [];
+  let local: InhereBoxAgent[] = [];
   if (typeof candidate.list === "function") {
     local = await candidate.list();
   } else {
     // Direct fallback so 14.3 doesn't depend on 14.6's API module rewrite.
     const { request } = await import("../api/request");
-    local = await request<OctopAgent[]>("/agents");
+    local = await request<InhereBoxAgent[]>("/agents");
   }
   const { remote, liveConnectionIds } = await fetchBridgeShadowAgents();
   if (remote.length === 0) {
@@ -239,11 +239,11 @@ async function fetchAgents(): Promise<FetchAgentsResult> {
 }
 
 async function fetchBridgeShadowAgents(): Promise<{
-  remote: OctopAgent[];
+  remote: InhereBoxAgent[];
   liveConnectionIds: Set<string>;
 }> {
   const empty = {
-    remote: [] as OctopAgent[],
+    remote: [] as InhereBoxAgent[],
     liveConnectionIds: new Set<string>(),
   };
   if (isBoxAccountMode()) return empty;
@@ -263,7 +263,7 @@ async function fetchBridgeShadowAgents(): Promise<{
           const agents = await bridgeApi.listAgents(conn.connection_id);
           return agents.map((agent) => mapBridgeAgent(agent, conn));
         } catch {
-          return [] as OctopAgent[];
+          return [] as InhereBoxAgent[];
         }
       }),
     );
@@ -294,7 +294,7 @@ function mapBridgeAgent(
     inbound?: boolean;
     has_password?: boolean;
   },
-): OctopAgent {
+): InhereBoxAgent {
   const agentId = String(agent.agent_id || agent.id || "");
   const memberIds = Array.isArray(agent.member_ids)
     ? agent.member_ids
@@ -337,7 +337,7 @@ function mapBridgeAgent(
 }
 
 export function AgentProvider({ children }: { children: ReactNode }) {
-  const [agents, setAgents] = useState<OctopAgent[]>([]);
+  const [agents, setAgents] = useState<InhereBoxAgent[]>([]);
   const [activeAgentId, setActiveAgentIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -367,7 +367,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
         // Only update state when content actually changed, to prevent
         // unnecessary re-renders of every component subscribed to this context
         // (the chat page polls every 10 s to refresh unread badges).
-        let merged: OctopAgent[] = list;
+        let merged: InhereBoxAgent[] = list;
         setAgents((prev) => {
           merged = retainDisconnectedBridgeAgents(
             prev,

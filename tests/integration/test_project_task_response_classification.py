@@ -14,7 +14,7 @@ from langchain_core.outputs import ChatGenerationChunk
 from octop_harness import HarnessAgent
 from octop_harness.llm.factory import ChatModelFactory
 
-from octop.infra.projects import runtime
+from inhere_box.infra.projects import runtime
 from tests.integration.test_project_capabilities import harness_models
 from tests.integration.test_project_task_checkpoints import parked
 from tests.integration.test_project_task_interactions import approval, respond

@@ -4,31 +4,31 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
-def test_octop_error_carries_code_and_status():
-    err = OctopError(ErrorCode.AGENT_NOT_FOUND, "missing", details={"id": "a"})
+def test_inhere_box_error_carries_code_and_status():
+    err = InhereBoxError(ErrorCode.AGENT_NOT_FOUND, "missing", details={"id": "a"})
     assert err.code is ErrorCode.AGENT_NOT_FOUND
     assert err.status == 404
     assert err.message == "missing"
     assert err.details == {"id": "a"}
 
 
-def test_octop_error_default_status_for_known_code():
-    err = OctopError(ErrorCode.FORBIDDEN, "nope")
+def test_inhere_box_error_default_status_for_known_code():
+    err = InhereBoxError(ErrorCode.FORBIDDEN, "nope")
     assert err.status == 403
 
 
-def test_octop_error_to_envelope():
-    err = OctopError(ErrorCode.AUTH_FAILED, "bad creds")
+def test_inhere_box_error_to_envelope():
+    err = InhereBoxError(ErrorCode.AUTH_FAILED, "bad creds")
     assert err.to_envelope() == {
         "error": {"code": "AUTH_FAILED", "message": "bad creds", "details": {}}
     }
 
 
-def test_octop_error_to_envelope_localized():
-    err = OctopError(ErrorCode.TOKEN_EXPIRED, "token expired")
+def test_inhere_box_error_to_envelope_localized():
+    err = InhereBoxError(ErrorCode.TOKEN_EXPIRED, "token expired")
     assert err.to_envelope(locale="zh")["error"]["message"] == "登录已过期，请重新登录。"
 
 

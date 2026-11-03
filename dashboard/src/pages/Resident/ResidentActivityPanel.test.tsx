@@ -123,7 +123,7 @@ it("a lost follow-up response survives reload and retries its exact original aut
   expect(
     JSON.parse(
       localStorage.getItem(
-        "octop:resident-followup:v1:7:private-agent:fixed-thread",
+        "inhere-box:resident-followup:v1:7:private-agent:fixed-thread",
       )!,
     ),
   ).toEqual(original);
@@ -147,7 +147,7 @@ it("a lost follow-up response survives reload and retries its exact original aut
   await waitFor(() =>
     expect(
       localStorage.getItem(
-        "octop:resident-followup:v1:7:private-agent:fixed-thread",
+        "inhere-box:resident-followup:v1:7:private-agent:fixed-thread",
       ),
     ).toBeNull(),
   );

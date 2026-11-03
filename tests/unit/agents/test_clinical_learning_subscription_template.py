@@ -10,7 +10,7 @@ from types import ModuleType
 import pytest
 from octop_harness.subagents.loader import parse_agent_markdown
 
-from octop.infra.agents.experts.catalog import default_library_root
+from inhere_box.infra.agents.experts.catalog import default_library_root
 
 _ROOT = default_library_root() / "clinical-learning-subscription"
 

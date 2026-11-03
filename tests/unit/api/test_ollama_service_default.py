@@ -10,8 +10,8 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi import HTTPException
 
-from octop.api.routers import ollama_models
-from octop.infra.utils.ollama_manager import SETTINGS_KEY_MODELS_DIR
+from inhere_box.api.routers import ollama_models
+from inhere_box.infra.utils.ollama_manager import SETTINGS_KEY_MODELS_DIR
 
 
 def _server(values: dict[str, str | None]) -> SimpleNamespace:
@@ -53,7 +53,7 @@ async def test_list_uses_models_dir_when_service_disabled(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.delenv("OLLAMA_MODELS", raising=False)
-    from octop.infra.utils import ollama_manager as om
+    from inhere_box.infra.utils import ollama_manager as om
 
     monkeypatch.setattr(om, "_original_ollama_models", om._UNSET)
     monkeypatch.setattr(om, "_applied_models_dir", None)
@@ -75,8 +75,8 @@ async def test_list_uses_models_dir_when_service_disabled(
 async def test_list_uses_running_daemon_when_service_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from octop.infra.utils import ollama_manager as om
-    from octop.infra.utils.ollama_manager import OllamaModelInfo
+    from inhere_box.infra.utils import ollama_manager as om
+    from inhere_box.infra.utils.ollama_manager import OllamaModelInfo
 
     monkeypatch.setattr(om, "is_ollama_reachable", lambda: True)
     listed = MagicMock(return_value=[OllamaModelInfo(name="llama3.2:latest", size=2_000_000_000)])
@@ -91,7 +91,7 @@ async def test_list_uses_running_daemon_when_service_disabled(
 async def test_list_does_not_start_daemon_when_service_off_and_unreachable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from octop.infra.utils import ollama_manager as om
+    from inhere_box.infra.utils import ollama_manager as om
 
     monkeypatch.setattr(om, "is_ollama_reachable", lambda: False)
     listed = MagicMock()
@@ -114,15 +114,15 @@ async def test_put_service_rejects_relative_models_dir() -> None:
 
 def _patch_ollama_lifecycle(monkeypatch: pytest.MonkeyPatch) -> tuple[MagicMock, MagicMock]:
     monkeypatch.delenv("OLLAMA_MODELS", raising=False)
-    from octop.infra.utils import ollama_manager as om
+    from inhere_box.infra.utils import ollama_manager as om
 
     monkeypatch.setattr(om, "_original_ollama_models", om._UNSET)
     monkeypatch.setattr(om, "_applied_models_dir", None)
     stop = MagicMock(return_value=True)
     start = MagicMock()
-    monkeypatch.setattr("octop.infra.utils.ollama_manager.stop_ollama_service", stop)
-    monkeypatch.setattr("octop.infra.utils.ollama_manager.start_ollama_service", start)
-    monkeypatch.setattr("octop.infra.utils.ollama_manager.is_ollama_reachable", lambda: False)
+    monkeypatch.setattr("inhere_box.infra.utils.ollama_manager.stop_ollama_service", stop)
+    monkeypatch.setattr("inhere_box.infra.utils.ollama_manager.start_ollama_service", start)
+    monkeypatch.setattr("inhere_box.infra.utils.ollama_manager.is_ollama_reachable", lambda: False)
     return stop, start
 
 

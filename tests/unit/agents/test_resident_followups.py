@@ -13,21 +13,21 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from octop.config import OctopConfig
-from octop.infra.agents import resident_followups as followups
-from octop.infra.agents.resident_identity import ensure_resident_identity
-from octop.infra.agents.resident_notifications import (
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents import resident_followups as followups
+from inhere_box.infra.agents.resident_identity import ensure_resident_identity
+from inhere_box.infra.agents.resident_notifications import (
     ResidentNotificationDelivery,
     get_notification,
     list_notifications,
 )
-from octop.infra.db import migrate
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRow
-from octop.infra.db.repos.project_tasks import ProjectTaskRow
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.db import migrate
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRow
+from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.utils.paths import PathLayout
 
 NOW = 1_800_000_000_000
 
@@ -36,12 +36,12 @@ NOW = 1_800_000_000_000
 def followed(tmp_path, monkeypatch):
     paths = PathLayout(tmp_path / "octop")
     paths.ensure_root()
-    monkeypatch.setenv("OCTOP_HOME", str(paths.root))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(paths.root))
     monkeypatch.setattr(followups, "_now", lambda: NOW)
     db = SqlitePool(paths.db)
     migrate.run_migrations(db)
     services = build_shared_services(
-        db=db, paths=paths, config=OctopConfig(default_timezone="Asia/Shanghai")
+        db=db, paths=paths, config=InhereBoxConfig(default_timezone="Asia/Shanghai")
     )
     services.user_repo.create(username="owner", password_hash="x", role="user")
     services.user_repo.create(username="other", password_hash="x", role="user")
@@ -148,7 +148,7 @@ def test_parallel_same_request_authorizes_once_and_content_conflicts(followed):
     assert rows[0].next_fire_at == datetime.fromtimestamp((NOW + 60_000) / 1000, UTC)
     assert rows[0].timezone == "Asia/Shanghai"
     assert rows[0].capabilities == ["conversation_notify"]
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         _create(followed, _note(text="Different text"))
     assert error.value.code == ErrorCode.RESIDENT_REQUEST_CONFLICT
 
@@ -185,7 +185,7 @@ def test_one_time_note_completes_with_single_stable_outbox_record(followed):
     ["interval:1", "interval:0", "agently:mail", "cron:bad", "date:2000-01-01T00:00:00Z"],
 )
 def test_invalid_or_external_event_schedules_are_rejected(followed, schedule):
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         _create(followed, _note(schedule=schedule))
     assert error.value.code == ErrorCode.CRON_TRIGGER_INVALID
 
@@ -227,7 +227,7 @@ def test_update_pause_cancel_revision_and_no_resurrection(followed):
     )
     assert paused.authorization_version == 2 and paused.revision == 2
     assert followups.poll_followups(services, NOW + 120_000) == 0
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         followups.cancel_followup(
             services,
             1,
@@ -255,7 +255,7 @@ def test_update_pause_cancel_revision_and_no_resurrection(followed):
         followups.FollowupCancel(expected_revision=2),
     )
     assert repeated == cancelled
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         followups.update_followup(
             services,
             1,
@@ -292,7 +292,7 @@ def test_quiet_task_watch_reports_state_then_outcome_once_and_stops(followed):
 def test_task_watch_deletion_is_final_and_foreign_task_cannot_be_watched(followed):
     services, _ = followed
     _task(services, "foreign", owner_id=2)
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         _watch(followed, "foreign")
     assert error.value.code == ErrorCode.NOT_FOUND
     _task(services)
@@ -307,10 +307,10 @@ def test_task_watch_deletion_is_final_and_foreign_task_cannot_be_watched(followe
 def test_followup_read_and_mutation_are_private_even_to_other_owner(followed):
     services, binding = followed
     row = _create(followed)
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         followups.get_followup(services, 2, binding.agent_id, binding.thread_id, row.followup_id)
     assert error.value.code == ErrorCode.NOT_FOUND
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         followups.cancel_followup(
             services,
             2,
@@ -329,7 +329,7 @@ def test_naive_date_and_cron_use_saved_server_timezone(followed):
     cron = _create(followed, _note(request="cron", schedule="cron:0 9 * * *"))
     assert cron.next_fire_at.astimezone(UTC).hour == 1
     changed = build_shared_services(
-        db=services.db, paths=services.paths, config=OctopConfig(default_timezone="UTC")
+        db=services.db, paths=services.paths, config=InhereBoxConfig(default_timezone="UTC")
     )
     assert changed.resident_followup_repo.get(1, row.followup_id).timezone == "Asia/Shanghai"
 
@@ -534,7 +534,7 @@ def test_notification_keyset_pages_are_private_and_do_not_repeat(followed):
         seen.append(page.items[0].notification_id)
         cursor = page.next_page_cursor
     assert cursor is None and len(set(seen)) == 3
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         get_notification(services, 2, binding.agent_id, binding.thread_id, seen[0])
     assert error.value.code == ErrorCode.NOT_FOUND
 
@@ -728,8 +728,8 @@ def test_task_and_delegation_roll_back_if_outbox_cannot_commit(followed, monkeyp
 async def test_archived_profile_returns_prior_followup_receipt_without_reauthorizing(
     followed, tmp_path
 ):
-    from octop.infra.agents.experts.catalog import ExpertCatalog
-    from octop.infra.agents.resident_profiles import (
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog
+    from inhere_box.infra.agents.resident_profiles import (
         ResidentProfileArchive,
         ResidentProfileCreate,
         archive_profile,
@@ -773,7 +773,7 @@ async def test_archived_profile_returns_prior_followup_receipt_without_reauthori
     )
     replay = followups.create_followup(services, 1, profile.agent_id, profile.thread_id, body)
     assert replay.followup_id == row.followup_id and replay.status == "cancelled"
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         followups.create_followup(
             services, 1, profile.agent_id, profile.thread_id, _note(request="new-followup")
         )
@@ -786,7 +786,7 @@ async def test_repeated_http_cancellation_keeps_authorization_lock_until_write_f
 ):
     from fastapi import Response
 
-    from octop.api.routers import resident_followups as routes
+    from inhere_box.api.routers import resident_followups as routes
 
     services, binding = followed
     row = _create(followed)

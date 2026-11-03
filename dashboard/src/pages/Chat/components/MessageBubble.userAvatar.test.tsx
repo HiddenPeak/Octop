@@ -2,9 +2,9 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import MessageBubble from "./MessageBubble";
 import type { ChatMessage } from "../hooks/useChat";
-import type { OctopUser } from "../../../api/modules/auth";
+import type { InhereBoxUser } from "../../../api/modules/auth";
 
-const currentUser: Partial<OctopUser> = {
+const currentUser: Partial<InhereBoxUser> = {
   username: "ada",
   display_name: "Ada",
   avatar_icon: "business",

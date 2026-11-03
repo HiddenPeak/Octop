@@ -23,7 +23,7 @@ import { useSearchParams } from "react-router-dom";
 import PageShell from "../../../layouts/PageShell";
 import TabBar, { type TabBarItem } from "../../../components/TabLabel/TabBar";
 import StreamSetupGuide from "../../../components/StreamSetupGuide/StreamSetupGuide";
-import { OctopEmptyMascot } from "../../../components/EmptyState/OctopEmptyMascot";
+import { InhereBoxEmptyMascot } from "../../../components/EmptyState/InhereBoxEmptyMascot";
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
 import { userCan } from "../../../utils/permissions";
 import { apiErrorMessage } from "../../../utils/apiError";
@@ -455,14 +455,14 @@ function ConnectorConfigDrawer({
 
   const openUrl = (url: string | null | undefined) => {
     if (!url) return;
-    window.open(url, "octop-connector-auth", "width=720,height=800");
+    window.open(url, "inhere-box-connector-auth", "width=720,height=800");
   };
 
   /** Open sync under the click gesture so popup blockers don't swallow async opens. */
   const openAuthPopupPlaceholder = (): Window | null => {
     const popup = window.open(
       "about:blank",
-      "octop-connector-auth",
+      "inhere-box-connector-auth",
       "width=720,height=800",
     );
     if (popup) {
@@ -830,7 +830,7 @@ function ConnectorConfigDrawer({
         message.warning(
           t(
             "connectors.weknoraNotFound",
-            "未在 OCTOP 主机的 127.0.0.1:8080 检测到 WeKnora",
+            "未在 INHERE_BOX 主机的 127.0.0.1:8080 检测到 WeKnora",
           ),
         );
         return;
@@ -859,7 +859,7 @@ function ConnectorConfigDrawer({
 
   const handleOAuth = async () => {
     if (!entry || authorizing) return;
-    const popup = window.open("", "octop-oauth", "width=520,height=720");
+    const popup = window.open("", "inhere-box-oauth", "width=520,height=720");
     if (!popup) {
       message.error(
         t(
@@ -963,7 +963,7 @@ function ConnectorConfigDrawer({
 
     const onMessage = (ev: MessageEvent) => {
       if (ev.origin !== window.location.origin) return;
-      if (ev.data?.type !== "octop:connector-oauth") return;
+      if (ev.data?.type !== "inhere-box:connector-oauth") return;
       if (ev.data.state_id !== stateId) return;
       void claimPending();
     };
@@ -1516,7 +1516,7 @@ function ConnectorConfigDrawer({
                 {cliInfo.error ??
                   t(
                     "connectors.cliMissingHint",
-                    "主机尚未安装 CLI。可点击「安装 CLI」，或在 Octop 主机终端手动执行下方命令。",
+                    "主机尚未安装 CLI。可点击「安装 CLI」，或在 inhere-box 主机终端手动执行下方命令。",
                   )}
               </div>
             )}
@@ -2387,7 +2387,7 @@ export default function ConnectorsPage() {
               className={styles.emptyGuide}
               wide
               plain
-              icon={<OctopEmptyMascot />}
+              icon={<InhereBoxEmptyMascot />}
               title={t("connectors.emptyGuideTitle")}
               description={t("connectors.emptyGuideDesc")}
               steps={[

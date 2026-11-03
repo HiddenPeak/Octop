@@ -17,12 +17,12 @@ const AUTH_REMEMBER_PREF_KEY = "auth_remember_pref";
  * React tree calls ``preventDefault()`` to route to /login itself, which keeps
  * the SPA alive instead of tearing the document down mid-render.
  */
-export const UNAUTHORIZED_EVENT = "octop:unauthorized";
+export const UNAUTHORIZED_EVENT = "inhere-box:unauthorized";
 /** Fired when an agent-scoped API request is forbidden. */
-export const FORBIDDEN_EVENT = "octop:forbidden";
+export const FORBIDDEN_EVENT = "inhere-box:forbidden";
 
 /** Response header used by the server for JWT sliding renewal. */
-export const ACCESS_TOKEN_RESPONSE_HEADER = "X-Octop-Access-Token";
+export const ACCESS_TOKEN_RESPONSE_HEADER = "X-Inhere-Box-Access-Token";
 
 /** Quiet error thrown when setup lockdown blocks a non-wizard API call. */
 export class SetupRequiredError extends Error {
@@ -104,7 +104,7 @@ export function clearAuthToken() {
   localStorage.removeItem(AUTH_TOKEN_KEY);
   sessionStorage.removeItem(AUTH_TOKEN_KEY);
   sessionStorage.removeItem(AUTH_REMEMBER_PREF_KEY);
-  localStorage.removeItem("octop:active-agent");
+  localStorage.removeItem("inhere-box:active-agent");
   setActiveAgentId(null);
 }
 
@@ -198,7 +198,7 @@ async function check503ForSetupRequired(
  * module scope so plain functions like ``request()`` can read it without
  * threading a context through every call site.
  *
- * The value is ALSO mirrored to ``localStorage["octop:active-agent"]`` by
+ * The value is ALSO mirrored to ``localStorage["inhere-box:active-agent"]`` by
  * the provider — but the source of truth at request time is this variable
  * so reactions stay synchronous.
  */
@@ -215,7 +215,7 @@ export function getActiveAgentId(): string | null {
 }
 
 /**
- * Optional ``X-Octop-Agent-Id`` for caller-opted header tunnels (composer
+ * Optional ``X-Inhere-Box-Agent-Id`` for caller-opted header tunnels (composer
  * GETs, connector lists). Do not auto-attach these on settings pages.
  */
 export function bridgeAgentHeaders(
@@ -223,13 +223,13 @@ export function bridgeAgentHeaders(
 ): Record<string, string> | undefined {
   const id = (agentId ?? "").trim();
   if (!id) return undefined;
-  return { "X-Octop-Agent-Id": id };
+  return { "X-Inhere-Box-Agent-Id": id };
 }
 
 /**
  * Decide whether a request path is "agent-scoped" — i.e. talking to a
  * concrete agent's resource — and therefore should carry the
- * ``X-Octop-Agent-Id`` header. Health, admin, auth, setup, providers, and
+ * ``X-Inhere-Box-Agent-Id`` header. Health, admin, auth, setup, providers, and
  * personas don't need it.
  *
  * Composer / knowledge / browser host GETs are NOT auto-scoped: those
@@ -280,9 +280,9 @@ function buildHeaders(path: string, extra?: HeadersInit): HeadersInit {
   if (
     activeAgentId &&
     isAgentScopedPath(path) &&
-    !headers["X-Octop-Agent-Id"]
+    !headers["X-Inhere-Box-Agent-Id"]
   ) {
-    headers["X-Octop-Agent-Id"] = activeAgentId;
+    headers["X-Inhere-Box-Agent-Id"] = activeAgentId;
   }
 
   return headers;
@@ -302,9 +302,9 @@ function buildAuthHeaders(path: string): Record<string, string> {
   if (
     activeAgentId &&
     isAgentScopedPath(path) &&
-    !headers["X-Octop-Agent-Id"]
+    !headers["X-Inhere-Box-Agent-Id"]
   ) {
-    headers["X-Octop-Agent-Id"] = activeAgentId;
+    headers["X-Inhere-Box-Agent-Id"] = activeAgentId;
   }
   return headers;
 }

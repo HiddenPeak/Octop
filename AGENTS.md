@@ -9,15 +9,21 @@ Navigation guide for AI coding agents working in this repository.
 - 未获得本次部署授权前，不上传或替换远端安装包、不安装或升级远端程序、不改写远端配置或数据、不停止或重启远端服务。需要远端验证时，先说明具体操作并取得相应授权。
 - 本地工作完成后，报告改动、验证结果和待部署产物，等待用户明确发出部署指令。用户未要求回滚时，也不自行回滚已部署版本。
 
+## 局域网 HTTP 约定（2026-11-03）
+
+- 用户已明确要求本项目面向局域网使用，默认全面支持 HTTP/WS；HTTPS/WSS 保持可选。
+- 不要求按 IP、端口或 Bonjour 主机名逐项放行，不写死 DHCP 地址，也不为 HTTP 另加默认关闭的开关或反复请求相同确认。
+- HTTP 放行不取消账户登录、设备持钥证明、浏览器同源/CSRF 校验、访客隔离和撤销机制。
+
 ## 当前用户分工约定（2026-10-23，最新修订）
 
-- 当前改造 Octop 的「项目和任务」正式页面，以及支撑它的服务端项目和任务接口。
+- 当前改造 inhere-box 的「项目和任务」正式页面，以及支撑它的服务端项目和任务接口。
 - Task 与会话统一为多轮工作记录：首条消息创建任务，追问沿用同一任务；项目和专家均可选，不选专家使用通用助手，不创建隐含专家。专家保留独立记忆、人设和能力配置，工作目录由项目决定；未配置目录时使用任务独立空间。
 - 每轮固定项目、专家与能力的实际配置快照；空闲时可更换所选专家，从下一轮生效，原回复保留身份；检查点归任务，专家长期记忆与执行目录分开。实施顺序和验收范围见 `docs/unified-task-conversation-plan.md`。
 - 用户本次扩大后续范围：远程专家、IM/CLI/cron 接入统一 Task，允许旧数据批量迁移；APP 先更新接口与接线文档，不修改 Swift/UI。具体方案见 `docs/unified-task-all-entrypoints-plan.md`，文档中的拟增协议不表示当前已实现。
 - 项目独立于专家，自己持有服务端工作目录、客户端工作目录、多个 Skill/MCP 引用和行动指南；新建或编辑项目不得创建、关联或修改专家。
 - 撤销此前不合适的项目绑定专家配置方案；不恢复旧专用模型或建立双向写入。旧会话批迁允许实施，须先具备预检、来源映射、持久进度、附件校验和副本演练；保留原始记录，删除数据仍须另行明确授权。
-- 两类目录独立保存：服务端目录在 Octop 主机上校验；客户端目录仅保存用户电脑绝对路径，不在服务端探测、解析、读取或上传文件。
+- 两类目录独立保存：服务端目录在 inhere-box 主机上校验；客户端目录仅保存用户电脑绝对路径，不在服务端探测、解析、读取或上传文件。
 - 菜单与页面统一使用「项目和任务」，不再使用「项目与 Task」。
 - 项目和任务统一使用 `/api/projects`、`/api/project-tasks`；不恢复 `/api/agentcomputer/v1`。远程项目/任务通过 Bridge 复用统一协议，远端 Task 为权威，本机只保存带主机身份的索引；目录属于执行主机，不把本机或客户端路径当远端授权。
 - AgentComputer 客户端仅用于核对产品与接口；本轮不修改其 Swift/UI，不新增测试或验收页面。
@@ -63,7 +69,7 @@ Navigation guide for AI coding agents working in this repository.
 
 ## 2. What this is
 
-**Octop** — self-hosted AI assistant platform (multi-user, multi-agent).
+**inhere-box** — self-hosted AI assistant platform (multi-user, multi-agent).
 One Python wheel: FastAPI backend + React dashboard + Click CLI.
 No external queue. No required services beyond an LLM provider.
 
@@ -86,9 +92,9 @@ No external queue. No required services beyond an LLM provider.
 High-level tree — see [§5 Module boundaries](#5-module-boundaries) for what each folder owns and what it may import.
 
 ```
-Octop (`octop/` workspace directory)     Python package root (`src/octop/`)
+inhere-box (`inhere-box/` workspace directory)     Python package root (`src/inhere_box/`)
   config.py
-  launch.py                   composition root: OctopServer + FastAPI + uvicorn
+  launch.py                   composition root: InhereBoxServer + FastAPI + uvicorn
   i18n/                       locale JSON bundles + tr() + domain helpers
   infra/                      domain core (agents, DB, gateway, …)
   api/                        HTTP adapters (FastAPI)
@@ -107,27 +113,27 @@ tests/                        pytest (`unit/`, `integration/`)
 ### Layer overview
 
 ```
-dashboard/ ──HTTP──► api/ ──► infra/ ──► infra/utils/, octop.config
+dashboard/ ──HTTP──► api/ ──► infra/ ──► infra/utils/, inhere_box.config
 cli/ ──► launch.py ──► api/ + infra/
 ```
 
 | Layer | Role | May import | Must NOT import |
 |-------|------|------------|-----------------|
-| `octop.config` | Env-based `OctopConfig` | stdlib, pydantic | `infra/`, `api/`, `cli/`, `launch.py` |
-| `octop.i18n` | Locale JSON + `tr()` + per-namespace helpers | `infra/utils/locale`, stdlib | `api/`, `cli/`, `dashboard/` |
-| `octop.launch` | Wire `OctopServer`, `build_app`, uvicorn for `octop run` | `infra/`, `api/` | business logic; must not be imported by `infra/` |
+| `inhere_box.config` | Env-based `InhereBoxConfig` | stdlib, pydantic | `infra/`, `api/`, `cli/`, `launch.py` |
+| `inhere_box.i18n` | Locale JSON + `tr()` + per-namespace helpers | `infra/utils/locale`, stdlib | `api/`, `cli/`, `dashboard/` |
+| `inhere_box.launch` | Wire `InhereBoxServer`, `build_app`, uvicorn for `inhere-box run` | `infra/`, `api/` | business logic; must not be imported by `infra/` |
 | `infra/utils/` | Pure helpers (paths, ulid, env files, Ollama) | stdlib, third-party | any other `infra/*` domain code |
 | `infra/db/repos/` | One repo per table — SQL only | `infra/db/_base`, `infra/utils/` | `agents/`, `gateway/`, `api/`, orchestration |
-| `infra/` (domain) | Business logic & orchestration | `infra/utils/`, `infra/db/`, `octop.config`, peer `infra/*` subpackages, `infra/errors`, `infra/metrics` | `api/`, `cli/`, `launch.py`, `dashboard/` |
-| `api/` | HTTP: routing, auth, SSE, OpenAPI | `infra/`, `octop.config`, sibling `api/*` | `cli/`, `launch.py`; no business rules that belong in `infra/` |
-| `cli/` | Terminal UX | `infra/`, `octop.config`, `launch.py`, sibling `cli/*` | `api/`; domain logic duplicated from `infra/` |
+| `infra/` (domain) | Business logic & orchestration | `infra/utils/`, `infra/db/`, `inhere_box.config`, peer `infra/*` subpackages, `infra/errors`, `infra/metrics` | `api/`, `cli/`, `launch.py`, `dashboard/` |
+| `api/` | HTTP: routing, auth, SSE, OpenAPI | `infra/`, `inhere_box.config`, sibling `api/*` | `cli/`, `launch.py`; no business rules that belong in `infra/` |
+| `cli/` | Terminal UX | `infra/`, `inhere_box.config`, `launch.py`, sibling `cli/*` | `api/`; domain logic duplicated from `infra/` |
 | `dashboard/` | React UI | `dashboard/src/api` → backend over HTTP | Python packages; no direct DB or `infra/` access |
 
 **Hard bans**
 
 - `infra/` → `api/`, `cli/`, or `launch.py`.
 - `api/` → `cli/` or `launch.py`.
-- `cli/` → `api/` (use `launch.py` for `octop run` instead).
+- `cli/` → `api/` (use `launch.py` for `inhere-box run` instead).
 - `infra/db/repos/` → any non-DB `infra` package.
 - `infra/utils/` → any non-utils `infra` package.
 - Routers/helpers in `api/routers/` must stay thin: validate HTTP, call `infra/`, map errors — not new domain rules.
@@ -146,15 +152,15 @@ cli/ ──► launch.py ──► api/ + infra/
 | `infra/setup/` | First-run wizard, system service install, TLS / Let's Encrypt | `server.py`, `launch.py`, `api/routers/setup.py`, `api/routers/tls.py` |
 | `infra/skills/` | Skill packages, SkillHub HTTP client (`skillhub_market`, `skillhub_common`) | `api/routers/skills.py`, `agents/experts` |
 | `infra/users/` | Users, roles, password hashing, `UserManager` | `server.py`, `api/routers/auth.py`, `users.py` |
-| `infra/errors.py` | `OctopError`, `ErrorCode` — shared exception types | everywhere in `infra/` and `api/` |
+| `infra/errors.py` | `InhereBoxError`, `ErrorCode` — shared exception types | everywhere in `infra/` and `api/` |
 | `infra/metrics.py` | In-process counters (`METRICS`) | lazy-import inside hot paths |
-| `infra/server.py` | `OctopServer.start()` — wires infra singletons | `launch.py`, `api/app.py` |
+| `infra/server.py` | `InhereBoxServer.start()` — wires infra singletons | `launch.py`, `api/app.py` |
 
 ### `launch.py`
 
 | Path | Owns | Must NOT |
 |------|------|----------|
-| `launch.py` | `run_foreground` / `run_foreground_blocking` — boot `OctopServer`, serve via uvicorn + `build_app`, clean shutdown | HTTP routes, SQL, CLI argument parsing |
+| `launch.py` | `run_foreground` / `run_foreground_blocking` — boot `InhereBoxServer`, serve via uvicorn + `build_app`, clean shutdown | HTTP routes, SQL, CLI argument parsing |
 
 Only `launch.py` may import both `infra/server` and `api/app` in the same module.
 
@@ -166,7 +172,7 @@ Only `launch.py` may import both `infra/server` and `api/app` in the same module
 | `api/deps.py` | JWT extraction, `current_user`, `get_server` | agent lifecycle, cron logic |
 | `api/middleware/` | JWT gate, setup lockdown | business validation beyond auth/setup |
 | `api/openapi_meta.py` | Scalar tags, API intro text | route handlers |
-| `api/errors.py` | Map `OctopError` → HTTP status + JSON | new error semantics (add to `infra/errors.py`) |
+| `api/errors.py` | Map `InhereBoxError` → HTTP status + JSON | new error semantics (add to `infra/errors.py`) |
 | `api/routers/` | One resource per module; Pydantic request/response models | persistence, harness calls — delegate to `infra/` |
 | `api/routers/browser/` | Browser session/stream/harness HTTP surface | Playwright logic (stays in harness or helpers here only as glue) |
 
@@ -178,22 +184,22 @@ Only `launch.py` may import both `infra/server` and `api/app` in the same module
 | `cli/*_cmd.py` | User-facing subcommands |
 | `cli/support/db.py` | Offline DB (`open_cli_services`) |
 | `cli/support/offline_ops.py` | Local CRUD via repos (thin wrappers) |
-| `cli/support/embedded_ops.py` | Short-lived `OctopServer` for runtime ops |
+| `cli/support/embedded_ops.py` | Short-lived `InhereBoxServer` for runtime ops |
 | `cli/support/acting.py` | Resolve `--user` / pinned defaults / agent owner |
 | `cli/support/ctx.py` | Root `--user` / `--agent` / `--json` resolution |
 | `cli/support/state.py` | Pinned `default_user` / `default_agent` in `cli_state.json` |
-| `cli/run_cmd.py` | `octop run` — delegates to `launch.run_foreground_blocking` |
+| `cli/run_cmd.py` | `inhere-box run` — delegates to `launch.run_foreground_blocking` |
 | `cli/init_cmd.py`, `cli/backup_cmd.py` | Local DB bootstrap / backup via `infra/db` |
 
 **CLI transport layers** (pick one per command; domain rules live in `infra/`, not duplicated in `cli/`):
 
 | Layer | When | Examples |
 |-------|------|----------|
-| **Offline** | Read/write local `~/.octop` SQLite only | `user *`, `provider *`, `cron` list/create/delete, `agent list/delete`, `chats` CRUD, `models` presets/list/active, `channel` CRUD, `admin`, `skills` enable/disable |
-| **Embedded** | Needs harness/gateway runtime; boots in-process `OctopServer` | `chats send/repl`, `chats get` (history), `cron run-now`, `agent` create/start/stop/reload, `provider test`, `channel test`, `skills list`, `acp` |
-| **External** | Talks to OS/daemon directly, no Octop HTTP | `models ollama-*`, channel QR bind (WeCom/WeChat), Feishu bot-creator subprocess |
+| **Offline** | Read/write local `~/.inhere-box` SQLite only | `user *`, `provider *`, `cron` list/create/delete, `agent list/delete`, `chats` CRUD, `models` presets/list/active, `channel` CRUD, `admin`, `skills` enable/disable |
+| **Embedded** | Needs harness/gateway runtime; boots in-process `InhereBoxServer` | `chats send/repl`, `chats get` (history), `cron run-now`, `agent` create/start/stop/reload, `provider test`, `channel test`, `skills list`, `acp` |
+| **External** | Talks to OS/daemon directly, no inhere-box HTTP | `models ollama-*`, channel QR bind (WeCom/WeChat), Feishu bot-creator subprocess |
 
-No `octop user login` — CLI trusts local filesystem access to `~/.octop`. Pin acting user with `octop config set-user` or root `--user`; pin agent with `octop agent use` or root `--agent`. If `octop run` is already running, config CLI writes take effect after server restart (cron, channels loaded at boot).
+No `inhere-box user login` — CLI trusts local filesystem access to `~/.inhere-box`. Pin acting user with `inhere-box config set-user` or root `--user`; pin agent with `inhere-box agent use` or root `--agent`. If `inhere-box run` is already running, config CLI writes take effect after server restart (cron, channels loaded at boot).
 
 ### `dashboard/src/` layout
 
@@ -208,7 +214,7 @@ No `octop user login` — CLI trusts local filesystem access to `~/.octop`. Pin 
 | `locales/` | i18n strings | — |
 | `utils/` | Frontend pure helpers | API or server knowledge |
 
-Frontend talks to Octop **only** via `/api` HTTP — never import or assume Python module layout.
+Frontend talks to inhere-box **only** via `/api` HTTP — never import or assume Python module layout.
 
 ## 6. Run commands
 
@@ -217,27 +223,27 @@ make install-hooks                      # once per clone: enable .githooks pre-c
 make all                                # format-all + lint + typecheck + test (ship bar)
 make format-all                         # backend Ruff + dashboard Prettier write
 make lint                               # ruff check + format check
-make typecheck                          # mypy --strict src/octop
+make typecheck                          # mypy --strict src/inhere_box
 make format                             # ruff auto-fix + format (backend only)
 make format-frontend                    # prettier write (dashboard only)
 uv run pytest -m "not live"            # full test suite (no LLM calls)
 uv run pytest tests/unit -x -q        # unit tests only, stop on first fail
 uv run pytest tests/integration -x -q # integration tests only
 cd dashboard && npx tsc -b             # frontend typecheck (after UI changes)
-make build-frontend                     # dashboard/ → src/octop/dashboard/
+make build-frontend                     # dashboard/ → src/inhere_box/dashboard/
 ```
 
 **Git hooks (required for local commits):** after cloning, run **`make install-hooks`** once. That sets `core.hooksPath=.githooks` so every `git commit` runs **`make all`** (which first runs **`format-all`**: backend Ruff + dashboard Prettier write, then lint / typecheck / test) and dashboard **`npm run build`**. Formatted files that were already staged are re-added so the commit includes the formatted content. Bypass only in emergencies: `SKIP_PRECOMMIT=1 git commit …` or `git commit --no-verify`. Do **not** skip hooks to land red tests — fix the suite first (CI runs on Linux **and** Windows).
 
 ## 7. Key patterns
 
-**DI:** Routers receive `server: OctopServer = Depends(get_server)`; core services live on `server.services` (`SharedServices` from `infra/db/services.py`). Never import repos at module level outside `SharedServices` / `RepoBundle`.
+**DI:** Routers receive `server: InhereBoxServer = Depends(get_server)`; core services live on `server.services` (`SharedServices` from `infra/db/services.py`). Never import repos at module level outside `SharedServices` / `RepoBundle`.
 
-**Agent scope:** Most agent routes use `/api/agents/{agent_id}/…` in the URL. A few legacy endpoints (e.g. MBTI) still take `X-Octop-Agent-Id`. Always validate ownership: load the agent row → `_assert_agent_owner(row, user)` (or admin bypass).
+**Agent scope:** Most agent routes use `/api/agents/{agent_id}/…` in the URL. A few legacy endpoints (e.g. MBTI) still take `X-Inhere-Box-Agent-Id`. Always validate ownership: load the agent row → `_assert_agent_owner(row, user)` (or admin bypass).
 
-**Agent workspace I/O:** All reads/writes of agent workspace **content files** go through `HarnessAgent.workspace` (`BackendWorkspace` from `octop-harness`). Do **not** use `agent.backend` directly, `resolve_harness_backend`, or `Path.write_text` / `read_text` on `~/.octop/agents/<id>/` for workspace content. Do **not** branch on backend type or `virtual_mode` in Octop — path rules live in `BackendWorkspace`.
+**Agent workspace I/O:** All reads/writes of agent workspace **content files** go through `HarnessAgent.workspace` (`BackendWorkspace` from `octop-harness`). Do **not** use `agent.backend` directly, `resolve_harness_backend`, or `Path.write_text` / `read_text` on `~/.inhere-box/agents/<id>/` for workspace content. Do **not** branch on backend type or `virtual_mode` in inhere-box — path rules live in `BackendWorkspace`.
 
-New agents additionally keep system-scoped files under `{workspace}/.octop/` (e.g. sessions/sqlite, skills/agents system trees, auth tokens under `.octop/auth`). `system_files_path` is internal and not user-configurable; the `.octop` directory is created on first harness workspace init. Legacy agents keep auth at `{workspace}/.octop-auth`.
+New agents additionally keep system-scoped files under `{workspace}/.octop/` (e.g. sessions/sqlite, skills/agents system trees, auth tokens under `.octop/auth`). `system_files_path` is internal and not user-configurable; the `.octop` directory is created on first harness workspace init. Legacy agents keep auth at `{workspace}/.inhere-box-auth`.
 
 | Context | Entry |
 |---------|--------|
@@ -247,7 +253,7 @@ New agents additionally keep system-scoped files under `{workspace}/.octop/` (e.
 
 **Path conventions:** Pass workspace-relative paths to `BackendWorkspace` (`SOUL.md`, `skills/foo/SKILL.md`). Directory listing defaults to `"."` (current workspace directory). `"/"` is a distinct backend-root path inside `BackendWorkspace` — do **not** conflate it with `"."` there. The dashboard may send leading-`/` paths; HTTP adapters normalize those in `workspace_api_path()` before calling `BackendWorkspace`.
 
-**Chat attachments:** Dashboard uploads go to `{workspace}/inbound/` via `api/common/attachments.py` + `api/routers/uploads.py`, not a separate `~/.octop/uploads/` store.
+**Chat attachments:** Dashboard uploads go to `{workspace}/inbound/` via `api/common/attachments.py` + `api/routers/uploads.py`, not a separate `~/.inhere-box/uploads/` store.
 
 **Database:** SQLite and PostgreSQL share one schema. Add or change tables via a numbered pair
 `infra/db/migrations/00N_description.sql` **and** `00N_description.pg.sql`, then bump the
@@ -283,7 +289,7 @@ name-keyed config (`providers`, `voice_providers`, `storage_backends`); append-o
 
 **Internationalization (i18n):** Supported locales are **`zh`** and **`en`** (`en` is the fallback). User-facing text produced by the **server** (slash replies, IM/channel status, API error messages, tool display names, CLI output) must come from backend bundles — not hard-coded English in `infra/` when the string is shown to end users.
 
-Backend layout (`src/octop/i18n/`):
+Backend layout (`src/inhere_box/i18n/`):
 
 ```
 i18n/
@@ -298,21 +304,21 @@ i18n/
 
 **Lookup rules**
 
-- Use full paths with `from octop.i18n import tr`, e.g. `tr("slash.catalog.help.label", locale)`.
-- Prefer `octop.i18n.domains.<ns>` (or re-exports on `octop.i18n`) for repeated namespaces — e.g. `tool_display_name()`, `error_message()`.
-- Slash handlers use `from octop.i18n.domains.slash import tr` (short keys like `"help.title"`).
+- Use full paths with `from inhere_box.i18n import tr`, e.g. `tr("slash.catalog.help.label", locale)`.
+- Prefer `inhere_box.i18n.domains.<ns>` (or re-exports on `inhere_box.i18n`) for repeated namespaces — e.g. `tool_display_name()`, `error_message()`.
+- Slash handlers use `from inhere_box.i18n.domains.slash import tr` (short keys like `"help.title"`).
 - Interpolation uses Python `str.format` placeholders (`{name}`, `{tool_name}`).
 
 **Locale resolution** (`infra/utils/locale.py`): stored user preference wins, then `Accept-Language` (dashboard sends this on API calls), then channel-type hints (IM platforms default `zh`, `telegram` → `en`). Use `resolve_user_locale()` in gateway/IM paths; `resolve_request_locale()` in HTTP handlers.
 
-**API errors:** `ErrorCode` values map to `errors.<CODE>` in JSON. `OctopError.to_envelope(locale=…)` and the global exception handler localize `message`. Dashboard mirrors codes under `apiErrors.*` in `dashboard/src/locales/{en,zh}.json` — tests require backend and frontend keys to match.
+**API errors:** `ErrorCode` values map to `errors.<CODE>` in JSON. `InhereBoxError.to_envelope(locale=…)` and the global exception handler localize `message`. Dashboard mirrors codes under `apiErrors.*` in `dashboard/src/locales/{en,zh}.json` — tests require backend and frontend keys to match.
 
 **IM channels:** Tool names and hint lines must be localized in `stream_project.py` — pass localized `tool_name` and pre-formatted `tool_hint_text` on `MessageEvent.tool_start/end` (octop-gateway reads `tool_hint_text` when present). Do not rely on English `ChannelConstraints.tool_hint_template` alone.
 
 **Frontend split**
 
 - **Dashboard chrome** (nav, forms, buttons): `dashboard/src/locales/{en,zh}.json` via i18next.
-- **Server-owned copy** (tools, apiErrors): canonical in `src/octop/i18n/*.json`; dashboard keeps copies synced (see `tests/unit/i18n/`) and may hydrate tools from `GET /api/i18n/tools`.
+- **Server-owned copy** (tools, apiErrors): canonical in `src/inhere_box/i18n/*.json`; dashboard keeps copies synced (see `tests/unit/i18n/`) and may hydrate tools from `GET /api/i18n/tools`.
 
 **Adding strings (checklist)**
 
@@ -325,11 +331,11 @@ Do **not** use gettext (`.po` files). Do **not** embed user-visible English in `
 
 **Timezone (config.json):**
 
-User-facing datetime display and cron/scheduling defaults MUST use the server timezone from `config.json` → `default_timezone` (env override `OCTOP_DEFAULT_TIMEZONE`; legacy `cron_timezone` / `OCTOP_CRON_TIMEZONE` still accepted) — not the browser's local timezone.
+User-facing datetime display and cron/scheduling defaults MUST use the server timezone from `config.json` → `default_timezone` (env override `INHERE_BOX_DEFAULT_TIMEZONE`; legacy `cron_timezone` / `INHERE_BOX_CRON_TIMEZONE` still accepted) — not the browser's local timezone.
 
 | Layer | Entry |
 |-------|--------|
-| Config | `OctopConfig.default_timezone` in `config.py` |
+| Config | `InhereBoxConfig.default_timezone` in `config.py` |
 | API | `GET /api/settings/timezone` → `{ "timezone": "…" }` (`GET /api/cron/settings` remains a compat alias) |
 | Dashboard | `useServerTimezone()`; format with `formatServerDateTime` / `formatServerIsoDateTime` / `formatMessageTime(..., timeZone)` in `dashboard/src/utils/formatMessageTime.ts` |
 
@@ -337,11 +343,11 @@ User-facing datetime display and cron/scheduling defaults MUST use the server ti
 
 **Language:** Keep the existing locale resolution (user preference → `Accept-Language` / dashboard i18n → channel hints → `DEFAULT_LOCALE`). Language is **not** a `config.json` key — do not add one unless explicitly requested.
 
-**Workspace storage:** `infra/backend/resolver.py` resolves harness `BackendProtocol` from agent config; remote backends use `probe.py` for fast tree listing. Docker sandbox (`type: "docker"` / storage `kind=docker`) uses `sandbox_scope` + `sandbox_prefix` (Octop default `octop_sandbox`) — see `docs/agent-backend-file-io.md` §13.
+**Workspace storage:** `infra/backend/resolver.py` resolves harness `BackendProtocol` from agent config; remote backends use `probe.py` for fast tree listing. Docker sandbox (`type: "docker"` / storage `kind=docker`) uses `sandbox_scope` + `sandbox_prefix` (inhere-box default `octop_sandbox`) — see `docs/agent-backend-file-io.md` §13.
 
 **Connectors:** `infra/connectors/` — catalog, OAuth registry, MCP gateway; HTTP surface in `api/routers/connectors.py`.
 
-**Metrics:** `from octop.infra.metrics import METRICS` — lazy-import inside functions to avoid circular imports.
+**Metrics:** `from inhere_box.infra.metrics import METRICS` — lazy-import inside functions to avoid circular imports.
 
 **API docs:** Interactive docs live at `/api/docs` (Scalar, backed by `/api/openapi.json`). When adding or changing API routes, keep the generated docs readable for humans:
 
@@ -351,31 +357,31 @@ User-facing datetime display and cron/scheduling defaults MUST use the server ti
 - Document non-obvious fields with `Field(..., description="…")`; name models clearly.
 - Spot-check `/api/docs` after API changes — a route that renders as an empty card or untyped blob is unfinished.
 
-**Cross-platform tests:** Octop CI runs on both Linux and Windows, so tests must not assume a single platform:
+**Cross-platform tests:** inhere-box CI runs on both Linux and Windows, so tests must not assume a single platform:
 
 - Guard POSIX-only behavior with the repo convention `@pytest.mark.skipif(os.name != "posix", reason="…")`; prefer a module-level `posix_only = pytest.mark.skipif(os.name != "posix", reason="…")` alias. Use `pytest.mark.skipif(os.name == "nt", reason="…")` when a case is Linux/macOS-only for a different reason (e.g. forbidden path characters).
 - Do not hard-code POSIX paths (`/`, `/proc`, `/etc`, `/root`, `/usr/bin/…`, `~` → HOME) in assertions that run on every platform — they resolve differently on Windows (e.g. `/` → `D:\`). Prefer opaque mock tokens via `tests.support.fakes.fake_bin_path("tool")` (uses `pathlib` / `os.sep`) when stubbing `shutil.which` / `resolve_binary`.
 - Prefer `tmp_path` / `tmp_path_factory` and `pathlib.Path` over OS-specific literals; compare paths with `Path` equality (`tmp_path / "a" / "b"`), not string prefixes with `/`. Use `Path.as_posix()` / `os.sep` only when a serialized path string is part of the contract under test.
 - Do not assert `chmod` mode bits, symlink semantics, or Unix-only subprocess shells unless the test is marked `posix_only` (and production code short-circuits on non-POSIX the same way).
 - When a feature's semantics are inherently POSIX-only (e.g. the host root_dir denied prefixes in `infra/utils/host_dirs.py`), keep the source guards (`os.name != "posix"` short-circuit) and mirror them in the tests.
-- New connector/CLI/gateway tests that materialize files under `OCTOP_HOME` must set `monkeypatch.setenv("OCTOP_HOME", str(tmp_path))` and assert dirs with `Path` joins — never assume `~/.octop/...` string shape.
+- New connector/CLI/gateway tests that materialize files under `INHERE_BOX_HOME` must set `monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))` and assert dirs with `Path` joins — never assume `~/.inhere-box/...` string shape.
 
 ## 8. Do not
 
 Boundary rules are in [§5](#5-module-boundaries). Additionally:
 
 - Do not import legacy top-level modules — use current paths:
-  - `octop.agents.*` → `octop.infra.agents.*`
-  - `octop.channels.*` → `octop.infra.gateway.*`
-  - `octop.db.*` → `octop.infra.db.*`
-  - `octop.users.*` → `octop.infra.users.*`
-  - `octop.utils.*` → `octop.infra.utils.*` (or `octop.infra.metrics` for metrics)
-  - `octop.errors` / `octop.server` / `octop.shared` → `octop.infra.errors` / `octop.infra.server` / `octop.infra.db.services`
+  - `inhere_box.agents.*` → `inhere_box.infra.agents.*`
+  - `inhere_box.channels.*` → `inhere_box.infra.gateway.*`
+  - `inhere_box.db.*` → `inhere_box.infra.db.*`
+  - `inhere_box.users.*` → `inhere_box.infra.users.*`
+  - `inhere_box.utils.*` → `inhere_box.infra.utils.*` (or `inhere_box.infra.metrics` for metrics)
+  - `inhere_box.errors` / `inhere_box.server` / `inhere_box.shared` → `inhere_box.infra.errors` / `inhere_box.infra.server` / `inhere_box.infra.db.services`
 - Do not import `api/` from `infra/` or `cli/` — use `launch.py` to wire HTTP serving.
 - Do not put domain logic in `api/routers/` or `cli/*_cmd.py` when it belongs in `infra/`.
 - Do not import `infra/db/repos/*` from routers — use `server.services.*_repo` via `infra/` services or managers.
 - Do not write bare `pytest` — always `uv run pytest`.
-- Do not edit `src/octop/dashboard/` directly — build artifact; source is `dashboard/`.
+- Do not edit `src/inhere_box/dashboard/` directly — build artifact; source is `dashboard/`.
 - Do not add blocking I/O in async functions — use `run_in_executor`.
 
 ## 9. Where to look
@@ -386,14 +392,14 @@ Boundary rules are in [§5](#5-module-boundaries). Additionally:
 | LDAP (directory) login | `infra/auth/ldap/`, `api/routers/auth_ldap.py`; config row is `sso_providers.kind='ldap'`; guide: `docs/ldap.md` |
 | Setup wizard (password file, tokens) | `infra/setup/`, `api/routers/setup.py` |
 | TLS / Let's Encrypt | `infra/setup/tls/`, `api/routers/tls.py` |
-| `octop run` boot sequence | `launch.py`, `cli/run_cmd.py` |
+| `inhere-box run` boot sequence | `launch.py`, `cli/run_cmd.py` |
 | How is a message processed? | `infra/gateway/processor.py` → harness agent |
 | How are agents started/stopped? | `infra/agents/manager.py` |
 | How does cron work? | `infra/cron/manager.py`, `infra/cron/job.py` |
 | What DB tables exist? | `infra/db/migrations/` + `infra/db/repos/` |
 | What env vars are supported? | `config.py` |
 | How does the frontend call the API? | `dashboard/src/api/request.ts` |
-| Internationalization (backend) | `src/octop/i18n/`, `infra/utils/locale.py`, `api/routers/i18n.py` |
+| Internationalization (backend) | `src/inhere_box/i18n/`, `infra/utils/locale.py`, `api/routers/i18n.py` |
 | Internationalization (dashboard) | `dashboard/src/locales/`, `dashboard/src/i18n.ts`, `dashboard/src/utils/apiError.ts` |
 | Server timezone (config.json) | `default_timezone` in `config.py`; `GET /api/settings/timezone`; `dashboard/src/hooks/useServerTimezone.ts`; `dashboard/src/utils/formatMessageTime.ts` |
 | Test layout & shared helpers | `tests/support/` (`fakes`, `auth`, `http`, `scenarios`, `app`), `tests/integration/conftest.py`, `tests/unit/{db,cron,gateway,agents,api,cli}/` |
@@ -410,7 +416,7 @@ Boundary rules are in [§5](#5-module-boundaries). Additionally:
 
 1. **Clarify scope** — read relevant code/docs; confirm assumptions and ambiguities with the user (see [§1](#1-collaboration-principles)).
 2. **Hooks** — if this clone has not run `make install-hooks` yet, do it before committing (see [§6](#6-run-commands)). Pre-commit must stay green (`make all` + dashboard build).
-3. **Minimal implementation** — change only task-related files; dashboard source is in `dashboard/`, build output in `src/octop/dashboard/` (run `make build-frontend` after UI changes).
+3. **Minimal implementation** — change only task-related files; dashboard source is in `dashboard/`, build output in `src/inhere_box/dashboard/` (run `make build-frontend` after UI changes).
 4. **Verify** — backend/ship bar: `make all` (`format-all` + `lint` + `typecheck` + `test`). After `dashboard/` changes, also run `cd dashboard && npx tsc -b` (and `npm run lint` when appropriate). After API route changes, glance at `/api/docs` for readable summaries and schemas. After i18n JSON changes, run `uv run pytest tests/unit/i18n -q`. Treat Windows CI as part of the bar: follow [§7 Cross-platform tests](#7-key-patterns).
 5. **Wrap up** — remove orphan symbols introduced in this change; do not commit or push unless asked.
 

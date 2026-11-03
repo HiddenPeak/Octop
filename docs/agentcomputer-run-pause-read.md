@@ -4,7 +4,7 @@
 
 ## 查询契约
 
-请求必须携带 Octop 用户 Bearer token，服务端从会话确定 owner。本人 Run 没有暂停时返回 HTTP 200 和 JSON `null`；未知 Run、其他用户的 Run 对普通用户和管理员都返回同一个 404。存在暂停时返回类型化对象：`pauseID`、`kind`、`runID`、`turnID`、`phase`、`revision`、`restoreEpoch`、`executionEpoch`、`expiresAt`、`createdAt`、`updatedAt` 和可空的 `decisionCommandID`。
+请求必须携带 inhere-box 用户 Bearer token，服务端从会话确定 owner。本人 Run 没有暂停时返回 HTTP 200 和 JSON `null`；未知 Run、其他用户的 Run 对普通用户和管理员都返回同一个 404。存在暂停时返回类型化对象：`pauseID`、`kind`、`runID`、`turnID`、`phase`、`revision`、`restoreEpoch`、`executionEpoch`、`expiresAt`、`createdAt`、`updatedAt` 和可空的 `decisionCommandID`。
 
 `phase=decided` 仅说明裁决事实已经保存；`decisionCommandID` 可以用于查询原裁决收据。它们都不表示动作获得许可、工具已执行或引擎已经续跑。`phase=expired` 表示保存的旧暂停已过期并被保守收紧；客户端还应读取 Run 当前状态。响应不包含原始问题/工具参数、答案、owner、工作区、内部派发或引擎身份。审批卡片所需的安全展示内容契约尚未建立，因此不能据此开启审批按钮。
 
@@ -12,7 +12,7 @@
 
 ```sh
 curl -i \
-  -H "Authorization: Bearer ${OCTOP_BEARER_TOKEN}" \
+  -H "Authorization: Bearer ${INHERE_BOX_BEARER_TOKEN}" \
   "http://127.0.0.1:8090/api/agentcomputer/v1/runs/${RUN_ID}/pause"
 ```
 

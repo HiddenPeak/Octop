@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from octop.infra.usage.pricing import (
+from inhere_box.infra.usage.pricing import (
     LONG_CONTEXT_RATES,
     PRICING_CHECKED_AT,
     PRICING_CURRENCY,

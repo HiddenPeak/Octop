@@ -16,23 +16,23 @@ from langchain_core.messages import (
 )
 from PIL import Image
 
-from octop.config import OctopConfig
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_tasks import ProjectTaskRow
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import input_attachments
-from octop.infra.projects.image_middleware import TaskImageMaterializeMiddleware
-from octop.infra.projects.image_tools import READ_TASK_IMAGE, TASK_IMAGE_KEY, read_image_tool
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import input_attachments
+from inhere_box.infra.projects.image_middleware import TaskImageMaterializeMiddleware
+from inhere_box.infra.projects.image_tools import READ_TASK_IMAGE, TASK_IMAGE_KEY, read_image_tool
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
 def stored_image(tmp_path):
     db = SqlitePool(tmp_path / "images.db")
     run_migrations(db)
-    services = SharedServices(PathLayout(tmp_path), OctopConfig(), RepoBundle.from_pool(db))
+    services = SharedServices(PathLayout(tmp_path), InhereBoxConfig(), RepoBundle.from_pool(db))
     owner_id = services.user_repo.create(username="image-user", role="user")
     encoded = BytesIO()
     Image.new("RGB", (4, 4), "red").save(encoded, "PNG")
@@ -86,14 +86,14 @@ async def test_model_cannot_resolve_a_different_tasks_image(stored_image):
     request, handler = MagicMock(), MagicMock()
     request.messages = [human]
     middleware = TaskImageMaterializeMiddleware(services, owner_id, "another-task")
-    with pytest.raises(OctopError) as caught:
+    with pytest.raises(InhereBoxError) as caught:
         middleware.wrap_model_call(request, handler)
     assert caught.value.code == ErrorCode.TASK_ATTACHMENT_UNAVAILABLE
     handler.assert_not_called()
 
 
 async def test_image_directory_lists_metadata_without_loading_bytes(stored_image, monkeypatch):
-    from octop.infra.projects import image_tools
+    from inhere_box.infra.projects import image_tools
 
     services, owner_id, task_id, image, _ = stored_image
     download = MagicMock(side_effect=AssertionError("directory must not read image bytes"))

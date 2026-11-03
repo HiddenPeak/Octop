@@ -12,9 +12,9 @@ import pytest
 from deepagents.middleware.summarization import SummarizationMiddleware
 from langchain_core.messages import AIMessage
 
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import compaction, tasks
-from octop.infra.projects.usage import TaskContextUsage, compact_usage, save_usage
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import compaction, tasks
+from inhere_box.infra.projects.usage import TaskContextUsage, compact_usage, save_usage
 from tests.integration.test_project_task_artifacts import real_model as real_model
 from tests.integration.test_project_task_compaction import conversation
 from tests.integration.test_project_tasks import settled
@@ -144,7 +144,7 @@ async def test_active_request_snapshot_survives_cancellation_and_rejects_stale_w
         turn = server.services.project_task_turn_repo.get(task["active_turn_id"])
         assert turn is not None
         owner = await resolve_user_id(client, auth, "admin")
-        with pytest.raises(OctopError) as stale:
+        with pytest.raises(InhereBoxError) as stale:
             await asyncio.to_thread(
                 save_usage,
                 server.services,

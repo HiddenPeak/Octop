@@ -160,7 +160,7 @@ SQLite/PostgreSQL 维护成对迁移、等价约束和幂等补齐。实施时�
 - 专家长期记忆使用稳定的独立存储描述。
 - Task 上下文、检查点、附件和执行日志始终归 Task／Turn。
 
-建议由 Octop 领域层统一记忆访问，显式设置 Task checkpointer，专家记忆只提供召回、读取、写入和维护能力。专家配置不要求先启动一个常驻执行实例才能被 Task 使用。
+建议由 inhere-box 领域层统一记忆访问，显式设置 Task checkpointer，专家记忆只提供召回、读取、写入和维护能力。专家配置不要求先启动一个常驻执行实例才能被 Task 使用。
 
 推荐的作用域：
 
@@ -175,9 +175,9 @@ SQLite/PostgreSQL 维护成对迁移、等价约束和幂等补齐。实施时�
 
 未选择专家时不创建隐含专家，也不增加跨任务的用户通用记忆库；沿用当前 Task 自己的记忆与上下文。项目／本轮既有 `memory_enabled` 控制 Task 记忆，本轮设置优先于项目默认；另以 `expert_memory_enabled` 控制是否连接当前专家的长期记忆，省略时遵循专家策略。专家自身关闭记忆时，本轮不能强行打开；本轮显式关闭专家记忆则同时关闭召回与采集。关闭长期记忆不删除消息、检查点或既有记忆，自动采集与提炼继续遵循专家的既有授权策略。
 
-本地安装的 `octop-memory 1.0.0`、`octop-harness 1.0.1` 已核对：公开 recall 主要按 query/limit 工作，metadata 不能直接作为 owner/project 授权过滤；session/thread 标签也不构成隔离。SQLite 通过 namespace 前缀表隔离，PostgreSQL 通过 namespace 列隔离；由 Octop 服务端严格控制可访问的 namespace，所有工具读写都经过作用域检查。namespace 使用稳定哈希编码，避免规范化后的名称碰撞。PostgreSQL 记忆 backend 当前使用单连接及共享事务状态，不能直接当成线程安全连接池并发使用。
+本地安装的 `octop-memory 1.0.0`、`octop-harness 1.0.1` 已核对：公开 recall 主要按 query/limit 工作，metadata 不能直接作为 owner/project 授权过滤；session/thread 标签也不构成隔离。SQLite 通过 namespace 前缀表隔离，PostgreSQL 通过 namespace 列隔离；由 inhere-box 服务端严格控制可访问的 namespace，所有工具读写都经过作用域检查。namespace 使用稳定哈希编码，避免规范化后的名称碰撞。PostgreSQL 记忆 backend 当前使用单连接及共享事务状态，不能直接当成线程安全连接池并发使用。
 
-Harness 当前单个 MemoryService 的挂接方式不能直接满足“通用记忆 + 项目记忆”双范围，需 Octop 适配层，并拦截所有记忆工具的按 ID 读取与写路由。验证不通过时不能绕回一个无范围的共享记忆库。
+Harness 当前单个 MemoryService 的挂接方式不能直接满足“通用记忆 + 项目记忆”双范围，需 inhere-box 适配层，并拦截所有记忆工具的按 ID 读取与写路由。验证不通过时不能绕回一个无范围的共享记忆库。
 
 并发与采集设计：同一记忆范围的写入／抽取串行协调，模型执行仍可跨 Task 并行；控制面持久记录待采集来源与进度。必须核对目标记忆存储是否支持确定来源 ID 的幂等写入；控制面 outbox 本身不能提供跨库 exactly-once。写入结果未知时保留待核对状态，不盲目重放。若依赖缺少所需原子去重接口，列为依赖扩展任务，不能修改安装目录后当作已交付。
 
@@ -345,7 +345,7 @@ P4 明确预留 B7a–B7c 内至少 2 个后端、3 个前端人日，提前完�
 | 旧能力 | 旧链接准确可读；resident、IM／CLI／cron、共享／团队现有路径不被提前破坏 |
 | 平台与数据库 | SQLite／PostgreSQL等价；Linux／Windows路径、锁与迁移验证遵循仓库惯例 |
 
-实施阶段建议运行相应 `uv run pytest` 的 DB、projects、agents/memory、API／integration 用例；前端运行涉及 store／队列／交互的现有测试、`npx tsc -b` 及必要 lint。API 更新需检查 `/api/docs` 的 summary/schema，更新中英文错误码与 i18n 校验。UI 最终按仓库规则构建，不手改 `src/octop/dashboard/`。
+实施阶段建议运行相应 `uv run pytest` 的 DB、projects、agents/memory、API／integration 用例；前端运行涉及 store／队列／交互的现有测试、`npx tsc -b` 及必要 lint。API 更新需检查 `/api/docs` 的 summary/schema，更新中英文错误码与 i18n 校验。UI 最终按仓库规则构建，不手改 `src/inhere_box/dashboard/`。
 
 最终交付证据包含：实际基线与交付 HEAD、迁移验证、针对性测试、功能矩阵验收、最后一次仓库完整门禁及前端构建结果。提交、推送、上线仍遵循用户明确授权，本规划不执行这些动作。
 
@@ -369,18 +369,18 @@ P4 明确预留 B7a–B7c 内至少 2 个后端、3 个前端人日，提前完�
 
 ## 16. 代码证据索引
 
-- `src/octop/infra/db/repos/threads.py:33`：旧会话必须归属 Agent。
-- `src/octop/infra/db/repos/agents.py:289`：运行状态更新也写 `updated_at`。
-- `src/octop/infra/projects/tasks.py:636`：当前项目与本轮选项形成配置快照。
-- `src/octop/infra/projects/runtime.py:315`：项目目录／Task 默认工作空间选择。
-- `src/octop/infra/projects/runtime.py:512`：Task Harness、memory namespace与默认记忆文件配置。
-- `src/octop/infra/projects/runtime.py` 的 `ProjectTaskWorker`：当前单 `_current` 执行循环。
-- `src/octop/infra/agents/memory/backend.py:68`：专家记忆 namespace及 backend位置解析。
-- `src/octop/api/common/memory_client.py:106`：记忆管理入口的 workspace／backend解析。
-- `src/octop/infra/agents/manager.py:3460`：旧常驻 Harness 同时装配目录、人设、记忆和工具。
-- `src/octop/infra/projects/task_submission.py:132`：当前工作区中的路由配置 digest与二次核对。
-- `src/octop/infra/projects/service.py:158`：当前删除项目会删除关联 Task。
-- `src/octop/infra/projects/conversation_imports.py:178`：已有外部会话导入来源与幂等设计。
+- `src/inhere_box/infra/db/repos/threads.py:33`：旧会话必须归属 Agent。
+- `src/inhere_box/infra/db/repos/agents.py:289`：运行状态更新也写 `updated_at`。
+- `src/inhere_box/infra/projects/tasks.py:636`：当前项目与本轮选项形成配置快照。
+- `src/inhere_box/infra/projects/runtime.py:315`：项目目录／Task 默认工作空间选择。
+- `src/inhere_box/infra/projects/runtime.py:512`：Task Harness、memory namespace与默认记忆文件配置。
+- `src/inhere_box/infra/projects/runtime.py` 的 `ProjectTaskWorker`：当前单 `_current` 执行循环。
+- `src/inhere_box/infra/agents/memory/backend.py:68`：专家记忆 namespace及 backend位置解析。
+- `src/inhere_box/api/common/memory_client.py:106`：记忆管理入口的 workspace／backend解析。
+- `src/inhere_box/infra/agents/manager.py:3460`：旧常驻 Harness 同时装配目录、人设、记忆和工具。
+- `src/inhere_box/infra/projects/task_submission.py:132`：当前工作区中的路由配置 digest与二次核对。
+- `src/inhere_box/infra/projects/service.py:158`：当前删除项目会删除关联 Task。
+- `src/inhere_box/infra/projects/conversation_imports.py:178`：已有外部会话导入来源与幂等设计。
 - `dashboard/src/pages/Chat/hooks/useChatSend.ts`、`useSessions.ts`：旧发送与会话列表的 Agent 依赖。
 - `dashboard/src/pages/Chat/index.tsx`、`hooks/useChat.ts`：旧编辑、再生成与分叉。
 - `dashboard/src/pages/BoxProjects/TaskConversations.tsx`：Task现有消息、控制与 retry边界。

@@ -6,11 +6,11 @@ import json
 
 import pytest
 
-from octop.api.middleware.bridge_proxy import (
+from inhere_box.api.middleware.bridge_proxy import (
     _local_bridge_shadow_response,
     resolve_tunnel_target,
 )
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 def test_history_migration_status_is_idle() -> None:
@@ -25,7 +25,7 @@ def test_history_migration_status_is_idle() -> None:
 
 
 def test_history_migration_start_rejected() -> None:
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         _local_bridge_shadow_response(
             method="POST",
             rest="/history-migration/start",

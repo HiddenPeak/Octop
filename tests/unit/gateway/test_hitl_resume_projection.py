@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from octop.infra.gateway.process.processor import GlobalProcessor
-from octop.infra.gateway.slash.dispatcher import SlashDispatcher
+from inhere_box.infra.gateway.process.processor import GlobalProcessor
+from inhere_box.infra.gateway.slash.dispatcher import SlashDispatcher
 
 
 @pytest.mark.asyncio

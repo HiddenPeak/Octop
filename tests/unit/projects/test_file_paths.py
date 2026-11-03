@@ -7,8 +7,8 @@ from langchain_core.messages import ToolMessage
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from octop_harness.backends import resolve_backend
 
-from octop.infra.projects.context import task_backend
-from octop.infra.projects.file_paths import TaskFilePathMiddleware
+from inhere_box.infra.projects.context import task_backend
+from inhere_box.infra.projects.file_paths import TaskFilePathMiddleware
 
 
 def request(name, **arguments):

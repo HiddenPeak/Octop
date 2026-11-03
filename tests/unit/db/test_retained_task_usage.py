@@ -8,12 +8,12 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.model_calls import ModelCallRepo, ModelCallRow
-from octop.infra.db.repos.usage import RetainedTaskUsage, RetainedTaskUsageEntry, UsageRepo
-from octop.infra.db.repos.users import UserRepo
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.model_calls import ModelCallRepo, ModelCallRow
+from inhere_box.infra.db.repos.usage import RetainedTaskUsage, RetainedTaskUsageEntry, UsageRepo
+from inhere_box.infra.db.repos.users import UserRepo
 
 
 @pytest.fixture

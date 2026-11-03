@@ -10,10 +10,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from octop.infra.projects import runtime
-from octop.infra.projects.settings import ACTION_TIMELINE_ENV, STEP_PANEL_ENV
-from octop.infra.projects.tasks import turn_view
-from octop.infra.utils.env_file import load_env_file, save_env_file
+from inhere_box.infra.projects import runtime
+from inhere_box.infra.projects.settings import ACTION_TIMELINE_ENV, STEP_PANEL_ENV
+from inhere_box.infra.projects.tasks import turn_view
+from inhere_box.infra.utils.env_file import load_env_file, save_env_file
 from tests.integration.test_project_task_checkpoints import parked
 from tests.integration.test_project_tasks import settled
 from tests.support.auth import create_user
@@ -34,12 +34,12 @@ async def test_settings_are_public_to_authenticated_users_without_env_permission
     assert response.headers["cache-control"] == "no-store"
     assert response.json() == {"action_timeline_enabled": True, "step_panel_enabled": False}
     assert (await client.get("/api/envs", headers=auth)).status_code == 403
-    operation = client._octop_app.openapi()["paths"]["/api/project-tasks/settings"]["get"]
+    operation = client._inhere_box_app.openapi()["paths"]["/api/project-tasks/settings"]["get"]
     assert operation["summary"]
     assert operation["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/TaskSettings"
     )
-    schemas = client._octop_app.openapi()["components"]["schemas"]
+    schemas = client._inhere_box_app.openapi()["components"]["schemas"]
     assert schemas["TaskTurn"]["properties"]["presentation"]["$ref"].endswith("/TaskPresentation")
     assert set(schemas["TaskPresentation"]["properties"]) == {
         "action_timeline_enabled",
@@ -55,7 +55,10 @@ async def test_saving_settings_requires_env_permission_and_preserves_unrelated_v
     monkeypatch.setenv(STEP_PANEL_ENV, "true")
     monkeypatch.setenv("TAVILY_API_KEY", "process-secret")
     path = server.paths.root / "env"
-    other_values = {"TAVILY_API_KEY": "persisted-secret", "OCTOP_CAPTCHA_SECRET": "captcha-secret"}
+    other_values = {
+        "TAVILY_API_KEY": "persisted-secret",
+        "INHERE_BOX_CAPTCHA_SECRET": "captcha-secret",
+    }
     save_env_file(path, {**other_values, ACTION_TIMELINE_ENV: "true"})
     before = path.read_bytes()
     body = {"action_timeline_enabled": False, "step_panel_enabled": True}
@@ -83,7 +86,7 @@ async def test_saving_settings_requires_env_permission_and_preserves_unrelated_v
     assert os.environ["TAVILY_API_KEY"] == "process-secret"
     reload_all.assert_not_called()
     assert (await client.get("/api/project-tasks/settings", headers=reader)).json() == body
-    operation = client._octop_app.openapi()["paths"]["/api/project-tasks/settings"]["put"]
+    operation = client._inhere_box_app.openapi()["paths"]["/api/project-tasks/settings"]["put"]
     assert operation["summary"]
     assert operation["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/TaskSettingsUpdate"
@@ -91,7 +94,7 @@ async def test_saving_settings_requires_env_permission_and_preserves_unrelated_v
     assert operation["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
         "/TaskSettings"
     )
-    schema = client._octop_app.openapi()["components"]["schemas"]["TaskSettingsUpdate"]
+    schema = client._inhere_box_app.openapi()["components"]["schemas"]["TaskSettingsUpdate"]
     assert set(schema["required"]) == set(body)
     assert all(field["type"] == "boolean" for field in schema["properties"].values())
 

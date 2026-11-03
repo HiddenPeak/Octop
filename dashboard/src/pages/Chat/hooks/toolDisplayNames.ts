@@ -1,6 +1,6 @@
 /**
  * Localised labels for built-in agent tools shown in chat message bubbles.
- * Labels are defined in backend ``src/octop/i18n/*.json`` (``tools.*``).
+ * Labels are defined in backend ``src/inhere_box/i18n/*.json`` (``tools.*``).
  */
 
 import { useTranslation } from "react-i18next";

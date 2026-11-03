@@ -7,21 +7,21 @@ from unittest.mock import MagicMock
 import pytest
 from tests.support.bwrap_marks import linux_bwrap_only
 
-from octop.infra.utils import bwrap as bwrap_mod
-from octop.infra.utils.bwrap import ensure_bubblewrap
+from inhere_box.infra.utils import bwrap as bwrap_mod
+from inhere_box.infra.utils.bwrap import ensure_bubblewrap
 
 
 def test_ensure_skips_on_non_linux(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("octop.infra.utils.bwrap.sys.platform", "darwin")
-    monkeypatch.setattr("octop.infra.utils.bwrap.shutil.which", lambda _n: None)
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.sys.platform", "darwin")
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.shutil.which", lambda _n: None)
     result = ensure_bubblewrap()
     assert result["status"] == "skipped"
     assert result["reason"] == "not_linux"
 
 
 def test_ensure_skips_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("octop.infra.utils.bwrap.sys.platform", "win32")
-    monkeypatch.setattr("octop.infra.utils.bwrap.shutil.which", lambda _n: None)
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.sys.platform", "win32")
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.shutil.which", lambda _n: None)
     result = ensure_bubblewrap()
     assert result["status"] == "skipped"
     assert result["reason"] == "not_linux"
@@ -29,34 +29,34 @@ def test_ensure_skips_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_ensure_ready_when_bwrap_present(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("octop.infra.utils.bwrap.sys.platform", "linux")
-    monkeypatch.setattr("octop.infra.utils.bwrap.shutil.which", lambda _n: "/usr/bin/bwrap")
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.sys.platform", "linux")
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.shutil.which", lambda _n: "/usr/bin/bwrap")
     result = ensure_bubblewrap()
     assert result["status"] == "ready"
     assert result["reason"] == "already_present"
 
 
 def test_ensure_degraded_when_no_package_manager(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("octop.infra.utils.bwrap.sys.platform", "linux")
-    monkeypatch.setattr("octop.infra.utils.bwrap.shutil.which", lambda _n: None)
-    monkeypatch.setattr("octop.infra.utils.bwrap._detect_package_manager", lambda: None)
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.sys.platform", "linux")
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.shutil.which", lambda _n: None)
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap._detect_package_manager", lambda: None)
     result = ensure_bubblewrap()
     assert result["status"] == "degraded"
     assert result["reason"] == "no_package_manager"
 
 
 def test_ensure_degraded_when_no_privilege(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("octop.infra.utils.bwrap.sys.platform", "linux")
-    monkeypatch.setattr("octop.infra.utils.bwrap.shutil.which", lambda _n: None)
-    monkeypatch.setattr("octop.infra.utils.bwrap._detect_package_manager", lambda: "apt")
-    monkeypatch.setattr("octop.infra.utils.bwrap._can_install_without_password", lambda: False)
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.sys.platform", "linux")
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.shutil.which", lambda _n: None)
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap._detect_package_manager", lambda: "apt")
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap._can_install_without_password", lambda: False)
     result = ensure_bubblewrap()
     assert result["status"] == "degraded"
     assert result["reason"] == "no_privilege"
 
 
 def test_ensure_installed_after_successful_install(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("octop.infra.utils.bwrap.sys.platform", "linux")
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.sys.platform", "linux")
     calls = {"n": 0}
 
     def which(name: str) -> str | None:
@@ -65,11 +65,11 @@ def test_ensure_installed_after_successful_install(monkeypatch: pytest.MonkeyPat
         calls["n"] += 1
         return None if calls["n"] == 1 else "/usr/bin/bwrap"
 
-    monkeypatch.setattr("octop.infra.utils.bwrap.shutil.which", which)
-    monkeypatch.setattr("octop.infra.utils.bwrap._detect_package_manager", lambda: "apt")
-    monkeypatch.setattr("octop.infra.utils.bwrap._can_install_without_password", lambda: True)
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.shutil.which", which)
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap._detect_package_manager", lambda: "apt")
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap._can_install_without_password", lambda: True)
     install = MagicMock(return_value=True)
-    monkeypatch.setattr("octop.infra.utils.bwrap._install_bubblewrap", install)
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap._install_bubblewrap", install)
     result = ensure_bubblewrap()
     assert result["status"] == "installed"
     assert result["reason"] == "install_ok"
@@ -77,11 +77,11 @@ def test_ensure_installed_after_successful_install(monkeypatch: pytest.MonkeyPat
 
 
 def test_ensure_degraded_when_install_fails(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("octop.infra.utils.bwrap.sys.platform", "linux")
-    monkeypatch.setattr("octop.infra.utils.bwrap.shutil.which", lambda _n: None)
-    monkeypatch.setattr("octop.infra.utils.bwrap._detect_package_manager", lambda: "dnf")
-    monkeypatch.setattr("octop.infra.utils.bwrap._can_install_without_password", lambda: True)
-    monkeypatch.setattr("octop.infra.utils.bwrap._install_bubblewrap", lambda _mgr: False)
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.sys.platform", "linux")
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap.shutil.which", lambda _n: None)
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap._detect_package_manager", lambda: "dnf")
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap._can_install_without_password", lambda: True)
+    monkeypatch.setattr("inhere_box.infra.utils.bwrap._install_bubblewrap", lambda _mgr: False)
     result = ensure_bubblewrap()
     assert result["status"] == "degraded"
     assert result["reason"] == "install_failed"
@@ -105,7 +105,7 @@ def test_install_argv_shapes(
 ) -> None:
     """Argv tail is stable on every platform (uses mocked ``shutil.which``)."""
     monkeypatch.setattr(
-        "octop.infra.utils.bwrap.shutil.which",
+        "inhere_box.infra.utils.bwrap.shutil.which",
         lambda name: f"/usr/bin/{name}" if name == binary else None,
     )
     argv = bwrap_mod._install_argv(manager, use_sudo=False)
@@ -117,7 +117,7 @@ def test_install_argv_uses_passwordless_sudo_prefix_when_requested(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "octop.infra.utils.bwrap.shutil.which",
+        "inhere_box.infra.utils.bwrap.shutil.which",
         lambda name: f"/usr/bin/{name}" if name in {"sudo", "dnf"} else None,
     )
     argv = bwrap_mod._install_argv("dnf", use_sudo=True)

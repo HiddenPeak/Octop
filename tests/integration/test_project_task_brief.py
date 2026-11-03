@@ -8,8 +8,8 @@ from uuid import uuid4
 import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 
-from octop.i18n import tr
-from octop.infra.projects import runtime
+from inhere_box.i18n import tr
+from inhere_box.infra.projects import runtime
 from tests.integration.test_project_task_checkpoints import parked
 from tests.integration.test_project_task_client_tools import CLIENT, OPTIONS, claim, result
 from tests.integration.test_project_task_interactions import approval, respond

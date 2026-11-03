@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.bridge.icons import bridge_avatar_api_path, rewrite_remote_icon_url
+from inhere_box.infra.bridge.icons import bridge_avatar_api_path, rewrite_remote_icon_url
 
 
 def test_keeps_bundled_expert_avatars() -> None:

@@ -10,10 +10,10 @@ from langchain_core.messages import ToolMessage, message_to_dict, messages_from_
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from octop_harness.backends.workspace import BackendWorkspace
 
-from octop.infra.projects import execution, file_changes
-from octop.infra.projects.content import TaskContent
-from octop.infra.projects.execution import TaskExecution
-from octop.infra.projects.file_changes import (
+from inhere_box.infra.projects import execution, file_changes
+from inhere_box.infra.projects.content import TaskContent
+from inhere_box.infra.projects.execution import TaskExecution
+from inhere_box.infra.projects.file_changes import (
     TaskFileChange,
     change_path,
     changes,
@@ -83,7 +83,7 @@ async def test_new_edit_replace_all_and_delete_use_actual_text(workspace, middle
     receipt = recorded_file_changes(result)[0]
     assert (receipt.path, receipt.additions, receipt.deletions) == ("notes.txt", 4, 2)
     assert "+extra\n" in receipt.diff and " keep\n" in receipt.diff
-    assert "octop_task_file_changes" not in result.additional_kwargs
+    assert "inhere_box_task_file_changes" not in result.additional_kwargs
 
     async def delete(actual):
         await workspace.adelete("notes.txt")

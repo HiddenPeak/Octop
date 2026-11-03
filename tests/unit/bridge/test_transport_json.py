@@ -7,7 +7,7 @@ import json
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from octop.infra.bridge.transport import BridgeSession, bridge_json_default
+from inhere_box.infra.bridge.transport import BridgeSession, bridge_json_default
 
 
 @pytest.mark.asyncio

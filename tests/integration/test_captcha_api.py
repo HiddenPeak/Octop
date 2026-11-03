@@ -9,9 +9,9 @@ from typing import Any
 
 import pytest
 
-from octop.infra.auth.captcha import set_test_siteverify_url
-from octop.infra.auth.captcha.store import SETTINGS_KEY
-from octop.infra.auth.sso.crypto import encrypt_secret
+from inhere_box.infra.auth.captcha import set_test_siteverify_url
+from inhere_box.infra.auth.captcha.store import SETTINGS_KEY
+from inhere_box.infra.auth.sso.crypto import encrypt_secret
 from tests.support.auth import bootstrap_admin
 
 

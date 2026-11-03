@@ -17,15 +17,15 @@ from octop_harness import HarnessAgent
 from octop_harness.config import ModelConfig, ProviderConfig
 from octop_harness.llm.factory import ChatModelFactory
 
-from octop.config import OctopConfig
-from octop.infra.agents.providers.box import OctopChatModelFactory, OctopHarnessAgent
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.model_calls import ModelCallRepo
-from octop.infra.db.repos.project_task_reviews import TaskReviewRow
-from octop.infra.db.repos.project_task_titles import TaskTitleJob
-from octop.infra.projects import approval_reviewer, narration, runtime, title
-from octop.infra.usage.model_calls import (
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.providers.box import InhereBoxChatModelFactory, InhereBoxHarnessAgent
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.model_calls import ModelCallRepo
+from inhere_box.infra.db.repos.project_task_reviews import TaskReviewRow
+from inhere_box.infra.db.repos.project_task_titles import TaskTitleJob
+from inhere_box.infra.projects import approval_reviewer, narration, runtime, title
+from inhere_box.infra.usage.model_calls import (
     current_model_call_scope,
     model_call_scope,
     override_model_call_scope,
@@ -41,7 +41,7 @@ def services(tmp_path) -> Iterator[SimpleNamespace]:
         for owner in (7, 8)
     }
     service = SimpleNamespace(
-        config=OctopConfig(account_mode="server"),
+        config=InhereBoxConfig(account_mode="server"),
         model_call_repo=ModelCallRepo(db),
         project_task_repo=SimpleNamespace(
             get=MagicMock(side_effect=tasks.get),
@@ -85,7 +85,7 @@ def model_factory(monkeypatch):
         base_url="https://provider.invalid/v1",
         models=[ModelConfig(id="actual-model")],
     )
-    factory = OctopChatModelFactory([provider])
+    factory = InhereBoxChatModelFactory([provider])
     for module in (title, approval_reviewer, narration):
         store = MagicMock()
         store.is_model_ref_usable.return_value = True
@@ -310,9 +310,9 @@ async def test_peer_call_keeps_origin_identity_and_changes_only_peer_purpose_and
         return {"response": "done"}
 
     monkeypatch.setattr(HarnessAgent, "call", invoke)
-    host = object.__new__(OctopHarnessAgent)
+    host = object.__new__(InhereBoxHarnessAgent)
     host._agent_id = "task-7"
-    peer = object.__new__(OctopHarnessAgent)
+    peer = object.__new__(InhereBoxHarnessAgent)
     peer._agent_id = "task-7:peer"
     with model_call_scope(
         services,

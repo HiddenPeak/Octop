@@ -1,7 +1,7 @@
 """Verify attachment workspace-path behaviour for LLM filesystem tools.
 
 Documents the gap between inbound attachment storage (BackendWorkspace) and
-deepagents filesystem tools under Octop's default backend (root_dir='/').
+deepagents filesystem tools under inhere-box's default backend (root_dir='/').
 """
 
 from __future__ import annotations
@@ -19,18 +19,21 @@ from octop_gateway.models import ImageContent, InboundMessage
 from octop_harness.backends import DEFAULT_BACKEND_SPEC, resolve_backend
 from octop_harness.backends.workspace import BackendWorkspace
 
-from octop.api.common.attachments import save_attachment
-from octop.infra.agents.middleware.binary_read_guard import read_file_block_reason
-from octop.infra.backend.resolver import default_agent_backend_spec
-from octop.infra.gateway.media.attachment_hints import format_attachment_path_hint
-from octop.infra.gateway.media.inbound_store import resolve_inbound_attachment_path, write_inbound
-from octop.infra.gateway.media.ingress import AgentBackedMediaBackend
-from octop.infra.gateway.process.harness_request import build_content_from_message
-from octop.infra.gateway.threads import ThreadRegistry
-from octop.infra.gateway.ws import WS_CHANNEL_ID
+from inhere_box.api.common.attachments import save_attachment
+from inhere_box.infra.agents.middleware.binary_read_guard import read_file_block_reason
+from inhere_box.infra.backend.resolver import default_agent_backend_spec
+from inhere_box.infra.gateway.media.attachment_hints import format_attachment_path_hint
+from inhere_box.infra.gateway.media.inbound_store import (
+    resolve_inbound_attachment_path,
+    write_inbound,
+)
+from inhere_box.infra.gateway.media.ingress import AgentBackedMediaBackend
+from inhere_box.infra.gateway.process.harness_request import build_content_from_message
+from inhere_box.infra.gateway.threads import ThreadRegistry
+from inhere_box.infra.gateway.ws import WS_CHANNEL_ID
 
 
-def _octop_default_agent_workspace(ws_dir: str) -> BackendWorkspace:
+def _inhere_box_default_agent_workspace(ws_dir: str) -> BackendWorkspace:
     """Mirror production default backend for BackendWorkspace I/O."""
     ws_path = Path(ws_dir)
     backend = resolve_backend(default_agent_backend_spec(ws_path), workspace_dir=ws_dir)
@@ -104,10 +107,10 @@ async def test_hint_remaps_scoped_root_to_agent_facing() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(os.name != "posix", reason="Documents POSIX default root_dir=/ behavior")
-async def test_octop_default_backend_tool_path_misses_uploaded_file() -> None:
+async def test_inhere_box_default_backend_tool_path_misses_uploaded_file() -> None:
     """Production: file on disk under workspace, but ls/read_file use host /inbound/…"""
     with tempfile.TemporaryDirectory() as ws_dir:
-        workspace = _octop_default_agent_workspace(ws_dir)
+        workspace = _inhere_box_default_agent_workspace(ws_dir)
         stored = await write_inbound(
             workspace,
             b"%PDF-1.4",
@@ -127,7 +130,7 @@ async def test_octop_default_backend_tool_path_misses_uploaded_file() -> None:
         read_result = backend.read(tool_path, offset=0, limit=100)
         assert read_result.error is not None or read_result.file_data is None
 
-        # Octop ingress layer can still read the same attachment
+        # inhere-box ingress layer can still read the same attachment
         data = await workspace.adownload_bytes(stored.path)
         assert data == b"%PDF-1.4"
 
@@ -218,7 +221,7 @@ async def test_image_materialize_keeps_workspace_path_for_history() -> None:
         img = next(b for b in content if b.get("type") == "image_url")
         assert img["workspace_path"] == stored.path
         assert img["image_url"]["url"] == f"workspace://{stored.path}"
-        from octop.infra.gateway.media.attachment_hints import expand_workspace_image_ref
+        from inhere_box.infra.gateway.media.attachment_hints import expand_workspace_image_ref
 
         expanded = await expand_workspace_image_ref(img, workspace=workspace)
         url = expanded["image_url"]["url"]

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from octop.infra.db.repos.project_task_artifacts import _KIND_PARAMS, _KIND_SQL
-from octop.infra.utils.artifact_kinds import (
+from inhere_box.infra.db.repos.project_task_artifacts import _KIND_PARAMS, _KIND_SQL
+from inhere_box.infra.utils.artifact_kinds import (
     ARTIFACT_KIND_RULES,
     artifact_business_category,
     artifact_kind,

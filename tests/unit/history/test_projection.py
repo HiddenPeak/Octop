@@ -6,13 +6,13 @@ import json
 import pytest
 from langchain_core.messages import HumanMessage
 
-from octop.infra.gateway.history_backfill import HistoryBackfillQueue
-from octop.infra.gateway.process.message_keys import (
+from inhere_box.infra.gateway.history_backfill import HistoryBackfillQueue
+from inhere_box.infra.gateway.process.message_keys import (
     CHECKPOINT_TS_KEY,
     STREAM_ERROR_FLAG,
     parse_checkpoint_ts_ms,
 )
-from octop.infra.history.projection import (
+from inhere_box.infra.history.projection import (
     TurnHistoryTracker,
     _wire_text,
     live_message_input,

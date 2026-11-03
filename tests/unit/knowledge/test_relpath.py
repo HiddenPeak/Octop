@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.knowledge.relpath import (
+from inhere_box.infra.knowledge.relpath import (
     ancestor_dirs,
     normalize_kb_path,
     path_is_direct_child,

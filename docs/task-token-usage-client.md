@@ -4,7 +4,7 @@
 
 ## 接口与权限
 
-使用 Octop 登录令牌 `Authorization: Bearer <access_token>`，不是模型服务商的 API Key。
+使用 inhere-box 登录令牌 `Authorization: Bearer <access_token>`，不是模型服务商的 API Key。
 
 | GET 接口 | 范围 |
 | --- | --- |
@@ -147,7 +147,7 @@ App 的“智能体”列以 `items[].agent_id` 对接实际身份。若与已�
 
 本次服务端与 Web 已接线；App Swift/UI 需要消费上述新增字段，此文是其接线约定。只读核对现有 App 后，具体接线点为：
 
-1. `Services/Box/OctopTaskUsageModels.swift`：`OctopTaskUsageItem` 增加智能体字段和 `savings`；`OctopTaskUsageTotals` 增加 `savings`。新增字段按可选值解码，保持旧服务端兼容。
+1. `Services/Box/InhereBoxTaskUsageModels.swift`：`InhereBoxTaskUsageItem` 增加智能体字段和 `savings`；`InhereBoxTaskUsageTotals` 增加 `savings`。新增字段按可选值解码，保持旧服务端兼容。
 2. `Features/Tokens/TokenTaskUsageFormatter.swift`：`presentation` 当前把智能体固定为 `Strings.Tokens.notProvided`，需替换为上述身份解析；节省当前只有 `unsupported/notCollected` 占位，应依据 `capabilities.savings` 与实际 `savings.status` 显示估算、区间、部分已知、未知或无数据。
 3. 默认智能体品牌可复用 `Core/Strings.swift` 的 `Strings.Workspace.agentName` 及现有身份展示逻辑（当前为 Hippogenius · Lite），不要把服务端内部名称当作产品品牌。
 4. 页面节省合计使用 `totals.savings`，不复用仍采用旧口径的 `/usage/summary` 的 `capabilities.savings=false`。

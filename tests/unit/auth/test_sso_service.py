@@ -9,15 +9,15 @@ import httpx
 import jwt
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.auth.sso.crypto import decrypt_secret
-from octop.infra.auth.sso.service import SsoService
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.users.identity import Role, User
-from octop.infra.users.manager import UserManager
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.auth.sso.crypto import decrypt_secret
+from inhere_box.infra.auth.sso.service import SsoService
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.users.identity import Role, User
+from inhere_box.infra.users.manager import UserManager
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def service(tmp_path):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     return SsoService(services, UserManager(services))
 
 
@@ -79,7 +79,7 @@ def discovery_client(handler):
             **kwargs,  # type: ignore[arg-type]
         )
 
-    return patch("octop.infra.auth.sso.service.httpx.Client", side_effect=factory)
+    return patch("inhere_box.infra.auth.sso.service.httpx.Client", side_effect=factory)
 
 
 @pytest.mark.parametrize(
@@ -114,7 +114,7 @@ def test_put_config_encrypts_with_supplied_secret_repo_and_redacts_for_admin(
     service: SsoService,
 ) -> None:
     with patch(
-        "octop.infra.auth.sso.service.encrypt_secret", return_value=b"ciphertext"
+        "inhere_box.infra.auth.sso.service.encrypt_secret", return_value=b"ciphertext"
     ) as encrypt:
         result = service.put_config(
             {
@@ -254,7 +254,7 @@ async def test_callback_exchanges_code_and_attaches_login_code(service: SsoServi
     with (
         discovery_client(handler),
         patch(
-            "octop.infra.auth.sso.service.verify_id_token",
+            "inhere_box.infra.auth.sso.service.verify_id_token",
             return_value={
                 "sub": "subject-123",
                 "email": "member@example.com",
@@ -309,7 +309,7 @@ async def test_callback_verifies_id_token_against_discovery_issuer(
     with (
         discovery_client(handler),
         patch(
-            "octop.infra.auth.sso.service.verify_id_token",
+            "inhere_box.infra.auth.sso.service.verify_id_token",
             return_value={"sub": "subject-123"},
         ) as verify,
     ):

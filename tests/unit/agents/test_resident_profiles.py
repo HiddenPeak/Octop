@@ -10,10 +10,10 @@ from types import SimpleNamespace
 import pytest
 from langchain_core.messages import SystemMessage
 
-from octop.config import OctopConfig
-from octop.infra.agents.experts.catalog import ExpertCatalog
-from octop.infra.agents.manager import AgentManager
-from octop.infra.agents.resident_identity import (
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.experts.catalog import ExpertCatalog
+from inhere_box.infra.agents.manager import AgentManager
+from inhere_box.infra.agents.resident_identity import (
     ResidentTextOnlyMiddleware,
     ensure_resident_identity,
     resident_execution_scope,
@@ -21,7 +21,7 @@ from octop.infra.agents.resident_identity import (
     resident_memory_scope,
     resident_prompt_scope,
 )
-from octop.infra.agents.resident_profiles import (
+from inhere_box.infra.agents.resident_profiles import (
     ResidentProfileAdopt,
     ResidentProfileArchive,
     ResidentProfileCreate,
@@ -32,12 +32,12 @@ from octop.infra.agents.resident_profiles import (
     list_profiles,
     template_diff,
 )
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.gateway.threads import ThreadRegistry
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.gateway.threads import ThreadRegistry
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def profile_env(tmp_path):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     for username in ("owner", "other"):
         services.user_repo.create(username=username, password_hash="x", role="user")
     expert_root = tmp_path / "experts"
@@ -104,7 +104,7 @@ async def test_professional_concurrent_creation_is_idempotent_and_preserves_prim
     assert binding.role == f"profile:{second.profile_id}"
     restarted = build_shared_services(db=services.db, paths=services.paths, config=services.config)
     assert get_profile(restarted, 1, first.profile_id).agent_id == first.agent_id
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         await create_profile(services, catalog, 1, _body(name="Changed intent"))
     assert error.value.code == ErrorCode.RESIDENT_REQUEST_CONFLICT
 
@@ -149,7 +149,7 @@ async def test_templates_do_not_overwrite_without_reviewed_cas_adoption(profile_
     assert preview.changes[0].path == "SOUL.md"
     assert services.agent_repo.get(profile.agent_id).system_prompt == original_prompt
     (directory / "SOUL.md").write_text("A newer source version.", encoding="utf-8")
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         adopt_template(
             services,
             catalog,
@@ -187,7 +187,7 @@ async def test_templates_do_not_overwrite_without_reviewed_cas_adoption(profile_
     assert json.loads(services.agent_repo.get(profile.agent_id).config_json) == json.loads(
         original_agent.config_json
     )
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         adopt_template(
             services,
             catalog,
@@ -209,10 +209,10 @@ async def test_profile_isolation_and_existing_identity_guards(profile_env):
     assert other.profile_id != profile.profile_id and other.agent_id != profile.agent_id
     assert len(list_profiles(services, 2).profiles) == 1
     for read in (get_profile,):
-        with pytest.raises(OctopError) as error:
+        with pytest.raises(InhereBoxError) as error:
             read(services, 2, profile.profile_id)
         assert error.value.code == ErrorCode.NOT_FOUND
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         template_diff(services, catalog, 2, profile.profile_id)
     manager = AgentManager(repos=services.repos, paths=services.paths)
     for operation in (
@@ -221,11 +221,11 @@ async def test_profile_isolation_and_existing_identity_guards(profile_env):
         manager.update_config_json(profile.agent_id, "{}"),
         manager.delete_thread_checkpoint(profile.agent_id, profile.thread_id),
     ):
-        with pytest.raises(OctopError) as error:
+        with pytest.raises(InhereBoxError) as error:
             await operation
         assert error.value.code == ErrorCode.FORBIDDEN
     registry = ThreadRegistry(session_repo=services.session_repo, thread_repo=services.thread_repo)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         registry.delete_thread(profile.thread_id)
 
 
@@ -258,7 +258,7 @@ async def test_published_template_copies_snapshot_not_source_agent(profile_env):
     # Retransmission remains valid after the source is unpublished.
     services.published_expert_repo.delete("published-writer")
     assert (await create_profile(services, None, 1, body)).profile_id == profile.profile_id
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         template_diff(services, None, 1, profile.profile_id)
     assert error.value.code == ErrorCode.NOT_FOUND
 
@@ -322,7 +322,7 @@ def test_raw_capture_remains_explicit_and_uses_the_resolved_memory_backend(tmp_p
 async def test_archiving_requires_idle_and_preserves_identity_without_reviving_followups(
     profile_env,
 ):
-    from octop.infra.agents.resident_followups import (
+    from inhere_box.infra.agents.resident_followups import (
         FollowupCreate,
         FollowupPayload,
         create_followup,
@@ -352,7 +352,7 @@ async def test_archiving_requires_idle_and_preserves_identity_without_reviving_f
         "Write a draft",
         now,
     )
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         archive_profile(
             services,
             1,

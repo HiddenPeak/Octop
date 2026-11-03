@@ -10,11 +10,11 @@ async def test_record_replay_status_returns_daemon_status(env: Any) -> None:
 
     with (
         patch(
-            "octop.api.routers.browser.record_replay.send_record_request",
+            "inhere_box.api.routers.browser.record_replay.send_record_request",
             new=AsyncMock(return_value={"ok": True, "active": None}),
         ) as mock_send,
         patch(
-            "octop.api.routers.browser.record_replay._latest_recording_id",
+            "inhere_box.api.routers.browser.record_replay._latest_recording_id",
             return_value="rec_latest",
         ),
     ):
@@ -30,11 +30,11 @@ async def test_record_replay_start_ensures_daemon_and_starts_recording(env: Any)
 
     with (
         patch(
-            "octop.api.routers.browser.record_replay.ensure_record_daemon",
+            "inhere_box.api.routers.browser.record_replay.ensure_record_daemon",
             new=AsyncMock(return_value={"ok": True, "pid": 123}),
         ) as mock_ensure,
         patch(
-            "octop.api.routers.browser.record_replay.send_record_request",
+            "inhere_box.api.routers.browser.record_replay.send_record_request",
             new=AsyncMock(return_value={"ok": True, "recordingId": "rec_1", "daemon": True}),
         ) as mock_send,
     ):
@@ -63,11 +63,11 @@ async def test_record_replay_start_ignores_requested_profile(env: Any) -> None:
 
     with (
         patch(
-            "octop.api.routers.browser.record_replay.ensure_record_daemon",
+            "inhere_box.api.routers.browser.record_replay.ensure_record_daemon",
             new=AsyncMock(return_value={"ok": True, "pid": 123}),
         ),
         patch(
-            "octop.api.routers.browser.record_replay.send_record_request",
+            "inhere_box.api.routers.browser.record_replay.send_record_request",
             new=AsyncMock(return_value={"ok": True, "recordingId": "rec_1"}),
         ) as mock_send,
     ):
@@ -93,7 +93,7 @@ async def test_record_replay_start_returns_503_when_daemon_fails(env: Any) -> No
     client, _srv, auth = env
 
     with patch(
-        "octop.api.routers.browser.record_replay.ensure_record_daemon",
+        "inhere_box.api.routers.browser.record_replay.ensure_record_daemon",
         new=AsyncMock(return_value={"ok": False, "error": "Daemon did not start"}),
     ):
         r = await client.post(
@@ -114,7 +114,7 @@ async def test_record_replay_stop_generates_steps(env: Any) -> None:
     with (
         patch("octop_browser.record.store.RecordingStore", return_value=owned),
         patch(
-            "octop.api.routers.browser.record_replay.send_record_request",
+            "inhere_box.api.routers.browser.record_replay.send_record_request",
             new=AsyncMock(
                 return_value={"ok": True, "recordingId": "rec_1", "events": 4, "steps": 2}
             ),
@@ -143,11 +143,11 @@ async def test_record_replay_start_ignores_requested_agent_profile(env: Any) -> 
 
     with (
         patch(
-            "octop.api.routers.browser.record_replay.ensure_record_daemon",
+            "inhere_box.api.routers.browser.record_replay.ensure_record_daemon",
             new=AsyncMock(return_value={"ok": True, "pid": 123}),
         ),
         patch(
-            "octop.api.routers.browser.record_replay.send_record_request",
+            "inhere_box.api.routers.browser.record_replay.send_record_request",
             new=AsyncMock(return_value={"ok": True, "recordingId": "rec_default"}),
         ) as mock_send,
     ):
@@ -181,7 +181,7 @@ async def test_record_replay_replay_runs_runner(env: Any) -> None:
             ),
         ),
         patch(
-            "octop.api.routers.browser.record_replay.run_replay_recording",
+            "inhere_box.api.routers.browser.record_replay.run_replay_recording",
             new=runner,
         ),
     ):
@@ -200,7 +200,7 @@ async def test_record_status_hides_other_user_active(env: Any) -> None:
     client, _srv, auth = env
     with (
         patch(
-            "octop.api.routers.browser.record_replay.send_record_request",
+            "inhere_box.api.routers.browser.record_replay.send_record_request",
             new=AsyncMock(
                 return_value={
                     "ok": True,
@@ -209,7 +209,7 @@ async def test_record_status_hides_other_user_active(env: Any) -> None:
             ),
         ),
         patch(
-            "octop.api.routers.browser.record_replay._latest_recording_id",
+            "inhere_box.api.routers.browser.record_replay._latest_recording_id",
             return_value=None,
         ),
     ):

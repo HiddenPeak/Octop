@@ -1,7 +1,7 @@
 """In-memory LDAP directory used as a test double for the network boundary.
 
 The fake replaces ``ldap3.Connection`` so every layer above the socket
-(:class:`octop.infra.auth.ldap.client.LdapClient`, the service, and the HTTP
+(:class:`inhere_box.infra.auth.ldap.client.LdapClient`, the service, and the HTTP
 routes) runs as production code. Live coverage against a real directory lives in
 ``tests/live/test_ldap_live.py``.
 """
@@ -151,7 +151,7 @@ class FakeLdapDirectory:
 
     def install(self, monkeypatch: Any) -> FakeLdapDirectory:
         """Patch every ``ldap3.Connection`` created by the LDAP client."""
-        monkeypatch.setattr("octop.infra.auth.ldap.client.Connection", self._connection)
+        monkeypatch.setattr("inhere_box.infra.auth.ldap.client.Connection", self._connection)
         return self
 
     def _connection(self, server: Any, **kwargs: Any) -> FakeLdapConnection:

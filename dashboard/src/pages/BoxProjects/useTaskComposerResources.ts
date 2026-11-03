@@ -37,7 +37,7 @@ export type ComposerResourceItem =
 
 const HIDDEN = new Set([
   ".octop",
-  ".octop-auth",
+  ".inhere-box-auth",
   ".git",
   ".venv",
   "node_modules",

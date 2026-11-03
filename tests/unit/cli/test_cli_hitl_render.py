@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from octop_gateway.models import MessageEvent, MessageEventType, TextContent
 
-from octop.cli.repl.render import format_cli_hitl_pause
-from octop.infra.gateway.cli.events import message_event_to_cli_chunks
+from inhere_box.cli.repl.render import format_cli_hitl_pause
+from inhere_box.infra.gateway.cli.events import message_event_to_cli_chunks
 
 
 def test_format_cli_hitl_pause_includes_approve_hint() -> None:

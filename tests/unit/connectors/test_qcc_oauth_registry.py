@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from octop.infra.connectors.oauth import registry
+from inhere_box.infra.connectors.oauth import registry
 
 ISSUER = "https://agent.qcc.com"
 RESOURCE = f"{ISSUER}/mcp/company/stream"

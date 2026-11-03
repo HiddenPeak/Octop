@@ -11,18 +11,18 @@ from unittest.mock import AsyncMock
 import pytest
 from tests.support.harness import build_harness_manager_mock
 
-from octop.config import OctopConfig
-from octop.infra.agents.manager import AgentManager
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.manager import AgentManager
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def _make_services(tmp_path: Path):
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
-    services = build_shared_services(db=db, paths=PathLayout(tmp_path), config=OctopConfig())
+    services = build_shared_services(db=db, paths=PathLayout(tmp_path), config=InhereBoxConfig())
     services.provider_repo.create(
         name="test-openai",
         kind="openai",

@@ -1,56 +1,56 @@
 # =============================================================================
-# Octop — Docker Compose
+# inhere-box — Docker Compose
 #
 # 用法（在仓库根目录执行）:
 #   docker compose -f docker/docker-compose.yml up -d
-#   OCTOP_PORT=9090 docker compose -f docker/docker-compose.yml up -d
-#   OCTOP_DEFAULT_PASSWORD=<your-strong-password> docker compose -f docker/docker-compose.yml up -d
+#   INHERE_BOX_PORT=9090 docker compose -f docker/docker-compose.yml up -d
+#   INHERE_BOX_DEFAULT_PASSWORD=<your-strong-password> docker compose -f docker/docker-compose.yml up -d
 #
 # 可在 docker/ 目录放置 .env 文件，例如:
-#   OCTOP_PORT=9090
-#   OCTOP_DEFAULT_PASSWORD=<your-strong-password>
-#   OCTOP_ADMIN_USERNAME=admin
-#   OCTOP_DATABASE_DRIVER=postgresql
-#   OCTOP_DATABASE_URL=postgresql://octop:octop@host.docker.internal:5432/octop
+#   INHERE_BOX_PORT=9090
+#   INHERE_BOX_DEFAULT_PASSWORD=<your-strong-password>
+#   INHERE_BOX_ADMIN_USERNAME=admin
+#   INHERE_BOX_DATABASE_DRIVER=postgresql
+#   INHERE_BOX_DATABASE_URL=postgresql://inhere-box:inhere-box@host.docker.internal:5432/inhere-box
 #
 # 注意: docker/.env 仅用于 Compose 插值；变量必须列在下方 environment
-# 才会进入容器。也可写入数据卷内的 ~/.octop/env（宿主机挂载目录下的 env）。
+# 才会进入容器。也可写入数据卷内的 ~/.inhere-box/env（宿主机挂载目录下的 env）。
 # 密码须 ≥8 位且同时包含字母与数字（与控制台改密策略一致）。
-# 未设置或密码未通过策略时进入设置向导，口令写入数据卷 octop-login.txt。
+# 未设置或密码未通过策略时进入设置向导，口令写入数据卷 inhere-box-login.txt。
 # =============================================================================
 
 services:
-  octop:
+  inhere-box:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: octop:latest
-    container_name: octop
+    image: inhere-box:latest
+    container_name: inhere-box
     restart: unless-stopped
     ulimits:
       nofile:
         soft: 65535
         hard: 65535
     ports:
-      - "${OCTOP_PORT:-8088}:${OCTOP_PORT:-8088}"
+      - "${INHERE_BOX_PORT:-8088}:${INHERE_BOX_PORT:-8088}"
     volumes:
-      - ${OCTOP_DATA:-~/.octop}:/data/.octop
+      - ${INHERE_BOX_DATA:-~/.inhere-box}:/data/.inhere-box
     environment:
       - HOME=/data
-      - OCTOP_BIND_HOST=0.0.0.0
-      - OCTOP_PORT=${OCTOP_PORT:-8088}
-      - OCTOP_LOG_LEVEL=${OCTOP_LOG_LEVEL:-info}
-      - OCTOP_DEFAULT_PASSWORD=${OCTOP_DEFAULT_PASSWORD:-}
-      - OCTOP_ADMIN_USERNAME=${OCTOP_ADMIN_USERNAME:-admin}
-      - OCTOP_ADMIN_DISPLAY_NAME=${OCTOP_ADMIN_DISPLAY_NAME:-Admin}
-      - OCTOP_DATABASE_URL=${OCTOP_DATABASE_URL:-}
-      - OCTOP_DATABASE_DRIVER=${OCTOP_DATABASE_DRIVER:-}
-      - OCTOP_DATABASE_SQLITE_PATH=${OCTOP_DATABASE_SQLITE_PATH:-}
-      - OCTOP_DATABASE_HOST=${OCTOP_DATABASE_HOST:-}
-      - OCTOP_DATABASE_PORT=${OCTOP_DATABASE_PORT:-}
-      - OCTOP_DATABASE_NAME=${OCTOP_DATABASE_NAME:-}
-      - OCTOP_DATABASE_USER=${OCTOP_DATABASE_USER:-}
-      - OCTOP_DATABASE_PASSWORD=${OCTOP_DATABASE_PASSWORD:-}
+      - INHERE_BOX_BIND_HOST=0.0.0.0
+      - INHERE_BOX_PORT=${INHERE_BOX_PORT:-8088}
+      - INHERE_BOX_LOG_LEVEL=${INHERE_BOX_LOG_LEVEL:-info}
+      - INHERE_BOX_DEFAULT_PASSWORD=${INHERE_BOX_DEFAULT_PASSWORD:-}
+      - INHERE_BOX_ADMIN_USERNAME=${INHERE_BOX_ADMIN_USERNAME:-admin}
+      - INHERE_BOX_ADMIN_DISPLAY_NAME=${INHERE_BOX_ADMIN_DISPLAY_NAME:-Admin}
+      - INHERE_BOX_DATABASE_URL=${INHERE_BOX_DATABASE_URL:-}
+      - INHERE_BOX_DATABASE_DRIVER=${INHERE_BOX_DATABASE_DRIVER:-}
+      - INHERE_BOX_DATABASE_SQLITE_PATH=${INHERE_BOX_DATABASE_SQLITE_PATH:-}
+      - INHERE_BOX_DATABASE_HOST=${INHERE_BOX_DATABASE_HOST:-}
+      - INHERE_BOX_DATABASE_PORT=${INHERE_BOX_DATABASE_PORT:-}
+      - INHERE_BOX_DATABASE_NAME=${INHERE_BOX_DATABASE_NAME:-}
+      - INHERE_BOX_DATABASE_USER=${INHERE_BOX_DATABASE_USER:-}
+      - INHERE_BOX_DATABASE_PASSWORD=${INHERE_BOX_DATABASE_PASSWORD:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
       - LANGFUSE_TRACING_ENABLED=${LANGFUSE_TRACING_ENABLED:-true}

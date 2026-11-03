@@ -6,7 +6,7 @@
 
 ## 1. 入口和当前门禁
 
-所有新接口使用 `/api/agentcomputer/v1`，要求 `Authorization: Bearer <Octop 用户登录令牌>`。用户登录身份仍不是可信设备配对，deviceID=null。URL access_token 不被接受，普通管理员查询也不能绕过 owner。
+所有新接口使用 `/api/agentcomputer/v1`，要求 `Authorization: Bearer <inhere-box 用户登录令牌>`。用户登录身份仍不是可信设备配对，deviceID=null。URL access_token 不被接受，普通管理员查询也不能绕过 owner。
 
 | 接口 | 本轮行为 |
 |---|---|
@@ -27,7 +27,7 @@
 
 ```http
 POST /api/agentcomputer/v1/tasks/22222222-2222-4222-8222-222222222222/turns
-Authorization: Bearer <Octop 用户登录令牌>
+Authorization: Bearer <inhere-box 用户登录令牌>
 Content-Type: application/json
 ```
 
@@ -81,7 +81,7 @@ CommandReceipt 沿用第二轮原始格式，包含稳定 box/command/Task/Turn/
 
 原 Turn 快照必须完整保存：
 
-- schemaVersion、projectID/projectRevision、workspaceID、agentID 和 octopThreadID。
+- schemaVersion、projectID/projectRevision、workspaceID、agentID 和 inhereBoxThreadID。
 - 完整原 ProjectConfiguration：schemaVersion、instructions、modelRef。
 - 完整原请求：epoch/contextMode/userMessageID/project revision/prompt/附件/所选技能/permissionMode，空集合也显式落盘。
 
@@ -95,7 +95,7 @@ CommandReceipt 沿用第二轮原始格式，包含稳定 box/command/Task/Turn/
 
 ```http
 GET /api/agentcomputer/v1/runs/44444444-4444-4444-8444-444444444444
-Authorization: Bearer <Octop 用户登录令牌>
+Authorization: Bearer <inhere-box 用户登录令牌>
 ```
 
 RunView 返回以下当前已持久字段：
@@ -135,7 +135,7 @@ Run 查询不返回原 prompt、模型配置、内部 thread/agent ID、宿主�
 
 ## 7. 验证和后续步骤
 
-确定性验证范围包含关闭能力零新增、实际托管绑定、授权测试画像下 201、能力再次关闭后原收据重放、请求超限、权限/资源拒绝、完整快照/事件/摘要错配、重复 run.accepted、各写入点回滚、跨 owner、恢复代次、同 conn 和当前 Run 状态读取。历史字段和身份不由默认值补造，旧普通 Octop 入口继续受既有托管/Task 路由保护。
+确定性验证范围包含关闭能力零新增、实际托管绑定、授权测试画像下 201、能力再次关闭后原收据重放、请求超限、权限/资源拒绝、完整快照/事件/摘要错配、重复 run.accepted、各写入点回滚、跨 owner、恢复代次、同 conn 和当前 Run 状态读取。历史字段和身份不由默认值补造，旧普通 inhere-box 入口继续受既有托管/Task 路由保护。
 
 本轮数据层新增 owned Turn、Task sequence 事件和 owned Run 的完整接收列表读取，schema 22 不变。SQLite 使用临时数据库；PG-shaped 验证只检查代理占位符和行映射，没有真实 PostgreSQL 并发或事务实测结论。
 

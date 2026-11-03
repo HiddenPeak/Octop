@@ -4,7 +4,7 @@ import type { MenuProps } from "antd";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
-import { useAgent, type OctopAgent } from "../context/AgentContext";
+import { useAgent, type InhereBoxAgent } from "../context/AgentContext";
 import { ownedSoloExperts, ownedTeamAgents } from "../utils/sharedExpert";
 import {
   labelSelectorGroups,
@@ -31,7 +31,7 @@ interface AgentSelectorProps {
   showTeams?: boolean;
 }
 
-function agentAccent(agent: OctopAgent): string {
+function agentAccent(agent: InhereBoxAgent): string {
   const cfg = agent.config ?? {};
   const fromConfig = typeof cfg.color === "string" ? cfg.color : null;
   return agent.color || fromConfig || "#2563eb";
@@ -43,7 +43,7 @@ function AgentIcon({
   className,
   style,
 }: {
-  agent: OctopAgent;
+  agent: InhereBoxAgent;
   size: number;
   className?: string;
   style?: React.CSSProperties;
@@ -92,7 +92,7 @@ function AgentChip({
   measure,
   groupKey,
 }: {
-  agent: OctopAgent;
+  agent: InhereBoxAgent;
   active: boolean;
   onSelect: (id: string) => void;
   measure?: boolean;
@@ -127,7 +127,7 @@ function AgentChip({
   );
 }
 
-function moreItemLabel(agent: OctopAgent, disconnectedLabel: string) {
+function moreItemLabel(agent: InhereBoxAgent, disconnectedLabel: string) {
   const accent = agentAccent(agent);
   const disconnected = Boolean(agent.bridge_disconnected);
   return (
@@ -442,7 +442,7 @@ export default function AgentSelector({
   );
 }
 
-function selectOption(agent: OctopAgent, disconnectedLabel: string) {
+function selectOption(agent: InhereBoxAgent, disconnectedLabel: string) {
   const accent = agentAccent(agent);
   const disconnected = Boolean(agent.bridge_disconnected);
   return {

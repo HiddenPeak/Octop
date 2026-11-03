@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from octop.infra.knowledge import embed
+from inhere_box.infra.knowledge import embed
 
 
 def test_remote_embedding_routes_to_provider_embeddings_endpoint(monkeypatch) -> None:

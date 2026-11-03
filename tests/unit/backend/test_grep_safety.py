@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from deepagents.backends.filesystem import FilesystemBackend
 
-from octop.infra.backend.grep_safety import (
+from inhere_box.infra.backend.grep_safety import (
     _MAX_LINE_BYTES,
     _command_is_ripgrep,
     _RipgrepSubprocess,
@@ -34,7 +34,7 @@ def test_install_is_idempotent() -> None:
     install_safe_grep_fallback()
     assert FilesystemBackend._python_search is search
     assert filesystem.subprocess is pipe
-    assert getattr(search, "__octop_safe_grep__", False)
+    assert getattr(search, "__inhere_box_safe_grep__", False)
     assert isinstance(pipe, _RipgrepSubprocess)
     assert subprocess.Popen is not pipe.Popen
 
@@ -98,7 +98,7 @@ def test_python_search_does_not_walk_proc() -> None:
     install_safe_grep_fallback()
     backend = FilesystemBackend(root_dir="/", virtual_mode=False)
     results, truncated, error = backend._python_search(
-        "octop-grep-safety-should-not-read-proc",
+        "inhere-box-grep-safety-should-not-read-proc",
         Path("/proc"),
         None,
     )

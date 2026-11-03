@@ -11,11 +11,11 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db import migrate
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.model_calls import TOKEN_FIELDS, ModelCallRepo, ModelCallRow
-from octop.infra.db.repos.usage import UsageRepo
-from octop.infra.db.services import RepoBundle
+from inhere_box.infra.db import migrate
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.model_calls import TOKEN_FIELDS, ModelCallRepo, ModelCallRow
+from inhere_box.infra.db.repos.usage import UsageRepo
+from inhere_box.infra.db.services import RepoBundle
 
 
 @pytest.fixture

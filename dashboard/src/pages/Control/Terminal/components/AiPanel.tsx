@@ -15,7 +15,7 @@ import {
   Send,
   Square,
 } from "lucide-react";
-import type { OctopAgent } from "../../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../../context/AgentContext";
 import { terminalAiApi } from "../../../../api/modules/terminalAi";
 import type { TerminalContext } from "../../../../api/modules/terminalAi";
 import { useAgentThreadChat } from "../../../../hooks/useAgentThreadChat";
@@ -30,8 +30,8 @@ export type AiPanelLayout = "right" | "bottom";
 export type AiPanelMode = "assist" | "autopilot";
 
 export interface AiPanelProps {
-  activeAgent: OctopAgent | null;
-  agents: OctopAgent[];
+  activeAgent: InhereBoxAgent | null;
+  agents: InhereBoxAgent[];
   activeTerminalSessionId: string | null;
   activeTerminalSessionIndex: number;
   layout: AiPanelLayout;
@@ -45,7 +45,7 @@ export interface AiPanelProps {
   onAgentCreated: () => void;
 }
 
-function findOpsEngineer(agents: OctopAgent[]): OctopAgent | null {
+function findOpsEngineer(agents: InhereBoxAgent[]): InhereBoxAgent | null {
   return (
     agents.find((a) => {
       if (a.template_name === "ops-engineer") return true;
@@ -152,7 +152,7 @@ export default function AiPanel({
   const [mode, setMode] = useState<AiPanelMode>("assist");
   const [inputValue, setInputValue] = useState("");
   const [terminalCtx, setTerminalCtx] = useState<TerminalContext | null>(null);
-  const [opsAgent, setOpsAgent] = useState<OctopAgent | null>(() =>
+  const [opsAgent, setOpsAgent] = useState<InhereBoxAgent | null>(() =>
     findOpsEngineer(agents),
   );
   const textareaRef = useRef<HTMLTextAreaElement>(null);

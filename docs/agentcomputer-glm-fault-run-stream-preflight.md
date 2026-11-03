@@ -10,7 +10,7 @@
 
 ```sh
 uv run python scripts/agentcomputer_glm_live_preflight.py \
-  --provider-db "$HOME/.octop/octop.db" \
+  --provider-db "$HOME/.inhere-box/inhere-box.db" \
   --provider 'Zhipu Coding Plan (BigModel)' \
   --model glm-5 \
   --mode stream-zh
@@ -22,7 +22,7 @@ uv run python scripts/agentcomputer_glm_live_preflight.py \
 
 `tests/integration/test_agentcomputer_model_preflight.py` 新增参数化离线故障夹具。`httpx.MockTransport` 先返回未完成的 `synthetic_echo` 工具调用 SSE delta，再分别抛出 `httpx.ReadTimeout` 和 `httpx.ReadError`。两个场景均只发送一次模型 POST；异常向流消费端传播，HTTP 流关闭，工具没有执行，且没有模型完成 `state_update` 或文本 token。模型调用之前正常产生的输入 `state_snapshot` 不被误认为最终答复。此测试不访问真实 GLM，也不模拟服务端重试或重连。
 
-`tests/integration/test_agentcomputer_trusted_run_cancel.py` 以隔离 Fixture 暂时提供 Run 领取条件；同一 `OctopServer` 的 `dispatch_run` 可信回调构造真实 `HarnessAgent`，通过 `invoke_engine_entry(..., active_runs=...)` 消费阻塞的合成工具调用 SSE。认证 `POST /runs/{runID}/cancel` 先提交持久取消事实，再精确取消本地活动 task。夹具观察到流关闭、工具未执行，已交接 Run 进入 `interrupted/reconciliationRequired`，Task/Project 双活动占用和原 `cancelRequested` 收据保留。Fixture 结束后生产 `runs.available` 仍为 false。它没有调用真实 GLM，也没有证明模型服务、工具子进程或计费已停止。
+`tests/integration/test_agentcomputer_trusted_run_cancel.py` 以隔离 Fixture 暂时提供 Run 领取条件；同一 `InhereBoxServer` 的 `dispatch_run` 可信回调构造真实 `HarnessAgent`，通过 `invoke_engine_entry(..., active_runs=...)` 消费阻塞的合成工具调用 SSE。认证 `POST /runs/{runID}/cancel` 先提交持久取消事实，再精确取消本地活动 task。夹具观察到流关闭、工具未执行，已交接 Run 进入 `interrupted/reconciliationRequired`，Task/Project 双活动占用和原 `cancelRequested` 收据保留。Fixture 结束后生产 `runs.available` 仍为 false。它没有调用真实 GLM，也没有证明模型服务、工具子进程或计费已停止。
 
 定向故障测试文件为 4 passed；可信 Run 夹具与现有取消 HTTP 测试合跑为 11 passed。仓库默认 `make all` 通过 Ruff、格式检查、严格 mypy 和全量非 live 测试，结果为 5297 passed、23 skipped。上述 skipped 不计入通过数；真实 GLM 中文探针的成功结果独立于离线测试。
 

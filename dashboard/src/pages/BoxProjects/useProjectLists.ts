@@ -85,9 +85,9 @@ function useCache<T>(scope: string) {
   const user = useCurrentUser();
   const boxIdentity = cachedBoxIdentity();
   const key = user
-    ? `octop:project-lists:v3:${getApiUrl("/")}:${user.id}:${user.username}:${
-        hostID ?? "local"
-      }:${hostIdentity}:${scope}${
+    ? `inhere-box:project-lists:v3:${getApiUrl("/")}:${user.id}:${
+        user.username
+      }:${hostID ?? "local"}:${hostIdentity}:${scope}${
         boxIdentity ? `:box:${encodeURIComponent(boxIdentity)}` : ""
       }`
     : null;

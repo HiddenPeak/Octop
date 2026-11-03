@@ -1,14 +1,14 @@
-"""Compose must forward OCTOP_DATABASE_* into the container (issue #152)."""
+"""Compose must forward INHERE_BOX_DATABASE_* into the container (issue #152)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from octop.config import _DATABASE_ENV_KEYS
+from inhere_box.config import _DATABASE_ENV_KEYS
 
 
 def _compose_environment_entries(compose_text: str) -> str:
-    """Return list-item lines under the octop service ``environment:`` key."""
+    """Return list-item lines under the inhere-box service ``environment:`` key."""
     marker = "\n    environment:\n"
     env_idx = compose_text.index(marker) + len(marker)
     lines: list[str] = []

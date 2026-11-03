@@ -16,8 +16,8 @@ import httpx
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-from octop.api.app import build_app
-from octop.api.routers import project_task_workbench as transport
+from inhere_box.api.app import build_app
+from inhere_box.api.routers import project_task_workbench as transport
 from tests.integration.test_project_tasks import settled
 from tests.integration.test_project_tasks import task_env as task_env
 from tests.support.auth import create_user
@@ -293,7 +293,7 @@ async def test_other_users_cannot_inspect_or_mutate_task_workbench(workbench_env
     for suffix in ["browser-stream/ws", "terminal/ws"]:
         with pytest.raises(WebSocketDisconnect) as closed:
             async with ws_connect(
-                client._octop_app,
+                client._inhere_box_app,
                 base
                 + "/"
                 + suffix
@@ -344,7 +344,7 @@ async def test_browser_transport_receives_task_profile_and_project_screenshots(
 
     monkeypatch.setattr(transport, "run_browser_stream_session", fake_browser)
     query = urlencode({"token": ws_token(auth), "expected_scope_revision": scope["scope_revision"]})
-    async with ws_connect(client._octop_app, base + "/browser-stream/ws?" + query) as ws:
+    async with ws_connect(client._inhere_box_app, base + "/browser-stream/ws?" + query) as ws:
         await ws.send_json({"type": "start", "url": "", "session_id": "foreign-agent-profile"})
         frame = await ws.receive_json()
     expected = (
@@ -380,7 +380,7 @@ async def test_terminal_transport_receives_task_scope_and_cwd(workbench_env, mon
             "rows": 9999,
         }
     )
-    async with ws_connect(client._octop_app, base + "/terminal/ws?" + query) as ws:
+    async with ws_connect(client._inhere_box_app, base + "/terminal/ws?" + query) as ws:
         await ws.send_json({"type": "input", "data": "pwd\n"})
         assert (await ws.receive_json())["data"] == "attached"
     assert received == [
@@ -411,7 +411,7 @@ async def test_live_transports_revalidate_scope_before_accepting_input(
     query = urlencode({"token": ws_token(auth), "expected_scope_revision": scope["scope_revision"]})
     replacement = tmp_path / "next-directory"
     replacement.mkdir()
-    async with ws_connect(client._octop_app, base + suffix + "?" + query) as ws:
+    async with ws_connect(client._inhere_box_app, base + suffix + "?" + query) as ws:
         changed = await client.patch(
             f"/api/projects/{project['project_id']}",
             headers=auth,
@@ -482,7 +482,7 @@ async def test_passive_browser_frames_are_rejected_after_directory_scope_changes
     replacement = tmp_path / "passive-browser-next"
     replacement.mkdir()
     query = urlencode({"token": ws_token(auth), "expected_scope_revision": scope["scope_revision"]})
-    async with ws_connect(client._octop_app, base + "/browser-stream/ws?" + query) as ws:
+    async with ws_connect(client._inhere_box_app, base + "/browser-stream/ws?" + query) as ws:
         assert await ws.receive_json() == {"type": "ready"}
         changed = await client.patch(
             f"/api/projects/{project['project_id']}",
@@ -539,7 +539,7 @@ async def test_idle_terminal_watcher_closes_only_invalidated_task_scope(
     replacement = tmp_path / "idle-terminal-next"
     replacement.mkdir()
     query = urlencode({"token": ws_token(auth), "expected_scope_revision": scope["scope_revision"]})
-    async with ws_connect(client._octop_app, base + "/terminal/ws?" + query) as ws:
+    async with ws_connect(client._inhere_box_app, base + "/terminal/ws?" + query) as ws:
         changed = await client.patch(
             f"/api/projects/{project['project_id']}",
             headers=auth,

@@ -79,7 +79,7 @@ import { useIsMobile } from "../../../hooks/useIsMobile";
 import { useServerTimezone } from "../../../hooks/useServerTimezone";
 import { apiErrorMessage } from "../../../utils/apiError";
 import { formatServerDateTime } from "../../../utils/formatMessageTime";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import { AgentCard } from "../../Experts/components/AgentCard";
 import EditAgentDrawer from "../../Experts/components/EditAgentDrawer";
 import InviteDrawer from "./InviteDrawer";
@@ -398,7 +398,7 @@ function formatUserTs(ts: number | undefined, timeZone: string): string {
 interface UserCardGridProps {
   rows: UserRow[];
   loading: boolean;
-  agentsByUserId: Map<number, OctopAgent[]>;
+  agentsByUserId: Map<number, InhereBoxAgent[]>;
   agentsLoading: boolean;
   currentUserId: number | null;
   permLabelByKey: Map<string, string>;
@@ -1227,7 +1227,7 @@ export default function UsersListPanel() {
   const setCurrentUser = useSetCurrentUser();
   const timeZone = useServerTimezone();
   const isMobile = useIsMobile();
-  const [agents, setAgents] = useState<OctopAgent[]>([]);
+  const [agents, setAgents] = useState<InhereBoxAgent[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(true);
   const [rows, setRows] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1246,7 +1246,7 @@ export default function UsersListPanel() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [actorIsAdmin, setActorIsAdmin] = useState(true);
   const [agentDrawerUser, setAgentDrawerUser] = useState<UserRow | null>(null);
-  const [editAgent, setEditAgent] = useState<OctopAgent | null>(null);
+  const [editAgent, setEditAgent] = useState<InhereBoxAgent | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
@@ -1306,7 +1306,7 @@ export default function UsersListPanel() {
   const nowSec = useNowSeconds(hasLockedUser);
 
   const agentsByUserId = useMemo(() => {
-    const map = new Map<number, OctopAgent[]>();
+    const map = new Map<number, InhereBoxAgent[]>();
     for (const agent of agents) {
       if (agent.user_id == null) continue;
       const list = map.get(agent.user_id) ?? [];
@@ -1532,7 +1532,7 @@ export default function UsersListPanel() {
   const refreshAgents = useCallback(async () => {
     setAgentsLoading(true);
     try {
-      const data = await request<OctopAgent[]>("/agents?scope=all");
+      const data = await request<InhereBoxAgent[]>("/agents?scope=all");
       setAgents(data);
     } catch (err) {
       message.error(
@@ -1545,7 +1545,7 @@ export default function UsersListPanel() {
   }, [t]);
 
   const patchAgent = useCallback(
-    (agentId: string, patch: Partial<OctopAgent>) => {
+    (agentId: string, patch: Partial<InhereBoxAgent>) => {
       setAgents((prev) =>
         prev.map((a) => (a.agent_id === agentId ? { ...a, ...patch } : a)),
       );
@@ -1571,7 +1571,7 @@ export default function UsersListPanel() {
   const handleEditSaved = useCallback(
     (
       updated: Pick<
-        OctopAgent,
+        InhereBoxAgent,
         "agent_id" | "name" | "description" | "default_model"
       >,
     ) => {

@@ -51,7 +51,7 @@ Content-Type: multipart/form-data; boundary=<boundary>
 | `byte_count` / `sha256` | 原始上传内容的长度和摘要 |
 | `preview_url` | 需要鉴权的原始内容地址；图片用于预览，其他文件用于下载 |
 | `workspace_path` | 普通文件在服务端工作区的稳定相对路径；视觉图片为 `null` |
-| `created_at` | UTC 时间；用户界面使用 Octop 服务端配置的时区显示 |
+| `created_at` | UTC 时间；用户界面使用 inhere-box 服务端配置的时区显示 |
 
 附件上传后先属于当前账号，尚未发送的附件在 24 小时后失效。上传成功不代表文件已经关联任务，也不代表任务已经开始执行。
 

@@ -10,7 +10,7 @@ import pytest
 from deepagents.backends.local_shell import LocalShellBackend
 from octop_harness.backends.workspace import BackendWorkspace
 
-from octop.infra.agents.experts.catalog import (
+from inhere_box.infra.agents.experts.catalog import (
     ExpertCatalog,
     default_task_examples,
     default_welcome_payload,
@@ -115,7 +115,7 @@ def test_welcome_payload_has_content() -> None:
 def test_default_welcome_uses_general_assistant_when_catalog_present() -> None:
     catalog = ExpertCatalog.__new__(ExpertCatalog)
     # Use real library if available
-    from octop.infra.agents.experts.catalog import default_library_root
+    from inhere_box.infra.agents.experts.catalog import default_library_root
 
     catalog = ExpertCatalog(default_library_root())
     catalog.refresh()
@@ -158,7 +158,7 @@ def test_default_task_examples_are_six_and_named() -> None:
 
 
 def test_resolve_display_task_examples_prefers_workspace() -> None:
-    from octop.infra.agents.experts.catalog import resolve_display_task_examples
+    from inhere_box.infra.agents.experts.catalog import resolve_display_task_examples
 
     out = resolve_display_task_examples(
         parsed={"zh": ["工作区"], "en": ["Workspace"]},
@@ -169,7 +169,7 @@ def test_resolve_display_task_examples_prefers_workspace() -> None:
 
 
 def test_resolve_display_task_examples_empty_lists_stay_empty() -> None:
-    from octop.infra.agents.experts.catalog import resolve_display_task_examples
+    from inhere_box.infra.agents.experts.catalog import resolve_display_task_examples
 
     assert resolve_display_task_examples(parsed={"zh": [], "en": []}) == {
         "zh": [],
@@ -178,7 +178,7 @@ def test_resolve_display_task_examples_empty_lists_stay_empty() -> None:
 
 
 def test_resolve_display_task_examples_falls_back_to_name() -> None:
-    from octop.infra.agents.experts.catalog import resolve_display_task_examples
+    from inhere_box.infra.agents.experts.catalog import resolve_display_task_examples
 
     out = resolve_display_task_examples(
         parsed=None,
@@ -193,7 +193,7 @@ def test_resolve_display_task_examples_falls_back_to_name() -> None:
 def test_display_task_examples_for_agent_reads_row_labels() -> None:
     from types import SimpleNamespace
 
-    from octop.infra.agents.experts.catalog import display_task_examples_for_agent
+    from inhere_box.infra.agents.experts.catalog import display_task_examples_for_agent
 
     named = display_task_examples_for_agent(
         parsed=None,

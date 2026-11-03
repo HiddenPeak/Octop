@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.connectors.default_open import (
+from inhere_box.infra.connectors.default_open import (
     build_instance_config_json,
     merge_mcp_servers_with_defaults,
     read_default_open,
@@ -73,7 +73,7 @@ def test_merge_respects_dashboard_opt_out():
 
 
 def test_merge_turn_mcp_servers_unions_extra_defaults() -> None:
-    from octop.infra.connectors.service import ConnectorService
+    from inhere_box.infra.connectors.service import ConnectorService
 
     class _Svc:
         def list_default_open_mcp_server_names(self, _uid: int) -> list[str]:

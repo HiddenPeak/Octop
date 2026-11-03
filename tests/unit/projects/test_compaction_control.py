@@ -6,15 +6,15 @@ import json
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRow
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import interactions, runtime, tasks
-from octop.infra.projects.interaction_models import TaskControl
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRow
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import interactions, runtime, tasks
+from inhere_box.infra.projects.interaction_models import TaskControl
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ def services(tmp_path):
         )
     repos.secret_repo.get_or_create("jwt", lambda: b"compaction-control-test-secret")
     try:
-        yield SharedServices(PathLayout(tmp_path), OctopConfig(), repos)
+        yield SharedServices(PathLayout(tmp_path), InhereBoxConfig(), repos)
     finally:
         db.close()
 
@@ -72,7 +72,7 @@ def test_compaction_pause_is_rejected_without_saving_an_intent(services, claimed
     if claimed:
         assert services.project_task_turn_repo.claim("worker-one", runtime.now_ms())
     before = services.project_task_turn_repo.get("turn-one")
-    with pytest.raises(OctopError) as rejected:
+    with pytest.raises(InhereBoxError) as rejected:
         control(services, paused=True)
     assert rejected.value.code == ErrorCode.TASK_CONTROL_INVALID
     assert services.project_task_turn_repo.get("turn-one") == before
@@ -142,7 +142,7 @@ def test_ordinary_stale_turn_still_requires_a_native_checkpoint(services):
     parked = services.project_task_turn_repo.get("turn-one")
     recovery = json.loads(parked.recovery_json)
     assert recovery["mode"] == "graph" and recovery["can_resume"] is False
-    with pytest.raises(OctopError) as rejected:
+    with pytest.raises(InhereBoxError) as rejected:
         control(services, paused=False)
     assert rejected.value.code == ErrorCode.TASK_CONTROL_INVALID
 
@@ -153,6 +153,6 @@ def test_interrupted_compaction_can_still_be_cancelled(services):
     result = tasks.cancel(services, 1, "task-one", "turn-one")
     assert result.active_turn_id is None
     assert result.turns[0].status == "cancelled"
-    with pytest.raises(OctopError) as rejected:
+    with pytest.raises(InhereBoxError) as rejected:
         control(services, paused=False)
     assert rejected.value.code == ErrorCode.TASK_CONTROL_INVALID

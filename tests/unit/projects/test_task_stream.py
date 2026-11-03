@@ -5,9 +5,9 @@ from langchain_openai.chat_models.base import _convert_responses_chunk_to_genera
 from octop_harness.protocols import resolve_protocol
 from openai.types.responses import ResponseReasoningSummaryTextDeltaEvent
 
-from octop.infra.projects.content import TaskContent
-from octop.infra.projects.progress import TaskPlan
-from octop.infra.projects.stream import TASK_PROTOCOL
+from inhere_box.infra.projects.content import TaskContent
+from inhere_box.infra.projects.progress import TaskPlan
+from inhere_box.infra.projects.stream import TASK_PROTOCOL
 
 
 class Graph:
@@ -143,7 +143,7 @@ def test_plan_snapshots_are_immutable_and_resume_does_not_duplicate_progress():
     output = TaskContent("turn")
     plan = TaskPlan.model_validate(
         {
-            "source": "octop_planning",
+            "source": "inhere_box_planning",
             "plan_id": "p1",
             "revision": 1,
             "active_step_id": "s1",

@@ -9,9 +9,9 @@ from typing import Any
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.model_calls import ModelCallRepo, ModelCallRow
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.model_calls import ModelCallRepo, ModelCallRow
 
 
 @pytest.fixture

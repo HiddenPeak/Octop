@@ -11,13 +11,13 @@ import {
 } from "../../api/modules/taskWorkbench";
 import {
   ensureBuiltinToolRenderers,
-  parseOctopToolOutput,
+  parseInhereBoxToolOutput,
   resolvePluginUiData,
   resolveToolRenderer,
 } from "../../plugins/toolRenderers";
 import { loadScopedPluginToolUis } from "../../plugins/toolRenderers/loader";
 import type {
-  OctopPluginUIHost,
+  InhereBoxPluginUIHost,
   ToolRendererRegistration,
   ToolRenderProps,
 } from "../../plugins/toolRenderers/types";
@@ -89,7 +89,7 @@ export default function TaskToolUi({
   };
   const hostFactory = useMemo(
     () =>
-      (pluginId: string): OctopPluginUIHost => ({
+      (pluginId: string): InhereBoxPluginUIHost => ({
         registerRenderer: (reg) =>
           setRegistrations((previous) => [
             ...previous.filter(
@@ -186,15 +186,15 @@ export default function TaskToolUi({
     return <Empty description={t("projects.tasks.workbench.noTools")} />;
   const { block } = current;
   const callID = block.tool_call_id ?? block.block_id;
-  const parsed = parseOctopToolOutput(block.output);
+  const parsed = parseInhereBoxToolOutput(block.output);
   const pluginID = pluginByTool[block.tool_name ?? ""];
   const registration =
     (pluginID
       ? registrations.find(
           (reg) =>
             reg.pluginId === pluginID &&
-            (parsed.octopUi?.renderer
-              ? reg.id === parsed.octopUi.renderer
+            (parsed.inhereBoxUi?.renderer
+              ? reg.id === parsed.inhereBoxUi.renderer
               : reg.tools?.includes(block.tool_name ?? "")),
         )
       : null) ??

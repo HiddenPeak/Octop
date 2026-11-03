@@ -8,24 +8,24 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from octop_harness.compaction import CompactResult
 
-from octop.config import OctopConfig
-from octop.infra.agents.manager import AgentManager
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.sessions import SessionRepo
-from octop.infra.db.repos.threads import ThreadRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.db.services import build_shared_services
-from octop.infra.gateway.slash import BufferSink, SlashCommand, build_default_dispatcher
-from octop.infra.gateway.slash.ctx import SlashCtx
-from octop.infra.gateway.slash.handlers.composite import _short_offload_path, cmd_compact
-from octop.infra.gateway.threads import ThreadRegistry
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.manager import AgentManager
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.sessions import SessionRepo
+from inhere_box.infra.db.repos.threads import ThreadRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.gateway.slash import BufferSink, SlashCommand, build_default_dispatcher
+from inhere_box.infra.gateway.slash.ctx import SlashCtx
+from inhere_box.infra.gateway.slash.handlers.composite import _short_offload_path, cmd_compact
+from inhere_box.infra.gateway.threads import ThreadRegistry
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def _agent_manager(tmp_path: Path, db: SqlitePool) -> AgentManager:
-    services = build_shared_services(db=db, paths=PathLayout(tmp_path), config=OctopConfig())
+    services = build_shared_services(db=db, paths=PathLayout(tmp_path), config=InhereBoxConfig())
     manager = AgentManager(repos=services.repos, paths=services.paths)
     harness_mgr = MagicMock()
     harness_mgr.get_thread_model.return_value = None
@@ -98,7 +98,7 @@ async def test_cmd_compact_calls_harness_without_reset(ctx, dispatcher) -> None:
 
 
 @pytest.mark.asyncio
-async def test_cmd_compact_shows_octop_relative_offload_path(ctx, dispatcher) -> None:
+async def test_cmd_compact_shows_inhere_box_relative_offload_path(ctx, dispatcher) -> None:
     await ctx.thread_registry.get_or_create_by_key(
         session_key=ctx.session_key,
         agent_id=ctx.agent_id,

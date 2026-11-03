@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.api.deps import InvalidToken, TokenExpired, decode_token, sign_token
+from inhere_box.api.deps import InvalidToken, TokenExpired, decode_token, sign_token
 
 
 def test_sign_and_decode_roundtrip():

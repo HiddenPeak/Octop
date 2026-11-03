@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { OctopAgent } from "./AgentContext";
+import type { InhereBoxAgent } from "./AgentContext";
 import { projectChatAgentOption, selectEnabledExperts } from "./AgentContext";
 
 function agent(
   agent_id: string,
-  state: OctopAgent["state"],
-  overrides: Partial<OctopAgent> = {},
-): OctopAgent {
+  state: InhereBoxAgent["state"],
+  overrides: Partial<InhereBoxAgent> = {},
+): InhereBoxAgent {
   return {
     id: 0,
     agent_id,
@@ -98,7 +98,7 @@ describe("selectEnabledExperts", () => {
 });
 
 describe("projectChatAgentOption", () => {
-  it("projects the full OctopAgent down to ChatAgentOption shape", () => {
+  it("projects the full InhereBoxAgent down to ChatAgentOption shape", () => {
     const projected = projectChatAgentOption(
       agent("S1", "running", {
         icon_name: "cpu",

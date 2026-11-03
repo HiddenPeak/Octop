@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { octopThreadsApi } from "../../../api/modules/octopThreads";
+import { inhereBoxThreadsApi } from "../../../api/modules/inhereBoxThreads";
 import * as chatStore from "./chatStore";
 import { useChat } from "./useChat";
 
@@ -18,7 +18,7 @@ describe("history failures", () => {
       [{ id: "old", role: "user", content: "keep me", timestamp: 1 }],
       { hasMore: true, nextOffset: 25, nextCursor: "boundary" },
     );
-    vi.spyOn(octopThreadsApi, "history").mockRejectedValue(
+    vi.spyOn(inhereBoxThreadsApi, "history").mockRejectedValue(
       new Error("archive unavailable"),
     );
     const { result } = renderHook(() => useChat(thread, "agent"));
@@ -33,7 +33,7 @@ describe("history failures", () => {
 
   it("does not mark a failed initial load as an empty hydrated conversation", async () => {
     const history = vi
-      .spyOn(octopThreadsApi, "history")
+      .spyOn(inhereBoxThreadsApi, "history")
       .mockRejectedValueOnce(new Error("decode failed"));
     const { result } = renderHook(() => useChat(thread, "agent"));
     await act(async () => {
@@ -60,7 +60,7 @@ describe("history failures", () => {
       nextOffset: 0,
       nextCursor: null,
     });
-    const history = vi.spyOn(octopThreadsApi, "history").mockResolvedValue({
+    const history = vi.spyOn(inhereBoxThreadsApi, "history").mockResolvedValue({
       thread_id: thread,
       messages: [{ id: "cron", role: "assistant", content: "task done" }],
       has_more: false,
@@ -80,7 +80,7 @@ describe("history failures", () => {
       { hasMore: true, nextOffset: 25, nextCursor: "pinned-boundary" },
     );
     const history = vi
-      .spyOn(octopThreadsApi, "history")
+      .spyOn(inhereBoxThreadsApi, "history")
       .mockResolvedValue({ thread_id: thread, messages: [], has_more: false });
     const { result } = renderHook(() => useChat(thread, "agent"));
     await act(async () => {
@@ -99,7 +99,7 @@ describe("history failures", () => {
       { hasMore: true, nextOffset: 25, nextCursor: "same-boundary" },
     );
     const history = vi
-      .spyOn(octopThreadsApi, "history")
+      .spyOn(inhereBoxThreadsApi, "history")
       .mockRejectedValueOnce(new Error("unavailable"))
       .mockResolvedValueOnce({
         thread_id: thread,

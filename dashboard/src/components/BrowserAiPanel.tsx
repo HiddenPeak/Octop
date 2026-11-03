@@ -10,7 +10,7 @@ import { message as antMessage } from "@/utils/antdMessage";
 
 import { Bot, X, Square, Play, Loader2, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { OctopAgent } from "../context/AgentContext";
+import type { InhereBoxAgent } from "../context/AgentContext";
 import AgentSelector from "../components/AgentSelector";
 import { useAgentThreadChat } from "../hooks/useAgentThreadChat";
 import { browserApi } from "../api/modules/browser";
@@ -28,7 +28,7 @@ export interface BrowserAiTabContext {
 }
 
 interface BrowserAiPanelProps {
-  activeAgent: OctopAgent | null;
+  activeAgent: InhereBoxAgent | null;
   tabs: BrowserAiTabContext[];
   currentUrl: string;
   profileId?: string | null;

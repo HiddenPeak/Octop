@@ -12,8 +12,8 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from octop_harness.plugins import LoadedPlugin, PluginManifest, PluginRegistry
 from octop_harness.plugins.registry import ToolRegistration
 
-from octop.infra.agents.security.policy_store import SecuritySettingsStore
-from octop.infra.projects import receipts, runtime
+from inhere_box.infra.agents.security.policy_store import SecuritySettingsStore
+from inhere_box.infra.projects import receipts, runtime
 from tests.integration.test_project_task_interactions import approval, respond
 from tests.integration.test_project_task_planning import (
     latest_plan,

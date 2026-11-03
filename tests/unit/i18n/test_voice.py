@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import httpx
 
-from octop.i18n.domains.voice import format_voice_probe_error, tencent_api_language
+from inhere_box.i18n.domains.voice import format_voice_probe_error, tencent_api_language
 
 
 def test_tencent_secret_id_is_localized() -> None:

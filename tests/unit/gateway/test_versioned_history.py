@@ -11,20 +11,20 @@ from langchain_core.messages import (
     messages_from_dict,
 )
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.thread_messages import ThreadMessageRepo
-from octop.infra.db.repos.threads import ThreadRepo
-from octop.infra.db.repos.trajectory_events import TrajectoryEventRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.history.projection import message_inputs
-from octop.infra.history.recorder import RecordingTracker
-from octop.infra.history.service import HistoryArchive
-from octop.infra.history.store import HistoryStore
-from octop.infra.history.trajectory.live import TrajectoryLiveBus
-from octop.infra.history.trajectory.service import TrajectoryService
-from octop.infra.history.trajectory_compat import ArchiveTrajectoryStore
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.thread_messages import ThreadMessageRepo
+from inhere_box.infra.db.repos.threads import ThreadRepo
+from inhere_box.infra.db.repos.trajectory_events import TrajectoryEventRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.history.projection import message_inputs
+from inhere_box.infra.history.recorder import RecordingTracker
+from inhere_box.infra.history.service import HistoryArchive
+from inhere_box.infra.history.store import HistoryStore
+from inhere_box.infra.history.trajectory.live import TrajectoryLiveBus
+from inhere_box.infra.history.trajectory.service import TrajectoryService
+from inhere_box.infra.history.trajectory_compat import ArchiveTrajectoryStore
 
 
 @pytest.fixture
@@ -83,7 +83,7 @@ async def test_no_migration_single_write_and_cross_boundary_cursor(archive):
 
 @pytest.mark.asyncio
 async def test_streamed_archive_messages_include_checkpoint_ts(archive):
-    from octop.infra.gateway.process.message_keys import CHECKPOINT_TS_KEY
+    from inhere_box.infra.gateway.process.message_keys import CHECKPOINT_TS_KEY
 
     turn = archive.begin("a", "t")
     recorder = RecordingTracker(
@@ -103,7 +103,7 @@ async def test_streamed_archive_messages_include_checkpoint_ts(archive):
 
 @pytest.mark.asyncio
 async def test_state_merge_keeps_checkpoint_ts_from_snapshot(archive):
-    from octop.infra.gateway.process.message_keys import CHECKPOINT_TS_KEY
+    from inhere_box.infra.gateway.process.message_keys import CHECKPOINT_TS_KEY
 
     turn = archive.begin("a", "t")
     recorder = RecordingTracker(archive, turn, [HumanMessage(content="question", id="u1")])
@@ -329,15 +329,15 @@ async def test_pinned_legacy_anchor_and_new_rows_are_not_copied(archive):
 def test_backup_includes_archive_and_restore_refuses_partial_overwrite(archive, tmp_path):
     import tarfile
 
-    from octop.config import DatabaseConfig
-    from octop.infra.backup.system_archive import create_system_backup, restore_system_backup
-    from octop.infra.errors import OctopError
-    from octop.infra.utils.paths import PathLayout
+    from inhere_box.config import DatabaseConfig
+    from inhere_box.infra.backup.system_archive import create_system_backup, restore_system_backup
+    from inhere_box.infra.errors import InhereBoxError
+    from inhere_box.infra.utils.paths import PathLayout
 
     archive.begin("a", "t")
     paths = PathLayout(tmp_path)
     # The fixture uses a different basename; snapshot it into the configured archive location.
-    from octop.infra.backup.snapshot import snapshot_sqlite_file
+    from inhere_box.infra.backup.snapshot import snapshot_sqlite_file
 
     snapshot_sqlite_file(archive.store.path, tmp_path / "history_v2.sqlite")
     (tmp_path / "history_v2.required").write_text("required", encoding="utf-8")
@@ -356,7 +356,7 @@ def test_backup_includes_archive_and_restore_refuses_partial_overwrite(archive, 
         assert "history/history_v2.sqlite" in tf.getnames()
         assert "history/history_v2.required" in tf.getnames()
     old_rows = archive.messages.range_rows("t", 0, 100)
-    with pytest.raises(OctopError, match="offline restore"):
+    with pytest.raises(InhereBoxError, match="offline restore"):
         restore_system_backup(dest, paths=paths, pool=db, db_config=DatabaseConfig())
     assert archive.messages.range_rows("t", 0, 100) == old_rows
 
@@ -427,7 +427,7 @@ async def test_trajectory_write_failure_prevents_complete_archive_status(archive
 async def test_unsegmented_legacy_export_does_not_backfill(archive):
     from unittest.mock import MagicMock
 
-    from octop.infra.history.reader import export_messages
+    from inhere_box.infra.history.reader import export_messages
 
     archive.messages.append_if_ready("t", message_inputs([HumanMessage(content="old", id="old")]))
     messages = await export_messages(archive, MagicMock(), "a", "t")
@@ -461,9 +461,9 @@ async def test_dashboard_processor_writes_only_new_archive(archive):
 
     from octop_gateway.models import ChannelSubject, InboundMessage, TextContent
 
-    from octop.infra.gateway.process.processor import GlobalProcessor
-    from octop.infra.gateway.slash.dispatcher import SlashDispatcher
-    from octop.infra.gateway.ws import WS_CHANNEL_ID
+    from inhere_box.infra.gateway.process.processor import GlobalProcessor
+    from inhere_box.infra.gateway.slash.dispatcher import SlashDispatcher
+    from inhere_box.infra.gateway.ws import WS_CHANNEL_ID
 
     async def stream(*_args, **_kwargs):
         yield {"type": "reasoning", "message_id": "answer", "content": "thought"}
@@ -506,15 +506,15 @@ async def test_dashboard_processor_writes_only_new_archive(archive):
 def test_rebind_is_rejected_before_closing_old_database(archive, monkeypatch):
     from unittest.mock import MagicMock
 
-    from octop.infra.db.rebind import rebind_control_plane
-    from octop.infra.errors import OctopError
+    from inhere_box.infra.db.rebind import rebind_control_plane
+    from inhere_box.infra.errors import InhereBoxError
 
     server = MagicMock()
     server.user_manager.count.return_value = 0
     server.app_runtime.history_archive = archive
     open_database = MagicMock()
-    monkeypatch.setattr("octop.infra.db.rebind.open_database", open_database)
-    with pytest.raises(OctopError, match="Restart"):
+    monkeypatch.setattr("inhere_box.infra.db.rebind.open_database", open_database)
+    with pytest.raises(InhereBoxError, match="Restart"):
         rebind_control_plane(server)
     open_database.assert_not_called()
     server.services.db.close.assert_not_called()
@@ -524,7 +524,7 @@ def test_rebind_is_rejected_before_closing_old_database(archive, monkeypatch):
 async def test_cursor_issued_before_first_switch_survives_new_turns(archive):
     from unittest.mock import MagicMock
 
-    from octop.infra.history.reader import read_page
+    from inhere_box.infra.history.reader import read_page
 
     archive.messages.append_if_ready(
         "t",
@@ -555,7 +555,7 @@ async def test_checkpoint_cursor_pins_old_snapshot_without_copying(archive):
     from types import SimpleNamespace
     from unittest.mock import AsyncMock, MagicMock
 
-    from octop.infra.history.reader import read_page
+    from inhere_box.infra.history.reader import read_page
 
     archive.messages.mark_projection("t", "pending")
     old = [
@@ -590,7 +590,7 @@ async def test_checkpoint_cursor_pins_old_snapshot_without_copying(archive):
 
 @pytest.mark.asyncio
 async def test_inline_thinking_is_not_duplicated_after_final_state(archive):
-    from octop.api.routers.chat.serialize import _serialize_history_message
+    from inhere_box.api.routers.chat.serialize import _serialize_history_message
 
     tracker = RecordingTracker(archive, archive.begin("a", "t"), [])
     tracker.observe({"type": "reasoning", "message_id": "a", "content": "thought"})
@@ -625,9 +625,9 @@ def _dashboard_with_chunks(archive, chunks):
 
     from octop_gateway.models import ChannelSubject, InboundMessage, TextContent
 
-    from octop.infra.gateway.process.processor import GlobalProcessor
-    from octop.infra.gateway.slash.dispatcher import SlashDispatcher
-    from octop.infra.gateway.ws import WS_CHANNEL_ID
+    from inhere_box.infra.gateway.process.processor import GlobalProcessor
+    from inhere_box.infra.gateway.slash.dispatcher import SlashDispatcher
+    from inhere_box.infra.gateway.ws import WS_CHANNEL_ID
 
     async def stream(*_args, **_kwargs):
         for chunk in chunks:
@@ -734,9 +734,9 @@ async def test_dashboard_error_keeps_partial_tokens_and_error(archive):
 
     from octop_gateway.models import ChannelSubject, InboundMessage, TextContent
 
-    from octop.infra.gateway.process.processor import GlobalProcessor
-    from octop.infra.gateway.slash.dispatcher import SlashDispatcher
-    from octop.infra.gateway.ws import WS_CHANNEL_ID
+    from inhere_box.infra.gateway.process.processor import GlobalProcessor
+    from inhere_box.infra.gateway.slash.dispatcher import SlashDispatcher
+    from inhere_box.infra.gateway.ws import WS_CHANNEL_ID
 
     async def stream(*_args, **_kwargs):
         yield {"type": "token", "message_id": "m", "content": "partial answer"}
@@ -774,7 +774,7 @@ async def test_dashboard_error_keeps_partial_tokens_and_error(archive):
     assert any("question" in text for text in texts)
     assert "partial answer" in texts
     error = next(
-        message for message in recovered if message.additional_kwargs.get("octop_stream_error")
+        message for message in recovered if message.additional_kwargs.get("inhere_box_stream_error")
     )
     assert "余额" in str(error.content) or "insufficient" in str(error.content).lower()
     assert archive.store.turn("t")["status"] == "failed"
@@ -784,7 +784,7 @@ async def test_dashboard_error_keeps_partial_tokens_and_error(archive):
 async def test_im_projection_commits_back_to_back_fragments_before_delivery(archive):
     from types import SimpleNamespace
 
-    from octop.infra.gateway.process.stream_project import project_stream
+    from inhere_box.infra.gateway.process.stream_project import project_stream
 
     async def source(*_args, **_kwargs):
         yield {"type": "reasoning", "message_id": "m", "content": "thinking"}
@@ -925,12 +925,12 @@ def test_process_exit_after_commit_keeps_last_fragment(archive):
     script = """
 import asyncio, os, sys
 from pathlib import Path
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.thread_messages import ThreadMessageRepo
-from octop.infra.db.repos.trajectory_events import TrajectoryEventRepo
-from octop.infra.history.store import HistoryStore
-from octop.infra.history.service import HistoryArchive
-from octop.infra.history.recorder import RecordingTracker
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.thread_messages import ThreadMessageRepo
+from inhere_box.infra.db.repos.trajectory_events import TrajectoryEventRepo
+from inhere_box.infra.history.store import HistoryStore
+from inhere_box.infra.history.service import HistoryArchive
+from inhere_box.infra.history.recorder import RecordingTracker
 async def main():
     db = SqlitePool(Path(sys.argv[1]))
     archive = HistoryArchive(HistoryStore(Path(sys.argv[2]), identity="test"), ThreadMessageRepo(db), TrajectoryEventRepo(db), enabled=True)
@@ -954,7 +954,7 @@ asyncio.run(main())
 async def test_old_body_encoding_remains_readable_without_rewriting_on_resume(archive):
     import hashlib
 
-    from octop.infra.history.store import dumps
+    from inhere_box.infra.history.store import dumps
 
     turn = archive.begin("a", "t")
     text = "previously stored text " * 300
@@ -1032,7 +1032,7 @@ def test_replacing_chunked_message_preserves_other_messages_shared_blocks(archiv
 async def test_im_projection_stops_on_archive_failure(archive, monkeypatch):
     from types import SimpleNamespace
 
-    from octop.infra.gateway.process.stream_project import project_stream
+    from inhere_box.infra.gateway.process.stream_project import project_stream
 
     async def source(*_args, **_kwargs):
         yield {"type": "token", "message_id": "m", "content": "already committed"}

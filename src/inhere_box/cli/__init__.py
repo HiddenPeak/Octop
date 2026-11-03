@@ -1,0 +1,1 @@
+"""inhere-box CLI package."""

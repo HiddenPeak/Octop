@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`octop.infra.agents.manager` internals."""
+"""Unit tests for :mod:`inhere_box.infra.agents.manager` internals."""
 
 from __future__ import annotations
 
@@ -15,17 +15,17 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-from octop.config import OctopConfig
-from octop.i18n.domains.agents import NO_MODELS_CONFIGURED, format_agent_start_error
-from octop.infra.agents.experts.catalog import default_library_root
-from octop.infra.agents.manager import AgentManager, _memory_extract_settings
-from octop.infra.backend.resolver import default_agent_backend_spec
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRow
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.i18n.domains.agents import NO_MODELS_CONFIGURED, format_agent_start_error
+from inhere_box.infra.agents.experts.catalog import default_library_root
+from inhere_box.infra.agents.manager import AgentManager, _memory_extract_settings
+from inhere_box.infra.backend.resolver import default_agent_backend_spec
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRow
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.utils.paths import PathLayout
 
 # Real HarnessAgentManager starts memory maintenance (GC/vacuum) on a daemon
 # thread. Closing the agent while that tick holds the SQLite handle races on
@@ -39,7 +39,7 @@ async def _collect_async(iterator: AsyncIterator[Any]) -> list[Any]:
 
 
 def _expected_default_backend(manager: AgentManager, agent_id: str) -> dict[str, Any]:
-    from octop.infra.agents.workspace.execute_env import inject_agent_execute_env
+    from inhere_box.infra.agents.workspace.execute_env import inject_agent_execute_env
 
     ws = manager._paths.ensure_agent_workspace(agent_id)
     return inject_agent_execute_env(
@@ -56,7 +56,7 @@ def manager(tmp_path: Path) -> AgentManager:
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     return AgentManager(repos=services.repos, paths=services.paths)
 
 
@@ -97,7 +97,7 @@ def _row(
 
 
 def test_inject_gateway_tools_skips_empty_host_configs() -> None:
-    from octop.infra.connectors.builder import inject_missing_gateway_tools
+    from inhere_box.infra.connectors.builder import inject_missing_gateway_tools
 
     agent = MagicMock()
     inject_missing_gateway_tools(
@@ -645,11 +645,11 @@ def test_build_harness_config_includes_cronjob_tools_when_cron_manager_set(
 ) -> None:
     from unittest.mock import MagicMock
 
-    from octop.infra.cron.manager import CronManager
+    from inhere_box.infra.cron.manager import CronManager
 
     gw = MagicMock()
     gw.thread_registry = MagicMock()
-    from octop.infra.cron.delivery import CronDeliveryService
+    from inhere_box.infra.cron.delivery import CronDeliveryService
 
     cron_mgr = CronManager(
         gateway=gw,
@@ -681,7 +681,7 @@ def test_build_harness_config_includes_cronjob_tools_when_cron_manager_set(
 def test_build_harness_config_includes_search_knowledge_without_cron(
     manager: AgentManager,
 ) -> None:
-    from octop.infra.knowledge.hint import KnowledgeSearchHintMiddleware
+    from inhere_box.infra.knowledge.hint import KnowledgeSearchHintMiddleware
 
     cfg = manager._build_harness_config(_row(agent_id="AGT001"))
     assert cfg.tools is not None
@@ -706,7 +706,7 @@ def test_legacy_acp_uses_login_owner_home_without_inheriting_host_credentials(
 ) -> None:
     from octop_harness.runtime_env import overlay_env
 
-    from octop.infra.agents.acp_setup import ACPSetupService
+    from inhere_box.infra.agents.acp_setup import ACPSetupService
 
     monkeypatch.setenv("OPENAI_API_KEY", "parent-process-secret")
     monkeypatch.setenv("SSH_AUTH_SOCK", "parent-ssh-socket")
@@ -943,7 +943,7 @@ async def test_delete_thread_checkpoint_returns_false_when_agent_not_running(
     manager: AgentManager,
 ) -> None:
     # Fresh fixture has no _harness_manager wired up — get_agent raises
-    # OctopError, which must be swallowed (checkpoint cleanup is best-effort).
+    # InhereBoxError, which must be swallowed (checkpoint cleanup is best-effort).
     result = await manager.delete_thread_checkpoint("NOPE", "thr_1")
     assert result is False
 
@@ -1237,7 +1237,7 @@ def test_build_harness_config_keeps_fs_permissions_for_local_shell_guard(
 ) -> None:
     """local_shell keeps permissions on config; harness mounts FilesystemGuard.
 
-    Octop must not re-mount the guard (or ModelSettings) via cfg.middleware.
+    inhere-box must not re-mount the guard (or ModelSettings) via cfg.middleware.
     """
     from octop_harness.middleware.filesystem_guard import FilesystemGuardMiddleware
     from octop_harness.middleware.model_settings import ModelSettingsMiddleware
@@ -1430,7 +1430,7 @@ def test_build_harness_config_passes_default_model_without_embedded_providers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """default_model is forwarded; providers stay on HarnessAgentManager, not per-agent config."""
-    from octop.infra.agents import manager as mgr_mod
+    from inhere_box.infra.agents import manager as mgr_mod
 
     captured: list[dict] = []
 
@@ -1505,7 +1505,7 @@ async def test_stop_and_start_round_trip(manager: AgentManager) -> None:
     await manager.stop("STOP01")
     assert manager.get_row("STOP01") is not None
     assert manager.get_row("STOP01").last_state == "stopped"
-    with pytest.raises(OctopError, match="not running") as stopped_exc:
+    with pytest.raises(InhereBoxError, match="not running") as stopped_exc:
         manager.get_agent("STOP01")
     assert stopped_exc.value.code is ErrorCode.AGENT_NOT_RUNNING
 
@@ -1569,7 +1569,7 @@ async def test_reload_skips_stopped_agent(manager: AgentManager) -> None:
     await manager.reload("SKIP01")
     assert manager.get_row("SKIP01") is not None
     assert manager.get_row("SKIP01").last_state == "stopped"
-    with pytest.raises(OctopError, match="not running") as skipped_exc:
+    with pytest.raises(InhereBoxError, match="not running") as skipped_exc:
         manager.get_agent("SKIP01")
     assert skipped_exc.value.code is ErrorCode.AGENT_NOT_RUNNING
 
@@ -1581,7 +1581,7 @@ async def test_create_seeds_bootstrap_files(manager: AgentManager) -> None:
     """create() must seed harness workspace (BOOTSTRAP.md, AGENTS.md, …) before start."""
     from octop_harness import HarnessAgentManager
 
-    from octop.infra.agents.manager import AgentCreateSpec
+    from inhere_box.infra.agents.manager import AgentCreateSpec
 
     _seed_test_provider(manager)
     manager._harness_manager = HarnessAgentManager(
@@ -1644,7 +1644,7 @@ async def test_create_keeps_user_workspace_dir(
     """Explicit config.workspace_dir must not be replaced by the scoped default."""
     from octop_harness import HarnessAgentManager
 
-    from octop.infra.agents.manager import AgentCreateSpec
+    from inhere_box.infra.agents.manager import AgentCreateSpec
 
     _seed_test_provider(manager)
     manager._harness_manager = HarnessAgentManager(
@@ -1683,7 +1683,7 @@ async def test_create_persists_rootfs_workspace_under_scoped_root(
     """Non-host root_dir → config.workspace_dir is rootfs-absolute under that root."""
     from octop_harness import HarnessAgentManager
 
-    from octop.infra.agents.manager import AgentCreateSpec
+    from inhere_box.infra.agents.manager import AgentCreateSpec
 
     _seed_test_provider(manager)
     manager._harness_manager = HarnessAgentManager(
@@ -1691,7 +1691,7 @@ async def test_create_persists_rootfs_workspace_under_scoped_root(
         log_dir=str(manager.paths.logs_dir),
     )
     try:
-        # manager fixture uses ``{tmp_path}/.octop`` as OCTOP_HOME, so scoping
+        # manager fixture uses ``{tmp_path}/.octop`` as INHERE_BOX_HOME, so scoping
         # root_dir to tmp_path places the default workspace inside the rootfs.
         row = await manager.create(
             AgentCreateSpec(
@@ -1822,8 +1822,8 @@ async def test_templated_agent_keeps_expert_soul_on_reload(manager: AgentManager
     """Reload must not overwrite expert template SOUL.md with persona defaults."""
     from octop_harness import HarnessAgentManager
 
-    from octop.infra.agents.experts.catalog import ExpertCatalog
-    from octop.infra.agents.manager import AgentCreateSpec
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog
+    from inhere_box.infra.agents.manager import AgentCreateSpec
 
     catalog = ExpertCatalog(default_library_root())
     catalog.refresh()
@@ -1861,7 +1861,7 @@ async def test_templated_agent_keeps_expert_soul_on_reload(manager: AgentManager
 async def test_seed_expert_template_writes_workspace_files(
     manager: AgentManager, tmp_path: Path
 ) -> None:
-    from octop.infra.agents.experts.catalog import Expert, ExpertCatalog, ExpertSummary
+    from inhere_box.infra.agents.experts.catalog import Expert, ExpertCatalog, ExpertSummary
 
     expert_dir = tmp_path / "demo"
     expert_dir.mkdir()
@@ -1913,7 +1913,7 @@ async def test_persist_skills_disabled_does_not_schedule_reload(
     manager: AgentManager, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """skills_disabled is hot-synced; must not tear down the running agent."""
-    from octop.infra.agents.manager import AgentCreateSpec
+    from inhere_box.infra.agents.manager import AgentCreateSpec
 
     fake_agent = MagicMock()
     fake_hm = MagicMock()
@@ -1939,7 +1939,7 @@ async def test_persist_tools_disabled_strips_critical_and_hot_syncs(
     manager: AgentManager, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """tools_disabled is hot-synced; critical names are dropped."""
-    from octop.infra.agents.manager import AgentCreateSpec
+    from inhere_box.infra.agents.manager import AgentCreateSpec
 
     fake_agent = MagicMock()
     fake_hm = MagicMock()
@@ -1964,7 +1964,7 @@ async def test_persist_tools_disabled_strips_critical_and_hot_syncs(
 async def test_update_config_json_still_schedules_reload(
     manager: AgentManager, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from octop.infra.agents.manager import AgentCreateSpec
+    from inhere_box.infra.agents.manager import AgentCreateSpec
 
     fake_agent = MagicMock()
     fake_hm = MagicMock()
@@ -1986,7 +1986,7 @@ async def test_update_config_json_cannot_change_system_files_path(
     manager: AgentManager, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """``system_files_path`` is an internal layout knob; user updates must not mutate it."""
-    from octop.infra.agents.manager import AgentCreateSpec
+    from inhere_box.infra.agents.manager import AgentCreateSpec
 
     # Avoid starting harness runtime in this unit-test context.
     row = await manager.create(AgentCreateSpec(name="sysfiles-fixed"), defer_bootstrap=True)
@@ -2011,7 +2011,7 @@ async def test_update_config_json_cannot_move_the_workspace(
     Rewriting it silently relocates the agent's workspace: a scoped or container agent then
     resolves to the classic layout and loses sight of its skills, sessions and generated files.
     """
-    from octop.infra.agents.manager import AgentCreateSpec
+    from inhere_box.infra.agents.manager import AgentCreateSpec
 
     row = await manager.create(AgentCreateSpec(name="wsdir-fixed"), defer_bootstrap=True)
     monkeypatch.setattr(manager, "_schedule_reload", lambda _aid: None)
@@ -2033,7 +2033,7 @@ async def test_update_config_json_cannot_move_the_workspace(
 @pytest.mark.asyncio
 async def test_internal_persist_can_still_set_the_workspace(manager: AgentManager) -> None:
     """The internal writer must keep writing ``workspace_dir`` (no over-pinning)."""
-    from octop.infra.agents.manager import AgentCreateSpec
+    from inhere_box.infra.agents.manager import AgentCreateSpec
 
     row = await manager.create(AgentCreateSpec(name="wsdir-internal"), defer_bootstrap=True)
     other = str(manager.paths.root / "other-ws" / row.agent_id)
@@ -2053,13 +2053,13 @@ async def test_reload_agent_does_not_block_event_loop(
     import time
     from unittest.mock import MagicMock
 
-    from octop.infra.agents.manager import AgentCreateSpec, AgentManager
+    from inhere_box.infra.agents.manager import AgentCreateSpec, AgentManager
 
     paths = PathLayout(tmp_path / ".octop")
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     registry = AgentManager(repos=services.repos, paths=services.paths)
 
     fake_hm = MagicMock()
@@ -2105,9 +2105,9 @@ async def test_reload_agent_does_not_block_event_loop(
 
 def test_build_mcp_configs_registers_gateway_without_transport(manager: AgentManager) -> None:
     """Gateway connectors register a name-only placeholder; tools inject in-process."""
-    from octop.infra.connectors.builder import mcp_server_name
-    from octop.infra.connectors.crypto import encrypt_credentials
-    from octop.infra.utils.ulid import new_ulid
+    from inhere_box.infra.connectors.builder import mcp_server_name
+    from inhere_box.infra.connectors.crypto import encrypt_credentials
+    from inhere_box.infra.utils.ulid import new_ulid
 
     with manager._repos.db.transaction() as conn:
         conn.execute(
@@ -2138,9 +2138,9 @@ def test_build_mcp_configs_registers_gateway_without_transport(manager: AgentMan
 
 def test_build_mcp_configs_shared_agent_uses_connector_user_override(manager: AgentManager) -> None:
     """Shared agents (user_id=NULL) need connector_user_override to resolve connectors."""
-    from octop.infra.connectors.builder import mcp_server_name
-    from octop.infra.connectors.crypto import encrypt_credentials
-    from octop.infra.utils.ulid import new_ulid
+    from inhere_box.infra.connectors.builder import mcp_server_name
+    from inhere_box.infra.connectors.crypto import encrypt_credentials
+    from inhere_box.infra.utils.ulid import new_ulid
 
     with manager._repos.db.transaction() as conn:
         conn.execute(

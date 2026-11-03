@@ -18,8 +18,8 @@ func startSleepInhibitor() (func(), error) {
 		"org.freedesktop.login1.Manager.Inhibit",
 		0,
 		"idle:sleep",
-		"Octop",
-		"Octop desktop is running",
+		"inhere-box",
+		"inhere-box desktop is running",
 		"block",
 	)
 	if call.Err != nil {
@@ -35,7 +35,7 @@ func startSleepInhibitor() (func(), error) {
 		_ = conn.Close()
 		return nil, fmt.Errorf("inhibit sleep through logind: invalid file descriptor")
 	}
-	file := os.NewFile(uintptr(fd), "octop-sleep-inhibitor")
+	file := os.NewFile(uintptr(fd), "inhere-box-sleep-inhibitor")
 	if file == nil {
 		_ = conn.Close()
 		return nil, fmt.Errorf("inhibit sleep through logind: open file descriptor")

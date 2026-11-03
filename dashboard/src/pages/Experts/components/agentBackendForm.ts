@@ -33,7 +33,7 @@ export interface FilesystemDefaults {
    * the UI must not promise a sandbox.
    */
   jail_enforced?: boolean;
-  /** True when the Octop server process runs inside a container. */
+  /** True when the inhere-box server process runs inside a container. */
   in_container?: boolean;
 }
 
@@ -102,7 +102,7 @@ export function isHostRootDir(rootDir?: string | null): boolean {
 }
 
 /**
- * Mirror of Octop ``_backend_supports_host_skill_packages`` for local UI gates.
+ * Mirror of inhere-box ``_backend_supports_host_skill_packages`` for local UI gates.
  *
  * Host root ``/`` or ``root_dir`` equal to the agent workspace root may mount
  * packages; scoped project roots and non-local backends may not.
@@ -150,7 +150,7 @@ export function supportsHostSkillPackagesFromConfig(
  * Scoped ``root_dir`` enables the Linux bwrap jail. Host root ``/`` and the
  * agent workspace root are not treated as a jail (Windows defaults to the
  * workspace). Non-local backends count as locked for that UI. The per-agent
- * ``acp_runner`` tool toggle and inbound ``octop acp`` are unaffected.
+ * ``acp_runner`` tool toggle and inbound ``inhere-box acp`` are unaffected.
  */
 export function blocksAcpOutbound(options: {
   backendChoice: string;

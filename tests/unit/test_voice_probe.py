@@ -13,11 +13,11 @@ from typing import Any
 import httpx
 import pytest
 
-import octop.infra.voice.adapters as voice_adapters
-from octop.infra.db.repos.voice_providers import VoiceProviderRow
-from octop.infra.voice.adapters import STTResult
-from octop.infra.voice.adapters import test_stt as probe_stt
-from octop.infra.voice.adapters import test_tts as probe_tts
+import inhere_box.infra.voice.adapters as voice_adapters
+from inhere_box.infra.db.repos.voice_providers import VoiceProviderRow
+from inhere_box.infra.voice.adapters import STTResult
+from inhere_box.infra.voice.adapters import test_stt as probe_stt
+from inhere_box.infra.voice.adapters import test_tts as probe_tts
 
 
 def _row(

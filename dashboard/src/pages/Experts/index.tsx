@@ -45,7 +45,7 @@ import {
 import { useAgent } from "../../context/AgentContext";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { useCardTableView } from "../../hooks/useCardTableView";
-import type { OctopAgent } from "../../context/AgentContext";
+import type { InhereBoxAgent } from "../../context/AgentContext";
 import { AgentCard } from "./components/AgentCard";
 import { ExpertCard } from "./components/ExpertCard";
 import type { ExpertSummary } from "./components/ExpertCard";
@@ -59,7 +59,7 @@ import { TeamCard } from "./components/TeamCard";
 import { PublishedExpertCard } from "./components/PublishedExpertCard";
 import AgentExpertsTable from "./components/AgentExpertsTable";
 import ExpertMarketTab from "./components/ExpertMarketTab";
-import { OctopEmptyMascot } from "../../components/EmptyState";
+import { InhereBoxEmptyMascot } from "../../components/EmptyState";
 import { pickLocale } from "../../utils/localizedText";
 import { isOwnedExpert, ownedExperts } from "../../utils/sharedExpert";
 import { apiErrorMessage } from "../../utils/apiError";
@@ -67,7 +67,7 @@ import styles from "./index.module.less";
 
 type TabKey = "my" | "teams" | "library" | "market";
 type ViewMode = "card" | "table";
-const VIEW_STORAGE_KEY = "octop:experts-view";
+const VIEW_STORAGE_KEY = "inhere-box:experts-view";
 
 function loadViewMode(): ViewMode {
   const stored = localStorage.getItem(VIEW_STORAGE_KEY);
@@ -91,7 +91,7 @@ function textMatchesQuery(
 }
 
 function installedExpertIdsFromAgents(
-  agents: Pick<OctopAgent, "template_name" | "config">[],
+  agents: Pick<InhereBoxAgent, "template_name" | "config">[],
 ): Set<string> {
   const ids = new Set<string>();
   for (const agent of agents) {
@@ -135,7 +135,7 @@ export default function ExpertsPage() {
     setRefreshing(true);
     try {
       const [agentList, expertList, publishedList] = await Promise.all([
-        request<OctopAgent[]>("/agents"),
+        request<InhereBoxAgent[]>("/agents"),
         fetchExpertLibrary(),
         fetchPublishedExperts(),
       ]);
@@ -216,7 +216,7 @@ export default function ExpertsPage() {
 
   // ── Local agent state (extends AgentContext for optimistic updates) ──
   const ownedAgents = useMemo(() => ownedExperts(agents), [agents]);
-  const [localAgents, setLocalAgents] = useState<OctopAgent[]>(ownedAgents);
+  const [localAgents, setLocalAgents] = useState<InhereBoxAgent[]>(ownedAgents);
   const expertAgents = useMemo(
     () => localAgents.filter((item) => item.kind !== "team"),
     [localAgents],
@@ -288,15 +288,15 @@ export default function ExpertsPage() {
   );
 
   // ── Edit Drawer ────────────────────────────────────────────────
-  const [editAgent, setEditAgent] = useState<OctopAgent | null>(null);
+  const [editAgent, setEditAgent] = useState<InhereBoxAgent | null>(null);
   const [teamDrawer, setTeamDrawer] = useState<
-    { mode: "create" } | { mode: "edit"; team: OctopAgent } | null
+    { mode: "create" } | { mode: "edit"; team: InhereBoxAgent } | null
   >(null);
 
   const handleEditSaved = useCallback(
     (
       updated: Pick<
-        OctopAgent,
+        InhereBoxAgent,
         | "agent_id"
         | "name"
         | "description"
@@ -413,7 +413,7 @@ export default function ExpertsPage() {
             className={styles.emptyGuide}
             wide
             plain
-            icon={<OctopEmptyMascot />}
+            icon={<InhereBoxEmptyMascot />}
             title={t("experts.emptyGuideTitle")}
             description={t("experts.emptyGuideDesc")}
             steps={[
@@ -578,7 +578,7 @@ export default function ExpertsPage() {
             className={styles.emptyGuide}
             wide
             plain
-            icon={<OctopEmptyMascot />}
+            icon={<InhereBoxEmptyMascot />}
             title={t("experts.teams.emptyGuideTitle")}
             description={t("experts.teams.emptyGuideDesc")}
             steps={[
@@ -703,7 +703,7 @@ export default function ExpertsPage() {
     if (experts.length === 0 && publishedExperts.length === 0) {
       return (
         <div className={styles.emptyState}>
-          <OctopEmptyMascot />
+          <InhereBoxEmptyMascot />
           <div className={styles.emptyTitle}>{t("experts.emptyLibrary")}</div>
           <div className={styles.emptyHint}>
             {t("experts.emptyLibraryHint")}

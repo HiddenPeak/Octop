@@ -9,13 +9,13 @@ from langchain.agents.middleware import ModelRequest, ModelResponse
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.errors import GraphBubbleUp
 
-from octop.infra.agents.middleware import model_failover
-from octop.infra.agents.middleware.model_failover import (
+from inhere_box.infra.agents.middleware import model_failover
+from inhere_box.infra.agents.middleware.model_failover import (
     AutoRouteCandidate,
     ModelExecutionSafety,
     SafeModelFailoverMiddleware,
 )
-from octop.infra.agents.providers.health import FailureScope, ModelHealthRegistry
+from inhere_box.infra.agents.providers.health import FailureScope, ModelHealthRegistry
 
 
 def _model(ref: str, cap: int) -> SimpleNamespace:
@@ -42,7 +42,7 @@ async def test_success_does_not_construct_unused_fallback_models(monkeypatch) ->
     monkeypatch.setattr(
         model_failover,
         "_configurable",
-        lambda _request: {"model": "p/a", "octop_auto_route": True},
+        lambda _request: {"model": "p/a", "inhere_box_auto_route": True},
     )
 
     async def handler(request: ModelRequest) -> ModelResponse:
@@ -58,7 +58,7 @@ async def test_success_does_not_construct_unused_fallback_models(monkeypatch) ->
 @pytest.mark.asyncio
 async def test_auto_route_switches_after_retry_exhaustion(monkeypatch) -> None:
     models = {"p/a": _model("p/a", 100_000), "p/b": _model("p/b", 100_000)}
-    configurable = {"model": "p/a", "octop_auto_route": True}
+    configurable = {"model": "p/a", "inhere_box_auto_route": True}
     health = ModelHealthRegistry(clock=lambda: 100.0)
     middleware = SafeModelFailoverMiddleware(
         health=health,
@@ -167,7 +167,7 @@ async def test_failover_preserves_modalities_from_history(
         initial_delay=0,
         max_delay=0,
     )
-    configurable = {"model": "p/current", "octop_auto_route": True}
+    configurable = {"model": "p/current", "inhere_box_auto_route": True}
     monkeypatch.setattr(model_failover, "_configurable", lambda _request: configurable)
     attempts: list[str] = []
 
@@ -216,7 +216,7 @@ async def test_explicit_route_retries_but_does_not_switch(monkeypatch) -> None:
     monkeypatch.setattr(
         model_failover,
         "_configurable",
-        lambda _request: {"model": "p/a", "octop_auto_route": False},
+        lambda _request: {"model": "p/a", "inhere_box_auto_route": False},
     )
     handler = MagicMock(side_effect=RuntimeError("HTTP 503 service unavailable"))
 
@@ -245,7 +245,7 @@ def test_terminal_failure_uses_observability_callback(monkeypatch) -> None:
     monkeypatch.setattr(
         model_failover,
         "_configurable",
-        lambda _request: {"model": "p/a", "octop_auto_route": False},
+        lambda _request: {"model": "p/a", "inhere_box_auto_route": False},
     )
     error = RuntimeError("HTTP 503 service unavailable")
 
@@ -279,7 +279,7 @@ async def test_failover_skips_model_with_smaller_context(monkeypatch) -> None:
     monkeypatch.setattr(
         model_failover,
         "_configurable",
-        lambda _request: {"model": "p/a", "octop_auto_route": True},
+        lambda _request: {"model": "p/a", "inhere_box_auto_route": True},
     )
     monkeypatch.setattr(model_failover, "_estimated_input_tokens", lambda _request: 2_000)
     attempts: list[str] = []
@@ -315,7 +315,7 @@ async def test_failover_respects_agent_context_cap(monkeypatch) -> None:
         "_configurable",
         lambda _request: {
             "model": "p/a",
-            "octop_auto_route": True,
+            "inhere_box_auto_route": True,
             "max_input_tokens": 1_000,
         },
     )
@@ -349,7 +349,7 @@ async def test_failover_does_not_retry_unknown_invalid_request(monkeypatch) -> N
     monkeypatch.setattr(
         model_failover,
         "_configurable",
-        lambda _request: {"model": "p/a", "octop_auto_route": True},
+        lambda _request: {"model": "p/a", "inhere_box_auto_route": True},
     )
     handler = MagicMock(side_effect=RuntimeError("HTTP 400 invalid tool schema"))
 
@@ -369,7 +369,7 @@ async def test_provider_failure_skips_sibling_model(monkeypatch) -> None:
         "p/b": _model("p/b", 100_000),
         "q/c": _model("q/c", 100_000),
     }
-    configurable = {"model": "p/a", "octop_auto_route": True}
+    configurable = {"model": "p/a", "inhere_box_auto_route": True}
     middleware = SafeModelFailoverMiddleware(
         health=ModelHealthRegistry(clock=lambda: 100.0),
         candidates=lambda _current, _vision: [
@@ -422,7 +422,7 @@ async def test_interrupted_half_open_probe_can_be_attempted_again(
     monkeypatch.setattr(
         model_failover,
         "_configurable",
-        lambda _request: {"model": "p/a", "octop_auto_route": True},
+        lambda _request: {"model": "p/a", "inhere_box_auto_route": True},
     )
     request = ModelRequest(model=_model("p/a", 100_000), messages=[HumanMessage(content="hello")])
 
@@ -453,7 +453,7 @@ async def test_selection_callback_failure_releases_probe_without_changing_health
         max_delay=0,
         on_model_selected=selected,
     )
-    configurable = {"model": "p/a", "octop_auto_route": True}
+    configurable = {"model": "p/a", "inhere_box_auto_route": True}
     monkeypatch.setattr(model_failover, "_configurable", lambda _request: configurable)
     handler = AsyncMock(side_effect=ConnectionError("offline"))
     with pytest.raises(RuntimeError, match="audit unavailable"):
@@ -518,7 +518,7 @@ async def test_partial_execution_raises_without_replaying_or_quarantining_new_tu
     monkeypatch.setattr(
         model_failover,
         "_configurable",
-        lambda _request: {"model": "p/a", "octop_auto_route": True},
+        lambda _request: {"model": "p/a", "inhere_box_auto_route": True},
     )
     attempts = []
 
@@ -557,7 +557,7 @@ async def test_new_task_can_attempt_its_only_model_after_an_earlier_turn_failed(
     monkeypatch.setattr(
         model_failover,
         "_configurable",
-        lambda _request: {"model": "p/a", "octop_auto_route": True},
+        lambda _request: {"model": "p/a", "inhere_box_auto_route": True},
     )
     handler = AsyncMock(return_value=ModelResponse(result=[AIMessage(content="new turn done")]))
     response = await middleware.awrap_model_call(

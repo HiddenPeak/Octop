@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock
 
-from octop.infra.connectors.gateway import agently_auth
+from inhere_box.infra.connectors.gateway import agently_auth
 from tests.support.auth import create_user
 
 

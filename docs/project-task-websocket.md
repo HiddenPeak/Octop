@@ -14,7 +14,7 @@
 
 客户端通过一条经过认证的连接提交消息，并订阅多个任务的实时状态。服务端保存任务及轮次，连接断开后任务由执行服务继续处理；重新连接只恢复订阅。执行服务所在电脑休眠时无法保证持续执行，本机模式在唤醒后核对断点续接；需要 Mac 合盖期间持续执行，应部署到独立常开主机。多个 Task 使用有界并发执行槽，同一 Task 仍只允许一个活动轮次；等待客户端工具时保存检查点并释放执行槽。生成中的正文按约 100ms 的窗口合并保存，保存后唤醒本进程的订阅推送，另保留约 500ms 的数据库轮询兜底。
 
-这是 Octop 的任务协议，不使用 OpenAI 的 `response.create` 或 `function_call_output` 消息。当前支持文字、图片和通用文件输入、独立的思考内容、正式执行计划、步骤结果、工具参数与公开返回内容、停止、服务端附件交付，以及客户端工具声明、调用和结果回传。主 Task 支持三档任务审批模式、远端独立 Reviewer、提问和手动暂停恢复；`client_directory` 只保存路径，不授予客户端文件访问能力。客户端工具接入见[第 12 节](#12-客户端工具完整接入协议)，服务端附件见[第 13 节](#13-服务端附件交付)，输入附件见[第 15 节](#15-输入附件)。
+这是 inhere-box 的任务协议，不使用 OpenAI 的 `response.create` 或 `function_call_output` 消息。当前支持文字、图片和通用文件输入、独立的思考内容、正式执行计划、步骤结果、工具参数与公开返回内容、停止、服务端附件交付，以及客户端工具声明、调用和结果回传。主 Task 支持三档任务审批模式、远端独立 Reviewer、提问和手动暂停恢复；`client_directory` 只保存路径，不授予客户端文件访问能力。客户端工具接入见[第 12 节](#12-客户端工具完整接入协议)，服务端附件见[第 13 节](#13-服务端附件交付)，输入附件见[第 15 节](#15-输入附件)。
 
 - [JSON Schema](project-task-websocket.schema.json)：请求按实际 Pydantic 模型导出；服务端数据模型与 REST 共用定义。
 - [API 参考](api.md)：项目配置、任务列表、历史分页、改名与归档。
@@ -31,7 +31,7 @@
 
 ## 1 最短接入流程
 
-1. 使用现有 Octop 登录流程取得 access token，连接 `/api/project-tasks/ws`。
+1. 使用现有 inhere-box 登录流程取得 access token，连接 `/api/project-tasks/ws`。
 2. 完成鉴权，收到 ready 后才发送业务命令。
 3. 用 task.create 发送首条消息，通过命令 id 匹配 result，保存返回的 task_id。
 4. 用创建响应的 event_cursor 发送 task.subscribe。创建成功不会自动订阅。
@@ -44,13 +44,13 @@
 
 ## 2 连接与鉴权
 
-开发地址示例为 `ws://127.0.0.1:8088/api/project-tasks/ws`。HTTPS 部署使用 `wss://<Octop 主机>/api/project-tasks/ws`。地址和端口取用户实际配置。本节描述直连；远端 Task 的 Bridge 入口、能力和身份校验另见[统一会话交接第 11 节](agentcomputer-unified-conversations-handoff.md#11-已实现的远程-task-协议与迁移接线)，不能混用两者的鉴权或资源作用域。
+开发地址示例为 `ws://127.0.0.1:8088/api/project-tasks/ws`。HTTPS 部署使用 `wss://<inhere-box 主机>/api/project-tasks/ws`。地址和端口取用户实际配置。本节描述直连；远端 Task 的 Bridge 入口、能力和身份校验另见[统一会话交接第 11 节](agentcomputer-unified-conversations-handoff.md#11-已实现的远程-task-协议与迁移接线)，不能混用两者的鉴权或资源作用域。
 
 应用消息均为 **UTF-8 JSON 文本帧**，每帧一个 JSON 对象，不采用 SSE 行格式或二进制 JSON 帧。不声明 WebSocket subprotocol。
 
 ### 原生客户端使用请求头
 
-在升级请求中添加 `Authorization: Bearer <access token>`。这里使用 Octop 登录返回的用户令牌，不是模型服务商的 API Key。服务端验证后直接返回 ready，客户端不要再发送 authenticate；下文 HTTP 资源发现请求也使用同一个 Octop Bearer 令牌。
+在升级请求中添加 `Authorization: Bearer <access token>`。这里使用 inhere-box 登录返回的用户令牌，不是模型服务商的 API Key。服务端验证后直接返回 ready，客户端不要再发送 authenticate；下文 HTTP 资源发现请求也使用同一个 inhere-box Bearer 令牌。
 
 ### 浏览器使用首帧
 
@@ -92,9 +92,9 @@ heartbeat 不需要回复。下文的 ping 命令用于主动检查请求与回�
 
 ### 连接诊断与日志关联
 
-原生客户端可在每次握手发送 `X-AgentComputer-Connection-ID`，使用本次连接的新 UUID（36 字符、带短横线，大小写均可）。服务端在握手响应中原样回显合法值，并独立生成 `X-Octop-Connection-ID`。缺失、重复或非法的客户端 ID 不会原样写日志或回显；日志用 `client_connection_id_status` 区分。响应头不会改变现有协议帧。
+原生客户端可在每次握手发送 `X-AgentComputer-Connection-ID`，使用本次连接的新 UUID（36 字符、带短横线，大小写均可）。服务端在握手响应中原样回显合法值，并独立生成 `X-Inhere-Box-Connection-ID`。缺失、重复或非法的客户端 ID 不会原样写日志或回显；日志用 `client_connection_id_status` 区分。响应头不会改变现有协议帧。
 
-服务端日志位于 `$OCTOP_HOME/logs/octop.log`（默认 `~/.octop/logs/octop.log`），继续按现有大小、日期和保留期限轮转。搜索 `project_task_ws ` 后的 JSON，使用 `client_connection_id` 与客户端按次连接的记录关联，使用 `server_connection_id` 区分服务端实际接到的每次连接。代理若传入单个 `X-Request-ID`，仅 UUID、32 位十六进制或 ULID 格式会记入 `request_id`；其他值丢弃。
+服务端日志位于 `$INHERE_BOX_HOME/logs/inhere-box.log`（默认 `~/.inhere-box/logs/inhere-box.log`），继续按现有大小、日期和保留期限轮转。搜索 `project_task_ws ` 后的 JSON，使用 `client_connection_id` 与客户端按次连接的记录关联，使用 `server_connection_id` 区分服务端实际接到的每次连接。代理若传入单个 `X-Request-ID`，仅 UUID、32 位十六进制或 ULID 格式会记入 `request_id`；其他值丢弃。
 
 每条记录包含版本、UTC 时间、连接内递增 `seq`、距接入的 `elapsed_ms` 和固定路由路径。事件覆盖收到连接、接受握手、首次认证开始/成功/失败、ready、凭据续期、错误、请求关闭、提交关闭、传输异常和最终结束。后续认证检查只累计次数，并记录失败或续期，避免逐条业务内容落盘。错误包含服务端固定阶段、错误码、HTTP 状态和作用范围；命令类型仅取通过协议校验的枚举。
 
@@ -102,7 +102,7 @@ heartbeat 不需要回复。下文的 ping 命令用于主动检查请求与回�
 
 日志不记录 Authorization、token、原始请求头、URL 查询参数、命令 ID、任务 ID、游标、会话正文、工具参数/结果、错误消息或关闭原因。意外异常仅记录异常类型和代码文件名/函数/行号，不保留异常文本、源码行或局部变量。Uvicorn 的协议 DEBUG/TRACE 帧及请求头日志受抑制，访问日志去掉查询参数。
 
-如果握手在代理或更早的层被拒绝，此路由可能完全没有 `connection_received`。需要代理透传上述客户端连接 ID，并结合代理自身的请求 ID、上游状态和时间核对；仅凭服务端没有记录，不能确定 403 的来源。当前客户端若未收集 `X-Octop-Connection-ID` 响应头，仍可用它已发送的 `X-AgentComputer-Connection-ID` 完成关联。
+如果握手在代理或更早的层被拒绝，此路由可能完全没有 `connection_received`。需要代理透传上述客户端连接 ID，并结合代理自身的请求 ID、上游状态和时间核对；仅凭服务端没有记录，不能确定 403 的来源。当前客户端若未收集 `X-Inhere-Box-Connection-ID` 响应头，仍可用它已发送的 `X-AgentComputer-Connection-ID` 完成关联。
 
 ## 3 标识与公共约定
 
@@ -421,7 +421,7 @@ TaskDetail 在 TaskSummary 上增加 `turns:TaskTurn[]`、`next_page_cursor:stri
 
 ## 7 本轮模型与资源
 
-客户端通过已存在的 HTTP `GET /api/project-tasks/resources` 获取候选模型，携带 `Authorization: Bearer <Octop access_token>`，无需新增 WebSocket 模型列表命令。资源响应的模型字段示意如下，其余资源字段省略：
+客户端通过已存在的 HTTP `GET /api/project-tasks/resources` 获取候选模型，携带 `Authorization: Bearer <inhere-box access_token>`，无需新增 WebSocket 模型列表命令。资源响应的模型字段示意如下，其余资源字段省略：
 
 ```json
 {
@@ -433,7 +433,7 @@ TaskDetail 在 TaskSummary 上增加 `turns:TaskTurn[]`、`next_page_cursor:stri
 }
 ```
 
-模型引用只是示意，使用服务端实际返回值。客户端用 `name` 展示、用 `provider_kind=box` 将盒子单独分组；其他连接类型可为远端或其他自部署服务。提交时必须使用完整 `model_ref`，不能只传来源 `box`、展示名或模型 ID。`models` 只含可用主对话模型，不含 ASR/TTS；无可用默认模型时 `default_model_ref` 可为 null。此资源接口不返回模型服务地址、API Key 或其他连接凭据，模型由 Octop 服务端调用。
+模型引用只是示意，使用服务端实际返回值。客户端用 `name` 展示、用 `provider_kind=box` 将盒子单独分组；其他连接类型可为远端或其他自部署服务。提交时必须使用完整 `model_ref`，不能只传来源 `box`、展示名或模型 ID。`models` 只含可用主对话模型，不含 ASR/TTS；无可用默认模型时 `default_model_ref` 可为 null。此资源接口不返回模型服务地址、API Key 或其他连接凭据，模型由 inhere-box 服务端调用。
 
 第 4 节的 `task.create` 例子选择盒子，`task.message` 例子选择远端，字段都位于 **`data.options.model_ref`**。模型选择逐轮独立：省略该字段或传 null，每轮重新采用当前默认；不会把首轮模型绑定到 Task，也不隐式沿用上一轮。希望连续追问使用同一模型时，每次命令都显式携带相同 `model_ref`；`options` 本身仍只能省略或传对象，不能传 null。REST 的创建与追问 JSON 示例见[任务请求和返回示例](api.md#任务请求和返回示例)。
 
@@ -516,12 +516,12 @@ REST 同样使用 `POST /api/project-tasks/{task_id}/messages`。沿用原有鉴
 
 ### 任务过程配置
 
-“应用设置 → 任务设置”（`/admin/advanced?tab=tasks`）提供两个全局开关，缺省均为 true，管理当前 Octop 服务；原环境变量 API 和部署配置继续兼容，环境变量页面不再列出这两项。
+“应用设置 → 任务设置”（`/admin/advanced?tab=tasks`）提供两个全局开关，缺省均为 true，管理当前 inhere-box 服务；原环境变量 API 和部署配置继续兼容，环境变量页面不再列出这两项。
 
 | 环境变量 | 生效范围 |
 | --- | --- |
-| `OCTOP_TASK_ACTION_TIMELINE_ENABLED` | 新轮宿主进展及异步公开进展/动作说明的生成默认值，同时作为新轮动作链路展示默认值 |
-| `OCTOP_TASK_STEP_PANEL_ENABLED` | 新轮已有计划的步骤面板展示默认值，不控制计划是否创建或执行 |
+| `INHERE_BOX_TASK_ACTION_TIMELINE_ENABLED` | 新轮宿主进展及异步公开进展/动作说明的生成默认值，同时作为新轮动作链路展示默认值 |
+| `INHERE_BOX_TASK_STEP_PANEL_ENABLED` | 新轮已有计划的步骤面板展示默认值，不控制计划是否创建或执行 |
 
 接受 true/false、1/0、yes/no、on/off，忽略大小写和两端空白。环境保存先校验这两键，非法值返回 `400 TASK_SETTINGS_INVALID`，不保存本次环境修改，错误只含设置名。
 
@@ -535,7 +535,7 @@ REST 同样使用 `POST /api/project-tasks/{task_id}/messages`。沿用原有鉴
 
 响应 `Cache-Control: no-store`，只包含两个新轮默认布尔值，不返回环境变量全集、路径或密钥。它是 HTTP 设置接口，没有新增 WebSocket 命令。APP 不读取 `/api/envs`，也不以当前设置决定历史轮次的展示方式。
 
-服务端每次读取持久化的 `OCTOP_HOME/env`。文件存在时以文件为两键权威，缺键回默认 true，避免另一个 worker 的旧进程环境覆盖删除结果；仅整个文件不存在时才回退进程环境，再缺省 true。保存/删键对之后的请求热生效，不依赖跨进程环境广播、agent 重载或服务重启。
+服务端每次读取持久化的 `INHERE_BOX_HOME/env`。文件存在时以文件为两键权威，缺键回默认 true，避免另一个 worker 的旧进程环境覆盖删除结果；仅整个文件不存在时才回退进程环境，再缺省 true。保存/删键对之后的请求热生效，不依赖跨进程环境广播、agent 重载或服务重启。
 
 本轮生成配置优先级：显式 `options.action_timeline_enabled` 优先，否则取入队时全局默认。创建、追问和手动重试均支持；`options` 不接受 `step_panel_enabled`。生效值写入轮次配置并在 `turn.options.action_timeline_enabled` 回显，同时冻结 `configuration_json.presentation`。REST 详情、历史分页、导出、WebSocket 的 `result/snapshot/turn` 共用 `TaskTurn.presentation`（`TaskPresentation`）：
 
@@ -603,7 +603,7 @@ TaskTurn 另提供可空的 started_at、finished_at、processing_duration_ms：
 
 ```json
 {
-  "source": "octop_planning",
+  "source": "inhere_box_planning",
   "plan_id": "plan_example",
   "title": "生成并验证报告",
   "revision": 2,
@@ -664,7 +664,7 @@ TaskTurn 另提供可空的 started_at、finished_at、processing_duration_ms：
 
 工具 arguments 是实际业务参数，output 只保存实际 ToolMessage.content 的 JSON 值，不公开 private artifact、additional_kwargs 或加密推理。底层已经截断的内容无法恢复。参数/输出属于已鉴权任务的展示数据，不是本机执行指令。started_at 仅在实际调度后填入，审批等待不是执行；finished_at 是服务端观察到结束的时间，duration_ms 是已记录的执行耗时，未知为空，不从轮次时间推算。
 
-宿主准入失败与真实用户拒绝分开：步骤/批次校验及 question_limit 等错误若经 HITL 恢复，使用服务端内部 `octop_host_error` 决定，固定匹配原 call_id 与工具名，生成 `ToolMessage(status="error")` 和原本地化原因。内容块 status 为 failed，output 保存原始错误字符串，不拼接 `User rejected…` 或另套旧 JSON 错误包；未执行调用没有开始/结束时间与耗时。真正的用户 deny 继续走原生 reject，已派发客户端的实际 result_json 继续走原 respond，不能将这些语义互换。旧开场/brief 准入错误保留原值，新请求不再受这两项文案门控。
+宿主准入失败与真实用户拒绝分开：步骤/批次校验及 question_limit 等错误若经 HITL 恢复，使用服务端内部 `inhere_box_host_error` 决定，固定匹配原 call_id 与工具名，生成 `ToolMessage(status="error")` 和原本地化原因。内容块 status 为 failed，output 保存原始错误字符串，不拼接 `User rejected…` 或另套旧 JSON 错误包；未执行调用没有开始/结束时间与耗时。真正的用户 deny 继续走原生 reject，已派发客户端的实际 result_json 继续走原 respond，不能将这些语义互换。旧开场/brief 准入错误保留原值，新请求不再受这两项文案门控。
 
 该分支不是公开 WebSocket 命令或 allowed_decisions 的新值，客户端不提交它，也不把 output 类型收窄为字符串。任务 HITL 适配保留原中间件名称和槽位，保持检查点拓扑，主任务审批映射不泄漏到子代理/peer。已完成历史保留真实原值，包括 I 当时误带拒绝前缀的输出；本轮审计没有待恢复的旧 inline 项，不做历史重写或新增迁移。
 
@@ -707,7 +707,7 @@ APP 从 `GET /api/project-tasks/resources` 的选中模型读取该能力，只�
 
 ## 8 断线恢复与多任务复用
 
-每个客户端到同一 Octop 实例和账号维持一条共享连接，连接内部保存 task_id 到已应用 cursor 的映射。不同任务事件可交错到达，接收循环读取全部帧后再分发，不能为等待一个任务而暂停整条连接。
+每个客户端到同一 inhere-box 实例和账号维持一条共享连接，连接内部保存 task_id 到已应用 cursor 的映射。不同任务事件可交错到达，接收循环读取全部帧后再分发，不能为等待一个任务而暂停整条连接。
 
 每条连接最多订阅 32 个 Task 与 Resident 会话，按两类订阅合计。只订阅打开的任务正文，其他侧栏任务使用列表增量同步。多任务订阅不会增加后台执行并发。
 
@@ -887,7 +887,7 @@ func observeExampleTask(endpoint: URL, accessToken: String) async throws {
 ```mermaid
 sequenceDiagram
     participant C as 客户端
-    participant S as Octop
+    participant S as inhere-box
     participant M as 模型
     C->>S: client.attach(client_id)
     C->>S: task.create / task.message(options.client_tools)
@@ -980,7 +980,7 @@ call_id 为服务端生成的不透明标识，客户端以它做持久化去重
 | expired | 尚未领取的调用创建后十分钟失效 | 禁止领取/派发；本轮进入 interrupted，不能自动创建替代调用 |
 | interrupted | 原调用已关闭，未保留可回填的有效领取 | 不自动重放；可恢复轮中已领取的调用保留 claimed，不转为此状态 |
 
-截止时间从服务端创建调用开始计算；领取、重连、心跳都不延长。主 Task 等待客户端期间该轮为 waiting_client_tool、保留活动轮次，但释放模型执行槽，其他任务可以推进。Octop 保存原生检查点和工具调用顺序，全部结果到齐后继续同一轮；不会额外创建工具调用或用户消息。一次模型响应可能提出多个工具调用，客户端必须按 call_id 分别处理，不按工具名去重。子代理和团队成员内部的客户端调用尚未接入嵌套检查点恢复，保留原有等待方式。
+截止时间从服务端创建调用开始计算；领取、重连、心跳都不延长。主 Task 等待客户端期间该轮为 waiting_client_tool、保留活动轮次，但释放模型执行槽，其他任务可以推进。inhere-box 保存原生检查点和工具调用顺序，全部结果到齐后继续同一轮；不会额外创建工具调用或用户消息。一次模型响应可能提出多个工具调用，客户端必须按 call_id 分别处理，不按工具名去重。子代理和团队成员内部的客户端调用尚未接入嵌套检查点恢复，保留原有等待方式。
 
 已经在该连接上推送的调用进入终态后，服务端发送 tool.closed，data 结构与 tool.call 一致。它可能与 tool.result 的回执交错到达，不能阻塞唯一的接收循环。
 
@@ -1028,7 +1028,7 @@ REST 创建/追问/重试也接受相同 options 字段，格式错误走标准 
 
 ## 13 服务端附件交付
 
-create_artifact、publish_workspace_file 和 publish_workspace_archive 均由 Octop 服务端提供。客户端不注册这些工具，也不执行或上传它们的文件内容。客户端在普通任务轮次中读取 artifacts，按需下载和预览。无项目任务同样可使用这些工具。
+create_artifact、publish_workspace_file 和 publish_workspace_archive 均由 inhere-box 服务端提供。客户端不注册这些工具，也不执行或上传它们的文件内容。客户端在普通任务轮次中读取 artifacts，按需下载和预览。无项目任务同样可使用这些工具。
 
 ### 13.1 工具语义与执行边界
 
@@ -1063,7 +1063,7 @@ publish_workspace_archive 的 paths 是 1–100 个互不重复的相对文件�
 | name / media_type | 文件显示名和 MIME 类型 |
 | byte_count / sha256 | 原始字节数和 SHA-256 十六进制摘要；用于校验下载及本地缓存 |
 | source_path | 发布已有文件时的服务端工作目录相对路径；直接创建文本或生成 ZIP 为 null |
-| download_url | 当前 Octop 实例下的相对鉴权下载地址，不包含访问令牌 |
+| download_url | 当前 inhere-box 实例下的相对鉴权下载地址，不包含访问令牌 |
 | created_at | 服务端生成的 UTC ISO 8601 时间 |
 | business_category | 必返回的后缀分类：document/presentation/spreadsheet/image/other，分别显示文本和PDF、幻灯片、表格、图片、其他；历史成果按相同规则回填 |
 
@@ -1122,7 +1122,7 @@ Authorization: Bearer <access token>
 
 ### 14.2 客户端远端审查 tool.review
 
-已领取的 exec_command 在冻结模式为 approve_for_me 时可以请求审查；原调用冻结模式不符时返回 TASK_APPROVAL_MODE_UNAVAILABLE。原 command 参数须为非空字符串数组；请求不接受新的工具参数。目录与授权摘要仅作审查文本，Octop 不读取客户端路径。
+已领取的 exec_command 在冻结模式为 approve_for_me 时可以请求审查；原调用冻结模式不符时返回 TASK_APPROVAL_MODE_UNAVAILABLE。原 command 参数须为非空字符串数组；请求不接受新的工具参数。目录与授权摘要仅作审查文本，inhere-box 不读取客户端路径。
 
 ```json
 {"type":"tool.review","id":"review-command-001","task_id":"task_example","turn_id":"turn_example","call_id":"call_example","data":{"request_id":"review-request-001","claim_token":"example_claim_token_replace_with_receipt","action_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","context":{"working_directory":"/Users/example/project","workspace_authorization_digest":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","command_authorization_id":"local-grant-001","execution_profile":"workspace_write","context_digest":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}}}
@@ -1188,8 +1188,8 @@ TaskTurn 的 `attachments` 为上述元数据数组，无附件时为 `[]`；`ar
 长对话压缩后，模型可以通过 `read_task_image(attachment_id?)` 重新查看历史图片：省略 ID 时仅列出当前任务视觉图片，指定 ID 时将该图加入下一次模型请求。普通文件不由这个工具读取，使用文件清单中的工作区路径。工具结果与持久化历史仍只含引用和元数据，不自动发布输出附件。
 ## 可选执行引擎（2026-10-27 增量）
 
-`task.create` 的 TaskCreate 支持 `engine: {engine_id: "octop"|"acp", connection_id: string|null, model_id: string|null}`。省略使用 Octop；普通 `task.message`/`task.retry` 沿用 Task 已保存的选择，并使用既有配置版本校验。空闲时通过 Task PATCH 更换引擎，从下一轮生效，不增加另一个 Task 或改变工作目录。
+`task.create` 的 TaskCreate 支持 `engine: {engine_id: "inhere-box"|"acp", connection_id: string|null, model_id: string|null}`。省略使用 inhere-box；普通 `task.message`/`task.retry` 沿用 Task 已保存的选择，并使用既有配置版本校验。空闲时通过 Task PATCH 更换引擎，从下一轮生效，不增加另一个 Task 或改变工作目录。
 
-快照和 turn 事件中的 `execution_engine` 保存当轮路由；`actual_model_id`、`resumed` 是可选运行事实，未知为 null。客户端不能用 Task 当前选择覆盖旧轮次身份，也不能把 ACP 原生 model_id 当作 Octop model_ref。外部用量不进入 Octop Provider 单轮费用，兼容的零计数字段不能解释为真实零消耗。
+快照和 turn 事件中的 `execution_engine` 保存当轮路由；`actual_model_id`、`resumed` 是可选运行事实，未知为 null。客户端不能用 Task 当前选择覆盖旧轮次身份，也不能把 ACP 原生 model_id 当作 inhere-box model_ref。外部用量不进入 inhere-box Provider 单轮费用，兼容的零计数字段不能解释为真实零消耗。
 
-引擎目录与显式能力检测使用执行主机的 `/api/project-tasks/engines` 和 `/api/project-tasks/engines/inspect`。旧 peer 没有 `execution_engines` 能力时，默认 Octop 请求移除新增 engine 字段继续兼容；ACP 或显式引擎变更必须提示远端不支持。数据与审批边界详见 [Task 执行引擎](task-execution-engines.md)。
+引擎目录与显式能力检测使用执行主机的 `/api/project-tasks/engines` 和 `/api/project-tasks/engines/inspect`。旧 peer 没有 `execution_engines` 能力时，默认 inhere-box 请求移除新增 engine 字段继续兼容；ACP 或显式引擎变更必须提示远端不支持。数据与审批边界详见 [Task 执行引擎](task-execution-engines.md)。

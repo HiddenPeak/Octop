@@ -22,7 +22,7 @@ describe("Legacy tool history", () => {
             pluginId: "history-test",
             callId: "old_call",
             output: JSON.stringify({
-              octop_ui: { renderer: "history-card" },
+              inhere_box_ui: { renderer: "history-card" },
               data: { title: "preserved result" },
             }),
           }}
@@ -48,7 +48,7 @@ describe("Legacy tool history", () => {
           pluginId: "history-test",
           callId: "old_call",
           output: JSON.stringify({
-            octop_ui: { renderer: "history-card" },
+            inhere_box_ui: { renderer: "history-card" },
             data: {},
           }),
         }}

@@ -16,8 +16,8 @@ from tests.unit.agents.test_resident_followups import (
     followed,  # noqa: F401
 )
 
-from octop.infra.agents import resident_followups as followups
-from octop.infra.projects import tasks
+from inhere_box.infra.agents import resident_followups as followups
+from inhere_box.infra.projects import tasks
 
 
 @pytest.mark.parametrize("action", ["cancel", "update", "reschedule"])

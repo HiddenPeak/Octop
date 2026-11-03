@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.agents.resident_worker_lock import ResidentWorkerLock
+from inhere_box.infra.agents.resident_worker_lock import ResidentWorkerLock
 
 
 def _hold_worker_lock(path: str, connection: Connection) -> None:

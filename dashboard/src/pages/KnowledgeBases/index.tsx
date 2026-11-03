@@ -66,7 +66,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { userCan } from "../../utils/permissions";
-import type { OctopUser } from "../../api/modules/auth";
+import type { InhereBoxUser } from "../../api/modules/auth";
 import {
   DEFAULT_KNOWLEDGE_LIMITS,
   knowledgeBasesApi,
@@ -75,7 +75,7 @@ import {
   type KnowledgeDocument,
   type KnowledgeOnnxModel,
 } from "../../api/modules/knowledgeBases";
-import { OctopEmptyMascot } from "../../components/EmptyState";
+import { InhereBoxEmptyMascot } from "../../components/EmptyState";
 import DocumentPreviewCore from "../../components/DocumentPreviewCore";
 import DocumentPreviewLoading from "../../components/DocumentPreviewLoading";
 import Markdown from "../../components/Markdown";
@@ -131,7 +131,7 @@ type BaseFormValues = {
 };
 
 type DocsViewMode = "card" | "table";
-const DOCS_VIEW_STORAGE_KEY = "octop:knowledge-bases-docs-view";
+const DOCS_VIEW_STORAGE_KEY = "inhere-box:knowledge-bases-docs-view";
 
 const BASE_DOCUMENT_TYPES =
   ".md,.markdown,.txt,.rst,.html,.htm,.json,.jsonl,.yaml,.yml,.csv,.tsv,.pdf,.docx,.pptx,.xls,.xlsx,.xlsm";
@@ -171,7 +171,7 @@ function fileMatchesAccept(file: File, acceptCsv: string): boolean {
 
 function canManageKnowledgeBase(
   base: Pick<KnowledgeBase, "owner_user_id">,
-  user: OctopUser | null,
+  user: InhereBoxUser | null,
 ): boolean {
   return Boolean(
     user && (user.role === "admin" || base.owner_user_id === user.id),
@@ -609,7 +609,7 @@ export default function KnowledgeBasesPage() {
     }
     const fsEl = (document.querySelector<HTMLElement>(
       "[data-preview-fullscreen-root]",
-    ) ?? document.querySelector<HTMLElement>(".octop-modal-content")) as
+    ) ?? document.querySelector<HTMLElement>(".inhere-box-modal-content")) as
       | (HTMLElement & {
           webkitRequestFullscreen?: () => Promise<void> | void;
         })
@@ -680,10 +680,10 @@ export default function KnowledgeBasesPage() {
     min: 220,
     max: 480,
     defaultSize: 280,
-    storageKey: "octop:knowledge-bases:sidebar-width",
+    storageKey: "inhere-box:knowledge-bases:sidebar-width",
   });
   const { collapsed: listPanelCollapsed, toggle: toggleListPanel } =
-    useListPanelCollapsed("octop:knowledge-bases:list-collapsed");
+    useListPanelCollapsed("inhere-box:knowledge-bases:list-collapsed");
 
   const canManageSelected = Boolean(
     selected && canManageKnowledgeBase(selected, user),
@@ -1876,7 +1876,7 @@ export default function KnowledgeBasesPage() {
   const showEnableGuide = !loading && !usable;
   const showEmptyGuide = !loading && usable && bases.length === 0;
   const emptyLayoutClassName = styles.emptyLayout;
-  const setupMascot = <OctopEmptyMascot />;
+  const setupMascot = <InhereBoxEmptyMascot />;
 
   const onDocsViewChange = (value: string | number) => {
     const mode = value === "table" ? "table" : "card";
@@ -2152,7 +2152,7 @@ export default function KnowledgeBasesPage() {
               ) : null}
               {!selected && !detailLoading ? (
                 <div className={styles.emptyDetail}>
-                  <OctopEmptyMascot size={180} />
+                  <InhereBoxEmptyMascot size={180} />
                   <p className={styles.emptyDetailText}>
                     {t("knowledgeBases.selectBase")}
                   </p>

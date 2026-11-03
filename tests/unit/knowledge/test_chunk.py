@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.knowledge.chunk import chunk_text
+from inhere_box.infra.knowledge.chunk import chunk_text
 
 
 def test_chunk_text_preserves_content_with_configured_overlap() -> None:

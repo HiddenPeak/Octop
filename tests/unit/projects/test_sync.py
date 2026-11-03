@@ -6,8 +6,8 @@ from typing import Literal
 
 import pytest
 
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects.cursors import CursorCodec
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects.cursors import CursorCodec
 
 
 @pytest.mark.parametrize(
@@ -58,7 +58,7 @@ def test_page_cursors_retain_their_boundaries(kind, values):
 def test_cursor_cannot_cross_instance_epoch_user_or_project(context):
     codec = CursorCodec(context="v2:box:1:1:tasks:project", key=b"test-key")
     token = codec.encode("sync", position=0)
-    with pytest.raises(OctopError) as raised:
+    with pytest.raises(InhereBoxError) as raised:
         CursorCodec(context=context, key=codec.key).decode(token, "sync")
     assert raised.value.code == ErrorCode.PROJECT_SYNC_RESET
 
@@ -66,7 +66,7 @@ def test_cursor_cannot_cross_instance_epoch_user_or_project(context):
 @pytest.mark.parametrize("kind", ["history", "delta"])
 def test_sync_cursor_cannot_be_used_for_pagination(kind: Literal["history", "delta"]):
     codec = CursorCodec(context="v2:box:1:1:tasks:project", key=b"test-key")
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         codec.decode(codec.encode("sync", position=0), kind)
 
 
@@ -77,13 +77,13 @@ def test_payload_and_signature_tampering_are_rejected():
     for index in (0, len(original) - 1):
         changed = bytearray(original)
         changed[index] ^= 1
-        with pytest.raises(OctopError):
+        with pytest.raises(InhereBoxError):
             codec.decode(base64.urlsafe_b64encode(changed).decode(), "sync")
 
 
 @pytest.mark.parametrize("token", ["", "x", "bad.游标", "A" * 4097])
 def test_malformed_cursors_require_a_reset(token):
     codec = CursorCodec(context="v2:box:1:1:tasks:project", key=b"test-key")
-    with pytest.raises(OctopError) as raised:
+    with pytest.raises(InhereBoxError) as raised:
         codec.decode(token, "sync")
     assert raised.value.code == ErrorCode.PROJECT_SYNC_RESET

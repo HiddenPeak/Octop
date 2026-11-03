@@ -30,7 +30,7 @@ tests
 dashboard/node_modules
 dashboard/.vite
 dashboard/dist
-src/octop/dashboard
+src/inhere_box/dashboard
 node_modules
 **/node_modules
 **/.vite

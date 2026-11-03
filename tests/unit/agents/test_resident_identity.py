@@ -9,20 +9,20 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.i18n import tr
-from octop.infra.agents.manager import AgentManager
-from octop.infra.agents.resident_identity import (
+from inhere_box.config import InhereBoxConfig
+from inhere_box.i18n import tr
+from inhere_box.infra.agents.manager import AgentManager
+from inhere_box.infra.agents.resident_identity import (
     ResidentTextOnlyMiddleware,
     ensure_resident_identity,
     resident_execution_scope,
 )
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.gateway.threads import ThreadRegistry
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.gateway.threads import ThreadRegistry
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ def services(tmp_path):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     services.user_repo.create(username="resident-owner", password_hash="x", role="user")
     services.user_repo.create(username="second-owner", password_hash="x", role="user")
     yield services
@@ -104,10 +104,10 @@ async def test_existing_private_identity_cannot_be_shared_reconfigured_or_delete
         manager.delete_thread_checkpoint(binding.agent_id, binding.thread_id),
     ]
     for operation in operations:
-        with pytest.raises(OctopError) as error:
+        with pytest.raises(InhereBoxError) as error:
             await operation
         assert error.value.code == ErrorCode.FORBIDDEN
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         manager.persist_harness_config(binding.agent_id, {"memory": {"memory_enabled": True}})
     assert services.agent_repo.get(binding.agent_id) is not None
     assert services.thread_repo.get(binding.thread_id) is not None
@@ -118,30 +118,30 @@ async def test_resident_thread_rejects_ordinary_reset_rebind_and_delete(services
     binding = await ensure_resident_identity(services, 1)
     registry = ThreadRegistry(session_repo=services.session_repo, thread_repo=services.thread_repo)
     key = services.thread_repo.get(binding.thread_id).session_key
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await registry.reset_by_session_key(key)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await registry.reset(
             agent_id=binding.agent_id, user_id=1, channel_type="resident", channel_subject_id="1"
         )
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await registry.rebind(
             session_key="other:dashboard:1:dm",
             thread_id=binding.thread_id,
             agent_id=binding.agent_id,
         )
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         registry.delete_thread(binding.thread_id)
     assert services.resident_conversation_repo.get(1).thread_id == binding.thread_id
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         registry.update_composer(binding.thread_id, model_ref="other/model")
     assert services.thread_repo.get(binding.thread_id).model_ref is None
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         manager.set_thread_model(binding.agent_id, binding.thread_id, "other/model")
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         manager.assert_standard_chat_allowed(binding.agent_id)
     services.agent_repo.create(agent_id="colleague", user_id=1, name="Colleague")
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         manager.teams.validate_member_ids(
             SimpleNamespace(id=1, is_admin=False), [binding.agent_id, "colleague"]
         )
@@ -153,22 +153,22 @@ async def test_scope_is_required_for_each_invocation_and_cancel(services, manage
     binding = await ensure_resident_identity(services, 1)
     for owner, thread in [(None, None), (2, binding.thread_id), (1, "different-thread")]:
         if owner is None:
-            with pytest.raises(OctopError):
+            with pytest.raises(InhereBoxError):
                 manager._assert_resident_execution(binding.agent_id, binding.thread_id)
         else:
-            with resident_execution_scope(owner, thread), pytest.raises(OctopError):
+            with resident_execution_scope(owner, thread), pytest.raises(InhereBoxError):
                 manager._assert_resident_execution(binding.agent_id, binding.thread_id)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         manager.cancel_stream(binding.agent_id, binding.thread_id)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await manager.call(binding.agent_id, {})
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         async for _ in manager.stream(binding.agent_id, {"thread_id": binding.thread_id}):
             pass
     with resident_execution_scope(1, binding.thread_id):
         manager._assert_resident_execution(binding.agent_id, binding.thread_id)
         manager.cancel_stream(binding.agent_id, binding.thread_id)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         manager._assert_resident_execution(binding.agent_id, binding.thread_id)
 
 
@@ -186,7 +186,7 @@ async def test_runtime_has_no_capture_bootstrap_or_tool_execution(services, mana
     guard = next(item for item in config.middleware if isinstance(item, ResidentTextOnlyMiddleware))
     request = SimpleNamespace(override=lambda **values: values)
     handler = Mock(return_value="response")
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         guard.wrap_model_call(request, handler)
     handler.assert_not_called()
     with resident_execution_scope(1, binding.thread_id):

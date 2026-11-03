@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.api.app import dashboard_cache_control, is_dashboard_asset_path
+from inhere_box.api.app import dashboard_cache_control, is_dashboard_asset_path
 
 
 def test_shell_files_are_revalidated() -> None:

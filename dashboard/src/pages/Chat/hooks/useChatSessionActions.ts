@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { octopThreadsApi } from "../../../api/modules/octopThreads";
+import { inhereBoxThreadsApi } from "../../../api/modules/inhereBoxThreads";
 import * as chatStore from "./chatStore";
 import { EMPTY_CHAT_SESSION_KEY } from "../constants";
 import { pickPreferredSession, toSession, type Session } from "./useSessions";
@@ -81,7 +81,7 @@ export function useChatSessionActions({
       if (!agent) return;
       if (id === activeThreadId) return;
       setSelectedModel(null);
-      void octopThreadsApi.rebind(agent, id).catch(() => {});
+      void inhereBoxThreadsApi.rebind(agent, id).catch(() => {});
       navigate(`/chat/${agent}/${id}`);
       if (isMobile) setSidebarOpen(false);
     },
@@ -108,11 +108,13 @@ export function useChatSessionActions({
 
       void (async () => {
         try {
-          const rows = await octopThreadsApi.list(agentId);
+          const rows = await inhereBoxThreadsApi.list(agentId);
           const preferred = pickPreferredSession(rows.map(toSession));
           if (preferred) {
             markInitialNavDone(agentId);
-            void octopThreadsApi.rebind(agentId, preferred.id).catch(() => {});
+            void inhereBoxThreadsApi
+              .rebind(agentId, preferred.id)
+              .catch(() => {});
             navigate(`/chat/${agentId}/${preferred.id}`, { replace: true });
           } else {
             markInitialNavDone(agentId);

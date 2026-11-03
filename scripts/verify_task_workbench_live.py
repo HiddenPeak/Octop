@@ -1,8 +1,8 @@
-"""Opt-in real UI acceptance against an isolated Octop session.
+"""Opt-in real UI acceptance against an isolated inhere-box session.
 
 Usage: uv run --no-sync python scripts/verify_task_workbench_live.py SESSION_JSON
 The session must point at a disposable service/profile/project. This does not
-attach to a user's browser or read the normal Octop home.
+attach to a user's browser or read the normal inhere-box home.
 """
 
 from __future__ import annotations
@@ -20,9 +20,9 @@ from urllib.parse import urlsplit
 import httpx
 from playwright.async_api import async_playwright
 
-FIXTURE = b"""<!doctype html><meta charset=utf-8><title>Octop acceptance playground</title>
+FIXTURE = b"""<!doctype html><meta charset=utf-8><title>inhere-box acceptance playground</title>
 <style>body{font:24px sans-serif;padding:40px}input,button{font:24px sans-serif;margin:12px 0;padding:10px;display:block}</style>
-<h1>Octop acceptance playground</h1><label>Proof value<input id=proof aria-label="Proof value"></label>
+<h1>inhere-box acceptance playground</h1><label>Proof value<input id=proof aria-label="Proof value"></label>
 <button id=save onclick="document.querySelector('#result').textContent='Saved: '+document.querySelector('#proof').value">Save proof</button>
 <p id=result>Waiting for proof</p>"""
 
@@ -264,16 +264,16 @@ async def run(session_path: Path, only: set[str] | None = None) -> int:
                 save_report()
 
             async def open_workbench(tab):
-                drawer = page.locator(".octop-drawer-content")
+                drawer = page.locator(".inhere-box-drawer-content")
                 if not await drawer.is_visible():
                     await workbench_button.click()
                 await drawer.get_by_role("tab", name=label(wb(tab)), exact=True).click()
                 return drawer
 
             async def close_workbench():
-                drawer = page.locator(".octop-drawer-content")
+                drawer = page.locator(".inhere-box-drawer-content")
                 if await drawer.is_visible():
-                    await drawer.locator(".octop-drawer-close").click()
+                    await drawer.locator(".inhere-box-drawer-close").click()
                     await drawer.wait_for(state="hidden")
 
             async def files():
@@ -400,7 +400,7 @@ async def run(session_path: Path, only: set[str] | None = None) -> int:
                 task_pages = [p for ctx in cdp_browser.contexts for p in ctx.pages]
                 task_page = next((p for p in task_pages if p.url == fixture_url), task_pages[-1])
                 await task_page.wait_for_url(fixture_url)
-                assert await task_page.title() == "Octop acceptance playground"
+                assert await task_page.title() == "inhere-box acceptance playground"
                 return {"actual_screencast_frames": len(frames), "temporary_fixture": fixture_url}
 
             task_page = None
@@ -522,7 +522,7 @@ async def run(session_path: Path, only: set[str] | None = None) -> int:
                     "Actual model did not call every required tool"
                 )
                 assert all(b["status"] == "completed" for b in blocks if b["type"] == "tool")
-                assert "Octop acceptance playground" in texts
+                assert "inhere-box acceptance playground" in texts
                 snapshot_path = (
                     Path(cfg["home"])
                     / "project-tasks"
@@ -547,7 +547,7 @@ async def run(session_path: Path, only: set[str] | None = None) -> int:
                 await drawer.get_by_role(
                     "combobox", name=label(wb("toolCall")), exact=True
                 ).wait_for()
-                await drawer.get_by_text(re.compile("Octop acceptance playground")).last.wait_for()
+                await drawer.get_by_text(re.compile("inhere-box acceptance playground")).last.wait_for()
                 return {
                     "actual_model_tools": tools,
                     "verified_file": True,
@@ -598,7 +598,7 @@ async def run(session_path: Path, only: set[str] | None = None) -> int:
                 await drawer.get_by_role(
                     "combobox", name=label(wb("toolCall")), exact=True
                 ).wait_for()
-                await drawer.get_by_text(re.compile("Octop acceptance playground")).last.wait_for()
+                await drawer.get_by_text(re.compile("inhere-box acceptance playground")).last.wait_for()
                 await page.screenshot(
                     path=str(evidence / "actual-rendered-tool-result.png"), full_page=True
                 )

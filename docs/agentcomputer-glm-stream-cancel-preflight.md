@@ -4,16 +4,16 @@
 
 ## 范围与输入
 
-- Octop 开工基线是主目录 `feature/agentcomputer-foundation @ d97c03ca33f85c8cc105c48a318f907861ad57ec`。本轮沿用第十五轮的只读 Provider 读取方式，不改 8088 配置或 8090 实验实例的业务状态。
+- inhere-box 开工基线是主目录 `feature/agentcomputer-foundation @ d97c03ca33f85c8cc105c48a318f907861ad57ec`。本轮沿用第十五轮的只读 Provider 读取方式，不改 8088 配置或 8090 实验实例的业务状态。
 - `scripts/agentcomputer_glm_live_preflight.py` 的默认 `tool` 模式保持原有工具续轮探针；显式 `--mode stream` 才运行本轮流式探针。它从既有 SQLite 以 `mode=ro` 读取启用的 `Zhipu Coding Plan (BigModel)` Provider，在自动清理的临时工作区构造 `HarnessAgent`，不向 8090 导入 Key。
-- 流式模式禁用工具、检查点、会话日志、记忆、团队、Web 搜索和模型重试。提示词只要求输出固定标记 `OCTOP_STREAM_OK`，不包含用户项目资料。最多一次模型 HTTP 请求，`max_tokens=256`；HTTP 请求超时 20 秒，整次流消费超时 45 秒，重试 0 次。请求钩子检查 `stream=true` 与 token 上限，响应钩子检查 `text/event-stream`。
+- 流式模式禁用工具、检查点、会话日志、记忆、团队、Web 搜索和模型重试。提示词只要求输出固定标记 `INHERE_BOX_STREAM_OK`，不包含用户项目资料。最多一次模型 HTTP 请求，`max_tokens=256`；HTTP 请求超时 20 秒，整次流消费超时 45 秒，重试 0 次。请求钩子检查 `stream=true` 与 token 上限，响应钩子检查 `text/event-stream`。
 - 探针只输出脱敏的路径、计数和布尔值，不输出 Key、Authorization、完整提示词或模型回复。请求与 token 上限是此次预检的规模约束，不能当作生产用量或费用限额。
 
 持有该 Provider 的本机可选择性复跑；命令会实际调用 GLM 并产生服务用量：
 
 ```sh
 uv run python scripts/agentcomputer_glm_live_preflight.py \
-  --provider-db "$HOME/.octop/octop.db" \
+  --provider-db "$HOME/.inhere-box/inhere-box.db" \
   --provider 'Zhipu Coding Plan (BigModel)' \
   --model glm-5 \
   --mode stream
@@ -25,7 +25,7 @@ uv run python scripts/agentcomputer_glm_live_preflight.py \
 |---|---|
 | 真实模型入口 | `glm-5`；智谱 Coding Plan 的 `/api/coding/paas/v4/chat/completions`；一次请求，`max_tokens=256` |
 | 传输与事件 | 请求 `stream=true`，响应 `text/event-stream`；收到 5 个非空 token 事件、5 个状态快照事件 |
-| 完成条件 | 流迭代自然结束，最后的 AI 消息含 `OCTOP_STREAM_OK`；探针 `success=true`、退出码 0，耗时约 7.22 秒 |
+| 完成条件 | 流迭代自然结束，最后的 AI 消息含 `INHERE_BOX_STREAM_OK`；探针 `success=true`、退出码 0，耗时约 7.22 秒 |
 | 用量 | 收到 1 个 usage 事件；探针未提取或核对累计 token 用量，故聚合用量记为 `unknown` |
 | 秘密和实验状态 | 探针日志未包含所用 Key；8088 原 Provider 和 8090 原项目状态未被探针写入，8090 未新增 Provider、Task、Run、暂停、取消或事件 |
 

@@ -6,13 +6,13 @@ from typing import Any
 
 import httpx
 
-from octop.infra.server import OctopServer
+from inhere_box.infra.server import InhereBoxServer
 from tests.support.auth import create_provider, create_user, resolve_user_id
 
 
 async def bootstrap_boundary_env(
     client: httpx.AsyncClient,
-    srv: OctopServer,
+    srv: InhereBoxServer,
     admin_auth: dict[str, str],
 ) -> tuple[
     dict[str, str],

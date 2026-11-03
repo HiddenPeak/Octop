@@ -33,7 +33,7 @@ import MemoryCatalogDrawer from "./MemoryCatalogDrawer";
 import ToolCatalogDrawer from "./ToolCatalogDrawer";
 import PluginCatalogDrawer from "./PluginCatalogDrawer";
 import { request } from "../../../api/request";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import { useAgent } from "../../../context/AgentContext";
 import { useIsMobile } from "../../../hooks/useIsMobile";
 import MbtiPersonaTag from "../../../components/MbtiPersonaTag";
@@ -64,7 +64,7 @@ const STATE_COLORS: Record<string, string> = {
 const TRANSIENT = new Set(["starting", "stopping"]);
 
 interface AgentExpertsTableProps {
-  agents: OctopAgent[];
+  agents: InhereBoxAgent[];
   publishedByAgentId?: Record<string, PublishedExpert>;
   onPublishedChange?: () => void;
   onEdit: (agentId: string) => void;
@@ -201,7 +201,7 @@ export default function AgentExpertsTable({
   }, [agents, localStates, onStateChange, refreshAgents]);
 
   const handleToggle = useCallback(
-    async (agent: OctopAgent, checked: boolean) => {
+    async (agent: InhereBoxAgent, checked: boolean) => {
       setActionLoadingId(agent.agent_id);
       try {
         if (checked) {
@@ -229,7 +229,7 @@ export default function AgentExpertsTable({
   );
 
   const handleDelete = useCallback(
-    async (agent: OctopAgent) => {
+    async (agent: InhereBoxAgent) => {
       setActionLoadingId(agent.agent_id);
       try {
         await request(`/agents/${agent.agent_id}`, { method: "DELETE" });
@@ -245,7 +245,7 @@ export default function AgentExpertsTable({
   );
 
   const handleReload = useCallback(
-    async (agent: OctopAgent) => {
+    async (agent: InhereBoxAgent) => {
       setActionLoadingId(agent.agent_id);
       try {
         await request(`/agents/${agent.agent_id}/reload`, { method: "POST" });
@@ -290,7 +290,7 @@ export default function AgentExpertsTable({
     setSubagentCatalogAgentId(null);
   }, []);
 
-  const columns: ColumnsType<OctopAgent> = [
+  const columns: ColumnsType<InhereBoxAgent> = [
     {
       title: t("experts.table.name", "名称"),
       dataIndex: "name",

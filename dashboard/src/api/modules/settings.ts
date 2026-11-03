@@ -1,21 +1,21 @@
 import { request } from "../request";
 
-export interface OctopTimezoneSettings {
+export interface InhereBoxTimezoneSettings {
   timezone: string;
 }
 
-export interface OctopUploadSettings {
+export interface InhereBoxUploadSettings {
   max_upload_mb: number;
   max_upload_bytes: number;
 }
 
-export interface OctopHitlSettings {
+export interface InhereBoxHitlSettings {
   enabled: boolean;
   tool_guard_require_approval: boolean;
   show_approval_ui: boolean;
 }
 
-export interface OctopCapabilitiesSettings {
+export interface InhereBoxCapabilitiesSettings {
   mobile: { enabled: boolean; backend: string };
 }
 
@@ -46,12 +46,12 @@ export interface CaptchaSettingsPut {
   providers?: Record<string, CaptchaPairBody>;
 }
 
-export const octopSettingsApi = {
-  timezone: () => request<OctopTimezoneSettings>("/settings/timezone"),
-  upload: () => request<OctopUploadSettings>("/settings/upload"),
-  hitl: () => request<OctopHitlSettings>("/settings/hitl"),
+export const inhereBoxSettingsApi = {
+  timezone: () => request<InhereBoxTimezoneSettings>("/settings/timezone"),
+  upload: () => request<InhereBoxUploadSettings>("/settings/upload"),
+  hitl: () => request<InhereBoxHitlSettings>("/settings/hitl"),
   capabilities: () =>
-    request<OctopCapabilitiesSettings>("/settings/capabilities", {
+    request<InhereBoxCapabilitiesSettings>("/settings/capabilities", {
       cache: "no-store",
     }),
   captcha: () => request<CaptchaSettings>("/settings/captcha"),

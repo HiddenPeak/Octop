@@ -8,8 +8,8 @@ from unittest.mock import patch
 
 import pytest
 
-from octop.infra.mobile import docker_install
-from octop.infra.mobile.docker_install import (
+from inhere_box.infra.mobile import docker_install
+from inhere_box.infra.mobile.docker_install import (
     _merge_registry_mirror,
     _probe_tencent_mirror,
     select_download_source,
@@ -168,7 +168,7 @@ async def test_probe_tencent_mirror_unreachable() -> None:
 
 @pytest.mark.asyncio
 async def test_install_mobile_stream_auto_installs_docker_then_proceeds() -> None:
-    from octop.infra.mobile import setup as mobile_setup
+    from inhere_box.infra.mobile import setup as mobile_setup
 
     async def fake_auto_install(*, locale: str = "en"):
         yield "docker install log line"
@@ -218,7 +218,7 @@ async def test_install_mobile_stream_auto_installs_docker_then_proceeds() -> Non
 
 @pytest.mark.asyncio
 async def test_install_mobile_stream_auto_install_fails_reports_docker_missing() -> None:
-    from octop.infra.mobile import setup as mobile_setup
+    from inhere_box.infra.mobile import setup as mobile_setup
 
     async def fake_auto_install(*, locale: str = "en"):
         yield "failed log"
@@ -246,7 +246,7 @@ async def test_install_mobile_stream_auto_install_fails_reports_docker_missing()
 
 @pytest.mark.asyncio
 async def test_install_mobile_stream_no_sudo_reports_docker_missing() -> None:
-    from octop.infra.mobile import setup as mobile_setup
+    from inhere_box.infra.mobile import setup as mobile_setup
 
     async def collect():
         events = []
@@ -309,7 +309,7 @@ async def test_auto_install_missing_script_reports_error() -> None:
 
     with patch.object(docker_install, "bundled_install_script", return_value=Path("/nonexistent")):
         lines = await collect()
-    assert any("missing from the Octop package" in line for line in lines)
+    assert any("missing from the inhere-box package" in line for line in lines)
 
 
 @pytest.mark.asyncio

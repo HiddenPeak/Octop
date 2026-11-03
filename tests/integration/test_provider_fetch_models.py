@@ -47,7 +47,7 @@ async def test_admin_fetch_models_success(env: Any) -> None:
         "models": [{"id": "gpt-4o", "name": "gpt-4o"}],
     }
     with patch(
-        "octop.api.routers.providers.fetch_openai_compatible_models",
+        "inhere_box.api.routers.providers.fetch_openai_compatible_models",
         new=AsyncMock(return_value=fake),
     ) as mocked:
         r = await client.post(

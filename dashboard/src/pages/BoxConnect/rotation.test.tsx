@@ -32,7 +32,7 @@ vi.mock("../../api/modules/boxAccounts", () => ({
   boxAccountsApi: { rotateManagementKey: mocks.rotate },
 }));
 vi.mock("../../api/request", () => ({
-  UNAUTHORIZED_EVENT: "octop:unauthorized",
+  UNAUTHORIZED_EVENT: "inhere-box:unauthorized",
 }));
 vi.mock("../../utils/antdMessage", () => ({
   message: { success: vi.fn(), error: vi.fn() },
@@ -75,7 +75,9 @@ it("keeps an in-flight rotation and its new key through background 401s and conn
     await screen.findByRole("button", { name: "boxAccount.rotateKey" }),
   );
   await act(async () => {
-    window.dispatchEvent(new Event("octop:unauthorized", { cancelable: true }));
+    window.dispatchEvent(
+      new Event("inhere-box:unauthorized", { cancelable: true }),
+    );
   });
   expect(screen.getByTestId("location")).toHaveTextContent("/connect?rotate=1");
   await act(async () => {
@@ -85,7 +87,9 @@ it("keeps an in-flight rotation and its new key through background 401s and conn
     await screen.findByLabelText("boxAccount.newManagementKey"),
   ).toHaveValue("one-time-rotation-result");
   await act(async () => {
-    window.dispatchEvent(new Event("octop:unauthorized", { cancelable: true }));
+    window.dispatchEvent(
+      new Event("inhere-box:unauthorized", { cancelable: true }),
+    );
   });
   // Even if another event changes the query, restoring a valid shared cookie
   // must not auto-navigate away from the still-visible one-time result.

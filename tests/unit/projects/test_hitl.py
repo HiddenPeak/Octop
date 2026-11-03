@@ -7,10 +7,10 @@ import pytest
 from langchain.agents.middleware import HumanInTheLoopMiddleware
 from octop_harness import HarnessAgentConfig
 
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects.checkpoints import _inline_error
-from octop.infra.projects.collaboration import TaskTeam, guard_subagents
-from octop.infra.projects.hitl import HOST_ERROR, TaskHumanInTheLoopMiddleware
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects.checkpoints import _inline_error
+from inhere_box.infra.projects.collaboration import TaskTeam, guard_subagents
+from inhere_box.infra.projects.hitl import HOST_ERROR, TaskHumanInTheLoopMiddleware
 
 CALL = {"name": "execute", "args": {"command": "fixture"}, "id": "original", "type": "tool_call"}
 
@@ -42,7 +42,7 @@ def test_host_error_identity_and_message_cannot_be_forged(change):
 
 
 def test_incompatible_interrupt_is_never_approved_to_report_an_error():
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         _inline_error("Invalid arguments", ["approve"], CALL)
     assert error.value.code == ErrorCode.TASK_INTERRUPTED
     decision = _inline_error("Invalid arguments", ["reject"], CALL)["decision"]

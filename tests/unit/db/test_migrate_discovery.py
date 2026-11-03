@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from octop.infra.db.migrate import _discover
+from inhere_box.infra.db.migrate import _discover
 
 
 def test_discover_sqlite_excludes_pg_files():

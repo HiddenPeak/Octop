@@ -33,7 +33,7 @@ async def test_list_host_dirs_lists_children(
     (tmp_path / "notes.txt").write_text("x", encoding="utf-8")
 
     monkeypatch.setattr(
-        "octop.infra.utils.host_dirs.normalize_host_path",
+        "inhere_box.infra.utils.host_dirs.normalize_host_path",
         lambda path: Path(path).resolve(),
     )
 
@@ -83,7 +83,7 @@ async def test_ensure_bwrap_returns_status_shape(
 ) -> None:
     client, auth = env_admin_client
     monkeypatch.setattr(
-        "octop.api.routers.filesystem.ensure_bubblewrap",
+        "inhere_box.api.routers.filesystem.ensure_bubblewrap",
         lambda: {"status": "skipped", "reason": "not_linux", "detail": "test"},
     )
     r = await client.post("/api/filesystem/ensure-bwrap", headers=auth)
@@ -100,7 +100,7 @@ async def test_filesystem_defaults_for_admin(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from octop.infra.utils.host_dirs import (
+    from inhere_box.infra.utils.host_dirs import (
         host_browse_roots,
         host_fs_tree_root,
         host_jail_enforced,
@@ -109,8 +109,8 @@ async def test_filesystem_defaults_for_admin(
     client, auth = env_admin_client
     home = tmp_path / "os_home"
     home.mkdir()
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: home)
-    monkeypatch.setenv("OCTOP_IN_CONTAINER", "0")
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: home)
+    monkeypatch.setenv("INHERE_BOX_IN_CONTAINER", "0")
 
     r = await client.get("/api/filesystem/defaults", headers=auth)
     assert r.status_code == 200, r.text
@@ -139,14 +139,14 @@ async def test_filesystem_roots_lists_every_drive_not_just_home_drive(
     client, auth = env_admin_client
     home = tmp_path / "os_home"
     home.mkdir()
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: home)
-    monkeypatch.setenv("OCTOP_IN_CONTAINER", "0")
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: home)
+    monkeypatch.setenv("INHERE_BOX_IN_CONTAINER", "0")
 
     r = await client.get("/api/filesystem/roots", headers=auth)
     assert r.status_code == 200, r.text
     roots = r.json()["roots"]
     assert roots, "roots must never be empty — the picker needs a usable root"
-    from octop.infra.utils.host_dirs import host_browse_roots
+    from inhere_box.infra.utils.host_dirs import host_browse_roots
 
     assert roots == host_browse_roots()
     # Every entry is an absolute, POSIX-serialized path the /dirs API accepts.
@@ -169,13 +169,13 @@ async def test_filesystem_defaults_in_container(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from octop.infra.utils.host_dirs import host_fs_tree_root
+    from inhere_box.infra.utils.host_dirs import host_fs_tree_root
 
     client, auth = env_admin_client
     home = tmp_path / "os_home"
     home.mkdir()
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: home)
-    monkeypatch.setenv("OCTOP_IN_CONTAINER", "1")
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: home)
+    monkeypatch.setenv("INHERE_BOX_IN_CONTAINER", "1")
 
     r = await client.get("/api/filesystem/defaults", headers=auth)
     assert r.status_code == 200, r.text
@@ -193,7 +193,7 @@ async def test_non_admin_can_list_outside_home(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from octop.infra.utils.host_dirs import host_fs_tree_root
+    from inhere_box.infra.utils.host_dirs import host_fs_tree_root
     from tests.support.auth import create_user
 
     client, _srv, admin_auth = env
@@ -201,8 +201,8 @@ async def test_non_admin_can_list_outside_home(
     home.mkdir()
     outside = tmp_path / "outside"
     outside.mkdir()
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: home)
-    monkeypatch.setenv("OCTOP_IN_CONTAINER", "0")
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: home)
+    monkeypatch.setenv("INHERE_BOX_IN_CONTAINER", "0")
 
     user_auth = await create_user(client, admin_auth, username="alice", password="TestPass12")
 
@@ -255,7 +255,7 @@ async def test_probe_host_dir_ok_for_writable_dir(
 ) -> None:
     client, auth = env_admin_client
     monkeypatch.setattr(
-        "octop.infra.utils.host_dirs.normalize_host_path",
+        "inhere_box.infra.utils.host_dirs.normalize_host_path",
         lambda path: Path(path).resolve(),
     )
 
@@ -278,7 +278,7 @@ async def test_probe_host_dir_rejects_file(
     file_path = tmp_path / "notes.txt"
     file_path.write_text("x", encoding="utf-8")
     monkeypatch.setattr(
-        "octop.infra.utils.host_dirs.normalize_host_path",
+        "inhere_box.infra.utils.host_dirs.normalize_host_path",
         lambda path: Path(path).resolve(),
     )
 
@@ -310,7 +310,7 @@ async def test_mkdir_host_dir_creates_child(
 ) -> None:
     client, auth = env_admin_client
     monkeypatch.setattr(
-        "octop.infra.utils.host_dirs.normalize_host_path",
+        "inhere_box.infra.utils.host_dirs.normalize_host_path",
         lambda path: Path(path).resolve(),
     )
 
@@ -336,7 +336,7 @@ async def test_rename_host_dir_renames_child(
     target = tmp_path / "New Folder"
     target.mkdir()
     monkeypatch.setattr(
-        "octop.infra.utils.host_dirs.normalize_host_path",
+        "inhere_box.infra.utils.host_dirs.normalize_host_path",
         lambda path: Path(path).resolve(),
     )
 
@@ -358,7 +358,7 @@ async def test_filesystem_respects_user_workspace_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("OCTOP_IN_CONTAINER", "0")
+    monkeypatch.setenv("INHERE_BOX_IN_CONTAINER", "0")
     from tests.support.auth import TEST_PASSWORD, create_user
 
     client, _srv, admin_auth = env

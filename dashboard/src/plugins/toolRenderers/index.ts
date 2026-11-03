@@ -12,7 +12,7 @@ export {
   isPluginUiLoaded,
 } from "./loader";
 export {
-  parseOctopToolOutput,
+  parseInhereBoxToolOutput,
   mergePatchedToolOutput,
   resolvePluginUiData,
 } from "./parseToolOutput";
@@ -29,7 +29,7 @@ export { ensureBuiltinToolRenderers } from "./ensureBuiltins";
 export { usePluginToolUis } from "./usePluginToolUis";
 export { useToolRendererVersion } from "./useToolRendererVersion";
 export type {
-  OctopPluginUIHost,
+  InhereBoxPluginUIHost,
   ParsedToolOutput,
   PluginUiModule,
   ToolRenderProps,

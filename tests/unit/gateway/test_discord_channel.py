@@ -1,4 +1,4 @@
-"""Discord routing and diagnostics through Octop's real gateway contracts."""
+"""Discord routing and diagnostics through inhere-box's real gateway contracts."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from octop_gateway.channels.discord import DiscordChannel, DiscordConfig
 from octop_gateway.models import ChannelSubject, InboundMessage, MessageEvent
 from tests.unit.gateway.test_gateway_runtime_status import _make_gateway
 
-from octop.infra.gateway.gateway import ChannelCreateSpec, ChannelKind, Gateway
-from octop.infra.gateway.process.message_keys import (
+from inhere_box.infra.gateway.gateway import ChannelCreateSpec, ChannelKind, Gateway
+from inhere_box.infra.gateway.process.message_keys import (
     resolve_user_id_for_message,
     sanitize_im_metadata,
     session_key_from_message,

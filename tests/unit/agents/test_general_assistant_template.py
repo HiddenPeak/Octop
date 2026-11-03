@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 
-from octop.infra.agents.experts.catalog import default_library_root
+from inhere_box.infra.agents.experts.catalog import default_library_root
 
 _DIR = default_library_root() / "general-assistant"
 
 
 def test_all_required_files_present() -> None:
-    for name in ("SOUL.md", "manifest.json", "skills/octop-assistant/SKILL.md"):
+    for name in ("SOUL.md", "manifest.json", "skills/inhere-box-assistant/SKILL.md"):
         assert (_DIR / name).is_file(), f"missing {name}"
 
 

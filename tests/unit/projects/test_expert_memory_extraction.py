@@ -14,19 +14,19 @@ from octop_memory.core import Memory
 from octop_memory.ports.llm import MockLLMClient
 from tests.unit.projects.test_expert_execution import services  # noqa: F401
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.errors import OctopError
-from octop.infra.projects import expert_memory_extraction as extraction
-from octop.infra.projects.expert_memory import ExpertMemory
-from octop.infra.projects.expert_memory_management import (
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.projects import expert_memory_extraction as extraction
+from inhere_box.infra.projects.expert_memory import ExpertMemory
+from inhere_box.infra.projects.expert_memory_management import (
     ExpertMemoryPolicyPatch,
     ExpertMemoryQuery,
     memory_policy,
     query_memory,
     update_memory_policy,
 )
-from octop.infra.projects.expert_profiles import resolve_expert_profile
-from octop.infra.usage.model_calls import attach_model_observer
+from inhere_box.infra.projects.expert_profiles import resolve_expert_profile
+from inhere_box.infra.usage.model_calls import attach_model_observer
 
 _PREFERENCE = "I always prefer concise answers across projects."
 _PROJECT = "The Mercury project deploys on Tuesday."
@@ -253,7 +253,7 @@ async def test_real_fake_model_uses_configured_model_and_records_usage(
         )
         return attach_model_observer(fake, provider, model)
 
-    monkeypatch.setattr(extraction.OctopChatModelFactory, "_build", build)
+    monkeypatch.setattr(extraction.InhereBoxChatModelFactory, "_build", build)
     worker = extraction.ExpertMemoryWorker(services)
     if aux_model is None:
         worker.start()
@@ -313,7 +313,7 @@ async def test_response_metadata_usage_is_recorded_for_memory_extraction(service
             FakeMessagesListChatModel(responses=[message]), provider, model
         )
 
-    monkeypatch.setattr(extraction.OctopChatModelFactory, "_build", build)
+    monkeypatch.setattr(extraction.InhereBoxChatModelFactory, "_build", build)
     worker = extraction.ExpertMemoryWorker(services)
     job = services.expert_memory_job_repo.claim(worker.worker_id, extraction._now())
     await worker.execute(job)
@@ -400,7 +400,7 @@ async def test_shared_viewer_has_own_storage_and_cannot_read_owner_legacy(servic
     )
     assert publisher.management_operation("general", lambda store: store.list_atoms()) == []
     assert not memory_policy(services, 2, memory.task_id).policy_editable
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         update_memory_policy(
             services,
             2,
@@ -563,7 +563,7 @@ async def test_memory_model_disables_sdk_retries_without_mutating_shared_factory
 
 
 async def test_manual_documents_and_extraction_limits_are_turn_snapshots(services):  # noqa: F811
-    from octop.infra.projects.expert_profiles import _workspace
+    from inhere_box.infra.projects.expert_profiles import _workspace
 
     row = services.agent_repo.get("expert-one")
     config = json.loads(row.config_json)

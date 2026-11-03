@@ -3,7 +3,7 @@
  * Used by Terminal AI and other embedded chat surfaces (same path as /chat).
  */
 import { useCallback, useEffect, useState } from "react";
-import { octopThreadsApi } from "../api/modules/octopThreads";
+import { inhereBoxThreadsApi } from "../api/modules/inhereBoxThreads";
 import { useChat } from "../pages/Chat/hooks/useChat";
 import {
   pickPreferredSession,
@@ -31,14 +31,14 @@ export function useAgentThreadChat(agentId: string | null) {
 
     void (async () => {
       try {
-        const rows = await octopThreadsApi.list(agentId);
+        const rows = await inhereBoxThreadsApi.list(agentId);
         const preferred = pickPreferredSession(rows.map(toSession));
         let tid = preferred?.threadId;
         if (!tid) {
-          const created = await octopThreadsApi.create(agentId);
+          const created = await inhereBoxThreadsApi.create(agentId);
           tid = created.thread_id;
         }
-        await octopThreadsApi.rebind(agentId, tid);
+        await inhereBoxThreadsApi.rebind(agentId, tid);
         if (!cancelled) {
           setThreadId(tid);
         }

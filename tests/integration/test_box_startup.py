@@ -6,35 +6,35 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.agentcomputer.identity import IdentityError
-from octop.infra.errors import OctopError
-from octop.infra.server import OctopServer
-from tests.support.app import octop_client, write_octop_config
+from inhere_box.infra.agentcomputer.identity import IdentityError
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.server import InhereBoxServer
+from tests.support.app import inhere_box_client, write_inhere_box_config
 from tests.support.auth import bootstrap_admin, login
 from tests.support.box_accounts import _claim
 
 
 @pytest.mark.parametrize("damage", ["identity", "trust", "mode"])
 async def test_existing_box_fails_closed_before_workers_and_releases_lock(
-    tmp_octop_home: Path, damage: str
+    tmp_inhere_box_home: Path, damage: str
 ) -> None:
-    write_octop_config(tmp_octop_home, account_mode="box_local")
-    async with octop_client(tmp_octop_home) as (client, server):
+    write_inhere_box_config(tmp_inhere_box_home, account_mode="box_local")
+    async with inhere_box_client(tmp_inhere_box_home) as (client, server):
         await _claim(client, server)
         identity_path = server.paths.agentcomputer_identity
-    trust_path = tmp_octop_home / "box-auth" / "trust.json"
+    trust_path = tmp_inhere_box_home / "box-auth" / "trust.json"
     if damage == "identity":
         identity_path.unlink()
         expected = IdentityError
     elif damage == "trust":
         trust_path.unlink()
-        expected = OctopError
+        expected = InhereBoxError
     else:
-        write_octop_config(tmp_octop_home, account_mode="server")
+        write_inhere_box_config(tmp_inhere_box_home, account_mode="server")
         expected = ValueError
 
     for _attempt in range(2):
-        restarted = OctopServer(home=tmp_octop_home)
+        restarted = InhereBoxServer(home=tmp_inhere_box_home)
         with pytest.raises(expected):
             await restarted.start()
         assert restarted.project_task_worker is None
@@ -46,25 +46,27 @@ async def test_existing_box_fails_closed_before_workers_and_releases_lock(
 
 
 async def test_unsupported_server_conversion_does_not_mutate_box_identity(
-    tmp_octop_home: Path,
+    tmp_inhere_box_home: Path,
 ) -> None:
-    async with octop_client(tmp_octop_home) as (client, _server):
-        await bootstrap_admin(client, tmp_octop_home)
-    write_octop_config(tmp_octop_home, account_mode="box_local")
-    restarted = OctopServer(home=tmp_octop_home)
-    with pytest.raises(OctopError) as error:
+    async with inhere_box_client(tmp_inhere_box_home) as (client, _server):
+        await bootstrap_admin(client, tmp_inhere_box_home)
+    write_inhere_box_config(tmp_inhere_box_home, account_mode="box_local")
+    restarted = InhereBoxServer(home=tmp_inhere_box_home)
+    with pytest.raises(InhereBoxError) as error:
         await restarted.start()
     assert error.value.details["reason"] == "box_migration_required"
-    assert not (tmp_octop_home / "box-auth").exists()
+    assert not (tmp_inhere_box_home / "box-auth").exists()
     assert restarted.project_task_worker is None
-    write_octop_config(tmp_octop_home, account_mode="server")
-    async with octop_client(tmp_octop_home) as (client, server):
+    write_inhere_box_config(tmp_inhere_box_home, account_mode="server")
+    async with inhere_box_client(tmp_inhere_box_home) as (client, server):
         assert await login(client)
         with server.services.db.connect() as conn:
             assert server.services.box_account_repo.account(conn) is None
 
 
-async def test_legacy_account_requires_local_upgrade_and_preserves_owner_projects(tmp_octop_home):
+async def test_legacy_account_requires_local_upgrade_and_preserves_owner_projects(
+    tmp_inhere_box_home,
+):
     import asyncio
     import time
 
@@ -72,14 +74,14 @@ async def test_legacy_account_requires_local_upgrade_and_preserves_owner_project
     import jwt
     from click.testing import CliRunner
 
-    from octop.cli.main import cli
-    from octop.infra.auth.box_accounts.service import AUDIENCE
-    from octop.infra.projects.models import ProjectFields
-    from octop.infra.projects.service import create_project
+    from inhere_box.cli.main import cli
+    from inhere_box.infra.auth.box_accounts.service import AUDIENCE
+    from inhere_box.infra.projects.models import ProjectFields
+    from inhere_box.infra.projects.service import create_project
     from tests.support.box_accounts import _legacy_account
 
-    write_octop_config(tmp_octop_home, account_mode="box_local")
-    async with octop_client(tmp_octop_home) as (_client, server):
+    write_inhere_box_config(tmp_inhere_box_home, account_mode="box_local")
+    async with inhere_box_client(tmp_inhere_box_home) as (_client, server):
         box = server.box_account_service
         owner_id = await asyncio.to_thread(_legacy_account, box)
         project = await asyncio.to_thread(
@@ -107,8 +109,8 @@ async def test_legacy_account_requires_local_upgrade_and_preserves_owner_project
             server.services.secret_repo.get("jwt"),
             algorithm="HS256",
         )
-    restarted = OctopServer(home=tmp_octop_home)
-    with pytest.raises(OctopError):
+    restarted = InhereBoxServer(home=tmp_inhere_box_home)
+    with pytest.raises(InhereBoxError):
         await restarted.start()
     assert restarted.project_task_worker is None and restarted._box_auth_lock is None
     runner = CliRunner()
@@ -118,7 +120,7 @@ async def test_legacy_account_requires_local_upgrade_and_preserves_owner_project
         runner.invoke, cli, ["box", "key", "init", "--upgrade-legacy"]
     )
     assert upgraded.exit_code == 0
-    async with octop_client(tmp_octop_home) as (client, server):
+    async with inhere_box_client(tmp_inhere_box_home) as (client, server):
         client.base_url = httpx.URL("http://localhost")
         assert (
             await client.get("/api/box/account", headers={"Authorization": "Bearer " + old_token})
@@ -129,7 +131,10 @@ async def test_legacy_account_requires_local_upgrade_and_preserves_owner_project
             json={"management_key": upgraded.stdout.strip()},
         )
         assert logged_in.status_code == 200, logged_in.text
-        headers = {"Origin": "http://localhost", "X-Octop-Box-CSRF": logged_in.json()["csrf_token"]}
+        headers = {
+            "Origin": "http://localhost",
+            "X-Inhere-Box-CSRF": logged_in.json()["csrf_token"],
+        }
         account = (await client.get("/api/box/account", headers=headers)).json()
         assert account["owner"]["id"] == owner_id and account["primary_client_id"] is None
         projects = (await client.get("/api/projects", headers=headers)).json()

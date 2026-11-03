@@ -8,7 +8,7 @@ import {
 } from "./skillMarkdown";
 
 describe("parseSkillPreviewFromMarkdown", () => {
-  it("reads name, description, and octop emoji from SKILL.md", () => {
+  it("reads name, description, and inhere-box emoji from SKILL.md", () => {
     const md = buildSkillMarkdown({
       name: "My Skill",
       description: "Does work",

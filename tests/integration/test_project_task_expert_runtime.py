@@ -18,9 +18,9 @@ from octop_harness.plugins.registry import ToolRegistration
 from octop_harness.plugins.tools import get_tool_config
 from octop_memory.core import Memory
 
-from octop.infra.projects import runtime
-from octop.infra.projects.expert_memory import memory_namespace
-from octop.infra.projects.expert_profiles import _workspace
+from inhere_box.infra.projects import runtime
+from inhere_box.infra.projects.expert_memory import memory_namespace
+from inhere_box.infra.projects.expert_profiles import _workspace
 from tests.integration.test_project_tasks import settled
 from tests.support.auth import resolve_user_id
 

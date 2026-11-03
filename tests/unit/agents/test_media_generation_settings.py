@@ -7,24 +7,24 @@ from pathlib import Path
 import httpx
 import pytest
 
-from octop.infra.agents.settings.media_generation import (
+from inhere_box.infra.agents.settings.media_generation import (
     DEFAULT_PROVIDER_ID,
     MediaGenerationSettingsStore,
     MediaProviderUpdate,
     verify_media_credentials,
 )
-from octop.infra.connectors.crypto import encrypt_credentials
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.secrets import SecretRepo
-from octop.infra.db.repos.settings import SettingsRepo
+from inhere_box.infra.connectors.crypto import encrypt_credentials
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.secrets import SecretRepo
+from inhere_box.infra.db.repos.settings import SettingsRepo
 
 
 @pytest.fixture
 def store(
     tmp_path: Path,
 ) -> tuple[MediaGenerationSettingsStore, SettingsRepo, SecretRepo]:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     settings = SettingsRepo(db)
     secrets = SecretRepo(db)

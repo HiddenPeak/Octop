@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.metrics import METRICS, Metrics
+from inhere_box.infra.metrics import METRICS, Metrics
 
 
 def test_metrics_inc_and_snapshot() -> None:

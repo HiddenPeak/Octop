@@ -8,7 +8,7 @@ import logging
 
 import pytest
 
-from octop.infra.utils.accept_errors import coalesce_accept_errors
+from inhere_box.infra.utils.accept_errors import coalesce_accept_errors
 
 
 @pytest.mark.asyncio
@@ -58,7 +58,7 @@ async def test_other_exceptions_reach_existing_handler():
 
 @pytest.mark.asyncio
 async def test_window_flushes_while_the_server_keeps_running(monkeypatch, caplog):
-    from octop.infra.utils import accept_errors
+    from inhere_box.infra.utils import accept_errors
 
     monkeypatch.setattr(accept_errors, "ACCEPT_ERROR_WINDOW_SECONDS", 0)
     loop = asyncio.get_running_loop()

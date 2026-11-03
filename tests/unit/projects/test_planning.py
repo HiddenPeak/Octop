@@ -7,21 +7,21 @@ from copy import deepcopy
 import pytest
 from langchain_core.messages import ToolMessage
 
-from octop.i18n import tr
-from octop.infra.projects.planning import (
+from inhere_box.i18n import tr
+from inhere_box.infra.projects.planning import (
     ORDERED_PLAN_STEP_LIMIT,
     PLAN_TITLE_LIMIT,
     PLANNING,
     TaskPlanning,
     plan_report,
 )
-from octop.infra.projects.progress import (
+from inhere_box.infra.projects.progress import (
     PLAN_CONTENT_LIMIT,
     PROGRESS_TEXT_LIMIT,
     TaskPlan,
     TaskPlanStep,
 )
-from octop.infra.utils.ulid import new_ulid
+from inhere_box.infra.utils.ulid import new_ulid
 
 
 async def invoke(manager, command, *, call_id=None, **arguments):
@@ -62,7 +62,7 @@ async def test_create_allocates_stable_ids_and_starts_first_step(locale):
     response = await invoke(manager, "create", title="  Task plan  ", steps=[" Inspect ", "Verify"])
     plan = plan_report(response)
     assert plan is not None and plan == manager.plan
-    assert plan.source == "octop_planning" and plan.revision == 1
+    assert plan.source == "inhere_box_planning" and plan.revision == 1
     assert plan.title == "Task plan"
     assert plan.plan_id and len(plan.plan_id) == 26
     assert len({plan.plan_id, *(step.step_id for step in plan.steps)}) == 3
@@ -427,16 +427,16 @@ async def test_plan_report_requires_successful_planning_artifact():
         assert plan_report(message) is None
 
 
-@pytest.mark.parametrize("source", ["harness_todos", "octop_planning"])
+@pytest.mark.parametrize("source", ["harness_todos", "inhere_box_planning"])
 async def test_restored_unfinished_plan_without_current_step_cannot_dispatch(source):
     plan = TaskPlan.model_validate(
         {
             "source": source,
-            "plan_id": "historical-plan" if source == "octop_planning" else None,
+            "plan_id": "historical-plan" if source == "inhere_box_planning" else None,
             "revision": 1,
             "steps": [
                 {
-                    "step_id": "historical-step" if source == "octop_planning" else None,
+                    "step_id": "historical-step" if source == "inhere_box_planning" else None,
                     "content": "An unfinished historical step",
                     "status": "pending",
                 }

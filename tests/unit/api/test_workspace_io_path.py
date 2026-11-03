@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.api.routers.workspace import _workspace_io_path
+from inhere_box.api.routers.workspace import _workspace_io_path
 
 
 def test_from_workspace_false_slash_is_host_absolute() -> None:

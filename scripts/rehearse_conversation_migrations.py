@@ -1,7 +1,7 @@
 """Copy real SQLite stores read-only, then rehearse migration without a server/model.
 
 Only aggregate diagnostics are printed. The private rehearsal directory contains
-the backup and must be handled with the same care as an Octop home.
+the backup and must be handled with the same care as an inhere-box home.
 """
 
 from __future__ import annotations
@@ -19,19 +19,19 @@ from contextlib import closing
 from dataclasses import replace
 from pathlib import Path
 
-from octop.config import load_config
-from octop.infra.agents.memory.backend import open_memory_kwargs
-from octop.infra.agents.workspace.dir import workspace_dir_from_config
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.projects.conversation_migrations import (
+from inhere_box.config import load_config
+from inhere_box.infra.agents.memory.backend import open_memory_kwargs
+from inhere_box.infra.agents.workspace.dir import workspace_dir_from_config
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.projects.conversation_migrations import (
     ConversationMigrationWorker,
     MigrationCreate,
     create,
     detail,
 )
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def backup(source: Path, target: Path) -> None:
@@ -56,7 +56,7 @@ async def rehearse(source_home: Path) -> dict:
     # load_config creates defaults when missing; only ever call it on a copy.
     source_config = source_paths.config.read_bytes()
     os.umask(0o077)
-    root = Path(tempfile.mkdtemp(prefix="octop-migration-rehearsal-", dir="/private/tmp"))
+    root = Path(tempfile.mkdtemp(prefix="inhere-box-migration-rehearsal-", dir="/private/tmp"))
     root.chmod(0o700)
     copied_config_path = root / "config.json"
     copied_config_path.write_bytes(source_config)
@@ -64,7 +64,7 @@ async def rehearse(source_home: Path) -> dict:
     if not config.database.is_sqlite:
         raise ValueError("SQLite source required for this rehearsal")
     control_source = config.database.resolve_sqlite_path(source_paths.root)
-    backup(control_source, root / "octop.db")
+    backup(control_source, root / "inhere-box.db")
     archive_source = source_paths.root / "history_v2.sqlite"
     if archive_source.exists():
         backup(archive_source, root / "history_v2.sqlite")
@@ -72,7 +72,7 @@ async def rehearse(source_home: Path) -> dict:
         (root / "history_v2.required").write_text(
             "Source archive required; copied for rehearsal.\n"
         )
-    db = SqlitePool(root / "octop.db")
+    db = SqlitePool(root / "inhere-box.db")
     try:
         run_migrations(db)
         # Archive identity intentionally remains the original control-plane
@@ -101,7 +101,7 @@ async def rehearse(source_home: Path) -> dict:
             if not raw.get("workspace_dir"):
                 raw["workspace_dir"] = str(workspace)
             _, kind, options = open_memory_kwargs(
-                agent_id=agent.agent_id, cfg=raw, octop_config=config, workspace_dir=workspace
+                agent_id=agent.agent_id, cfg=raw, inhere_box_config=config, workspace_dir=workspace
             )
             target = (
                 root

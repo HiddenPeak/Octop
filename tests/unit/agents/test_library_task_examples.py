@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from octop.infra.agents.experts.catalog import default_library_root, parse_task_examples
+from inhere_box.infra.agents.experts.catalog import default_library_root, parse_task_examples
 
 _LIBRARY = default_library_root()
 

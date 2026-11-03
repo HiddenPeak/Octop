@@ -8,8 +8,8 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from octop.infra.projects import approval_policy, runtime
-from octop.infra.projects.approval_models import APPROVAL_MODES, TaskApprovalSettings
+from inhere_box.infra.projects import approval_policy, runtime
+from inhere_box.infra.projects.approval_models import APPROVAL_MODES, TaskApprovalSettings
 from tests.integration.test_project_tasks import settled
 from tests.integration.test_project_tasks_ws import command, connected, until
 from tests.support.auth import create_user, resolve_user_id
@@ -91,7 +91,7 @@ async def test_saved_mode_limits_are_ignored_while_human_tools_are_preserved(pol
 
 
 async def test_reviewer_readiness_does_not_block_mode_selection(policy_env, monkeypatch):
-    from octop.infra.projects import tasks
+    from inhere_box.infra.projects import tasks
 
     client, _, auth, _ = policy_env
     response = await client.post(

@@ -9,15 +9,15 @@ import httpx
 import jwt
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.auth.sso.crypto import encrypt_secret
-from octop.infra.auth.sso.providers.feishu import FeishuAdapter
-from octop.infra.auth.sso.service import SsoService
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.users.manager import UserManager
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.auth.sso.crypto import encrypt_secret
+from inhere_box.infra.auth.sso.providers.feishu import FeishuAdapter
+from inhere_box.infra.auth.sso.service import SsoService
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.users.manager import UserManager
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def service(tmp_path):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     return SsoService(services, UserManager(services))
 
 
@@ -103,7 +103,7 @@ def test_feishu_complete_login_reads_v2_token_without_data_wrapper(
         kwargs.pop("transport", None)
         return real_client(*args, transport=httpx.MockTransport(handler), **kwargs)
 
-    with patch("octop.infra.auth.sso.service.httpx.Client", side_effect=factory):
+    with patch("inhere_box.infra.auth.sso.service.httpx.Client", side_effect=factory):
         subject, claims = adapter.complete_login(
             "auth-code",
             row=row,
@@ -159,7 +159,7 @@ def test_feishu_complete_login_unwraps_envelope_and_falls_back_to_open_id(
         kwargs.pop("transport", None)
         return real_client(*args, transport=httpx.MockTransport(handler), **kwargs)
 
-    with patch("octop.infra.auth.sso.service.httpx.Client", side_effect=factory):
+    with patch("inhere_box.infra.auth.sso.service.httpx.Client", side_effect=factory):
         subject, claims = adapter.complete_login(
             "auth-code",
             row=row,
@@ -188,7 +188,7 @@ def test_feishu_token_envelope_error_is_value_error(service: SsoService) -> None
 
     login_state = type("State", (), {"code_verifier": "pkce"})()
     with (
-        patch("octop.infra.auth.sso.service.httpx.Client", side_effect=factory),
+        patch("inhere_box.infra.auth.sso.service.httpx.Client", side_effect=factory),
         pytest.raises(ValueError, match="invalid scope"),
     ):
         adapter.complete_login(
@@ -216,7 +216,7 @@ def test_feishu_missing_subject_is_invalid_token(service: SsoService) -> None:
 
     login_state = type("State", (), {"code_verifier": "pkce"})()
     with (
-        patch("octop.infra.auth.sso.service.httpx.Client", side_effect=factory),
+        patch("inhere_box.infra.auth.sso.service.httpx.Client", side_effect=factory),
         pytest.raises(jwt.InvalidTokenError),
     ):
         adapter.complete_login(

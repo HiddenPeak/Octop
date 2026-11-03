@@ -1,6 +1,6 @@
 # Task 审批、提问和暂停恢复
 
-状态：Octop 服务端支持审批、提问、暂停及原轮断点续接，任务协议保持 **v3**。本次新增 `interrupted` 状态和 `TaskTurn.recovery`，客户端须更新状态解码与恢复入口；本次未修改 AgentComputer Swift/UI，也未完成真机端到端接线。客户端工作见 [AgentComputer 交接文档](agentcomputer-task-interactions.md)。更新日期：2026 年 10 月 19 日。
+状态：inhere-box 服务端支持审批、提问、暂停及原轮断点续接，任务协议保持 **v3**。本次新增 `interrupted` 状态和 `TaskTurn.recovery`，客户端须更新状态解码与恢复入口；本次未修改 AgentComputer Swift/UI，也未完成真机端到端接线。客户端工作见 [AgentComputer 交接文档](agentcomputer-task-interactions.md)。更新日期：2026 年 10 月 19 日。
 
 本手册保留审批、提问和暂停恢复的操作规则。模式权威、命令适用范围及自动审查说明见[审批模式与 Reviewer](project-task-approval-modes.md)。
 
@@ -8,10 +8,10 @@
 
 | 类型 | 请求与决定由谁保存 | 执行位置 |
 | --- | --- | --- |
-| 服务端审批 | Octop `TaskTurn.interactions` | Octop 主机；普通 `execute` 根据固定模式走人工、独立 Reviewer 或完全访问，其他审批继续原人工规则。 |
-| 服务端提问 | Octop `TaskTurn.interactions` | 回答作为原 `ask_user_question` 调用结果交回模型。 |
-| 客户端工具 | Octop 保存调用、模式、审查建议及结果；客户端保存本机授权与执行 journal | 用户电脑；`tool.review` 已提供给 `exec_command` 接线，审查建议不授予本机权限。 |
-| 手动暂停 | Octop 保存原轮次的 `pause_requested` | 在模型/工具安全边界保存断点，继续仍是同一个 turn。 |
+| 服务端审批 | inhere-box `TaskTurn.interactions` | inhere-box 主机；普通 `execute` 根据固定模式走人工、独立 Reviewer 或完全访问，其他审批继续原人工规则。 |
+| 服务端提问 | inhere-box `TaskTurn.interactions` | 回答作为原 `ask_user_question` 调用结果交回模型。 |
+| 客户端工具 | inhere-box 保存调用、模式、审查建议及结果；客户端保存本机授权与执行 journal | 用户电脑；`tool.review` 已提供给 `exec_command` 接线，审查建议不授予本机权限。 |
+| 手动暂停 | inhere-box 保存原轮次的 `pause_requested` | 在模型/工具安全边界保存断点，继续仍是同一个 turn。 |
 
 两端审批各自约束所在执行端。成功领取客户端调用不等于用户批准本机操作；服务端不会为同一本机调用复制一张服务端审批卡。问题回答、默认值、跳过和超时均不构成操作授权。
 
@@ -64,7 +64,7 @@ TaskSummary / TaskDetail 的 `approval_policy` 为 `{mode, revision, updated_at}
 | `payload` | 固定审批提案或问题，不能由客户端替换。 |
 | `resolution` | 处理结果、来源和答案；未处理为 null。 |
 | `review` | 可选的只读审查回执；包含 review_id、状态、decision、reason_code、原 action_digest、模型与 profile_version。 |
-| `created_at` / `expires_at` / `resolved_at` | UTC 时间；界面使用 Octop 服务端配置时区。 |
+| `created_at` / `expires_at` / `resolved_at` | UTC 时间；界面使用 inhere-box 服务端配置时区。 |
 | `dispatch_started` | 服务端一次性派发标记，只读；不代表操作已成功完成。 |
 | `supersedes_interaction_id` | 明确恢复后新审批所续接的原超时审批 ID；普通交互为 null，旧超时记录保留。 |
 
@@ -129,7 +129,7 @@ REST 等价入口：`POST /api/project-tasks/{task_id}/turns/{turn_id}/interacti
 | 同轮相同服务端动作已被拒绝 | `deny` | `previous_denial` |
 | 审批十分钟超时 | `deny`，交互状态 `expired` | `timeout` |
 
-期限在 Octop 创建交互时固定，断网、切页、重连及手动暂停不重置。问题结果带 `authorization:false` 交回模型；显式拒绝作为未获授权工具结果交回模型。尚未派发的审批超时保留拒绝记录并中断原轮，用户明确继续后重新审批，不把超时当作允许。达到三问上限后不再创建卡片，直接提示模型依据已有信息继续。
+期限在 inhere-box 创建交互时固定，断网、切页、重连及手动暂停不重置。问题结果带 `authorization:false` 交回模型；显式拒绝作为未获授权工具结果交回模型。尚未派发的审批超时保留拒绝记录并中断原轮，用户明确继续后重新审批，不把超时当作允许。达到三问上限后不再创建卡片，直接提示模型依据已有信息继续。
 
 Reviewer 独立请求的期限为 45 秒，输入最多 32 KiB，输出最多 4 KiB；结果只接受封闭结构 `{"decision":"allow_once|deny|requires_user"}`。审查不带工具、主 Task 历史或工作区访问，使用本轮模型并产生独立用量。原十分钟交互期限不因自动审查或转人工延长。服务端相同原轮次、参数和执行配置的已拒绝动作再次提出时，直接保留拒绝，不重新收费审查；结果未知的已发出请求不自动重发。
 
@@ -173,7 +173,7 @@ schema 46 增加 `recovery_json` 和服务端执行收据。每轮使用独立�
 
 缓存固定 Skill 文件内容，包含插件附带技能；插件工具和中间件仍按当前安装代码校验加载，MCP 凭据不进入缓存。部分 MCP 加载器会先记录并吞掉底层连接异常，此时公开诊断只报告准确的服务器标识和工具发现不可用，不伪造原始异常。
 
-运行服务所在电脑休眠时不能保证继续执行。服务部署在这台 Mac 上，本机模式保证的是唤醒后核对断点并续接；客户端连接断开不等于执行服务休眠。需要合盖期间持续执行时，应将 Octop 执行服务部署到独立常开主机。
+运行服务所在电脑休眠时不能保证继续执行。服务部署在这台 Mac 上，本机模式保证的是唤醒后核对断点并续接；客户端连接断开不等于执行服务休眠。需要合盖期间持续执行时，应将 inhere-box 执行服务部署到独立常开主机。
 
 当前持久交互支持 **主 Task 图**。子代理/同步团队内部的客户端工具仍走既有 broker；嵌套图中的人工中断尚未提供可提交的持久卡片，无法核对主图工具调用时按中断失败，不能声明支持嵌套恢复。需要用户回应的工作应由主 Task 发起。这项限制不改变既有子代理/团队功能范围。
 

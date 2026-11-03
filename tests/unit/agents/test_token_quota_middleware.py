@@ -7,8 +7,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from octop.infra.agents.middleware.token_quota import TokenQuotaMiddleware
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.agents.middleware.token_quota import TokenQuotaMiddleware
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 def test_token_quota_middleware_rejects_exhausted_user(
@@ -19,12 +19,12 @@ def test_token_quota_middleware_rejects_exhausted_user(
     usage = Mock()
     usage.total_tokens_for_user.return_value = 10
     monkeypatch.setattr(
-        "octop.infra.agents.middleware.token_quota.get_config",
+        "inhere_box.infra.agents.middleware.token_quota.get_config",
         lambda: {"configurable": {"user": "7"}},
     )
 
     middleware = TokenQuotaMiddleware(policy_repo=policies, usage_repo=usage)
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         middleware.before_agent({}, None)
 
     assert exc.value.code is ErrorCode.TOKEN_QUOTA_EXCEEDED
@@ -40,7 +40,7 @@ def test_token_quota_middleware_allows_unlimited_user(
     policies.get.return_value = None
     usage = Mock()
     monkeypatch.setattr(
-        "octop.infra.agents.middleware.token_quota.get_config",
+        "inhere_box.infra.agents.middleware.token_quota.get_config",
         lambda: {"configurable": {"user": 8}},
     )
 
@@ -59,12 +59,12 @@ async def test_token_quota_middleware_async_hook_rejects(
     usage = Mock()
     usage.total_tokens_for_user.return_value = 1
     monkeypatch.setattr(
-        "octop.infra.agents.middleware.token_quota.get_config",
+        "inhere_box.infra.agents.middleware.token_quota.get_config",
         lambda: {"configurable": {"user": 3}},
     )
 
     middleware = TokenQuotaMiddleware(policy_repo=policies, usage_repo=usage)
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         await middleware.abefore_agent({}, None)
 
     assert exc.value.code is ErrorCode.TOKEN_QUOTA_EXCEEDED

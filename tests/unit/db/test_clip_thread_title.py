@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.threads import (
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.threads import (
     clip_thread_title,
     repair_all_legacy_thread_titles,
     repair_legacy_thread_title,
@@ -50,12 +50,12 @@ def test_repair_legacy_passthrough_short() -> None:
 
 
 def test_migration_003_repairs_stored_hard_cuts(tmp_path: Path) -> None:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     with pool.connect() as conn:
         conn.executescript(
             (
                 Path(__file__).resolve().parents[3]
-                / "src/octop/infra/db/migrations/001_initial.sql"
+                / "src/inhere_box/infra/db/migrations/001_initial.sql"
             ).read_text()
         )
         # Partial v2 columns so full migrate can finish.

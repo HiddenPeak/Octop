@@ -204,7 +204,7 @@ export function consumePendingPrefillAttachments(): ChatAttachment[] {
 // ── Composer draft (sessionStorage) ───────────────────────────────────────
 // Survives navigating away from /chat and back; keyed per agent + thread.
 
-const DRAFT_STORAGE_PREFIX = "octop:chat-draft:";
+const DRAFT_STORAGE_PREFIX = "inhere-box:chat-draft:";
 
 function draftStorageKey(
   agentId: string,
@@ -1826,7 +1826,7 @@ function extractToolResultOutput(messages: unknown[]): string {
       continue;
     }
 
-    // Already-parsed JSON object (e.g. octop_ui envelope) — must not drop.
+    // Already-parsed JSON object (e.g. inhere_box_ui envelope) — must not drop.
     if (content && typeof content === "object") {
       return JSON.stringify(content);
     }
@@ -1960,7 +1960,7 @@ function closeToolCall(
 
 /**
  * L2 interactive update: rewrite the tool bubble ``output`` for ``callId``
- * (merges into ``octop_ui`` JSON ``data`` when present). Searches the focused
+ * (merges into ``inhere_box_ui`` JSON ``data`` when present). Searches the focused
  * session first, then any live session that owns the call id.
  */
 export function patchToolResultData(callId: string, nextData: unknown): void {

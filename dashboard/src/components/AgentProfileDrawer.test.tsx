@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { I18nextProvider } from "react-i18next";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../i18n";
-import type { OctopAgent } from "../context/AgentContext";
+import type { InhereBoxAgent } from "../context/AgentContext";
 
 vi.mock("../api/request", () => ({
   request: vi.fn(async (path: string) => {
@@ -105,7 +105,7 @@ const agent = {
   agent_id: "agent-1",
   name: "Demo agent",
   state: "running",
-} as OctopAgent;
+} as InhereBoxAgent;
 
 describe("AgentProfileDrawer sections", () => {
   const getComputedStyle = window.getComputedStyle;
@@ -209,7 +209,7 @@ describe("AgentProfileDrawer sections", () => {
       state: "running",
       kind: "team",
       member_ids: ["writer-1", "analyst-1"],
-    } as OctopAgent;
+    } as InhereBoxAgent;
 
     render(
       <I18nextProvider i18n={i18n}>

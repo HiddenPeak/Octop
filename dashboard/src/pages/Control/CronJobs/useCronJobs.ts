@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { octopCronApi } from "../../../api/modules/cronjob";
+import { inhereBoxCronApi } from "../../../api/modules/cronjob";
 import type {
   CronConversationPolicy,
   CronJobSpecOutput,
-  OctopCronRow,
+  InhereBoxCronRow,
 } from "../../../api/types";
 import { channelFromSessionKey } from "./cronDisplay";
 import { presetToCron, cronToPreset } from "./components/constants";
@@ -17,7 +17,7 @@ import {
 
 type CronJob = CronJobSpecOutput;
 
-/** Octop-aligned form values for create / edit drawer. */
+/** inhere-box-aligned form values for create / edit drawer. */
 export interface CronJobFormValues {
   id?: string;
   project_id?: string | null;
@@ -49,7 +49,7 @@ function promptLabel(prompt: string, id: string): string {
   return text.length > 40 ? `${text.slice(0, 40)}…` : text;
 }
 
-function fromOctop(row: OctopCronRow, timezone: string): CronJob {
+function fromOctop(row: InhereBoxCronRow, timezone: string): CronJob {
   const idx = row.trigger.indexOf(":");
   const kind = idx >= 0 ? row.trigger.slice(0, idx) : "";
   const value = idx >= 0 ? row.trigger.slice(idx + 1) : row.trigger;
@@ -92,16 +92,17 @@ function fromOctop(row: OctopCronRow, timezone: string): CronJob {
     },
     meta: {
       orca_agent_id: row.agent_id,
-      octop_conversation_policy: row.conversation_policy ?? "continue_target",
-      octop_target_task_id: row.target_task_id ?? null,
-      octop_fresh_thread: row.fresh_thread,
-      octop_session_key: row.session_key,
-      octop_model: row.model,
-      octop_task_type: row.task_type,
-      octop_mcp_servers: row.mcp_servers ?? [],
-      octop_last_run_at: row.last_run_at,
-      octop_last_status: row.last_status,
-      octop_last_error: row.last_error,
+      inhere_box_conversation_policy:
+        row.conversation_policy ?? "continue_target",
+      inhere_box_target_task_id: row.target_task_id ?? null,
+      inhere_box_fresh_thread: row.fresh_thread,
+      inhere_box_session_key: row.session_key,
+      inhere_box_model: row.model,
+      inhere_box_task_type: row.task_type,
+      inhere_box_mcp_servers: row.mcp_servers ?? [],
+      inhere_box_last_run_at: row.last_run_at,
+      inhere_box_last_status: row.last_status,
+      inhere_box_last_error: row.last_error,
     },
   };
 }
@@ -132,11 +133,11 @@ export function jobToFormValues(
     project_id: job.project_id ?? null,
     selected_expert_id: job.selected_expert_id ?? null,
     conversation_policy:
-      (meta.octop_conversation_policy as CronConversationPolicy) ??
+      (meta.inhere_box_conversation_policy as CronConversationPolicy) ??
       "continue_target",
     target_task_id:
-      typeof meta.octop_target_task_id === "string"
-        ? meta.octop_target_task_id
+      typeof meta.inhere_box_target_task_id === "string"
+        ? meta.inhere_box_target_task_id
         : null,
     name: job.name || "",
     enabled: Boolean(job.enabled),
@@ -150,15 +151,17 @@ export function jobToFormValues(
     task_type: job.task_type === "text" ? "text" : "agent",
     model: defaultModelToForm(
       job.model ??
-        (typeof meta.octop_model === "string" ? meta.octop_model : undefined),
+        (typeof meta.inhere_box_model === "string"
+          ? meta.inhere_box_model
+          : undefined),
     ),
-    fresh_thread: Boolean(meta.octop_fresh_thread),
+    fresh_thread: Boolean(meta.inhere_box_fresh_thread),
     session_key:
-      typeof meta.octop_session_key === "string"
-        ? meta.octop_session_key
+      typeof meta.inhere_box_session_key === "string"
+        ? meta.inhere_box_session_key
         : null,
-    mcp_servers: Array.isArray(meta.octop_mcp_servers)
-      ? (meta.octop_mcp_servers as string[])
+    mcp_servers: Array.isArray(meta.inhere_box_mcp_servers)
+      ? (meta.inhere_box_mcp_servers as string[])
       : [],
     _scheduleMode: cronExpr.startsWith("agently:")
       ? "agently"
@@ -184,7 +187,7 @@ function resolveCronExpression(values: CronJobFormValues): string {
   return /^(cron|interval|date|agently):/.test(cron) ? cron : `cron:${cron}`;
 }
 
-function toOctopCreateBody(values: CronJobFormValues) {
+function toInhereBoxCreateBody(values: CronJobFormValues) {
   return {
     project_id: values.project_id ?? null,
     selected_expert_id: values.selected_expert_id || null,
@@ -203,9 +206,9 @@ function toOctopCreateBody(values: CronJobFormValues) {
   };
 }
 
-function toOctopPatchBody(values: CronJobFormValues) {
+function toInhereBoxPatchBody(values: CronJobFormValues) {
   return {
-    ...toOctopCreateBody(values),
+    ...toInhereBoxCreateBody(values),
     enabled: Boolean(values.enabled),
   };
 }
@@ -222,7 +225,7 @@ export function useCronJobs() {
 
   useEffect(() => {
     let cancelled = false;
-    void octopCronApi
+    void inhereBoxCronApi
       .settings()
       .then((settings) => {
         if (!cancelled) setCronTimezone(settings.timezone || "UTC");
@@ -248,7 +251,7 @@ export function useCronJobs() {
       if (soft) setRefreshing(true);
       else setLoading(true);
       try {
-        const rows = await octopCronApi.list();
+        const rows = await inhereBoxCronApi.list();
         if (generation === fetchGenRef.current) {
           setJobs(rows.map((row) => fromOctop(row, timezoneRef.current)));
         }
@@ -275,7 +278,7 @@ export function useCronJobs() {
     };
   }, [fetchJobs]);
 
-  const saveRow = (row: OctopCronRow) => {
+  const saveRow = (row: InhereBoxCronRow) => {
     // Discard a list request started before this mutation.
     fetchGenRef.current++;
     setLoading(false);
@@ -289,7 +292,7 @@ export function useCronJobs() {
 
   const createJob = async (values: CronJobFormValues) => {
     try {
-      saveRow(await octopCronApi.create(toOctopCreateBody(values)));
+      saveRow(await inhereBoxCronApi.create(toInhereBoxCreateBody(values)));
       message.success(t("cronJobs.createdSuccess"));
       return true;
     } catch (error) {
@@ -301,7 +304,9 @@ export function useCronJobs() {
 
   const updateJob = async (jobId: string, values: CronJobFormValues) => {
     try {
-      saveRow(await octopCronApi.patch(jobId, toOctopPatchBody(values)));
+      saveRow(
+        await inhereBoxCronApi.patch(jobId, toInhereBoxPatchBody(values)),
+      );
       message.success(t("cronJobs.updatedSuccess"));
       return true;
     } catch (error) {
@@ -313,7 +318,7 @@ export function useCronJobs() {
 
   const deleteJob = async (jobId: string) => {
     try {
-      await octopCronApi.delete(jobId);
+      await inhereBoxCronApi.delete(jobId);
       fetchGenRef.current++;
       setLoading(false);
       setRefreshing(false);
@@ -329,7 +334,7 @@ export function useCronJobs() {
 
   const toggleEnabled = async (job: CronJob) => {
     try {
-      saveRow(await octopCronApi.patch(job.id, { enabled: !job.enabled }));
+      saveRow(await inhereBoxCronApi.patch(job.id, { enabled: !job.enabled }));
       message.success(t(job.enabled ? "common.disabled" : "common.enabled"));
       return true;
     } catch (error) {
@@ -341,7 +346,7 @@ export function useCronJobs() {
 
   const executeNow = async (jobId: string) => {
     try {
-      await octopCronApi.runNow(jobId);
+      await inhereBoxCronApi.runNow(jobId);
       await fetchJobs();
       message.success(t("cronJobs.triggeredSuccess"));
       return true;

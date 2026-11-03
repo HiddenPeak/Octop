@@ -8,7 +8,7 @@ import {
   engineEntry,
   engineKey,
   engineLabel,
-  OCTOP_ENGINE,
+  INHERE_BOX_ENGINE,
 } from "./taskEngine";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { canAccessKeys } from "../../utils/permissions";
@@ -40,15 +40,15 @@ export default function TaskEngineSelect({
     "ollama_models",
     "onnx_models",
   ]);
-  const nativeEngine = value.engine_id === "octop";
+  const nativeEngine = value.engine_id === "inhere-box";
   const current = engineEntry(value, catalog);
   const unavailable = catalog
     ? !current?.available
-    : value.engine_id !== "octop";
+    : value.engine_id !== "inhere-box";
   const entries = catalog ?? [
     {
-      engine: OCTOP_ENGINE,
-      label: "Octop",
+      engine: INHERE_BOX_ENGINE,
+      label: "inhere-box",
       available: true,
       unavailable_reason: null,
     },

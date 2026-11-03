@@ -20,7 +20,7 @@ vi.mock("../../../api/modules/memoryDashboard", () => ({
 }));
 
 vi.mock("../../../api/modules/settings", () => ({
-  octopSettingsApi: {
+  inhereBoxSettingsApi: {
     timezone: vi.fn().mockResolvedValue({ timezone: "Asia/Shanghai" }),
   },
 }));
@@ -37,7 +37,7 @@ function rawResp(items: unknown[]) {
 function makeRaw(overrides: Record<string, unknown> = {}) {
   return {
     id: "r1",
-    host: "octop",
+    host: "inhere-box",
     session_id: "s1",
     thread_id: "t1",
     user: "u",

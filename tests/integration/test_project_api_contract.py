@@ -10,10 +10,10 @@ async def test_project_task_contract_is_documented_without_dedicated_protocol(en
 
     import httpx
 
-    from octop.api.app import build_app
+    from inhere_box.api.app import build_app
 
     client, server, _ = env
-    schema = client._octop_app.openapi()
+    schema = client._inhere_box_app.openapi()
     project_tag = next(tag for tag in schema["tags"] if tag["name"] == "projects")
     assert "/api/project-tasks/ws" in project_tag["description"]
     paths = schema["paths"]

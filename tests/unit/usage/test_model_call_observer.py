@@ -19,8 +19,8 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, LLMResul
 from langchain_openai import ChatOpenAI
 from octop_harness.config import ModelConfig, ProviderConfig
 
-from octop.infra.agents.providers.box import build_box_chat_model, build_box_provider_config
-from octop.infra.usage.model_calls import (
+from inhere_box.infra.agents.providers.box import build_box_chat_model, build_box_provider_config
+from inhere_box.infra.usage.model_calls import (
     ModelCallObserver,
     attach_model_observer,
     current_model_call_scope,

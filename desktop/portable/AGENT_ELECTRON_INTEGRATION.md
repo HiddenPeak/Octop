@@ -1,6 +1,6 @@
-# Octop Electron green-package integration
+# inhere-box Electron green-package integration
 
-This document is the contract for embedding Octop's **green portable zip**
+This document is the contract for embedding inhere-box's **green portable zip**
 in an Electron (or other) desktop shell. Do not invent a parallel install
 path (no system Python, no `PYTHONPATH=packages`).
 
@@ -9,7 +9,7 @@ path (no system Python, no `PYTHONPATH=packages`).
 CI / `make -f desktop/portable/Makefile green` produces:
 
 ```
-desktop/portable/release/Octop-portable-<plat>-<version>.zip
+desktop/portable/release/inhere-box-portable-<plat>-<version>.zip
 ```
 
 Platforms: `darwin-arm64` `darwin-amd64` `linux-amd64` `linux-arm64`
@@ -18,7 +18,7 @@ Platforms: `darwin-arm64` `darwin-amd64` `linux-amd64` `linux-arm64`
 Layout after extract (outside asar):
 
 ```
-Octop-<plat>/
+inhere-box-<plat>/
   runtime/     portable CPython
   packages/    site-packages
   launch.py
@@ -32,12 +32,12 @@ Octop-<plat>/
    beside the executable (Linux); the desktop shell does not download it at runtime.
 2. Extract to a writable user directory **outside** `app.asar`.
 3. On macOS, after checksum: `xattr -dr com.apple.quarantine <extractDir>`.
-4. Set `OCTOP_HOME` to Octop's default data dir (`~/.octop`, or `$OCTOP_HOME`
+4. Set `INHERE_BOX_HOME` to inhere-box's default data dir (`~/.inhere-box`, or `$INHERE_BOX_HOME`
    if already set). Do **not** use the zip's `./data` folder when launching
    from the Wails desktop shell (`desktop/src`).
-   Extract the zip under `~/.octop/portable/` so runtime files stay next to
-   user data without overwriting `octop.db`.
-5. Set `PYTHONNOUSERSITE=1` and `OCTOP_GREEN_PACKAGES=<extract>/packages`.
+   Extract the zip under `~/.inhere-box/portable/` so runtime files stay next to
+   user data without overwriting `inhere-box.db`.
+5. Set `PYTHONNOUSERSITE=1` and `INHERE_BOX_GREEN_PACKAGES=<extract>/packages`.
    **Do not set `PYTHONPATH`.**
 
 6. Spawn:
@@ -47,7 +47,7 @@ Octop-<plat>/
 
 7. Poll `http://127.0.0.1:<port>/api/health` until ready, then load the
    Dashboard (`http://127.0.0.1:<port>/`).
-8. First run uses the **normal Octop setup wizard** (create admin). The
+8. First run uses the **normal inhere-box setup wizard** (create admin). The
    green zip does not skip setup or mint loopback sessions.
 9. On quit, kill the process **tree** (Windows: taskkill `/T`; POSIX: process group).
 

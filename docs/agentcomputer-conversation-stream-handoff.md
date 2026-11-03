@@ -152,12 +152,12 @@ REST 回执可能晚于 WebSocket 新正文到达，时间戳也可能在同一�
 
 | 位置 | 接入工作 |
 | --- | --- |
-| `Services/Box/OctopTaskSocket.swift` | 现有共享 actor 增加 Resident 观察者、订阅／退订／重连恢复及独立状态投影；纳入连接存活和 reset 清理。保留唯一 receiver 和现有 generation/connection fencing。可按最终实际职责调整名字，不必为改名扩大差异。 |
-| `Services/Box/OctopTaskSocketFrame.swift` | 增加两类命令、`resident.snapshot` 解码和 agent/thread 订阅错误身份；普通 Task 解码与工具回执不变。 |
-| `Services/Box/OctopResidentModels.swift` | 解码新 capability 对象和 `Turn.revision`，保留 Resident 独立 DTO。 |
-| `Services/Box/OctopResidentService.swift` | 提供 scope 观察接口，取得工作区已有共享 socket；发送／取消／原请求查找继续原服务。 |
-| `Services/Box/OctopWorkspaceDataSource.swift` 的 `residentService()` | 向 ResidentService 注入此 DataSource 已有的 `taskSocket` 同实例，不能在 ResidentService 内再创建一个 socket actor。 |
-| `Features/Workspace/OctopResidentConversationViewModel.swift` | 正文由 socket 观察驱动，移除活动正文 1 秒轮询；立即应用、渲染新快照，不串行等 history/days/inbox。保留持久 pending、原请求核对、旧回执去重和页面代次隔离。 |
+| `Services/Box/InhereBoxTaskSocket.swift` | 现有共享 actor 增加 Resident 观察者、订阅／退订／重连恢复及独立状态投影；纳入连接存活和 reset 清理。保留唯一 receiver 和现有 generation/connection fencing。可按最终实际职责调整名字，不必为改名扩大差异。 |
+| `Services/Box/InhereBoxTaskSocketFrame.swift` | 增加两类命令、`resident.snapshot` 解码和 agent/thread 订阅错误身份；普通 Task 解码与工具回执不变。 |
+| `Services/Box/InhereBoxResidentModels.swift` | 解码新 capability 对象和 `Turn.revision`，保留 Resident 独立 DTO。 |
+| `Services/Box/InhereBoxResidentService.swift` | 提供 scope 观察接口，取得工作区已有共享 socket；发送／取消／原请求查找继续原服务。 |
+| `Services/Box/InhereBoxWorkspaceDataSource.swift` 的 `residentService()` | 向 ResidentService 注入此 DataSource 已有的 `taskSocket` 同实例，不能在 ResidentService 内再创建一个 socket actor。 |
+| `Features/Workspace/InhereBoxResidentConversationViewModel.swift` | 正文由 socket 观察驱动，移除活动正文 1 秒轮询；立即应用、渲染新快照，不串行等 history/days/inbox。保留持久 pending、原请求核对、旧回执去重和页面代次隔离。 |
 
 历史、inbox 与共享已读可在进入前台、重连、终态或独立低频刷新时同步，不应在每个正文事件上依次请求四个 REST 接口。既有 `applyResidentPresentation`、消息稳定 ID 与约 50ms Markdown 渲染合并可继续复用，无需为此次服务端契约新增页面或逐字计时器。
 

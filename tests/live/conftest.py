@@ -10,13 +10,13 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.agents.experts.catalog import ExpertCatalog, default_library_root
-from octop.infra.agents.manager import AgentCreateSpec, AgentManager
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.experts.catalog import ExpertCatalog, default_library_root
+from inhere_box.infra.agents.manager import AgentCreateSpec, AgentManager
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.utils.paths import PathLayout
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -28,12 +28,16 @@ _ENV_FILE = _REPO_ROOT / ".env"
 @pytest.fixture
 async def live_task_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Isolated real Task runtime; opt in with an explicit read-only provider DB."""
-    if not os.environ.get("OCTOP_LIVE_PROVIDER_DB") or not os.environ.get("OCTOP_LIVE_MODEL_REF"):
-        pytest.skip("Set OCTOP_LIVE_PROVIDER_DB and OCTOP_LIVE_MODEL_REF for live Task acceptance")
+    if not os.environ.get("INHERE_BOX_LIVE_PROVIDER_DB") or not os.environ.get(
+        "INHERE_BOX_LIVE_MODEL_REF"
+    ):
+        pytest.skip(
+            "Set INHERE_BOX_LIVE_PROVIDER_DB and INHERE_BOX_LIVE_MODEL_REF for live Task acceptance"
+        )
     from tests.live.unified_task_support import live_task_environment
 
     home = tmp_path / "live-octop"
-    monkeypatch.setenv("OCTOP_HOME", str(home))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(home))
     monkeypatch.setenv("BROWSER_RECORD_REPLAY_DIR", str(tmp_path / "record-replay"))
     async with live_task_environment(home) as environment:
         yield environment
@@ -115,7 +119,7 @@ async def live_agent_manager(
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     _seed_live_provider(services, live_openai_config)
 
     catalog = ExpertCatalog(default_library_root())

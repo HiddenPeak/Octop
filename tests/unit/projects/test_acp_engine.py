@@ -16,8 +16,8 @@ from acp.schema import (
     PromptResponse,
 )
 
-from octop.infra.projects.engines import acp as module
-from octop.infra.projects.engines.acp import (
+from inhere_box.infra.projects.engines import acp as module
+from inhere_box.infra.projects.engines.acp import (
     ACPFeatureError,
     ACPTaskError,
     ACPTaskSession,
@@ -177,7 +177,7 @@ async def test_live_tokens_thought_and_partial_tool_updates_are_normalized(nativ
 
 @pytest.mark.asyncio
 async def test_native_running_update_refines_same_tool_parameters_and_execution_facts(native):
-    from octop.infra.projects.content import TaskContent
+    from inhere_box.infra.projects.content import TaskContent
 
     session, connection, clients, _ = native
     await session.open()
@@ -370,7 +370,7 @@ async def test_models_and_modes_are_validated_before_prompt_dispatch(native):
     info = await session.open()
     assert info.model_ids == ["native-a", "native-b"]
     with pytest.raises(ACPFeatureError):
-        await collect(session, model_id="octop-provider/model")
+        await collect(session, model_id="inhere-box-provider/model")
     connection.prompt.assert_not_awaited()
     with pytest.raises(ACPFeatureError):
         await collect(session, mode_id="unadvertised")

@@ -4,7 +4,7 @@
 
 ## 查询契约
 
-调用方必须使用 Octop 用户 Bearer token。路径参数是**裁决命令**的 UUID，不是 `pauseID`、`runID`、幂等键或当前聊天线程 ID。服务端从认证会话确定 owner；未知命令与其他 owner 的命令都返回 404。管理员也不能仅凭管理员身份读取另一位 owner 的收据。没有裁决的 `pending` 暂停无命令收据可查。
+调用方必须使用 inhere-box 用户 Bearer token。路径参数是**裁决命令**的 UUID，不是 `pauseID`、`runID`、幂等键或当前聊天线程 ID。服务端从认证会话确定 owner；未知命令与其他 owner 的命令都返回 404。管理员也不能仅凭管理员身份读取另一位 owner 的收据。没有裁决的 `pending` 暂停无命令收据可查。
 
 若找到本人原裁决，HTTP 200 返回保存时的类型化原收据。`kind` 为 `approval` 或 `question`，`state` 固定为 `adjudicatedOnly`；`receiptID`、`commandID`、`pauseID`、`runID`、`turnID`、恢复与执行代次、意图与请求摘要、`pauseRevision` 和 `decidedAt` 均是当时的事实。此收据没有 `replayed` 字段，也不包含审批选项或答案正文；客户端不能从它推断当前暂停状态或工具是否执行。响应和错误均使用 `Cache-Control: no-store`。
 
@@ -12,7 +12,7 @@
 
 ```sh
 curl -i \
-  -H "Authorization: Bearer ${OCTOP_BEARER_TOKEN}" \
+  -H "Authorization: Bearer ${INHERE_BOX_BEARER_TOKEN}" \
   "http://127.0.0.1:8090/api/agentcomputer/v1/commands/${DECISION_COMMAND_ID}"
 ```
 

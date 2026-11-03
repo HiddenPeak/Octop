@@ -6,7 +6,7 @@ from typing import Any
 from unittest.mock import AsyncMock, patch
 from urllib.parse import urlparse
 
-from octop.infra.agents.providers.codex_oauth import CodexOAuthDeviceCodeError
+from inhere_box.infra.agents.providers.codex_oauth import CodexOAuthDeviceCodeError
 
 
 async def test_admin_test_draft_requires_api_key(env: Any) -> None:
@@ -46,7 +46,7 @@ async def test_admin_test_draft_requires_model_id(env: Any) -> None:
 async def test_admin_test_draft_forwards_api_mode_and_fallback(env: Any) -> None:
     client, _srv, auth = env
     with patch(
-        "octop.api.routers.providers.probe_provider_row",
+        "inhere_box.api.routers.providers.probe_provider_row",
         new=AsyncMock(return_value={"ok": True, "latency_ms": 1}),
     ) as probe:
         response = await client.post(
@@ -81,11 +81,11 @@ async def test_admin_codex_oauth_start(env: Any) -> None:
     }
     with (
         patch(
-            "octop.api.routers.providers.request_device_code",
+            "inhere_box.api.routers.providers.request_device_code",
             return_value=fake_info,
         ),
         patch(
-            "octop.api.routers.providers._run_codex_device_poll",
+            "inhere_box.api.routers.providers._run_codex_device_poll",
             new=AsyncMock(return_value=None),
         ),
     ):
@@ -103,7 +103,7 @@ async def test_admin_codex_oauth_start(env: Any) -> None:
 async def test_admin_codex_oauth_start_reports_upstream_failure(env: Any) -> None:
     client, _srv, auth = env
     with patch(
-        "octop.api.routers.providers.request_device_code",
+        "inhere_box.api.routers.providers.request_device_code",
         side_effect=CodexOAuthDeviceCodeError(reason="upstream_http_error", upstream_status=503),
     ):
         response = await client.post(

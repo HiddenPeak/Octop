@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.users import UserRepo, UserRow
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.users import UserRepo, UserRow
 
 
 def test_user_row_carries_permissions(tmp_path: Path) -> None:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     repo = UserRepo(db)
     uid = repo.create(
@@ -25,7 +25,7 @@ def test_user_row_carries_permissions(tmp_path: Path) -> None:
 
 
 def test_set_permissions_roundtrip(tmp_path: Path) -> None:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     repo = UserRepo(db)
     uid = repo.create(username="bob", password_hash="x", role="user")

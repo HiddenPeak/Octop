@@ -98,7 +98,7 @@ async def test_schedule_owner_and_configuration_validation(env):
 
 
 async def test_recovery_and_active_job_wait_for_the_same_delivery_outcome(env, monkeypatch):
-    from octop.infra.cron import task_delivery
+    from inhere_box.infra.cron import task_delivery
 
     client, server, auth = env
     service = server.app_runtime.cron_manager._delivery_service

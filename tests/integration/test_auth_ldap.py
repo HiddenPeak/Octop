@@ -293,7 +293,7 @@ async def test_local_password_always_stops_at_the_local_check(
     assert directory.binds == [], "a local-password account must not be bound against"
 
 
-async def test_disabled_octop_account_cannot_log_in_through_the_directory(
+async def test_disabled_inhere_box_account_cannot_log_in_through_the_directory(
     env, directory: FakeLdapDirectory
 ) -> None:
     client, srv, auth = env

@@ -13,9 +13,9 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from octop_harness.config import ModelConfig, ProviderConfig
 
-from octop.infra.agents.providers.box import build_box_provider_config
-from octop.infra.projects import routing_classifier as classifier
-from octop.infra.projects.routing_classifier import (
+from inhere_box.infra.agents.providers.box import build_box_provider_config
+from inhere_box.infra.projects import routing_classifier as classifier
+from inhere_box.infra.projects.routing_classifier import (
     DifficultyAssessment,
     DifficultyAttachment,
     DifficultyFacts,

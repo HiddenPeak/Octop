@@ -102,8 +102,8 @@ func validateOpenURL(raw string) (string, error) {
 func injectExternalLinksJS() string {
 	return `(function(){
 	if (!window._wails || typeof window._wails.invoke !== "function") return;
-	if (window.__OCTOP_EXTERNAL_LINKS_INSTALLED__) return;
-	window.__OCTOP_EXTERNAL_LINKS_INSTALLED__ = true;
+	if (window.__INHERE_BOX_EXTERNAL_LINKS_INSTALLED__) return;
+	window.__INHERE_BOX_EXTERNAL_LINKS_INSTALLED__ = true;
 	var lastUrl = "", lastAt = 0;
 	function isOpenable(url) {
 		try {

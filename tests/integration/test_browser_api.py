@@ -38,7 +38,7 @@ def test_probe_env_when_playwright_missing() -> None:
     """``_probe_env`` should not raise even with playwright import broken."""
     import builtins
 
-    from octop.api.routers.browser import env as br
+    from inhere_box.api.routers.browser import env as br
 
     original_import = builtins.__import__
 
@@ -57,7 +57,7 @@ def test_probe_env_when_playwright_missing() -> None:
 
 def test_probe_env_harness_browser_without_chromium() -> None:
     """``browsers_ok`` must stay false when no Chrome/Chromium is available."""
-    from octop.api.routers.browser import env as br
+    from inhere_box.api.routers.browser import env as br
 
     try:
         import octop_browser  # noqa: F401
@@ -76,7 +76,7 @@ def test_probe_env_harness_browser_without_chromium() -> None:
 
 def test_probe_env_accepts_system_chrome() -> None:
     """System Chrome via find_chrome is enough for browsers_ok (same as launch)."""
-    from octop.api.routers.browser import env as br
+    from inhere_box.api.routers.browser import env as br
 
     try:
         import octop_browser  # noqa: F401
@@ -89,11 +89,11 @@ def test_probe_env_accepts_system_chrome() -> None:
             return_value="/usr/bin/google-chrome",
         ),
         patch(
-            "octop.infra.browser.setup.playwright_chromium_installed",
+            "inhere_box.infra.browser.setup.playwright_chromium_installed",
             return_value=False,
         ),
         patch(
-            "octop.infra.browser.setup.chrome_source_for_path",
+            "inhere_box.infra.browser.setup.chrome_source_for_path",
             return_value="system",
         ),
     ):
@@ -106,7 +106,7 @@ def test_probe_env_accepts_system_chrome() -> None:
 
 
 def test_verify_browser_binary_ok(tmp_path: Path) -> None:
-    from octop.api.routers.browser import env as br
+    from inhere_box.api.routers.browser import env as br
 
     if os.name == "nt":
         # Windows cannot exec a shebang script; use a .bat that ignores args.
@@ -144,7 +144,7 @@ async def test_harness_sessions_shape(env: Any) -> None:
 async def test_harness_list_tabs_uses_sticky_target_id(monkeypatch) -> None:
     import aiohttp
 
-    from octop.api.routers.browser import harness as harness_router
+    from inhere_box.api.routers.browser import harness as harness_router
 
     class FakeProfile:
         cdp_port = 9222

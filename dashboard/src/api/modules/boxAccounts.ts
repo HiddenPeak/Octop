@@ -56,8 +56,8 @@ interface BrowserSession {
   csrf_token: string;
 }
 
-export const BOX_SESSION_EVENT = "octop:box-session";
-export const BOX_AUTH_REQUIRED_EVENT = "octop:box-auth-required";
+export const BOX_SESSION_EVENT = "inhere-box:box-session";
+export const BOX_AUTH_REQUIRED_EVENT = "inhere-box:box-auth-required";
 let knownStatus: BoxStatus | null | undefined;
 let statusRequest: Promise<BoxStatus | null> | undefined;
 let session: BrowserSession | undefined;
@@ -134,7 +134,7 @@ export async function refreshBoxStatus(): Promise<BoxStatus | null> {
   return detectBoxStatus();
 }
 function pauseKey(): string {
-  return `octop:box:paused:${knownStatus?.box_id ?? ""}`;
+  return `inhere-box:box:paused:${knownStatus?.box_id ?? ""}`;
 }
 export function isBoxSessionPaused(): boolean {
   return isBoxAccountMode() && localStorage.getItem(pauseKey()) === "1";
@@ -180,7 +180,7 @@ function acceptSession(value: BrowserSession): void {
 }
 async function locked<T>(work: () => Promise<T>): Promise<T> {
   return navigator.locks
-    ? navigator.locks.request("octop-box-browser-session", work)
+    ? navigator.locks.request("inhere-box-box-browser-session", work)
     : work();
 }
 async function ensureSession(forceCheck = false): Promise<boolean> {
@@ -230,7 +230,7 @@ export async function connectBoxSession(
     const created = await raw<BrowserSession>(
       "/auth/browser/sessions",
       { management_key: managementKey.trim() },
-      csrfToken ? { "X-Octop-Box-CSRF": csrfToken } : {},
+      csrfToken ? { "X-Inhere-Box-CSRF": csrfToken } : {},
     );
     sessionGeneration += 1;
     localStorage.removeItem(pauseKey());
@@ -259,7 +259,7 @@ export async function runBoxRequest<T>(
     try {
       const current = await raw<BrowserSession>("/auth/browser/session");
       acceptSession(current);
-      return await work({ "X-Octop-Box-CSRF": current.csrf_token });
+      return await work({ "X-Inhere-Box-CSRF": current.csrf_token });
     } catch (error) {
       if (error instanceof BoxAccountError && error.status === 401)
         authRequired();
@@ -312,7 +312,7 @@ export async function logoutBoxSession(): Promise<void> {
       await raw<void>(
         "/auth/logout",
         {},
-        { "X-Octop-Box-CSRF": current.csrf_token },
+        { "X-Inhere-Box-CSRF": current.csrf_token },
       );
     } catch (error) {
       if (!(error instanceof BoxAccountError && error.status === 401))

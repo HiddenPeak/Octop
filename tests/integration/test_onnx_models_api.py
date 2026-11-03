@@ -10,7 +10,7 @@ MODEL = "BAAI/bge-small-zh-v1.5"
 
 def _seed_cache(home: Path, model: str) -> None:
     """Lay down a cache that looks like a finished fastembed download."""
-    from octop.infra.agents.providers.onnx_service import model_cache_dir
+    from inhere_box.infra.agents.providers.onnx_service import model_cache_dir
 
     snap = model_cache_dir(model) / "snapshots" / "abc123"
     (snap / "onnx").mkdir(parents=True)
@@ -18,13 +18,15 @@ def _seed_cache(home: Path, model: str) -> None:
 
 
 async def test_enable_without_weights_is_rejected(
-    env: Any, tmp_octop_home: Path, monkeypatch: Any
+    env: Any, tmp_inhere_box_home: Path, monkeypatch: Any
 ) -> None:
     """Enabling a model that was never downloaded must not persist enabled=True."""
     client, _server, auth = env
-    monkeypatch.setattr("octop.api.routers.onnx_models.ensure_local_embedding_deps_async", _ready)
     monkeypatch.setattr(
-        "octop.api.routers.knowledge_bases.ensure_local_embedding_deps_async", _ready
+        "inhere_box.api.routers.onnx_models.ensure_local_embedding_deps_async", _ready
+    )
+    monkeypatch.setattr(
+        "inhere_box.api.routers.knowledge_bases.ensure_local_embedding_deps_async", _ready
     )
 
     resp = await client.put(
@@ -40,17 +42,19 @@ async def test_enable_without_weights_is_rejected(
 
 
 async def test_enable_succeeds_once_weights_are_present(
-    env: Any, tmp_octop_home: Path, monkeypatch: Any
+    env: Any, tmp_inhere_box_home: Path, monkeypatch: Any
 ) -> None:
     client, _server, auth = env
-    from octop.infra.agents.providers import onnx_service
+    from inhere_box.infra.agents.providers import onnx_service
 
-    monkeypatch.setattr("octop.api.routers.onnx_models.ensure_local_embedding_deps_async", _ready)
     monkeypatch.setattr(
-        "octop.api.routers.knowledge_bases.ensure_local_embedding_deps_async", _ready
+        "inhere_box.api.routers.onnx_models.ensure_local_embedding_deps_async", _ready
+    )
+    monkeypatch.setattr(
+        "inhere_box.api.routers.knowledge_bases.ensure_local_embedding_deps_async", _ready
     )
     monkeypatch.setattr(onnx_service, "local_embedding_deps_available", lambda: True)
-    _seed_cache(tmp_octop_home, MODEL)
+    _seed_cache(tmp_inhere_box_home, MODEL)
 
     resp = await client.put(
         "/api/onnx-models/config",
@@ -65,15 +69,17 @@ async def test_enable_succeeds_once_weights_are_present(
 
 
 async def test_activate_reports_downloaded_nested_weights(
-    env: Any, tmp_octop_home: Path, monkeypatch: Any
+    env: Any, tmp_inhere_box_home: Path, monkeypatch: Any
 ) -> None:
     """Regression: nested per-tower weights used to fail activation."""
     client, _server, auth = env
-    from octop.infra.agents.providers import onnx_service
+    from inhere_box.infra.agents.providers import onnx_service
 
-    monkeypatch.setattr("octop.api.routers.onnx_models.ensure_local_embedding_deps_async", _ready)
     monkeypatch.setattr(
-        "octop.api.routers.knowledge_bases.ensure_local_embedding_deps_async", _ready
+        "inhere_box.api.routers.onnx_models.ensure_local_embedding_deps_async", _ready
+    )
+    monkeypatch.setattr(
+        "inhere_box.api.routers.knowledge_bases.ensure_local_embedding_deps_async", _ready
     )
     monkeypatch.setattr(onnx_service, "local_embedding_deps_available", lambda: True)
 
@@ -100,7 +106,7 @@ async def _ready(*_args: Any, **_kwargs: Any) -> str:
 
 
 async def test_knowledge_onnx_test_uses_knowledge_settings_permission(
-    env: Any, tmp_octop_home: Path, monkeypatch: Any
+    env: Any, tmp_inhere_box_home: Path, monkeypatch: Any
 ) -> None:
     """The settings drawer's check must work for a knowledge-settings admin.
 
@@ -110,15 +116,17 @@ async def test_knowledge_onnx_test_uses_knowledge_settings_permission(
     from tests.support.auth import create_user
 
     client, _server, admin_auth = env
-    from octop.infra.agents.providers import onnx_service
+    from inhere_box.infra.agents.providers import onnx_service
 
-    monkeypatch.setattr("octop.api.routers.onnx_models.ensure_local_embedding_deps_async", _ready)
     monkeypatch.setattr(
-        "octop.api.routers.knowledge_bases.ensure_local_embedding_deps_async", _ready
+        "inhere_box.api.routers.onnx_models.ensure_local_embedding_deps_async", _ready
+    )
+    monkeypatch.setattr(
+        "inhere_box.api.routers.knowledge_bases.ensure_local_embedding_deps_async", _ready
     )
     monkeypatch.setattr(onnx_service, "local_embedding_deps_available", lambda: True)
     monkeypatch.setattr(onnx_service, "embed_texts", lambda _m, _t: [[0.0] * 512])
-    _seed_cache(tmp_octop_home, MODEL)
+    _seed_cache(tmp_inhere_box_home, MODEL)
 
     kb_admin = await create_user(
         client,
@@ -140,13 +148,15 @@ async def test_knowledge_onnx_test_uses_knowledge_settings_permission(
 
 
 async def test_knowledge_onnx_test_reports_missing_weights(
-    env: Any, tmp_octop_home: Path, monkeypatch: Any
+    env: Any, tmp_inhere_box_home: Path, monkeypatch: Any
 ) -> None:
     """A model with no weights yields a local message, never a remote error."""
     client, _server, auth = env
-    monkeypatch.setattr("octop.api.routers.onnx_models.ensure_local_embedding_deps_async", _ready)
     monkeypatch.setattr(
-        "octop.api.routers.knowledge_bases.ensure_local_embedding_deps_async", _ready
+        "inhere_box.api.routers.onnx_models.ensure_local_embedding_deps_async", _ready
+    )
+    monkeypatch.setattr(
+        "inhere_box.api.routers.knowledge_bases.ensure_local_embedding_deps_async", _ready
     )
 
     resp = await client.post("/api/knowledge-bases/onnx-test", headers=auth, json={"model": MODEL})

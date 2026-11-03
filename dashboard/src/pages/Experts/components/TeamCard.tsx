@@ -24,7 +24,7 @@ import ChannelCatalogDrawer from "./ChannelCatalogDrawer";
 import MemoryCatalogDrawer from "./MemoryCatalogDrawer";
 import { teamsApi } from "../../../api/modules/teams";
 import { request } from "../../../api/request";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import { useAgent } from "../../../context/AgentContext";
 import { ExpertIcon } from "./iconForName";
 import {
@@ -57,8 +57,8 @@ const TRANSIENT = new Set(["starting", "stopping"]);
 const MAX_VISIBLE_MEMBERS = 6;
 
 export interface TeamCardProps {
-  agent: OctopAgent;
-  experts: OctopAgent[];
+  agent: InhereBoxAgent;
+  experts: InhereBoxAgent[];
   onEdit: (agentId: string) => void;
   onDeleted: (agentId: string) => void;
   onStateChange: (agentId: string, newState: string) => void;
@@ -74,7 +74,7 @@ interface MemberChip {
 
 function resolveMembers(
   memberIds: string[] | undefined,
-  experts: OctopAgent[],
+  experts: InhereBoxAgent[],
 ): MemberChip[] {
   const byId = new Map(experts.map((item) => [item.agent_id, item]));
   const chips: MemberChip[] = [];

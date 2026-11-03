@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 )
 
@@ -15,7 +16,7 @@ const (
 	LocaleEN Locale = "en"
 )
 
-// Settings is persisted at ~/.octop/desktop-settings.json
+// Settings is persisted at ~/.inhere-box/desktop-settings.json
 type Settings struct {
 	Locale         Locale `json:"locale"`
 	Autostart      bool   `json:"autostart"`
@@ -34,23 +35,37 @@ func defaultSettings() Settings {
 	}
 }
 
-func octopHome() string {
-	if v := os.Getenv("OCTOP_HOME"); v != "" {
+func envValue(key string) string {
+	if value, present := os.LookupEnv(key); present {
+		return value
+	}
+	return os.Getenv("OCTOP_" + strings.TrimPrefix(key, "INHERE_BOX_"))
+}
+
+func inhereBoxHome() string {
+	if v := envValue("INHERE_BOX_HOME"); v != "" {
 		return v
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return ".octop"
+		return ".inhere-box"
 	}
-	return filepath.Join(home, ".octop")
+	current := filepath.Join(home, ".inhere-box")
+	legacy := filepath.Join(home, ".octop")
+	if _, err := os.Stat(current); os.IsNotExist(err) {
+		if info, err := os.Stat(legacy); err == nil && info.IsDir() {
+			return legacy
+		}
+	}
+	return current
 }
 
 func portableDir() string {
-	return filepath.Join(octopHome(), "portable")
+	return filepath.Join(inhereBoxHome(), "portable")
 }
 
 func settingsPath() string {
-	return filepath.Join(octopHome(), "desktop-settings.json")
+	return filepath.Join(inhereBoxHome(), "desktop-settings.json")
 }
 
 type settingsStore struct {
@@ -93,7 +108,7 @@ func (st *settingsStore) save(next Settings) error {
 	if next.Port == 0 {
 		next.Port = 8088
 	}
-	if err := os.MkdirAll(octopHome(), 0o755); err != nil {
+	if err := os.MkdirAll(inhereBoxHome(), 0o755); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(next, "", "  ")

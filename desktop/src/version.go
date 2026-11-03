@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Keep ordering aligned with octop.infra.setup.self_update.parse_version.
+// Keep ordering aligned with inhere_box.infra.setup.self_update.parse_version.
 // Local segments (+local) are parsed but ignored, matching the Python key.
 
 var pep440RE = regexp.MustCompile(`(?i)^v?(?:(?P<epoch>\d+)!)?(?P<release>\d+(?:\.\d+)*)(?:[-_\.]?(?P<pre_l>alpha|a|beta|b|preview|pre|rc|c)[-_\.]?(?P<pre_n>\d+)?)?(?:(?:[-_\.]?(?P<post_l>post|rev|r)[-_\.]?(?P<post_n>\d+))|(?:-(?P<post_n1>\d+)))?(?:[-_\.]?(?P<dev_l>dev)[-_\.]?(?P<dev_n>\d+)?)?(?:\+(?P<local>[a-z0-9]+(?:[-_\.][a-z0-9]+)*))?$`)

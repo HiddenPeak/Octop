@@ -9,7 +9,7 @@ import styles from "./index.module.less";
  * renders a dismissible banner so the user can choose when to reload.
  * Designed to be mounted once in MainLayout.
  *
- * When the process is running as a system service (OCTOP_SERVICE_MODE is
+ * When the process is running as a system service (INHERE_BOX_SERVICE_MODE is
  * set), clicking the update-now action also triggers a backend service restart so that
  * the new Python package takes effect alongside the new frontend bundle.
  */

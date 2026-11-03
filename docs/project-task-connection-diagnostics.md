@@ -4,15 +4,15 @@
 
 ## 连接 ID
 
-原生客户端可在每次握手发送 `X-AgentComputer-Connection-ID`，使用本次连接的新 UUID（36 字符、带短横线，大小写均可）。服务端在握手响应中原样回显合法值，并独立生成 `X-Octop-Connection-ID`。
+原生客户端可在每次握手发送 `X-AgentComputer-Connection-ID`，使用本次连接的新 UUID（36 字符、带短横线，大小写均可）。服务端在握手响应中原样回显合法值，并独立生成 `X-Inhere-Box-Connection-ID`。
 
 缺失、重复或非法的客户端 ID 不会原样写日志或回显；日志用 `client_connection_id_status` 区分。代理若传入单个 `X-Request-ID`，仅 UUID、32 位十六进制或 ULID 格式会记入 `request_id`；其他值丢弃。
 
 ## 日志位置与关联
 
-服务端日志位于 `$OCTOP_HOME/logs/octop.log`（默认 `~/.octop/logs/octop.log`），继续按现有大小、日期和保留期限轮转。
+服务端日志位于 `$INHERE_BOX_HOME/logs/inhere-box.log`（默认 `~/.inhere-box/logs/inhere-box.log`），继续按现有大小、日期和保留期限轮转。
 
-搜索 `project_task_ws ` 后的 JSON，使用 `client_connection_id` 与客户端按次连接的记录关联，使用 `server_connection_id` 区分服务端实际接到的每次连接。当前客户端若未收集 `X-Octop-Connection-ID` 响应头，仍可用它已发送的 `X-AgentComputer-Connection-ID` 完成关联。
+搜索 `project_task_ws ` 后的 JSON，使用 `client_connection_id` 与客户端按次连接的记录关联，使用 `server_connection_id` 区分服务端实际接到的每次连接。当前客户端若未收集 `X-Inhere-Box-Connection-ID` 响应头，仍可用它已发送的 `X-AgentComputer-Connection-ID` 完成关联。
 
 每条记录包含 `schema_version`、UTC `timestamp`、连接内递增 `seq`、距接入的 `elapsed_ms` 和固定路由路径。
 

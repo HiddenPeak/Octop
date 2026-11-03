@@ -167,7 +167,7 @@ def test_host_root_backend_execute_works(tmp_path: Path) -> None:
     assert isinstance(inner, HarnessLocalShellBackend)
     assert not isinstance(inner, BubbledLocalShellBackend)
 
-    marker = f"octop-bwrap-host-root-{uuid.uuid4().hex}"
+    marker = f"inhere-box-bwrap-host-root-{uuid.uuid4().hex}"
     result = inner.execute(f"echo {marker}")
     assert result.exit_code == 0
     assert marker in result.output
@@ -204,7 +204,7 @@ def test_write_file_then_execute_cat_same_virtual_path(tmp_path: Path) -> None:
 
 @linux_bwrap_only
 def test_jail_hides_host_home_paths(tmp_path: Path) -> None:
-    secret = Path.home() / f".octop_bwrap_test_{uuid.uuid4().hex}"
+    secret = Path.home() / f".inhere_box_bwrap_test_{uuid.uuid4().hex}"
     secret.mkdir(parents=True)
     try:
         (secret / "nope.txt").write_text("secret", encoding="utf-8")
@@ -246,7 +246,7 @@ def test_subprocess_run_invokes_real_bwrap(tmp_path: Path) -> None:
 
     root = tmp_path / "jail_root"
     root.mkdir()
-    marker = "octop-bwrap-smoke"
+    marker = "inhere-box-bwrap-smoke"
     bwrap = shutil.which("bwrap")
     assert bwrap is not None
     # Merged-/usr hosts expose /bin,/lib,/lib64 as symlinks into /usr; bind those

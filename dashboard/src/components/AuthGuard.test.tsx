@@ -7,8 +7,8 @@ import AuthGuard from "./AuthGuard";
 import AccountEntryGate from "./AccountEntryGate";
 
 vi.mock("../api/modules/boxAccounts", () => ({
-  BOX_AUTH_REQUIRED_EVENT: "octop:box-auth-required",
-  BOX_SESSION_EVENT: "octop:box-session",
+  BOX_AUTH_REQUIRED_EVENT: "inhere-box:box-auth-required",
+  BOX_SESSION_EVENT: "inhere-box:box-session",
   isBoxSessionPaused: vi.fn(() => false),
   detectBoxStatus: vi.fn(),
   restoreBoxSession: vi.fn(),
@@ -126,7 +126,7 @@ describe("AuthGuard offline boot", () => {
     );
     await screen.findByText("private-data");
     act(() => {
-      window.dispatchEvent(new Event("octop:box-auth-required"));
+      window.dispatchEvent(new Event("inhere-box:box-auth-required"));
     });
     expect(await screen.findByText("box-connect")).toBeInTheDocument();
     expect(screen.queryByText("private-data")).not.toBeInTheDocument();

@@ -15,11 +15,11 @@ from fastapi import WebSocket
 from starlette.datastructures import Headers
 from starlette.websockets import WebSocketDisconnect
 
-from octop.api.common.task_websocket_logging import TaskWebSocketLog
-from octop.api.routers import project_tasks_ws
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.api.common.task_websocket_logging import TaskWebSocketLog
+from inhere_box.api.routers import project_tasks_ws
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
-_LOG_NAME = "octop.api.common.task_websocket_logging"
+_LOG_NAME = "inhere_box.api.common.task_websocket_logging"
 _SECRET = "private-transport-error-sentinel"
 
 
@@ -143,7 +143,7 @@ async def test_connection_end_is_logged_once_on_transport_failure_or_cancellatio
         {
             "type": "websocket",
             "headers": [(b"authorization", b"Bearer credential-secret-sentinel")],
-            "app": SimpleNamespace(state=SimpleNamespace(octop_server=object())),
+            "app": SimpleNamespace(state=SimpleNamespace(inhere_box_server=object())),
         },
         receive=receive,
         send=send,
@@ -160,7 +160,7 @@ async def test_connection_end_is_logged_once_on_transport_failure_or_cancellatio
         monkeypatch.setattr(
             project_tasks_ws.approval_policy,
             "current",
-            Mock(side_effect=OctopError(ErrorCode.CONTROL_PLANE_BUSY, _SECRET, status=503)),
+            Mock(side_effect=InhereBoxError(ErrorCode.CONTROL_PLANE_BUSY, _SECRET, status=503)),
         )
     if unexpected:
         monkeypatch.setattr(project_tasks_ws, "_task_worker", Mock(return_value=object()))

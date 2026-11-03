@@ -10,7 +10,7 @@ from langchain_core.language_models.fake_chat_models import FakeMessagesListChat
 from langchain_core.messages import AIMessage
 from octop_memory.core import Memory
 
-from octop.infra.agents.providers.box import OctopChatModelFactory
+from inhere_box.infra.agents.providers.box import InhereBoxChatModelFactory
 from tests.integration.test_project_tasks import settled
 from tests.integration.test_project_tasks import task_env as task_env
 from tests.support.auth import auth_header, create_user
@@ -122,7 +122,7 @@ async def test_export_uses_all_public_turns_and_not_internal_configuration(task_
 async def test_polish_changes_only_draft_and_records_no_task(env_with_provider, monkeypatch):
     client, server, auth = env_with_provider
     model = FakeMessagesListChatModel(responses=[AIMessage(content="A clearer draft")])
-    monkeypatch.setattr(OctopChatModelFactory, "get_chat_model", lambda self, reference: model)
+    monkeypatch.setattr(InhereBoxChatModelFactory, "get_chat_model", lambda self, reference: model)
     with server.services.db.connect() as conn:
         before = conn.execute("SELECT count(*) FROM project_tasks").fetchone()[0]
     response = await client.post("/api/project-tasks/polish", headers=auth, json={"text": "draft"})

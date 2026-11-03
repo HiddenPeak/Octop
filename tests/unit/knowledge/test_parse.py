@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.knowledge.parse import parse_document
+from inhere_box.infra.knowledge.parse import parse_document
 
 _DOCX_NAMESPACES = (
     'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '

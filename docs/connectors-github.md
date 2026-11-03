@@ -11,28 +11,28 @@ GitHub 内置连接器使用 GitHub 官方远程 MCP Server，通过 **Personal 
 | 官方地址 | `https://api.githubcopilot.com/mcp/` |
 | 请求头 | `Authorization: Bearer <PAT>` |
 
-Octop 主机直接连接官方地址，无需安装 GitHub CLI、Node.js 或 Docker。当前入口面向 GitHub 官方托管服务；不提供 GitHub Enterprise Server 地址配置，也不执行 OAuth、动态客户端注册（DCR）或 OAuth 回调。
+inhere-box 主机直接连接官方地址，无需安装 GitHub CLI、Node.js 或 Docker。当前入口面向 GitHub 官方托管服务；不提供 GitHub Enterprise Server 地址配置，也不执行 OAuth、动态客户端注册（DCR）或 OAuth 回调。
 
 ## 在控制台连接
 
 1. 在 GitHub 的 [Personal access tokens 设置](https://github.com/settings/tokens)创建适合当前工作的 PAT，按需要选择账户、仓库和权限。GitHub 组织策略、授权审批及 Token 有效期仍然生效。
-2. 在 Octop「连接器 → 内置连接器 → GitHub」中填写连接器名称、说明和 Token。只粘贴 PAT 本身，无需添加 `Bearer `。
-3. 点击「探测」。Octop 使用该 PAT 初始化官方 MCP 会话并列出工具；探测不会创建仓库、Issue 或 Pull Request。探测成功不代表 PAT 拥有每个仓库的全部读写权限。
-4. 点击「保存」。一个 Octop 账户可以保存多个 GitHub 实例，例如工作账户和个人账户，各自持有独立的 PAT。
+2. 在 inhere-box「连接器 → 内置连接器 → GitHub」中填写连接器名称、说明和 Token。只粘贴 PAT 本身，无需添加 `Bearer `。
+3. 点击「探测」。inhere-box 使用该 PAT 初始化官方 MCP 会话并列出工具；探测不会创建仓库、Issue 或 Pull Request。探测成功不代表 PAT 拥有每个仓库的全部读写权限。
+4. 点击「保存」。一个 inhere-box 账户可以保存多个 GitHub 实例，例如工作账户和个人账户，各自持有独立的 PAT。
 
-PAT 加密保存在 Octop 数据库中。列表、详情和项目资源接口不返回 PAT 明文，详情仅返回 `credentials_preview.token_configured`。更新 Token 时重新填写；删除连接器清除 Octop 的保存记录，不会撤销 GitHub 上的 PAT。需要撤销时在 GitHub 设置中处理。
+PAT 加密保存在 inhere-box 数据库中。列表、详情和项目资源接口不返回 PAT 明文，详情仅返回 `credentials_preview.token_configured`。更新 Token 时重新填写；删除连接器清除 inhere-box 的保存记录，不会撤销 GitHub 上的 PAT。需要撤销时在 GitHub 设置中处理。
 
 开启「共享」后，其他用户可使用该实例的授权身份。共享使用者不能读取其凭证或修改、删除该实例；有管理权限的管理员适用已有连接器管理规则。
 
 ## API 接入
 
-使用当前 Octop 登录态的 Bearer Token 调用 `/api`。以下请求中的 PAT 均为占位值；生产环境应通过安全输入提交，避免写入日志。
+使用当前 inhere-box 登录态的 Bearer Token 调用 `/api`。以下请求中的 PAT 均为占位值；生产环境应通过安全输入提交，避免写入日志。
 
 创建实例：
 
 ```http
 POST /api/connector-instances
-Authorization: Bearer <Octop 登录 Token>
+Authorization: Bearer <inhere-box 登录 Token>
 Content-Type: application/json
 ```
 
@@ -59,7 +59,7 @@ Content-Type: application/json
 }
 ```
 
-探测失败可能仍返回 HTTP `200`，APP 必须检查 `ok`，不能只检查 HTTP 状态。远端 `401/403` 表示鉴权被拒绝；网络或远端服务故障与权限问题应分别展示。PAT 过期或被撤销后，通过 `PATCH /api/connector-instances/{instance_id}` 提交新的 `credentials.token`，Octop 不会自动刷新 PAT。
+探测失败可能仍返回 HTTP `200`，APP 必须检查 `ok`，不能只检查 HTTP 状态。远端 `401/403` 表示鉴权被拒绝；网络或远端服务故障与权限问题应分别展示。PAT 过期或被撤销后，通过 `PATCH /api/connector-instances/{instance_id}` 提交新的 `credentials.token`，inhere-box 不会自动刷新 PAT。
 
 ## 在项目和任务中选择
 
@@ -93,4 +93,4 @@ Content-Type: application/json
 
 - [GitHub MCP Server 官方说明](https://github.com/github/github-mcp-server/blob/main/README.md)
 - [GitHub 远程 MCP Server 接入与权限说明](https://github.com/github/github-mcp-server/blob/main/docs/remote-server.md)
-- [Octop 内置连接器目录](connectors.md)
+- [inhere-box 内置连接器目录](connectors.md)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.backend.tree_listing import dedupe_tree_rows, is_listing_self
+from inhere_box.infra.backend.tree_listing import dedupe_tree_rows, is_listing_self
 
 
 def test_is_listing_self_root() -> None:

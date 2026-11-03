@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from octop.cli.support.state import CLIState, load, save
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.cli.support.state import CLIState, load, save
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 def test_load_missing_returns_default(tmp_path: Path) -> None:
@@ -43,7 +43,7 @@ def test_load_corrupt_file_raises_typed_error(tmp_path: Path) -> None:
     """
     p = tmp_path / "cli_state.json"
     p.write_text('{"default_user": "u",}', encoding="utf-8")  # trailing comma
-    with pytest.raises(OctopError) as excinfo:
+    with pytest.raises(InhereBoxError) as excinfo:
         load(p)
     assert excinfo.value.code is ErrorCode.CONFIG_FILE_CORRUPT
 
@@ -51,7 +51,7 @@ def test_load_corrupt_file_raises_typed_error(tmp_path: Path) -> None:
 def test_load_non_object_raises_typed_error(tmp_path: Path) -> None:
     p = tmp_path / "cli_state.json"
     p.write_text("[1, 2]", encoding="utf-8")
-    with pytest.raises(OctopError) as excinfo:
+    with pytest.raises(InhereBoxError) as excinfo:
         load(p)
     assert excinfo.value.code is ErrorCode.CONFIG_FILE_CORRUPT
 
@@ -71,7 +71,7 @@ def test_save_is_atomic_so_a_torn_write_keeps_the_old_file(
     def boom(*_args: object, **_kwargs: object) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr("octop.infra.utils.json_file.os.replace", boom)
+    monkeypatch.setattr("inhere_box.infra.utils.json_file.os.replace", boom)
     with pytest.raises(OSError, match="disk full"):
         save(p, CLIState(default_user="bob", default_agent="b1"))
     assert p.read_text(encoding="utf-8") == original

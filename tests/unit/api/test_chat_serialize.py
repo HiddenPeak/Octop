@@ -6,8 +6,8 @@ import json
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
-from octop.api.routers.chat.serialize import _serialize_history_message
-from octop.api.routers.chat.sse import json_chunk_default
+from inhere_box.api.routers.chat.serialize import _serialize_history_message
+from inhere_box.api.routers.chat.sse import json_chunk_default
 
 
 def test_json_chunk_default_serializes_langchain_messages() -> None:
@@ -30,9 +30,9 @@ def test_json_chunk_default_serializes_langchain_messages() -> None:
 
 
 def test_json_chunk_default_keeps_tool_message_artifact() -> None:
-    """Live WS/SSE frames must carry the offloaded octop_ui payload."""
+    """Live WS/SSE frames must carry the offloaded inhere_box_ui payload."""
     msg = ToolMessage(
-        content='{"octop_ui": {"renderer": "bilibili_player"}, "data_ref": "artifact"}',
+        content='{"inhere_box_ui": {"renderer": "bilibili_player"}, "data_ref": "artifact"}',
         tool_call_id="call_1",
         name="bilibili_search_anime",
         artifact={"results": [{"season_id": 1, "episodes": [{"index": 1}]}]},
@@ -46,7 +46,7 @@ def test_json_chunk_default_keeps_tool_message_artifact() -> None:
 
 def test_serialize_history_message_includes_tool_artifact() -> None:
     msg = ToolMessage(
-        content='{"octop_ui": {"renderer": "bilibili_player"}, "data_ref": "artifact"}',
+        content='{"inhere_box_ui": {"renderer": "bilibili_player"}, "data_ref": "artifact"}',
         tool_call_id="call_1",
         name="bilibili_search_anime",
         artifact={"results": [{"season_id": 1}]},

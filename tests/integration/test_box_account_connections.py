@@ -13,9 +13,9 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 from starlette.websockets import WebSocketDisconnect
 
-from octop.infra.auth.tokens import sign_token
-from octop.infra.server import OctopServer
-from tests.support.app import octop_client, write_octop_config
+from inhere_box.infra.auth.tokens import sign_token
+from inhere_box.infra.server import InhereBoxServer
+from tests.support.app import inhere_box_client, write_inhere_box_config
 from tests.support.box_accounts import _action, _admin_login, _candidate, _claim, _login
 from tests.support.http import ASGIWebSocketSession
 
@@ -35,7 +35,7 @@ async def _connect(
     query: str = "",
     path: str = "/api/project-tasks/ws",
 ) -> AsyncIterator[BoxSocket]:
-    socket = BoxSocket(client._octop_app, path + query, headers=auth)
+    socket = BoxSocket(client._inhere_box_app, path + query, headers=auth)
     try:
         await socket.connect(timeout=3)
         yield socket
@@ -45,12 +45,12 @@ async def _connect(
 
 @pytest.fixture
 async def connected_box(
-    tmp_octop_home: Path,
+    tmp_inhere_box_home: Path,
 ) -> AsyncIterator[
-    tuple[httpx.AsyncClient, OctopServer, ec.EllipticCurvePrivateKey, str, dict[str, str]]
+    tuple[httpx.AsyncClient, InhereBoxServer, ec.EllipticCurvePrivateKey, str, dict[str, str]]
 ]:
-    write_octop_config(tmp_octop_home, account_mode="box_local")
-    async with octop_client(tmp_octop_home) as (client, server):
+    write_inhere_box_config(tmp_inhere_box_home, account_mode="box_local")
+    async with inhere_box_client(tmp_inhere_box_home) as (client, server):
         key, client_id, auth = await _claim(client, server)
         yield client, server, key, client_id, auth
 
@@ -171,8 +171,8 @@ async def test_revoked_request_cannot_admit_task_after_waiting_outside_transacti
 ) -> None:
     import threading
 
-    from octop.api.middleware import box_accounts
-    from octop.infra.projects import task_submission
+    from inhere_box.api.middleware import box_accounts
+    from inhere_box.infra.projects import task_submission
 
     client, _server, key, client_id, auth = connected_box
     other_auth, _ = await _login(client, key, client_id)
@@ -238,8 +238,8 @@ async def test_task_workbench_header_auth_rechecks_actions_and_closes_on_logout(
 ) -> None:
     from urllib.parse import urlencode
 
-    from octop.api.routers import project_task_workbench as workbench
-    from octop.infra.projects import runtime
+    from inhere_box.api.routers import project_task_workbench as workbench
+    from inhere_box.infra.projects import runtime
     from tests.support.auth import seed_openai_provider
 
     client, _server, _key, _client_id, auth = connected_box

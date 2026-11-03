@@ -6,18 +6,18 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.agents.experts.skillhub_market import SkillHubSkillset
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.skill_packages import SkillPackageRepo
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.skills.skill_package_from_skillhub import create_package_from_skillhub
-from octop.infra.skills.skill_package_store import SkillPackageStore
+from inhere_box.infra.agents.experts.skillhub_market import SkillHubSkillset
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.skill_packages import SkillPackageRepo
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.skills.skill_package_from_skillhub import create_package_from_skillhub
+from inhere_box.infra.skills.skill_package_store import SkillPackageStore
 
 
 @pytest.fixture
 def store(tmp_path: Path) -> SkillPackageStore:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     return SkillPackageStore(
         repo=SkillPackageRepo(db),
@@ -39,7 +39,7 @@ def _item(*, skill_slugs: tuple[str, ...] = ("alpha",)) -> SkillHubSkillset:
 def test_duplicate_name_raises_package_name_taken(store: SkillPackageStore) -> None:
     store.create(name="Demo package", description="", created_by="1")
 
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         create_package_from_skillhub(
             store,
             slug="demo-skillset",
@@ -59,7 +59,7 @@ def test_create_maps_integrity_error_when_name_races(
     store.create(name="Demo package", description="", created_by="1")
     monkeypatch.setattr(store.repo, "get_by_name", lambda _name: None)
 
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         create_package_from_skillhub(
             store,
             slug="demo-skillset",

@@ -13,13 +13,13 @@ from uuid import UUID, uuid4
 import pytest
 from pydantic import ValidationError
 
-from octop.infra.agentcomputer import identity as identity_module
-from octop.infra.agentcomputer.identity import (
+from inhere_box.infra.agentcomputer import identity as identity_module
+from inhere_box.infra.agentcomputer.identity import (
     ControlIdentity,
     IdentityError,
     get_or_create_identity,
 )
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.utils.paths import PathLayout
 
 posix_only = pytest.mark.skipif(os.name != "posix", reason="POSIX file permissions")
 

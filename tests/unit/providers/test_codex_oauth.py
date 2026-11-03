@@ -10,8 +10,8 @@ from urllib.parse import urlparse
 
 import pytest
 
-from octop.infra.agents.providers.codex_apply import CODEX_MODELS, CODEX_PROVIDER_NAME
-from octop.infra.agents.providers.codex_oauth import (
+from inhere_box.infra.agents.providers.codex_apply import CODEX_MODELS, CODEX_PROVIDER_NAME
+from inhere_box.infra.agents.providers.codex_oauth import (
     CodexOAuthDeviceCodeError,
     build_codex_headers,
     exchange_device_code,

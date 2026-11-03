@@ -9,14 +9,14 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.connectors import qcc
-from octop.infra.connectors.service import ConnectorService
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.connectors import ConnectorRepo
-from octop.infra.db.repos.secrets import SecretRepo
-from octop.infra.db.repos.settings import SettingsRepo
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.connectors import qcc
+from inhere_box.infra.connectors.service import ConnectorService
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.connectors import ConnectorRepo
+from inhere_box.infra.db.repos.secrets import SecretRepo
+from inhere_box.infra.db.repos.settings import SettingsRepo
 
 
 def service(pool: SqlitePool, repo: ConnectorRepo | None = None) -> ConnectorService:
@@ -24,13 +24,13 @@ def service(pool: SqlitePool, repo: ConnectorRepo | None = None) -> ConnectorSer
         repo=repo or ConnectorRepo(pool),
         secret_repo=SecretRepo(pool),
         settings_repo=SettingsRepo(pool),
-        config=OctopConfig(),
+        config=InhereBoxConfig(),
     )
 
 
 @pytest.fixture
 def grant(tmp_path: Path):
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     with pool.transaction() as conn:
         conn.execute(
@@ -267,7 +267,7 @@ async def test_legacy_key_does_not_refresh_or_revoke(grant, monkeypatch):
     _, repo, svc = grant
     refresh = AsyncMock()
     revoke = AsyncMock()
-    monkeypatch.setattr("octop.infra.connectors.service.refresh_oauth_credentials", refresh)
+    monkeypatch.setattr("inhere_box.infra.connectors.service.refresh_oauth_credentials", refresh)
     monkeypatch.setattr(qcc, "revoke", revoke)
     error = httpx.HTTPStatusError(
         "unauthorized",

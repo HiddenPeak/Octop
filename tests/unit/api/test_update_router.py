@@ -8,12 +8,12 @@ from typing import Any
 
 import pytest
 
-from octop.api.routers import update as update_router
-from octop.api.routers import update_store
-from octop.api.routers.update_store import UpgradeTaskStatus, create_task, get_task
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.setup import self_update
-from octop.infra.setup.self_update import UpgradeResult
+from inhere_box.api.routers import update as update_router
+from inhere_box.api.routers import update_store
+from inhere_box.api.routers.update_store import UpgradeTaskStatus, create_task, get_task
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.setup import self_update
+from inhere_box.infra.setup.self_update import UpgradeResult
 
 
 @pytest.fixture(autouse=True)
@@ -122,7 +122,7 @@ async def test_restart_endpoint_rejects_when_service_not_installed(
     from fastapi import BackgroundTasks
 
     bg = BackgroundTasks()
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         await update_router.restart_service_endpoint(bg, _=None)
 
     assert exc_info.value.code == ErrorCode.INTERNAL_ERROR

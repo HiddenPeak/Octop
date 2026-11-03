@@ -63,14 +63,14 @@ import {
   DefaultToolRenderer,
   builtinPluginHost,
   createPluginUiHost,
-  parseOctopToolOutput,
+  parseInhereBoxToolOutput,
   resolvePluginUiData,
   resolveToolRenderer,
   useToolRendererVersion,
   type ToolRenderProps,
   type ToolRenderStatus,
 } from "../../../plugins/toolRenderers";
-import { BuiltinOctopUiFallback } from "../../../plugins/toolRenderers/builtin/BuiltinOctopUiFallback";
+import { BuiltinInhereBoxUiFallback } from "../../../plugins/toolRenderers/builtin/BuiltinInhereBoxUiFallback";
 import { ToolUiErrorBoundary } from "../../../plugins/toolRenderers/ToolUiErrorBoundary";
 import { lookupPluginIdForTool } from "../../../plugins/toolRenderers/toolPluginIndex";
 import { useChatToolDock } from "../ChatToolDockContext";
@@ -342,7 +342,7 @@ function canDockToolUi(
   registration: ToolRendererRegistration | null,
   parsed: ParsedToolOutput,
 ): boolean {
-  if (parsed.octopUi) return true;
+  if (parsed.inhereBoxUi) return true;
   return (
     registration != null &&
     registration.id !== "default" &&
@@ -378,10 +378,10 @@ export function ToolDetailsInline({
   // Plugin UIs load async after mount — bump forces resolve() to re-run.
   const rendererVersion = useToolRendererVersion();
   const parsed = useMemo(
-    () => parseOctopToolOutput(toolData.output),
+    () => parseInhereBoxToolOutput(toolData.output),
     [toolData.output],
   );
-  // Offloaded octop_ui payloads: explicit data wins; data_ref → artifact.
+  // Offloaded inhere_box_ui payloads: explicit data wins; data_ref → artifact.
   const resolvedData = useMemo(
     () => resolvePluginUiData(parsed, toolData.artifact, toolData.output),
     [parsed, toolData.artifact, toolData.output],
@@ -502,7 +502,7 @@ export function ToolDetailsInline({
     return (
       <div
         ref={wrapRef}
-        data-octop-tool-renderer=""
+        data-inhere-box-tool-renderer=""
         className={styles.toolUiRendererWrap}
       >
         <ToolUiErrorBoundary propsForFallback={props}>
@@ -514,21 +514,21 @@ export function ToolDetailsInline({
   }
 
   // Structured plugin envelope without a loaded custom renderer — still show a card.
-  if (parsed.octopUi) {
+  if (parsed.inhereBoxUi) {
     return (
       <div
         ref={wrapRef}
-        data-octop-tool-renderer=""
+        data-inhere-box-tool-renderer=""
         className={styles.toolUiRendererWrap}
       >
-        <BuiltinOctopUiFallback {...props} />
+        <BuiltinInhereBoxUiFallback {...props} />
         {dockActions}
       </div>
     );
   }
 
   return (
-    <div data-octop-tool-renderer="">
+    <div data-inhere-box-tool-renderer="">
       <DefaultToolRenderer {...props} />
     </div>
   );

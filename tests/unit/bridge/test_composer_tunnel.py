@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-from octop.infra.bridge.manager import BridgeManager
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.bridge.manager import BridgeManager
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 def _mgr() -> BridgeManager:
@@ -100,7 +100,7 @@ async def test_post_remote_browser_handoff() -> None:
 async def test_tunnel_http_denies_disallowed_path() -> None:
     mgr = _mgr()
     mgr.get_owned = MagicMock(return_value=MagicMock())  # type: ignore[method-assign]
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         await mgr.tunnel_http(
             connection_id="cid1",
             owner_user_id=1,
@@ -116,6 +116,6 @@ async def test_tunnel_json_get_rejects_http_error() -> None:
     mgr.tunnel_http = AsyncMock(  # type: ignore[method-assign]
         return_value=httpx.Response(502, text="boom")
     )
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         await mgr.get_remote_knowledge_capability("cid1", owner_user_id=1)
     assert exc.value.code == ErrorCode.BRIDGE_TUNNEL_FAILED

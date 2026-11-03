@@ -37,7 +37,7 @@
           "tool_label": null,
           "brief": null,
           "plan": {
-            "source": "octop_planning",
+            "source": "inhere_box_planning",
             "plan_id": "plan_example",
             "title": "资料报告",
             "revision": 1,
@@ -146,7 +146,7 @@
           "tool_label": null,
           "brief": null,
           "plan": {
-            "source": "octop_planning",
+            "source": "inhere_box_planning",
             "plan_id": "plan_example",
             "title": "资料报告",
             "revision": 2,
@@ -209,7 +209,7 @@
       ],
       "content_revision": 8,
       "plan": {
-        "source": "octop_planning",
+        "source": "inhere_box_planning",
         "plan_id": "plan_example",
         "title": "资料报告",
         "revision": 2,

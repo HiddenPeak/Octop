@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from octop.infra.agents.subagents.catalog import (
+from inhere_box.infra.agents.subagents.catalog import (
     TRANSLATION_PLACEHOLDER_NAME,
     SubagentCatalog,
     default_package_root,

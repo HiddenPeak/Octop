@@ -7,9 +7,9 @@ import sqlite3
 
 import pytest
 
-from octop.infra.db import migrate
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.resident_conversations import ResidentConversationRepo
+from inhere_box.infra.db import migrate
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.resident_conversations import ResidentConversationRepo
 
 
 def seed_conversation(db):

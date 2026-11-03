@@ -11,20 +11,20 @@ import pytest
 from octop_harness.teams.inbox import InboxMessage
 from octop_harness.teams.processor import ReplyEvent
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.sessions import SessionRepo
-from octop.infra.db.repos.threads import ThreadRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.gateway.process.processor import GlobalProcessor
-from octop.infra.gateway.slash.dispatcher import SlashDispatcher
-from octop.infra.gateway.threads import ThreadRegistry
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.sessions import SessionRepo
+from inhere_box.infra.db.repos.threads import ThreadRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.gateway.process.processor import GlobalProcessor
+from inhere_box.infra.gateway.slash.dispatcher import SlashDispatcher
+from inhere_box.infra.gateway.threads import ThreadRegistry
 
 
 @pytest.fixture
 def processor_env(tmp_path: Path) -> dict[str, object]:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     UserRepo(db).create(username="u", password_hash="h", role="user")
     AgentRepo(db).create(agent_id="parent", user_id=1, name="Parent")
@@ -42,7 +42,7 @@ def processor_env(tmp_path: Path) -> dict[str, object]:
     agent_manager = MagicMock()
     agent_manager.get_row.side_effect = lambda aid: AgentRepo(db).get(aid)
 
-    from octop.infra.gateway.gateway import Gateway
+    from inhere_box.infra.gateway.gateway import Gateway
 
     gw = Gateway(agent_manager=agent_manager, repos=repos)
     gw._channel_manager = MagicMock()
@@ -113,7 +113,7 @@ def test_compose_followup_team_host_asks_for_wrapup(processor_env: dict) -> None
 
 
 def test_compose_followup_truncates_long_member_result(processor_env: dict) -> None:
-    from octop.infra.agents.teams.team_manager import _FOLLOWUP_RESULT_MAX_CHARS
+    from inhere_box.infra.agents.teams.team_manager import _FOLLOWUP_RESULT_MAX_CHARS
 
     processor = processor_env["processor"]
     processor._agent_repo.create(agent_id="host", user_id=1, name="Host", kind="team")
@@ -726,7 +726,7 @@ async def test_prepare_team_dispatch_tracks_job_and_forces_sync(
 ) -> None:
     from octop_harness.teams.util import PeerCall
 
-    from octop.infra.agents.teams import TeamJobTracker
+    from inhere_box.infra.agents.teams import TeamJobTracker
 
     processor = processor_env["processor"]
     parent_sk = processor_env["parent_sk"]
@@ -1237,7 +1237,7 @@ async def test_fan_in_truncates_large_tool_results(
     from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
     from octop_harness.teams.util import PeerCall
 
-    from octop.infra.agents.teams.team_manager import _HISTORY_TOOL_RESULT_MAX_CHARS
+    from inhere_box.infra.agents.teams.team_manager import _HISTORY_TOOL_RESULT_MAX_CHARS
 
     processor = processor_env["processor"]
     processor._agent_repo.create(agent_id="host", user_id=1, name="Host", kind="team")
@@ -1597,7 +1597,7 @@ async def test_fan_in_sync_non_team_skips_caller_room(processor_env: dict) -> No
 
 @pytest.mark.asyncio
 async def test_on_reply_failed_releases_job(processor_env: dict) -> None:
-    from octop.infra.agents.teams import TeamJobTracker
+    from inhere_box.infra.agents.teams import TeamJobTracker
 
     processor = processor_env["processor"]
     parent_sk = processor_env["parent_sk"]
@@ -1752,10 +1752,10 @@ def test_composer_model_precedes_sticky_and_legacy_slash_model() -> None:
 
 
 def test_stamp_stream_speaker_sets_agent_alias() -> None:
-    from octop.infra.agents.teams.team_manager import (
+    from inhere_box.infra.agents.teams.team_manager import (
         stamp_stream_speaker as _stamp_stream_speaker,
     )
-    from octop.infra.agents.teams.team_manager import (
+    from inhere_box.infra.agents.teams.team_manager import (
         stamp_team_host_chunk as _maybe_stamp_team_host,
     )
 

@@ -6,16 +6,16 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.skill_packages import SkillPackageRepo
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.skill_packages import SkillPackageRepo
 
-_MIGRATIONS = Path(__file__).resolve().parents[3] / "src/octop/infra/db/migrations"
+_MIGRATIONS = Path(__file__).resolve().parents[3] / "src/inhere_box/infra/db/migrations"
 
 
 @pytest.fixture
 def db(tmp_path: Path) -> SqlitePool:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     return pool
 
@@ -80,7 +80,7 @@ def test_skill_package_repo_list_visible(db: SqlitePool) -> None:
 
 
 def test_legacy_text_pk_skill_packages_keep_public_id(tmp_path: Path) -> None:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     with pool.connect() as conn:
         conn.executescript((_MIGRATIONS / "001_initial.sql").read_text())
         conn.executescript((_MIGRATIONS / "002_cron_mcp_and_skill_packages.sql").read_text())

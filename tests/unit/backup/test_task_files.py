@@ -14,13 +14,13 @@ import pytest
 from langgraph.checkpoint.base import empty_checkpoint
 from langgraph.checkpoint.sqlite import SqliteSaver
 
-from octop.config import DatabaseConfig
-from octop.infra.backup.manifest import BackupManifest
-from octop.infra.backup.system_archive import create_system_backup, restore_system_backup
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.projects.resource_snapshot import load_snapshot, save_snapshot
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import DatabaseConfig
+from inhere_box.infra.backup.manifest import BackupManifest
+from inhere_box.infra.backup.system_archive import create_system_backup, restore_system_backup
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.projects.resource_snapshot import load_snapshot, save_snapshot
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def _pool(stack: ExitStack, home: Path) -> tuple[PathLayout, SqlitePool]:

@@ -57,7 +57,7 @@ def test_bootstrap_exposes_bundled_packages_to_python_subprocesses(
 ) -> None:
     packages = tmp_path / "packages"
     packages.mkdir()
-    probe = packages / "octop_portable_probe"
+    probe = packages / "inhere_box_portable_probe"
     probe.mkdir()
     (probe / "__init__.py").write_text("", encoding="utf-8")
     probe_source = "print('bundled-package')\n"
@@ -84,7 +84,7 @@ def test_bootstrap_exposes_bundled_packages_to_python_subprocesses(
     child_dir = tmp_path / "child"
     child_dir.mkdir()
     child = subprocess.run(
-        [sys.executable, "-m", "octop_portable_probe"],
+        [sys.executable, "-m", "inhere_box_portable_probe"],
         cwd=child_dir,
         capture_output=True,
         text=True,
@@ -105,4 +105,4 @@ def test_launch_has_no_provider_seed() -> None:
     source = inspect.getsource(_load_launch_module())
     assert "_seed_initial_provider" not in source
     assert "nexusapi" not in source
-    assert "OCTOP_DESKTOP_OOB" not in source
+    assert "INHERE_BOX_DESKTOP_OOB" not in source

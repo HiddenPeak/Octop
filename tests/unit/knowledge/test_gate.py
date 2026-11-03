@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.knowledge import gate
+from inhere_box.infra.knowledge import gate
 
 
 def test_capability_is_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:

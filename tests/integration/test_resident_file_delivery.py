@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import hashlib
 
-from octop.infra.projects.artifact_models import CreateArtifactArgs
-from octop.infra.projects.artifacts import TaskArtifactPublisher
+from inhere_box.infra.projects.artifact_models import CreateArtifactArgs
+from inhere_box.infra.projects.artifacts import TaskArtifactPublisher
 from tests.integration.test_resident_closed_loop import (
     _delegate_body,
     _delegation,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from octop.infra.knowledge.citations import (
+from inhere_box.infra.knowledge.citations import (
     CITATIONS_MARKER_PREFIX,
     append_citations_marker,
     citations_from_ranked,

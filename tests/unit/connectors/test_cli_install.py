@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from tests.support.fakes import fake_bin_path
 
-from octop.infra.connectors.gateway import cli_install
+from inhere_box.infra.connectors.gateway import cli_install
 
 
 def test_cli_install_specs_registered() -> None:

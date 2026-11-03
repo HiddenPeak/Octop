@@ -16,11 +16,11 @@ from octop_harness.llm.factory import ChatModelFactory
 from octop_harness.plugins import PluginRegistry
 from octop_harness.plugins.registry import ToolRegistration
 
-from octop.infra.knowledge import retrieve as retrieve_module
-from octop.infra.knowledge import tools as knowledge_tools
-from octop.infra.knowledge.citations import CITATIONS_MARKER_PREFIX
-from octop.infra.knowledge.index import KnowledgeIndex
-from octop.infra.projects import runtime
+from inhere_box.infra.knowledge import retrieve as retrieve_module
+from inhere_box.infra.knowledge import tools as knowledge_tools
+from inhere_box.infra.knowledge.citations import CITATIONS_MARKER_PREFIX
+from inhere_box.infra.knowledge.index import KnowledgeIndex
+from inhere_box.infra.projects import runtime
 from tests.integration.test_project_capabilities import project_plugin as project_plugin
 from tests.integration.test_project_tasks import settled
 from tests.support.auth import create_user, resolve_user_id

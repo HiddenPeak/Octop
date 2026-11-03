@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from octop.i18n import error_message
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.utils.locale import resolve_request_locale
+from inhere_box.i18n import error_message
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.utils.locale import resolve_request_locale
 
 
 def test_every_error_code_has_i18n_entry():
@@ -23,8 +23,8 @@ def test_error_message_zh():
     assert "名称" in error_message("AGENT_NAME_TAKEN", "zh")
 
 
-def test_octop_error_localized_factory():
-    err = OctopError.localized(ErrorCode.FORBIDDEN, "zh")
+def test_inhere_box_error_localized_factory():
+    err = InhereBoxError.localized(ErrorCode.FORBIDDEN, "zh")
     assert err.code is ErrorCode.FORBIDDEN
     assert err.message == "没有权限。"
 
@@ -32,12 +32,12 @@ def test_octop_error_localized_factory():
 @pytest.mark.parametrize(
     "locale,message",
     [
-        ("zh", "此安装目录已有运行中的Octop服务"),
-        ("en", "An Octop server is already running for this installation."),
+        ("zh", "此安装目录已有运行中的 inhere-box 服务"),
+        ("en", "An inhere-box server is already running for this installation."),
     ],
 )
 def test_control_plane_busy_is_a_localized_conflict(locale, message):
-    err = OctopError.localized(ErrorCode.CONTROL_PLANE_BUSY, locale)
+    err = InhereBoxError.localized(ErrorCode.CONTROL_PLANE_BUSY, locale)
     assert err.status == 409
     assert err.message == message
     assert err.to_envelope(locale=locale) == {
@@ -45,8 +45,8 @@ def test_control_plane_busy_is_a_localized_conflict(locale, message):
     }
 
 
-def test_octop_error_to_envelope_with_locale():
-    err = OctopError(ErrorCode.AGENT_NAME_TAKEN, "agent name 'x' already in use")
+def test_inhere_box_error_to_envelope_with_locale():
+    err = InhereBoxError(ErrorCode.AGENT_NAME_TAKEN, "agent name 'x' already in use")
     envelope = err.to_envelope(locale="zh")
     assert envelope["error"]["code"] == "AGENT_NAME_TAKEN"
     assert envelope["error"]["message"] == "该名称已被使用，请换一个名称。"
@@ -68,7 +68,7 @@ def test_resolve_request_locale_from_accept_language():
 def test_dashboard_api_errors_match_backend():
     repo = Path(__file__).resolve().parents[3]
     dash_en = json.loads((repo / "dashboard/src/locales/en.json").read_text(encoding="utf-8"))
-    backend_en = json.loads((repo / "src/octop/i18n/en.json").read_text(encoding="utf-8"))
+    backend_en = json.loads((repo / "src/inhere_box/i18n/en.json").read_text(encoding="utf-8"))
     dash_codes = set(dash_en["apiErrors"].keys())
     backend_codes = set(backend_en["errors"].keys())
     assert dash_codes == backend_codes == {c.value for c in ErrorCode}
@@ -104,17 +104,17 @@ def test_knowledge_doc_too_large_interpolates_max_mb():
 
 
 def test_localized_message_falls_back_when_key_missing(monkeypatch: pytest.MonkeyPatch):
-    err = OctopError(ErrorCode.AUTH_FAILED, "custom detail")
+    err = InhereBoxError(ErrorCode.AUTH_FAILED, "custom detail")
     monkeypatch.setattr(
-        "octop.infra.errors.i18n_error_message",
+        "inhere_box.infra.errors.i18n_error_message",
         lambda *_a, **_k: (_ for _ in ()).throw(KeyError("errors.X")),
     )
     assert err.localized_message("zh") == "custom detail"
 
 
 def test_config_file_corrupt_interpolates_path_and_detail():
-    kwargs = {"path": "~/.octop/config.json", "detail": "line 3, column 1"}
-    assert "~/.octop/config.json" in error_message("CONFIG_FILE_CORRUPT", "en", **kwargs)
+    kwargs = {"path": "~/.inhere-box/config.json", "detail": "line 3, column 1"}
+    assert "~/.inhere-box/config.json" in error_message("CONFIG_FILE_CORRUPT", "en", **kwargs)
     assert "line 3, column 1" in error_message("CONFIG_FILE_CORRUPT", "zh", **kwargs)
     for locale in ("en", "zh"):
         msg = error_message("CONFIG_FILE_CORRUPT", locale, **kwargs)

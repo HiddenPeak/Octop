@@ -9,14 +9,14 @@ from dataclasses import replace
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.agents.resident_identity import ensure_resident_identity
-from octop.infra.db import migrate
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.resident_conversations import ResidentConversationRepo
-from octop.infra.db.repos.resident_requests import ResidentRequestBusy, ResidentRequestConflict
-from octop.infra.db.services import build_shared_services
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.resident_identity import ensure_resident_identity
+from inhere_box.infra.db import migrate
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.resident_conversations import ResidentConversationRepo
+from inhere_box.infra.db.repos.resident_requests import ResidentRequestBusy, ResidentRequestConflict
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def services(tmp_path):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     migrate.run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     services.user_repo.create(username="owner", password_hash="x", role="user")
     services.user_repo.create(username="other", password_hash="x", role="user")
     asyncio.run(ensure_resident_identity(services, 1))

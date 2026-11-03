@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { octopSettingsApi } from "../api/modules/settings";
+import { inhereBoxSettingsApi } from "../api/modules/settings";
 import { useTaskHost } from "../context/TaskHostContext";
 import { taskTransport } from "../api/taskTransport";
 
@@ -30,7 +30,7 @@ export function applyTimezoneFetchResult(
 async function fetchServerTimezone(): Promise<string> {
   if (cachedTimezone) return cachedTimezone;
   if (!inflight) {
-    inflight = octopSettingsApi
+    inflight = inhereBoxSettingsApi
       .timezone()
       .then((settings) => {
         const next = applyTimezoneFetchResult({

@@ -11,8 +11,8 @@ from unittest.mock import Mock
 
 from fastapi import WebSocket
 
-from octop.api.routers import project_tasks_ws
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.api.routers import project_tasks_ws
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 async def test_push_failure_closes_before_queued_command(monkeypatch, caplog):
@@ -41,7 +41,7 @@ async def test_push_failure_closes_before_queued_command(monkeypatch, caplog):
         {
             "type": "websocket",
             "headers": [(b"authorization", b"Bearer test-token")],
-            "app": SimpleNamespace(state=SimpleNamespace(octop_server=object())),
+            "app": SimpleNamespace(state=SimpleNamespace(inhere_box_server=object())),
         },
         receive=receive,
         send=send,
@@ -55,7 +55,7 @@ async def test_push_failure_closes_before_queued_command(monkeypatch, caplog):
     monkeypatch.setattr(
         project_tasks_ws.approval_policy,
         "current",
-        Mock(side_effect=OctopError.localized(ErrorCode.CONTROL_PLANE_BUSY, status=503)),
+        Mock(side_effect=InhereBoxError.localized(ErrorCode.CONTROL_PLANE_BUSY, status=503)),
     )
     caplog.set_level(logging.ERROR, logger=project_tasks_ws.__name__)
     handler = asyncio.create_task(project_tasks_ws.task_websocket(websocket))

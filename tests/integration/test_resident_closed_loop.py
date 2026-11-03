@@ -14,9 +14,9 @@ import httpx
 import pytest
 from langchain_core.messages import AIMessage, SystemMessage, convert_to_messages
 
-from octop.infra.agents.resident_identity import ResidentTextOnlyMiddleware
-from octop.infra.projects import resident_tasks
-from octop.infra.projects.recovery import TaskInterruption, TaskRecovery
+from inhere_box.infra.agents.resident_identity import ResidentTextOnlyMiddleware
+from inhere_box.infra.projects import resident_tasks
+from inhere_box.infra.projects.recovery import TaskInterruption, TaskRecovery
 from tests.support.auth import create_user, resolve_user_id
 from tests.support.fakes import FakeHarnessAgent
 from tests.support.harness import patch_resident_stream, patch_task_stream
@@ -30,8 +30,8 @@ def _key() -> str:
 def resident_history_mode(request, monkeypatch):
     params = request.node.callspec.params if hasattr(request.node, "callspec") else {}
     enabled = params.get("report_history_v2", False) or "archive_transition" in params
-    monkeypatch.setenv("OCTOP_HISTORY_V2_ENABLED", str(enabled).lower())
-    monkeypatch.setenv("OCTOP_ENABLE_API_DOCS", "true")
+    monkeypatch.setenv("INHERE_BOX_HISTORY_V2_ENABLED", str(enabled).lower())
+    monkeypatch.setenv("INHERE_BOX_ENABLE_API_DOCS", "true")
 
 
 async def _json(response: httpx.Response, status: int = 200) -> dict[str, Any]:

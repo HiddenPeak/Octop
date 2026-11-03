@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.utils.frontmatter import is_agent_file, parse_frontmatter
+from inhere_box.infra.utils.frontmatter import is_agent_file, parse_frontmatter
 
 
 def test_frontmatter_at_first_line() -> None:

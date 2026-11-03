@@ -17,7 +17,7 @@ from octop_harness.llm.factory import ChatModelFactory
 from octop_harness.plugins import LoadedPlugin, PluginManifest, PluginRegistry
 from octop_harness.plugins.registry import MiddlewareRegistration, ToolRegistration
 
-from octop.infra.projects import runtime
+from inhere_box.infra.projects import runtime
 from tests.integration.test_project_tasks import settled
 
 
@@ -459,7 +459,7 @@ async def test_cancelled_tool_context_is_closed_and_not_replayed(
 
 
 async def test_context_rejects_lost_worker_lease(env_with_provider):
-    from octop.infra.projects.tasks import TaskMessage, now_ms, send
+    from inhere_box.infra.projects.tasks import TaskMessage, now_ms, send
     from tests.support.auth import resolve_user_id
 
     client, server, auth = env_with_provider

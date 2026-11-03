@@ -18,14 +18,14 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-vi.mock("../../../api/modules/octopThreads", () => ({
-  octopThreadsApi: {
+vi.mock("../../../api/modules/inhereBoxThreads", () => ({
+  inhereBoxThreadsApi: {
     rebind: (...args: unknown[]) => rebindMock(...args),
   },
 }));
 
-vi.mock("../../../api/modules/octopAgents", () => ({
-  octopAgentsApi: {
+vi.mock("../../../api/modules/inhereBoxAgents", () => ({
+  inhereBoxAgentsApi: {
     markRead: vi.fn().mockResolvedValue(undefined),
   },
 }));

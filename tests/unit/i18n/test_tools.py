@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from octop.i18n import all_tool_labels, hitl_tool_catalog, tool_display_name
-from octop.i18n.domains.tools import resolve_tool_display_name
+from inhere_box.i18n import all_tool_labels, hitl_tool_catalog, tool_display_name
+from inhere_box.i18n.domains.tools import resolve_tool_display_name
 
 
 def test_tool_display_name_known_zh():
@@ -77,5 +77,5 @@ def test_hitl_tool_catalog_bilingual_labels():
 def test_dashboard_tools_match_backend():
     repo = Path(__file__).resolve().parents[3]
     dash_en = json.loads((repo / "dashboard/src/locales/en.json").read_text(encoding="utf-8"))
-    backend_en = json.loads((repo / "src/octop/i18n/en.json").read_text(encoding="utf-8"))
+    backend_en = json.loads((repo / "src/inhere_box/i18n/en.json").read_text(encoding="utf-8"))
     assert dash_en["tools"] == backend_en["tools"]

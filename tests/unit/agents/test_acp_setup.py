@@ -13,13 +13,13 @@ from unittest.mock import AsyncMock
 import pytest
 from acp import PROTOCOL_VERSION, RequestError
 
-from octop.infra.agents import acp_setup
-from octop.infra.agents.acp_setup import ACPSetupService, _CheckClient
-from octop.infra.agents.settings.acp import ACPSettingsStore
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.settings import SettingsRepo
+from inhere_box.infra.agents import acp_setup
+from inhere_box.infra.agents.acp_setup import ACPSetupService, _CheckClient
+from inhere_box.infra.agents.settings.acp import ACPSettingsStore
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.settings import SettingsRepo
 
 
 @pytest.fixture
@@ -361,7 +361,7 @@ async def test_install_uses_private_prefix_and_saves_direct_launch_without_enabl
     assert saved["args"][-1] == "acp"
     assert str(service._root / "opencode" / "node_modules" / ".bin") in saved["env"]["PATH"]
     assert "node" in result.login_command and "auth login" in result.login_command
-    assert (service._root / "opencode" / ".octop-install-complete").is_file()
+    assert (service._root / "opencode" / ".inhere-box-install-complete").is_file()
     assert (await service.check(1, "opencode", "en")).connection == "ready"
 
 
@@ -379,7 +379,7 @@ async def test_second_user_reuses_complete_managed_installation(setup, monkeypat
     runners["opencode"]["enabled"] = True
     store.save_runners(1, runners)
     original = store.load_runners(1)["opencode"]
-    marker = service._root / "opencode" / ".octop-install-complete"
+    marker = service._root / "opencode" / ".inhere-box-install-complete"
     ensure_node = AsyncMock(side_effect=AssertionError("Do not reinstall a complete runtime"))
     npm = AsyncMock(side_effect=AssertionError("Do not mutate a shared complete installation"))
     monkeypatch.setattr(acp_setup, "ensure_node", ensure_node)
@@ -412,7 +412,7 @@ async def test_known_managed_profile_remains_repairable_after_damage(setup, monk
     expected_launch = store.load_setup_status(1, "opencode")["managed_launch"]
     prefix = service._root / "opencode"
     if damage == "marker":
-        (prefix / ".octop-install-complete").unlink()
+        (prefix / ".inhere-box-install-complete").unlink()
     else:
         shutil.rmtree(prefix / "node_modules")
 

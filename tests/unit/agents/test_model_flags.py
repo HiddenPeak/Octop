@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from octop.infra.agents.providers.model_flags import (
+from inhere_box.infra.agents.providers.model_flags import (
     is_chat_eligible_model,
     is_embedding_model,
     is_vision_model,
 )
-from octop.infra.agents.providers.resolved import list_resolved_models
+from inhere_box.infra.agents.providers.resolved import list_resolved_models
 
 
 def test_embedding_flag_and_task() -> None:
@@ -39,7 +39,7 @@ def test_onnx_provider_identity_marks_models_embedding() -> None:
 
 
 def test_is_onnx_local_provider() -> None:
-    from octop.infra.agents.providers.model_flags import is_onnx_local_provider
+    from inhere_box.infra.agents.providers.model_flags import is_onnx_local_provider
 
     assert is_onnx_local_provider(provider_api_key="onnx")
     assert is_onnx_local_provider(provider_name="ONNX (Local)")
@@ -52,7 +52,7 @@ def test_is_onnx_local_provider() -> None:
 
 
 def test_is_local_runtime_provider() -> None:
-    from octop.infra.agents.providers.model_flags import is_local_runtime_provider
+    from inhere_box.infra.agents.providers.model_flags import is_local_runtime_provider
 
     assert is_local_runtime_provider(provider_api_key="onnx")
     assert is_local_runtime_provider(provider_name="ONNX (Local)")
@@ -72,7 +72,7 @@ def test_is_local_runtime_provider() -> None:
 
 
 def test_is_ollama_local_provider_url_heuristic() -> None:
-    from octop.infra.agents.providers.model_flags import is_ollama_local_provider
+    from inhere_box.infra.agents.providers.model_flags import is_ollama_local_provider
 
     # Local runtimes: default port 11434, loopback/private/link-local hosts, and
     # well-known local hostnames (including the docker service name ``ollama``).

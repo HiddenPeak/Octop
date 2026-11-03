@@ -4,13 +4,15 @@ import json
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_execution_receipts import ProjectTaskExecutionReceiptRepo
-from octop.infra.db.repos.project_task_tool_calls import ProjectTaskToolCallRow
-from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRepo, ProjectTaskTurnRow
-from octop.infra.db.repos.project_tasks import ProjectTaskRepo
-from octop.infra.db.services import RepoBundle
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_execution_receipts import (
+    ProjectTaskExecutionReceiptRepo,
+)
+from inhere_box.infra.db.repos.project_task_tool_calls import ProjectTaskToolCallRow
+from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRepo, ProjectTaskTurnRow
+from inhere_box.infra.db.repos.project_tasks import ProjectTaskRepo
+from inhere_box.infra.db.services import RepoBundle
 
 
 @pytest.fixture

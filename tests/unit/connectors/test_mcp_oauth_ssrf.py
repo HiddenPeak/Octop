@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from octop.infra.connectors.oauth.mcp import (
+from inhere_box.infra.connectors.oauth.mcp import (
     _ensure_mcp_oauth_url,
     _validate_metadata_endpoints,
     exchange_authorization_code,
@@ -60,12 +60,12 @@ async def test_exchange_authorization_code_uses_validated_url() -> None:
 
     with (
         patch(
-            "octop.infra.connectors.oauth.mcp.safe_request",
+            "inhere_box.infra.connectors.oauth.mcp.safe_request",
             new_callable=AsyncMock,
             return_value=mock_resp,
         ) as mock_request,
         patch(
-            "octop.infra.connectors.oauth.mcp._ensure_mcp_oauth_url",
+            "inhere_box.infra.connectors.oauth.mcp._ensure_mcp_oauth_url",
             new_callable=AsyncMock,
             return_value="https://mcp.notion.com/token",
         ) as mock_validate,
@@ -87,7 +87,7 @@ async def test_exchange_authorization_code_uses_validated_url() -> None:
 
 @pytest.mark.asyncio
 async def test_safe_request_blocks_internal_ip() -> None:
-    from octop.infra.utils.ssrf_guard import UnsafeOutboundUrl, safe_request
+    from inhere_box.infra.utils.ssrf_guard import UnsafeOutboundUrl, safe_request
 
     with pytest.raises(UnsafeOutboundUrl, match="private or reserved"):
         await safe_request("POST", "https://127.0.0.1/token", data={})

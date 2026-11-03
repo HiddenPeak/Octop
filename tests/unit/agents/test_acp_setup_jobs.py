@@ -10,10 +10,10 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from octop.infra.agents import acp_setup_jobs as module
-from octop.infra.agents.acp_setup import ACPRunnerSetup, ACPSetupService
-from octop.infra.agents.acp_setup_jobs import ACPSetupJob, ACPSetupJobs, _Job, _safe_url
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.agents import acp_setup_jobs as module
+from inhere_box.infra.agents.acp_setup import ACPRunnerSetup, ACPSetupService
+from inhere_box.infra.agents.acp_setup_jobs import ACPSetupJob, ACPSetupJobs, _Job, _safe_url
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 def setup_result(
@@ -85,12 +85,12 @@ async def test_owner_is_required_for_every_job_operation(jobs):
         lambda: jobs.get(2, started.job_id),
         lambda: jobs._owned(2, started.job_id),
     ):
-        with pytest.raises(OctopError) as exc:
+        with pytest.raises(InhereBoxError) as exc:
             operation()
         assert exc.value.code == ErrorCode.NOT_FOUND
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await jobs.cancel(2, started.job_id)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await jobs.input(2, started.job_id, "secret\r")
     assert jobs.active(2) == {}
     assert jobs.active(1)["codex"].job_id == started.job_id
@@ -109,7 +109,7 @@ async def test_duplicate_start_reuses_same_owner_and_never_leaks_other_owners_jo
     first = await jobs.start(1, "codex", "install", "en")
     second = await jobs.start(1, "codex", "install", "en")
     assert first.job_id == second.job_id
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await jobs.start(2, "codex", "login", "en")
     await jobs.cancel(1, first.job_id)
 
@@ -120,7 +120,7 @@ async def test_close_cancels_new_and_running_jobs_and_prevents_new_operations(jo
     await jobs.close()
     assert jobs.get(1, started.job_id).status == "cancelled"
     assert jobs.active(1) == {}
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await jobs.start(1, "codex", "install", "en")
 
 
@@ -425,7 +425,7 @@ async def test_connect_does_not_replace_an_existing_install_or_login_job(jobs):
 
     jobs._service.install.side_effect = install
     original = await jobs.start(1, "codex", "install", "en")
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await jobs.start(1, "codex", "connect", "en")
     assert jobs.get(1, original.job_id).kind == "install"
     await jobs.cancel(1, original.job_id)

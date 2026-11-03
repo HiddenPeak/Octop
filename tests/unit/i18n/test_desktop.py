@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.i18n import all_keys_for_locale, tr
+from inhere_box.i18n import all_keys_for_locale, tr
 
 
 def test_desktop_keys_parity() -> None:

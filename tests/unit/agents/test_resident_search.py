@@ -17,12 +17,12 @@ from tests.unit.agents.test_resident_profiles import profile_env as profile_env
 from tests.unit.agents.test_resident_tools import _scope
 from tests.unit.agents.test_resident_tools import tool_env as tool_env
 
-from octop.infra.agents.resident_identity import (
+from inhere_box.infra.agents.resident_identity import (
     ResidentTextOnlyMiddleware,
     resident_execution_scope,
 )
-from octop.infra.agents.resident_tools import RESIDENT_WEB_SEARCH_TOOLS, resident_tools_scope
-from octop.infra.projects.tasks import now_ms
+from inhere_box.infra.agents.resident_tools import RESIDENT_WEB_SEARCH_TOOLS, resident_tools_scope
+from inhere_box.infra.projects.tasks import now_ms
 
 
 def _tool(name):
@@ -36,7 +36,7 @@ def _name(tool):
 
 
 def _request(tool, **updates):
-    call = {"name": tool.name, "args": {"query": "Octop"}, "id": "search-call", **updates}
+    call = {"name": tool.name, "args": {"query": "inhere-box"}, "id": "search-call", **updates}
     return SimpleNamespace(tool=tool, tool_call=call)
 
 
@@ -186,7 +186,11 @@ async def test_real_graph_search_returns_evidence_and_denies_old_scope(tool_env,
             AIMessage(
                 content="",
                 tool_calls=[
-                    {"name": "searchfree_search", "args": {"query": "Octop"}, "id": "search-call"}
+                    {
+                        "name": "searchfree_search",
+                        "args": {"query": "inhere-box"},
+                        "id": "search-call",
+                    }
                 ],
             ),
             AIMessage(content="The actual search evidence has been checked."),
@@ -208,7 +212,7 @@ async def test_real_graph_search_returns_evidence_and_denies_old_scope(tool_env,
     receipts = [message for message in result["messages"] if isinstance(message, ToolMessage)]
     assert len(receipts) == 1 and receipts[0].tool_call_id == "search-call"
     assert receipts[0].status == ("success" if enabled else "error")
-    assert searches == (["Octop"] if enabled else [])
+    assert searches == (["inhere-box"] if enabled else [])
     if enabled:
         assert receipts[0].content == "Actual cited evidence https://example.test/octop"
     assert result["messages"][-1].content == "The actual search evidence has been checked."

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.usage import UsageRepo
-from octop.infra.db.repos.users import UserRepo
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.usage import UsageRepo
+from inhere_box.infra.db.repos.users import UserRepo
 
 
 def test_thread_totals_aggregate(tmp_path: Path):

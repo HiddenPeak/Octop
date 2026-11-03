@@ -6,13 +6,13 @@
 
 一条记录对应一次被观察到的 LangChain 模型调用，不是一条用户消息、整个 Task 或一次底层 HTTP 请求。一次业务轮次可能包含多次主执行、判难、自动摘要、标题、审核、进展说明或 peer 调用。SDK 在同一次逻辑调用内部重试 HTTP 时，仍只产生一条流水；`physical_attempts_available=false`，不宣称物理请求次数完整。
 
-接入点包括任务主执行、自动摘要、显式上下文压缩、同步与异步 peer、盒子判难、任务标题、自动审核、进展说明，以及普通聊天、cron、常驻会话、主动关怀、提示词润色、专家说明生成和知识库视觉 OCR 的模型调用。模型必须由已接入的 Octop 工厂构造，并在带有实例与身份的作用域内执行。ASR/TTS、embedding、连通性探测与外部插件自行创建的独立模型不属于本轮业务 LLM 流水覆盖。
+接入点包括任务主执行、自动摘要、显式上下文压缩、同步与异步 peer、盒子判难、任务标题、自动审核、进展说明，以及普通聊天、cron、常驻会话、主动关怀、提示词润色、专家说明生成和知识库视觉 OCR 的模型调用。模型必须由已接入的 inhere-box 工厂构造，并在带有实例与身份的作用域内执行。ASR/TTS、embedding、连通性探测与外部插件自行创建的独立模型不属于本轮业务 LLM 流水覆盖。
 
 主执行与摘要可能实际使用不同模型。每条流水保存工厂中真正调用的提供商和模型，不用轮次的主 `model_ref` 替换辅助调用模型。没有发生实际模型调用的宿主模板输出、无须压缩的操作或幂等回执不创建流水。
 
 ## 登录与接口
 
-使用现有 Octop 登录令牌 `Authorization: Bearer <Octop access_token>`，不是模型提供商的 Key：
+使用现有 inhere-box 登录令牌 `Authorization: Bearer <inhere-box access_token>`，不是模型提供商的 Key：
 
 | 接口 | 权限与范围 |
 | --- | --- |
@@ -25,14 +25,14 @@
 
 ```http
 GET /api/usage/calls?task_id=task_example&purpose=routing_classifier&source=box&limit=50
-Authorization: Bearer <Octop access_token>
+Authorization: Bearer <inhere-box access_token>
 ```
 
 请求被受理前的判难还没有 `task_id/turn_id`，应通过原请求标识查询：
 
 ```http
 GET /api/usage/calls?submission_id=create-request-001&purpose=routing_classifier
-Authorization: Bearer <Octop access_token>
+Authorization: Bearer <inhere-box access_token>
 ```
 
 可组合的精确筛选参数为 `provider/model_ref/source/purpose/status/agent_id/thread_id/project_id/task_id/turn_id/submission_id`。管理员接口另支持 `user_id`。未传参数表示不限定这一维度，不按展示名、URL 或正文模糊匹配。

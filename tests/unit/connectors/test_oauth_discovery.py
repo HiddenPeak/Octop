@@ -6,25 +6,25 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from octop.infra.connectors.custom_mcp import (
+from inhere_box.infra.connectors.custom_mcp import (
     build_oauth_storage,
     harness_spec_for_server,
     mark_oauth_reauth_required,
     merge_preserved_oauth,
     redact_server_for_api,
 )
-from octop.infra.connectors.oauth.discovery import (
+from inhere_box.infra.connectors.oauth.discovery import (
     build_protected_resource_metadata_urls,
     clear_oauth_discovery_cache,
     discover_oauth_from_mcp_url,
     parse_www_authenticate_resource_metadata,
 )
-from octop.infra.connectors.oauth.registry import (
+from inhere_box.infra.connectors.oauth.registry import (
     oauth_state_kind_for_target,
     oauth_target_requires_https,
     start_custom_mcp_oauth,
 )
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 def test_build_protected_resource_metadata_urls_path_and_root():
@@ -149,7 +149,7 @@ async def test_discover_oauth_from_mcp_url_uses_cache(monkeypatch: pytest.Monkey
         return cached_result
 
     monkeypatch.setattr(
-        "octop.infra.connectors.oauth.discovery._discover_oauth_from_mcp_url_uncached",
+        "inhere_box.infra.connectors.oauth.discovery._discover_oauth_from_mcp_url_uncached",
         fake_uncached,
     )
 
@@ -167,7 +167,7 @@ async def test_discover_oauth_from_mcp_url_uses_cache(monkeypatch: pytest.Monkey
 @pytest.mark.parametrize("url", ["http://127.0.0.1:9000/mcp", "https://192.168.1.2/mcp"])
 async def test_local_discovery_marks_unsupported_without_fetching(url, monkeypatch):
     request = AsyncMock(side_effect=AssertionError("local discovery must not fetch"))
-    monkeypatch.setattr("octop.infra.connectors.oauth.discovery.safe_request", request)
+    monkeypatch.setattr("inhere_box.infra.connectors.oauth.discovery.safe_request", request)
     result = await discover_oauth_from_mcp_url(url, use_cache=False)
     assert result["available"] is False
     assert result["unsupported_reason"] == "local_mcp"
@@ -176,15 +176,15 @@ async def test_local_discovery_marks_unsupported_without_fetching(url, monkeypat
 
 async def test_discovery_marks_missing_dynamic_registration(monkeypatch):
     monkeypatch.setattr(
-        "octop.infra.connectors.oauth.discovery._probe_401_resource_metadata",
+        "inhere_box.infra.connectors.oauth.discovery._probe_401_resource_metadata",
         AsyncMock(return_value=None),
     )
     monkeypatch.setattr(
-        "octop.infra.connectors.oauth.discovery._fetch_prm_document",
+        "inhere_box.infra.connectors.oauth.discovery._fetch_prm_document",
         AsyncMock(return_value={"authorization_servers": ["https://auth.example.com"]}),
     )
     monkeypatch.setattr(
-        "octop.infra.connectors.oauth.discovery.fetch_authorization_metadata",
+        "inhere_box.infra.connectors.oauth.discovery.fetch_authorization_metadata",
         AsyncMock(return_value={"authorization_endpoint": "https://auth.example.com/authorize"}),
     )
     result = await discover_oauth_from_mcp_url("https://mcp.example.com/mcp", use_cache=False)
@@ -195,7 +195,7 @@ async def test_discovery_marks_missing_dynamic_registration(monkeypatch):
 @pytest.mark.parametrize("reason", ["local_mcp", "dynamic_registration"])
 @pytest.mark.parametrize("locale", ["en", "zh"])
 async def test_custom_oauth_unsupported_reason_is_localized_without_upstream_text(reason, locale):
-    with pytest.raises(OctopError) as failure:
+    with pytest.raises(InhereBoxError) as failure:
         await start_custom_mcp_oauth(
             server_name="test-server",
             mcp_url="https://mcp.example.com/mcp",

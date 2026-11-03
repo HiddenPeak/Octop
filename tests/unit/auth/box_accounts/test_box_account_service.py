@@ -16,25 +16,25 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from octop.config import OctopConfig
-from octop.infra.auth.box_accounts import BoxAccountService
-from octop.infra.auth.box_accounts.crypto import PROOF_TYPE, canonical
-from octop.infra.db import migrate
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import OctopError
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.auth.box_accounts import BoxAccountService
+from inhere_box.infra.auth.box_accounts.crypto import PROOF_TYPE, canonical
+from inhere_box.infra.db import migrate
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
 def service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     paths = PathLayout(tmp_path)
     db = SqlitePool(paths.db)
     run_migrations(db)
     services = build_shared_services(
-        db=db, paths=paths, config=OctopConfig(account_mode="box_local")
+        db=db, paths=paths, config=InhereBoxConfig(account_mode="box_local")
     )
     domain = BoxAccountService(services, secret=b"test-secret" * 4, box_id="test-box")
     domain.initialize()
@@ -51,7 +51,7 @@ def management_key(service):
 def box_clock(monkeypatch: pytest.MonkeyPatch):
     now = [int(time.time())]
     monkeypatch.setattr(
-        "octop.infra.auth.box_accounts.service.time", SimpleNamespace(time=lambda: now[0])
+        "inhere_box.infra.auth.box_accounts.service.time", SimpleNamespace(time=lambda: now[0])
     )
     return now
 
@@ -129,12 +129,45 @@ def test_management_login_does_not_claim_any_client(service, management_key):
     assert management_key not in repr(
         service._services.audit_repo.query(action="box.management_key.rotate")
     )
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.initialize_management_key()
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.create_admin_session("wrong")
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.create_claim_grant()
+
+
+def test_protocol_rename_preserves_registered_device_identity(service, management_key, monkeypatch):
+    # Model an existing installation enrolled with the pre-rename protocol.
+    with monkeypatch.context() as legacy:
+        legacy.setattr(
+            "inhere_box.infra.auth.box_accounts.crypto.PROOF_TYPE", "octop-box-proof+jwt"
+        )
+        legacy.setattr("inhere_box.infra.auth.box_accounts.service.AUDIENCE", "octop-box-api")
+        key, pairing = primary_candidate(service, management_key)
+        proof = jwt.encode(
+            pairing["challenge"]["payload"],
+            key,
+            algorithm="ES256",
+            headers={"typ": "octop-box-proof+jwt"},
+        )
+        client_id = service.prove_pairing(pairing["pairing_id"], proof)["client_id"]
+
+    restarted = BoxAccountService(service._services, secret=b"test-secret" * 4, box_id="test-box")
+    restarted.initialize()
+    challenge = restarted.create_challenge(client_id=client_id)
+    old_proof = jwt.encode(
+        challenge["payload"], key, algorithm="ES256", headers={"typ": "octop-box-proof+jwt"}
+    )
+    with pytest.raises(InhereBoxError):
+        restarted.create_session(old_proof)
+    new_proof = jwt.encode(
+        challenge["payload"], key, algorithm="ES256", headers={"typ": "inhere-box-proof+jwt"}
+    )
+    result = restarted.create_session(new_proof)
+    claims = jwt.decode(result["access_token"], options={"verify_signature": False})
+    assert claims["aud"] == "inhere-box-api"
+    assert restarted.validate_access_token(result["access_token"]).paired_client_id == client_id
 
 
 def test_first_primary_is_explicit_and_guest_users_are_independent(service, management_key):
@@ -175,7 +208,7 @@ def test_guest_cannot_manage_box(service, management_key, operation):
         "rotate": lambda: service.rotate_management_key(guest),
         "browser": lambda: service.browser_session(guest),
     }
-    with pytest.raises(OctopError) as denied:
+    with pytest.raises(InhereBoxError) as denied:
         calls[operation]()
     assert denied.value.status == 403
 
@@ -185,7 +218,7 @@ def test_primary_can_share_with_action_proof_but_cannot_manage_key_or_devices(
 ):
     key, client_id = claim(service, management_key)
     context, _ = login(service, key, client_id)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.create_enroll_grant(context, request_id="one")
     challenge = service.create_challenge(
         client_id=client_id, action="enroll", params={"request_id": "one"}
@@ -198,7 +231,7 @@ def test_primary_can_share_with_action_proof_but_cannot_manage_key_or_devices(
         lambda: service.add_owner_device(context, client_id),
         lambda: service.rotate_management_key(context),
     ):
-        with pytest.raises(OctopError) as denied:
+        with pytest.raises(InhereBoxError) as denied:
             operation()
         assert denied.value.status == 403
 
@@ -223,7 +256,7 @@ def test_adding_owner_preserves_other_devices_and_guest_data(service, management
     )
     original_ids = {row["client_id"]: row["guest_user_id"] for row in service.clients(manager)}
     service.add_owner_device(manager, second_id)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.validate_access_token(second_token)
     assert service.validate_access_token(first_token) == first
     assert service.validate_access_token(other_token) == other
@@ -236,7 +269,7 @@ def test_adding_owner_preserves_other_devices_and_guest_data(service, management
         row["client_id"]: row["guest_user_id"] for row in service.clients(manager)
     }
     service.revoke_client(manager, first_id)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.validate_access_token(first_token)
     assert service.validate_access_token(second_owner_token) == second_owner
     assert service.validate_access_token(other_token) == other
@@ -249,7 +282,7 @@ def test_admin_can_revoke_last_primary_and_recover_without_any_client(service, m
     key, client_id = claim(service, management_key)
     _, token = login(service, key, client_id)
     service.revoke_client(manager, client_id)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.validate_access_token(token)
     assert service.status()["primary_client_id"] is None
     recovered = admin(service, management_key)
@@ -270,15 +303,15 @@ def test_key_rotation_revokes_web_and_shares_with_optional_native_revoke(
     grant = service.create_enroll_grant(manager, request_id="pending")
     rotated = service.rotate_management_key(manager, revoke_clients=revoke_clients)
     assert rotated["management_key_revision"] == 2
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.validate_context(manager)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.create_admin_session(management_key)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         begin_pairing(service, grant)
     assert admin(service, rotated["management_key"]).user.id == manager.user.id
     if revoke_clients:
-        with pytest.raises(OctopError):
+        with pytest.raises(InhereBoxError):
             service.validate_access_token(token)
         assert service.status()["primary_client_id"] is None
     else:
@@ -292,27 +325,27 @@ def test_browser_refresh_one_winner_and_native_session_preserved(service, manage
     csrf = service.browser_session(manager)["csrf_token"]
     service.require_browser_csrf(manager, csrf)
     for wrong in ("", "0" * 64, "非" * 64):
-        with pytest.raises(OctopError):
+        with pytest.raises(InhereBoxError):
             service.require_browser_csrf(manager, wrong)
 
     def attempt(_):
         try:
             return service.refresh_admin_session(manager)
-        except OctopError:
+        except InhereBoxError:
             return None
 
     with ThreadPoolExecutor(max_workers=4) as executor:
         results = list(executor.map(attempt, range(4)))
     assert sum(result is not None for result in results) == 1
     assert service.validate_access_token(token) == native
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.validate_context(manager)
     replacement = next(item for item in results if item is not None)
     refreshed = service.validate_access_token(replacement["access_token"])
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.require_browser_csrf(refreshed, csrf)
     service.logout(refreshed)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.validate_context(refreshed)
 
 
@@ -340,7 +373,7 @@ def test_proof_rejects_changed_or_untrusted_material(service, management_key, at
         algorithm="HS256" if attack == "alg" else "ES256",
         headers=headers,
     )
-    with pytest.raises(OctopError) as denied:
+    with pytest.raises(InhereBoxError) as denied:
         service.create_session(proof)
     assert denied.value.details["reason"] == "proof_invalid"
 
@@ -352,7 +385,7 @@ def test_challenge_and_primary_claim_have_one_concurrent_winner(service, managem
     def attempt(_):
         try:
             return service.prove_pairing(pairing["pairing_id"], proof)
-        except OctopError:
+        except InhereBoxError:
             return None
 
     with ThreadPoolExecutor(max_workers=4) as executor:
@@ -390,7 +423,7 @@ def test_share_remains_redeemable_until_48_hours_and_is_single_use(
     assert pairing["challenge"]["expires_at"] == box_clock[0] + 60
     result = service.prove_pairing(pairing["pairing_id"], sign(guest_key, pairing["challenge"]))
     assert result["state"] == "consumed" and result["client_id"]
-    with pytest.raises(OctopError) as replay:
+    with pytest.raises(InhereBoxError) as replay:
         begin_pairing(service, grant, request_id="another-device")
     assert replay.value.details["reason"] == "pairing_invalid"
 
@@ -402,7 +435,7 @@ def test_share_is_rejected_at_exactly_48_hours(service, management_key, box_cloc
     if candidate_bound:
         key, pairing = begin_pairing(service, grant)
     box_clock[0] = grant["expires_at"]
-    with pytest.raises(OctopError) as expired:
+    with pytest.raises(InhereBoxError) as expired:
         if candidate_bound:
             # The fresh proof is still valid, but the enclosing share has expired.
             service.prove_pairing(pairing["pairing_id"], sign(key, pairing["challenge"]))
@@ -433,7 +466,7 @@ def test_primary_claim_keeps_five_minute_window(service, management_key, box_clo
     if elapsed == 299:
         assert service.prove_pairing(pairing["pairing_id"], proof)["state"] == "consumed"
     else:
-        with pytest.raises(OctopError) as expired:
+        with pytest.raises(InhereBoxError) as expired:
             service.prove_pairing(pairing["pairing_id"], proof)
         assert expired.value.details["reason"] == "pairing_invalid"
 
@@ -462,7 +495,7 @@ def test_existing_share_expiry_is_not_extended_on_restart_or_retry(
     with restarted._services.db.connect() as conn:
         assert restarted._repo.grant(conn, grant["grant_id"])["expires_at"] == old_expiry
     box_clock[0] = old_expiry
-    with pytest.raises(OctopError) as expired:
+    with pytest.raises(InhereBoxError) as expired:
         restarted.prove_pairing(pairing["pairing_id"], sign(key, pairing["challenge"]))
     assert expired.value.details["reason"] == "pairing_invalid"
 
@@ -483,13 +516,13 @@ def test_share_secret_only_and_explicit_id_are_idempotent_and_key_bound(
         platform="native",
     )
     assert repeated["pairing_id"] == pairing["pairing_id"]
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         begin_pairing(service, grant)
     result = service.prove_pairing(pairing["pairing_id"], sign(key, pairing["challenge"]))
     assert result["state"] == "consumed"
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         begin_pairing(service, grant, request_id="reused")
-    with pytest.raises(OctopError) as duplicate:
+    with pytest.raises(InhereBoxError) as duplicate:
         service.create_enroll_grant(manager, request_id="one")
     assert duplicate.value.status == 409
 
@@ -511,9 +544,9 @@ def test_invalid_share_does_not_reveal_or_register_any_client(service, managemen
             conn.execute("UPDATE box_pairing_grants SET expires_at=0")
     else:
         for _ in range(10):
-            with pytest.raises(OctopError):
+            with pytest.raises(InhereBoxError):
                 begin_pairing(service, {**grant, "secret": "wrong"}, explicit_id=True)
-    with pytest.raises(OctopError) as denied:
+    with pytest.raises(InhereBoxError) as denied:
         begin_pairing(service, grant, **kwargs)
     assert denied.value.details["reason"] == "pairing_invalid"
     assert service.clients(manager) == []
@@ -545,11 +578,11 @@ def test_restart_invalidates_sessions_and_pending_proofs_only(service, managemen
     pending = sign(key, service.create_challenge(client_id=client_id))
     restarted = BoxAccountService(service._services, secret=b"test-secret" * 4, box_id="test-box")
     restarted.initialize()
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         restarted.validate_access_token(token)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         restarted.validate_context(manager)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         restarted.create_session(pending)
     assert login(restarted, key, client_id)[0].user.id == manager.user.id
     assert admin(restarted, management_key).user.id == manager.user.id
@@ -578,9 +611,9 @@ def test_old_database_never_revives_authorization(service, management_key, tmp_p
     restarted = BoxAccountService(service._services, secret=b"test-secret" * 4, box_id="test-box")
     restarted.initialize()
     assert restarted.status()["state"] == "recovery_required"
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         restarted.create_admin_session(management_key)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         login(restarted, guest_key, guest_id)
 
 
@@ -607,7 +640,7 @@ def test_trust_failures_require_local_recovery(service, management_key, failure)
     )
     restarted.initialize()
     assert restarted.status()["state"] == "recovery_required"
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         restarted.initialize_management_key(upgrade_legacy=True)
 
 
@@ -640,28 +673,28 @@ def test_admission_validation_uses_existing_transaction_and_rechecks_revocation(
     with service._services.db.transaction() as conn:
         assert service.validate_context(context, conn) == context
     service.logout(context)
-    with service._services.db.transaction() as conn, pytest.raises(OctopError):
+    with service._services.db.transaction() as conn, pytest.raises(InhereBoxError):
         service.validate_context(context, conn)
 
 
 def test_existing_unowned_users_cannot_be_adopted(service):
     service._services.user_repo.create(username="existing", password_hash="hash", role="admin")
     assert service.status()["state"] == "recovery_required"
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.initialize_management_key(upgrade_legacy=True)
 
 
 def test_rate_limit_and_unknown_challenges(service, management_key):
     for _ in range(30):
         service.rate_limit("source")
-    with pytest.raises(OctopError) as denied:
+    with pytest.raises(InhereBoxError) as denied:
         service.rate_limit("source")
     assert denied.value.status == 429
     service.rate_limit("other")
     fake = service.create_challenge(client_id="unknown")
     with service._services.db.connect() as conn:
         assert service._repo.challenge(conn, fake["challenge_id"]) is None
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.create_session(sign(keypair()[0], fake))
 
 
@@ -690,12 +723,12 @@ def test_legacy_upgrade_explicit_preserves_owner_and_revokes_every_old_identity(
     before = _legacy_record(service)
     service.initialize()
     assert service.status()["state"] == "recovery_required"
-    with pytest.raises(OctopError) as denied:
+    with pytest.raises(InhereBoxError) as denied:
         service.initialize_management_key()
     assert denied.value.details["reason"] == "legacy_upgrade_required"
     if corrupt:
         service._trust.path.write_text("{}")
-        with pytest.raises(OctopError):
+        with pytest.raises(InhereBoxError):
             service.initialize_management_key(upgrade_legacy=True)
         return
     result = service.initialize_management_key(upgrade_legacy=True)
@@ -823,7 +856,7 @@ def test_independent_owner_candidates_survive_another_registration(service, mana
         "client_id"
     ]
     # A changed authorization revision invalidates the old challenge, not the candidate.
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         service.prove_pairing(second["pairing_id"], sign(second_key, second["challenge"]))
     retry = service.create_primary_claim(
         management_key=management_key,

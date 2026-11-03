@@ -5,15 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-from tests.support.app import ensure_control_plane_bound, write_octop_config
+from tests.support.app import ensure_control_plane_bound, write_inhere_box_config
 
-from octop.api.app import build_app
-from octop.infra.server import OctopServer
+from inhere_box.api.app import build_app
+from inhere_box.infra.server import InhereBoxServer
 
 
-async def test_openapi_has_bearer_security_and_descriptions(tmp_octop_home: Path) -> None:
-    write_octop_config(tmp_octop_home, enable_api_docs=True)
-    srv = OctopServer(home=tmp_octop_home)
+async def test_openapi_has_bearer_security_and_descriptions(tmp_inhere_box_home: Path) -> None:
+    write_inhere_box_config(tmp_inhere_box_home, enable_api_docs=True)
+    srv = InhereBoxServer(home=tmp_inhere_box_home)
     await srv.start()
     await ensure_control_plane_bound(srv)
     try:

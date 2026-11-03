@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.agents.middleware.binary_read_guard import read_file_block_reason
+from inhere_box.infra.agents.middleware.binary_read_guard import read_file_block_reason
 
 
 def test_blocks_inbound_pdf() -> None:

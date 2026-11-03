@@ -1,6 +1,6 @@
 """Tests for the editable-document registry and its Markdown round-trip.
 
-Covers :mod:`octop.infra.utils.doc_edit`: the extension registry that powers
+Covers :mod:`inhere_box.infra.utils.doc_edit`: the extension registry that powers
 the generic ``/workspace/doc`` endpoints, plus the docx converter's
 ``to_markdown`` / ``from_markdown`` round-trip.
 """
@@ -14,7 +14,7 @@ from zipfile import BadZipFile
 import pytest
 from docx import Document
 
-from octop.infra.utils.doc_edit import (
+from inhere_box.infra.utils.doc_edit import (
     DocxDocConverter,
     editable_doc_extensions,
     get_doc_converter,

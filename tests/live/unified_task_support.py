@@ -25,10 +25,12 @@ class LiveTaskEnvironment:
 
 
 def source_provider() -> tuple[dict[str, Any], dict[str, Any]]:
-    source = os.environ.get("OCTOP_LIVE_PROVIDER_DB", "")
-    reference = os.environ.get("OCTOP_LIVE_MODEL_REF", "")
+    source = os.environ.get("INHERE_BOX_LIVE_PROVIDER_DB", "")
+    reference = os.environ.get("INHERE_BOX_LIVE_MODEL_REF", "")
     if not source or "/" not in reference:
-        raise ValueError("Explicit OCTOP_LIVE_PROVIDER_DB and OCTOP_LIVE_MODEL_REF are required")
+        raise ValueError(
+            "Explicit INHERE_BOX_LIVE_PROVIDER_DB and INHERE_BOX_LIVE_MODEL_REF are required"
+        )
     provider_name, _, model_id = reference.partition("/")
     with sqlite3.connect(Path(source).resolve().as_uri() + "?mode=ro", uri=True) as connection:
         connection.row_factory = sqlite3.Row
@@ -54,23 +56,23 @@ def source_provider() -> tuple[dict[str, Any], dict[str, Any]]:
 
 @asynccontextmanager
 async def live_task_environment(home: Path) -> AsyncIterator[LiveTaskEnvironment]:
-    from tests.support.app import octop_client, write_octop_config
+    from tests.support.app import inhere_box_client, write_inhere_box_config
     from tests.support.auth import auth_header, bootstrap_admin, resolve_user_id
 
-    if any(key.startswith("OCTOP_DATABASE_") and value for key, value in os.environ.items()):
+    if any(key.startswith("INHERE_BOX_DATABASE_") and value for key, value in os.environ.items()):
         raise ValueError("Live acceptance refuses inherited database overrides")
     provider, model = source_provider()
     home.mkdir(mode=0o700, parents=True, exist_ok=True)
     profiles = home / "browser-profiles"
     profiles.mkdir(exist_ok=True)
     (profiles / "acceptance-isolated").touch()
-    write_octop_config(
+    write_inhere_box_config(
         home,
-        database={"driver": "sqlite", "sqlite_path": "octop.db"},
+        database={"driver": "sqlite", "sqlite_path": "inhere-box.db"},
         enable_api_docs=True,
         default_timezone="Asia/Shanghai",
     )
-    async with octop_client(home, patch_llm=False) as (client, server):
+    async with inhere_box_client(home, patch_llm=False) as (client, server):
         await bootstrap_admin(client, home)
         auth = await auth_header(client)
         services = server.services

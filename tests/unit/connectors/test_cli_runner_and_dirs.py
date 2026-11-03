@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.connectors.gateway import cli_dirs, cli_runner
+from inhere_box.infra.connectors.gateway import cli_dirs, cli_runner
 
 
 def test_resolve_binary_missing_does_not_suggest_npm(
@@ -31,14 +31,14 @@ def test_format_cli_error_strips_cli_hints() -> None:
 
 
 def test_cleanup_removes_instance_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
-    from octop.infra.utils.paths import PathLayout
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
+    from inhere_box.infra.utils.paths import PathLayout
 
     layout = PathLayout.from_env()
     target = layout.ensure_connector_cli_instance_dir("feishu-cli", "inst1")
     (target / "config.json").write_text("{}", encoding="utf-8")
     assert target.is_dir()
-    # PathLayout must nest under OCTOP_HOME without assuming POSIX separators.
+    # PathLayout must nest under INHERE_BOX_HOME without assuming POSIX separators.
     assert target == tmp_path / "connector-cli" / "feishu-cli" / "inst1"
     cli_dirs.remove_connector_cli_dirs("feishu-cli", "inst1", "unused")
     assert not target.exists()

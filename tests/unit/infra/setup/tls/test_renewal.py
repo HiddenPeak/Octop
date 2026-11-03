@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from octop.infra.setup.tls.renewal import cert_expires_within_days
+from inhere_box.infra.setup.tls.renewal import cert_expires_within_days
 
 
 def test_cert_expires_within_days_true():

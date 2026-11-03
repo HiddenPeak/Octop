@@ -7,7 +7,7 @@ export const DEFAULT_TASK_PRESENTATION_SETTINGS: TaskPresentationSettings = {
   step_panel_enabled: true,
 };
 
-const settingsChanged = "octop:task-presentation-settings-changed";
+const settingsChanged = "inhere-box:task-presentation-settings-changed";
 
 export function invalidateTaskPresentationSettings() {
   window.dispatchEvent(new Event(settingsChanged));

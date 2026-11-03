@@ -10,9 +10,9 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
-from octop.api.routers.setup import ProviderDraftBody, _apply_provider_draft
-from octop.infra.agents.providers.store import ProviderStore
-from octop.infra.projects import runtime
+from inhere_box.api.routers.setup import ProviderDraftBody, _apply_provider_draft
+from inhere_box.infra.agents.providers.store import ProviderStore
+from inhere_box.infra.projects import runtime
 from tests.support.auth import create_user
 from tests.support.http import ws_connect, ws_token
 
@@ -95,7 +95,7 @@ async def test_box_model_discovery_omits_auth_and_preserves_context(env: Any) ->
     transport = httpx.MockTransport(answer)
     original_client = httpx.AsyncClient
     with patch(
-        "octop.infra.agents.providers.probe.httpx.AsyncClient",
+        "inhere_box.infra.agents.providers.probe.httpx.AsyncClient",
         side_effect=lambda **kwargs: original_client(transport=transport, **kwargs),
     ):
         response = await client.post(
@@ -121,7 +121,7 @@ async def test_box_model_discovery_omits_auth_and_preserves_context(env: Any) ->
 async def test_box_draft_probe_and_initial_setup_accept_empty_key(env: Any) -> None:
     client, server, auth = env
     with patch(
-        "octop.api.routers.providers.probe_provider_row",
+        "inhere_box.api.routers.providers.probe_provider_row",
         new=AsyncMock(return_value={"ok": True, "latency_ms": 1}),
     ) as probe:
         response = await client.post(
@@ -230,7 +230,7 @@ async def test_business_turn_model_choice_overrides_default_and_reaches_worker(
             response = await client.post(url, headers=auth, json=body)
             assert response.status_code == 202, response.text
             return response.json()
-        async with ws_connect(client._octop_app, "/api/project-tasks/ws") as ws:
+        async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws") as ws:
             await ws.send_json({"type": "authenticate", "token": ws_token(auth)})
             assert (await ws.receive_json())["type"] == "ready"
             command_id = "command-" + body["request_id"]

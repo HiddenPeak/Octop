@@ -16,16 +16,16 @@ from octop_harness import HarnessAgent
 from octop_harness.llm.factory import ChatModelFactory
 from tests.unit.projects.test_unified_ingress import message, services  # noqa: F401
 
-from octop.infra.agents.resident_identity import ensure_resident_identity
-from octop.infra.cron.delivery import CronDeliveryCommand, CronDeliveryService
-from octop.infra.errors import OctopError
-from octop.infra.gateway.process.task_adapter import TaskChannelAdapter
-from octop.infra.projects import resident_tasks, runtime, tasks
+from inhere_box.infra.agents.resident_identity import ensure_resident_identity
+from inhere_box.infra.cron.delivery import CronDeliveryCommand, CronDeliveryService
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.gateway.process.task_adapter import TaskChannelAdapter
+from inhere_box.infra.projects import resident_tasks, runtime, tasks
 
 
 @pytest.fixture(autouse=True)
 def no_title_network(monkeypatch):
-    from octop.infra.projects.title import TaskTitleAgent, TitleResult
+    from inhere_box.infra.projects.title import TaskTitleAgent, TitleResult
 
     monkeypatch.setattr(TaskTitleAgent, "generate", AsyncMock(return_value=TitleResult()))
 
@@ -149,9 +149,9 @@ async def test_resident_internal_task_uses_real_graph_preserves_identity_and_not
         await resident_tasks.append_message(services, 1, binding.thread_id, notice)
         await resident_tasks.append_message(services, 1, binding.thread_id, notice)
         assert len(services.project_task_turn_repo.list(identifier)) == 2
-        with pytest.raises(OctopError):
+        with pytest.raises(InhereBoxError):
             tasks.detail(services, 1, identifier)
-        with pytest.raises(OctopError):
+        with pytest.raises(InhereBoxError):
             await resident_tasks.ensure_task(services, 2, binding.thread_id, "foreign")
     finally:
         await worker.close()
@@ -261,7 +261,7 @@ async def test_im_modes_pending_and_private_resident_rejection(services):  # noq
     assert replay.turn_id == mode.turn_id
     binding = await ensure_resident_identity(services, 1)
     services.channel_repo.update("commands", agent_id=binding.agent_id)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await adapter.submit(inbound("private", "private"))
     assert services.project_task_turn_repo.get(first.turn_id).status == "queued"
 
@@ -269,7 +269,7 @@ async def test_im_modes_pending_and_private_resident_rejection(services):  # noq
 async def test_outbound_disconnect_recovery_never_reruns_model_or_unknown_send(
     services, monkeypatch
 ):  # noqa: F811
-    from octop.infra.projects import deliveries
+    from inhere_box.infra.projects import deliveries
 
     message(services)
     observed = []
@@ -392,7 +392,7 @@ async def test_im_multiple_questions_resume_same_turn_and_response_event_replay(
 
 
 async def test_cron_reserved_before_dispatch_is_recovered_without_model(services):
-    from octop.infra.cron.task_delivery import recover, reserve
+    from inhere_box.infra.cron.task_delivery import recover, reserve
 
     services.cron_repo.create(
         cron_id="durable-note",
@@ -437,7 +437,7 @@ async def test_cron_reserved_before_dispatch_is_recovered_without_model(services
 
 
 async def test_reset_receipt_atomic_replay_cannot_detach_followup(services):
-    from octop.infra.projects import ingress
+    from inhere_box.infra.projects import ingress
 
     message(services)
     services.channel_repo.create(
@@ -474,8 +474,8 @@ async def test_reset_receipt_atomic_replay_cannot_detach_followup(services):
 async def test_production_global_processor_uses_tasks_and_localizes_unsupported_commands(
     services, monkeypatch
 ):
-    from octop.infra.gateway.process.processor import GlobalProcessor
-    from octop.infra.gateway.slash.dispatcher import SlashDispatcher
+    from inhere_box.infra.gateway.process.processor import GlobalProcessor
+    from inhere_box.infra.gateway.slash.dispatcher import SlashDispatcher
 
     message(services)
     observed = []
@@ -531,12 +531,12 @@ async def test_production_global_processor_uses_tasks_and_localizes_unsupported_
 async def test_unverified_im_strips_private_expert_memory_and_only_local_owner_can_approve(
     services, monkeypatch
 ):
-    from octop.infra.projects import approval_policy, interactions
-    from octop.infra.projects.approval_models import ApprovalPolicyUpdate
-    from octop.infra.projects.interaction_models import InteractionResponse
+    from inhere_box.infra.projects import approval_policy, interactions
+    from inhere_box.infra.projects.approval_models import ApprovalPolicyUpdate
+    from inhere_box.infra.projects.interaction_models import InteractionResponse
 
     message(services)
-    from octop.infra.projects.expert_memory import ExpertMemory
+    from inhere_box.infra.projects.expert_memory import ExpertMemory
 
     recalled = []
 
@@ -623,7 +623,7 @@ async def test_unverified_im_strips_private_expert_memory_and_only_local_owner_c
         assert "owner-private-recall-marker" not in observed[0].system_prompt and not recalled
         assert "Expert identity" in observed[0].system_prompt
         assert not any(tool.name.startswith("expert_memory_") for tool in observed[0].tools)
-        with pytest.raises(OctopError):
+        with pytest.raises(InhereBoxError):
             await adapter.submit(inbound("/approve " + item.interaction_id, "im-approval"))
         assert not (
             services.paths.root / "project-tasks" / first.task_id / "workspace" / "approved.txt"

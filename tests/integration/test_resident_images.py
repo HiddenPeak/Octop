@@ -13,7 +13,7 @@ from uuid import uuid4
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, message_to_dict
 
-from octop.infra.projects import input_attachments, resident_tasks, runtime
+from inhere_box.infra.projects import input_attachments, resident_tasks, runtime
 from tests.integration.test_project_task_artifacts import real_model as real_model
 from tests.integration.test_project_task_images import (
     assert_durable_references,
@@ -218,7 +218,7 @@ async def test_image_turn_temporarily_upgrades_current_model_and_freezes_actual_
 async def test_imported_private_image_context_also_upgrades_a_text_followup(
     env_with_provider, real_model, monkeypatch
 ):
-    from octop.infra.history import migration_source
+    from inhere_box.infra.history import migration_source
 
     client, server, auth = env_with_provider
     observed = resident_model(real_model, monkeypatch, [AIMessage(content="Still blue.")])

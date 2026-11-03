@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from tests.support.fakes import fake_bin_path
 
-from octop.infra.connectors.gateway.adapters import wecom_cli
+from inhere_box.infra.connectors.gateway.adapters import wecom_cli
 
 
 def test_humanize_strips_init_hint() -> None:
@@ -39,13 +39,13 @@ def test_humanize_unrecognized_method_not_bad_creds() -> None:
 
 
 def test_call_tool_humanizes_errors(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.wecom_cli.resolve_binary",
+        "inhere_box.infra.connectors.gateway.adapters.wecom_cli.resolve_binary",
         lambda _n: fake_bin_path("wecom-cli"),
     )
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.wecom_cli.materialize_wecom_bot_config",
+        "inhere_box.infra.connectors.gateway.adapters.wecom_cli.materialize_wecom_bot_config",
         lambda *a, **k: None,
     )
 
@@ -53,7 +53,7 @@ def test_call_tool_humanizes_errors(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         raise ValueError("请先运行 `wecom-cli init`")
 
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.wecom_cli.run_cli",
+        "inhere_box.infra.connectors.gateway.adapters.wecom_cli.run_cli",
         _fake_run,
     )
     with pytest.raises(ValueError, match="Bot") as ei:
@@ -68,9 +68,9 @@ def test_call_tool_humanizes_errors(monkeypatch: pytest.MonkeyPatch, tmp_path: P
 def test_probe_requires_non_empty_mcp_cache(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.wecom_cli.resolve_binary",
+        "inhere_box.infra.connectors.gateway.adapters.wecom_cli.resolve_binary",
         lambda _n: fake_bin_path("wecom-cli"),
     )
 
@@ -81,11 +81,11 @@ def test_probe_requires_non_empty_mcp_cache(
         (config_dir / "bot.enc").write_bytes(b"x")
 
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.wecom_cli.materialize_wecom_bot_config",
+        "inhere_box.infra.connectors.gateway.adapters.wecom_cli.materialize_wecom_bot_config",
         _materialize,
     )
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.wecom_cli.read_mcp_items_count",
+        "inhere_box.infra.connectors.gateway.adapters.wecom_cli.read_mcp_items_count",
         lambda _dir: 0,
     )
     with pytest.raises(ValueError, match="MCP"):
@@ -93,9 +93,9 @@ def test_probe_requires_non_empty_mcp_cache(
 
 
 def test_probe_ok_with_mcp_items(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.wecom_cli.resolve_binary",
+        "inhere_box.infra.connectors.gateway.adapters.wecom_cli.resolve_binary",
         lambda _n: fake_bin_path("wecom-cli"),
     )
 
@@ -105,15 +105,15 @@ def test_probe_ok_with_mcp_items(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
         (config_dir / "mcp_config.enc").write_bytes(b"ok")
 
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.wecom_cli.materialize_wecom_bot_config",
+        "inhere_box.infra.connectors.gateway.adapters.wecom_cli.materialize_wecom_bot_config",
         _materialize,
     )
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.wecom_cli.read_mcp_items_count",
+        "inhere_box.infra.connectors.gateway.adapters.wecom_cli.read_mcp_items_count",
         lambda _dir: 2,
     )
     monkeypatch.setattr(
-        "octop.infra.connectors.gateway.adapters.wecom_cli.run_cli",
+        "inhere_box.infra.connectors.gateway.adapters.wecom_cli.run_cli",
         lambda *_a, **_k: "usage: wecom-cli doc",
     )
     wecom_cli.probe_credentials({"bot_id": "b1", "bot_secret": "s1", "instance_id": "i1"})

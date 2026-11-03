@@ -6,14 +6,14 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from octop.api.app import build_app
-from tests.support.app import octop_client
+from inhere_box.api.app import build_app
+from tests.support.app import inhere_box_client
 
-_DASHBOARD = Path(__file__).resolve().parents[2] / "src" / "octop" / "dashboard"
+_DASHBOARD = Path(__file__).resolve().parents[2] / "src" / "inhere_box" / "dashboard"
 
 
-async def test_root_serves_dashboard_index(tmp_octop_home: Path) -> None:
-    async with octop_client(tmp_octop_home) as (_client, srv):
+async def test_root_serves_dashboard_index(tmp_inhere_box_home: Path) -> None:
+    async with inhere_box_client(tmp_inhere_box_home) as (_client, srv):
         app = build_app(srv)
         with TestClient(app) as c:
             r = c.get("/")
@@ -22,8 +22,8 @@ async def test_root_serves_dashboard_index(tmp_octop_home: Path) -> None:
             assert r2.status_code == 200
 
 
-async def test_dashboard_shell_is_not_cached(tmp_octop_home: Path) -> None:
-    async with octop_client(tmp_octop_home) as (_client, srv):
+async def test_dashboard_shell_is_not_cached(tmp_inhere_box_home: Path) -> None:
+    async with inhere_box_client(tmp_inhere_box_home) as (_client, srv):
         app = build_app(srv)
         with TestClient(app) as c:
             for path in ("/", "/index.html", "/sw.js", "/chat"):
@@ -33,12 +33,12 @@ async def test_dashboard_shell_is_not_cached(tmp_octop_home: Path) -> None:
                 assert "no-cache" in r.headers.get("cache-control", ""), path
 
 
-async def test_hashed_dashboard_assets_are_immutable(tmp_octop_home: Path) -> None:
+async def test_hashed_dashboard_assets_are_immutable(tmp_inhere_box_home: Path) -> None:
     asset_dir = _DASHBOARD / "assets"
     sample = next(asset_dir.glob("*.js"), None)
     if sample is None:
         return
-    async with octop_client(tmp_octop_home) as (_client, srv):
+    async with inhere_box_client(tmp_inhere_box_home) as (_client, srv):
         app = build_app(srv)
         with TestClient(app) as c:
             r = c.get(f"/assets/{sample.name}")
@@ -46,10 +46,10 @@ async def test_hashed_dashboard_assets_are_immutable(tmp_octop_home: Path) -> No
             assert r.headers.get("cache-control") == "public, max-age=31536000, immutable"
 
 
-async def test_missing_hashed_asset_returns_404(tmp_octop_home: Path) -> None:
+async def test_missing_hashed_asset_returns_404(tmp_inhere_box_home: Path) -> None:
     if not (_DASHBOARD / "index.html").exists():
         return
-    async with octop_client(tmp_octop_home) as (_client, srv):
+    async with inhere_box_client(tmp_inhere_box_home) as (_client, srv):
         app = build_app(srv)
         with TestClient(app) as c:
             # A stale shell asks for a deleted chunk; answering with index.html
@@ -58,8 +58,8 @@ async def test_missing_hashed_asset_returns_404(tmp_octop_home: Path) -> None:
             assert r.status_code == 404
 
 
-async def test_path_traversal_is_blocked(tmp_octop_home: Path) -> None:
-    async with octop_client(tmp_octop_home) as (_client, srv):
+async def test_path_traversal_is_blocked(tmp_inhere_box_home: Path) -> None:
+    async with inhere_box_client(tmp_inhere_box_home) as (_client, srv):
         app = build_app(srv)
         with TestClient(app) as c:
             # Percent-encoded and literal `..` must not escape the dashboard

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.api.routers import update_store
+from inhere_box.api.routers import update_store
 
 
 def setup_function() -> None:

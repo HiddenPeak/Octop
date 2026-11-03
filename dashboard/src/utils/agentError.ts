@@ -1,10 +1,10 @@
-/** Translate agent ``last_error`` values stored with an ``octop:`` prefix. */
+/** Translate agent ``last_error`` values stored with an ``inhere-box:`` prefix. */
 
 import type { TFunction } from "i18next";
 
 const MODEL_CONFIG_KEYS = new Set([
-  "octop:agent_errors.no_models_configured",
-  "octop:agent_errors.model_ref_unavailable",
+  "inhere-box:agent_errors.no_models_configured",
+  "inhere-box:agent_errors.model_ref_unavailable",
 ]);
 
 function isRawModelRefError(error: string): boolean {
@@ -44,8 +44,8 @@ export function formatAgentError(
   t: TFunction,
 ): string {
   if (!error) return "";
-  if (error.startsWith("octop:")) {
-    const key = error.slice("octop:".length);
+  if (error.startsWith("inhere-box:")) {
+    const key = error.slice("inhere-box:".length);
     return t(key, { defaultValue: error });
   }
   if (isRawModelRefError(error)) {

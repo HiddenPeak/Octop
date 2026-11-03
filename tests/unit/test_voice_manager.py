@@ -6,18 +6,18 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.settings import SettingsRepo
-from octop.infra.db.repos.voice_providers import VoiceProviderRepo, VoiceProviderRow
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.voice import adapters
-from octop.infra.voice.manager import VoiceManager
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.settings import SettingsRepo
+from inhere_box.infra.db.repos.voice_providers import VoiceProviderRepo, VoiceProviderRow
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.voice import adapters
+from inhere_box.infra.voice.manager import VoiceManager
 
 
 @pytest.fixture
 def voice_mgr(tmp_path: Path) -> VoiceManager:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     settings = SettingsRepo(db)
     repo = VoiceProviderRepo(db)
@@ -35,21 +35,21 @@ def test_set_active_edge_tts_only(voice_mgr: VoiceManager) -> None:
 
 
 def test_edge_cannot_be_stt(voice_mgr: VoiceManager) -> None:
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         voice_mgr.set_active(stt="edge")
     assert exc.value.code == ErrorCode.VOICE_CAPABILITY_MISMATCH
 
 
 @pytest.mark.asyncio
 async def test_transcribe_browser_raises_browser_only(voice_mgr: VoiceManager) -> None:
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         await voice_mgr.transcribe(b"audio", mime="audio/webm")
     assert exc.value.code == ErrorCode.VOICE_BROWSER_ONLY
 
 
 @pytest.mark.asyncio
 async def test_synthesize_browser_raises_browser_only(voice_mgr: VoiceManager) -> None:
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         chunks = [c async for c in voice_mgr.synthesize("hello")]
         assert not chunks
     assert exc.value.code == ErrorCode.VOICE_BROWSER_ONLY

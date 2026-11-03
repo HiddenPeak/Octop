@@ -6,9 +6,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from octop.infra.server import OctopServer
-from octop.infra.setup.password_file import read_password
-from tests.support.app import write_octop_config
+from inhere_box.infra.server import InhereBoxServer
+from inhere_box.infra.setup.password_file import read_password
+from tests.support.app import write_inhere_box_config
 from tests.support.auth import auth_header, bootstrap_admin
 
 
@@ -79,22 +79,22 @@ async def test_double_bootstrap_returns_410(patched_app_client: Any) -> None:
     assert r.json()["error"]["code"] == "SETUP_REQUIRED"
 
 
-async def test_start_writes_wizard_password_when_no_users(tmp_octop_home: Path) -> None:
-    srv = OctopServer(home=tmp_octop_home)
+async def test_start_writes_wizard_password_when_no_users(tmp_inhere_box_home: Path) -> None:
+    srv = InhereBoxServer(home=tmp_inhere_box_home)
     await srv.start()
     try:
-        assert (tmp_octop_home / "octop-login.txt").exists()
-        assert not (tmp_octop_home.parent / "octop-login.txt").exists()
+        assert (tmp_inhere_box_home / "inhere-box-login.txt").exists()
+        assert not (tmp_inhere_box_home.parent / "inhere-box-login.txt").exists()
     finally:
         await srv.stop()
 
 
-async def test_start_skips_wizard_password_when_disabled(tmp_octop_home: Path) -> None:
-    write_octop_config(tmp_octop_home, require_setup_password=False)
-    srv = OctopServer(home=tmp_octop_home)
+async def test_start_skips_wizard_password_when_disabled(tmp_inhere_box_home: Path) -> None:
+    write_inhere_box_config(tmp_inhere_box_home, require_setup_password=False)
+    srv = InhereBoxServer(home=tmp_inhere_box_home)
     await srv.start()
     try:
-        assert not (tmp_octop_home / "octop-login.txt").exists()
+        assert not (tmp_inhere_box_home / "inhere-box-login.txt").exists()
     finally:
         await srv.stop()
 
@@ -106,12 +106,12 @@ async def test_main_agent_seeds_general_assistant_workspace(patched_app_client: 
     ws = home / "agents" / "main"
     assert (ws / "SOUL.md").is_file()
     # New agents use system_files_path=.octop — BackendWorkspace remaps skills/.
-    assert (ws / ".octop" / "skills" / "octop-assistant" / "SKILL.md").is_file()
+    assert (ws / ".octop" / "skills" / "inhere-box-assistant" / "SKILL.md").is_file()
 
 
 async def test_main_agent_uses_fs_root_backend(patched_app_client: Any) -> None:
     """Default main uses the same FS-root local backend as dashboard-created agents."""
-    from octop.infra.utils.host_dirs import host_fs_tree_root
+    from inhere_box.infra.utils.host_dirs import host_fs_tree_root
 
     c, srv, home = patched_app_client
     await bootstrap_admin(c, home)

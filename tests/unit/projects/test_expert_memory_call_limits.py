@@ -14,7 +14,7 @@ from openai import InternalServerError
 from tests.unit.projects.test_expert_execution import services  # noqa: F401
 from tests.unit.projects.test_expert_memory_extraction import capture_job, response
 
-from octop.infra.projects import expert_memory_extraction as extraction
+from inhere_box.infra.projects import expert_memory_extraction as extraction
 
 
 @pytest.fixture

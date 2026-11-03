@@ -5,8 +5,8 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects.settings import (
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects.settings import (
     ACTION_TIMELINE_ENV,
     STEP_PANEL_ENV,
     load_settings,
@@ -14,8 +14,8 @@ from octop.infra.projects.settings import (
     preserve_env_values,
     validate_env_values,
 )
-from octop.infra.projects.tasks import TaskExecutionOptions
-from octop.infra.utils.env_file import save_env_file
+from inhere_box.infra.projects.tasks import TaskExecutionOptions
+from inhere_box.infra.utils.env_file import save_env_file
 
 
 @pytest.mark.parametrize("value", ["true", "1", "yes", "on", " TrUe ", "YES"])
@@ -62,7 +62,7 @@ def test_missing_values_default_true_without_a_persisted_file(tmp_path, monkeypa
 @pytest.mark.parametrize("key", [ACTION_TIMELINE_ENV, STEP_PANEL_ENV])
 @pytest.mark.parametrize("value", ["", "enabled", "2", "unexpected private text"])
 def test_invalid_switch_values_do_not_disclose_the_value(key, value):
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         validate_env_values({key: value})
     assert error.value.code == ErrorCode.TASK_SETTINGS_INVALID
     assert error.value.details == {"setting": key}

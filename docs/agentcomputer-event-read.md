@@ -1,6 +1,6 @@
 # AgentComputer Task 控制事件读取
 
-`GET /api/agentcomputer/v1/tasks/{taskID}/events?limit=50&cursor=...` 以 Task 的连续 `sequence` 升序返回已提交的控制事件摘要。认证使用 Octop 用户 Bearer；不存在或属于其他用户的 Task 一律返回 404，管理员也不越权。`limit` 为 1–100。响应禁止缓存，形状为：
+`GET /api/agentcomputer/v1/tasks/{taskID}/events?limit=50&cursor=...` 以 Task 的连续 `sequence` 升序返回已提交的控制事件摘要。认证使用 inhere-box 用户 Bearer；不存在或属于其他用户的 Task 一律返回 404，管理员也不越权。`limit` 为 1–100。响应禁止缓存，形状为：
 
 ```json
 {

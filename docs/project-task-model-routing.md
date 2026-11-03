@@ -6,7 +6,7 @@ Task 仍是多轮会话。每次新消息单独判难，同一轮中的执行、
 
 ## 认证与能力发现
 
-REST 使用现有 Octop 登录令牌 `Authorization: Bearer <Octop access_token>`，JSON 请求同时使用 `Content-Type: application/json`。此令牌不是盒子或远端模型服务商的 API Key。WebSocket 使用现有 `/api/project-tasks/ws`，连接后先发送 `authenticate`；认证与命令协议不变。
+REST 使用现有 inhere-box 登录令牌 `Authorization: Bearer <inhere-box access_token>`，JSON 请求同时使用 `Content-Type: application/json`。此令牌不是盒子或远端模型服务商的 API Key。WebSocket 使用现有 `/api/project-tasks/ws`，连接后先发送 `authenticate`；认证与命令协议不变。
 
 先读取 `GET /api/project-tasks/resources`。`models`、`default_model_ref` 继续提供可显式选择的主模型；新增 `routing` 声明路由能力和当前配置，例如：
 
@@ -87,7 +87,7 @@ REST 使用现有 Octop 登录令牌 `Authorization: Bearer <Octop access_token>
 
 ```http
 POST /api/project-tasks
-Authorization: Bearer <Octop access_token>
+Authorization: Bearer <inhere-box access_token>
 Content-Type: application/json
 ```
 
@@ -105,7 +105,7 @@ Content-Type: application/json
 
 ```http
 POST /api/project-tasks/task_example/messages
-Authorization: Bearer <Octop access_token>
+Authorization: Bearer <inhere-box access_token>
 Content-Type: application/json
 ```
 
@@ -123,7 +123,7 @@ Content-Type: application/json
 
 ```http
 POST /api/project-tasks/task_example/turns/turn_example/retry
-Authorization: Bearer <Octop access_token>
+Authorization: Bearer <inhere-box access_token>
 Content-Type: application/json
 ```
 

@@ -6,11 +6,11 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import type { OctopUser } from "../api/modules/auth";
+import type { InhereBoxUser } from "../api/modules/auth";
 
 type CurrentUserContextValue = {
-  user: OctopUser | null;
-  setUser: Dispatch<SetStateAction<OctopUser | null>>;
+  user: InhereBoxUser | null;
+  setUser: Dispatch<SetStateAction<InhereBoxUser | null>>;
 };
 
 const CurrentUserContext = createContext<CurrentUserContextValue | null>(null);
@@ -20,8 +20,8 @@ export function CurrentUserProvider({
   setUser,
   children,
 }: {
-  user: OctopUser | null;
-  setUser: Dispatch<SetStateAction<OctopUser | null>>;
+  user: InhereBoxUser | null;
+  setUser: Dispatch<SetStateAction<InhereBoxUser | null>>;
   children: ReactNode;
 }) {
   const value = useMemo(() => ({ user, setUser }), [user, setUser]);
@@ -36,12 +36,12 @@ export function CurrentUserProvider({
  * Current authenticated user from AuthGuard's ``/auth/me`` result.
  * ``null`` while loading or when the provider is not mounted.
  */
-export function useCurrentUser(): OctopUser | null {
+export function useCurrentUser(): InhereBoxUser | null {
   return useContext(CurrentUserContext)?.user ?? null;
 }
 
 export function useSetCurrentUser(): Dispatch<
-  SetStateAction<OctopUser | null>
+  SetStateAction<InhereBoxUser | null>
 > {
   const ctx = useContext(CurrentUserContext);
   if (!ctx) {

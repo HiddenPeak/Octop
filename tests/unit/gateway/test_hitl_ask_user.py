@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.gateway.hitl.coordinator import (
+from inhere_box.infra.gateway.hitl.coordinator import (
     HitlChannelCoordinator,
     decision_rejection_reason,
 )
-from octop.infra.gateway.hitl.format import (
+from inhere_box.infra.gateway.hitl.format import (
     extract_questions,
     format_ask_card,
     format_hitl_card,
     is_ask_action_requests,
     parse_ask_reply,
 )
-from octop.infra.gateway.hitl.store import HitlPendingStore
+from inhere_box.infra.gateway.hitl.store import HitlPendingStore
 
 SINGLE_CHOICE = [
     {

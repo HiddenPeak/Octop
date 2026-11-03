@@ -1,16 +1,16 @@
-# Bridge（Octop ↔ Octop 实例桥）
+# Bridge（inhere-box ↔ inhere-box 实例桥）
 
 > 状态：实现中（Phase 0–3 骨架已落地）。命名与范围以本文为准；实现落在 `infra/bridge/`。  
 > 与同机 Agent 互调无关：见 [agent-call-agent.md](./agent-call-agent.md)（`ask_agent` 不参与跨实例）。
 
-用户级连接另一台 Octop（云端或另一台本地），在本机 Dashboard 查看对端专家列表、按需拉取对话记录，并像选择本地专家一样与对端专家对话（对称：对端也可经同一桥访问本机）。对话只在**专家所在实例**执行；发起侧不落库完整历史。
+用户级连接另一台 inhere-box（云端或另一台本地），在本机 Dashboard 查看对端专家列表、按需拉取对话记录，并像选择本地专家一样与对端专家对话（对称：对端也可经同一桥访问本机）。对话只在**专家所在实例**执行；发起侧不落库完整历史。
 
 ## 1. 需求结论
 
 | 项 | 结论 |
 |----|------|
 | 连接粒度 | 用户级：地址 + 用户名 + 密码；密码加密存储便于自动重连 |
-| 多节点 | 同一用户可同时连接多个远程 Octop |
+| 多节点 | 同一用户可同时连接多个远程 inhere-box |
 | 拓扑 | 两边均可主动建连；同一逻辑连接共用一个 `connection_id` |
 | 专家 | 在线拉取列表；影子入口；不复制 workspace；不安装为本地 runnable agent |
 | 可见范围 | 与该账号在对端本机可见范围一致（无额外「联邦可见」勾选） |
@@ -27,7 +27,7 @@
 
 ```
 ┌─────────────────────┐         Bridge WS（双向可发起）        ┌─────────────────────┐
-│ 本机 Octop          │◄─────────────────────────────────────►│ 对端 Octop          │
+│ 本机 inhere-box          │◄─────────────────────────────────────►│ 对端 inhere-box          │
 │                     │   HTTP 隧道 + turn 流式多路复用         │                     │
 │ Dashboard ──HTTP──► │                                       │ ◄──HTTP── Dashboard │
 │   localhost API     │                                       │   peer API          │
@@ -40,8 +40,8 @@
 └─────────────────────┘                                       └─────────────────────┘
 ```
 
-![图 2-1 总体架构：两台 Octop 经 Bridge WebSocket 互联](./assets/bridge-architecture.png)
-<!-- 生图建议：扁平化技术架构示意图，16:9。左侧一台服务器图标标「本机 Octop」，右侧标「对端 Octop」，中间一条加粗双向箭头标「Bridge WebSocket（双向可发起）」，细注「HTTP 隧道 + turn 流式多路复用」。两侧各自画出：Dashboard（浏览器仅连本机）、localhost/peer API、infra/bridge 模块、本地/对端 agent+harness。强调机机总线是独立 Bridge WS，不复用浏览器 Hub。现代 SaaS 蓝灰配色、等宽无衬线、留白充足。（注意：含精确文字的架构图建议用 Mermaid/Excalidraw 生成；AI 生图只作概念示意图，文字以图注补充） -->
+![图 2-1 总体架构：两台 inhere-box 经 Bridge WebSocket 互联](./assets/bridge-architecture.png)
+<!-- 生图建议：扁平化技术架构示意图，16:9。左侧一台服务器图标标「本机 inhere-box」，右侧标「对端 inhere-box」，中间一条加粗双向箭头标「Bridge WebSocket（双向可发起）」，细注「HTTP 隧道 + turn 流式多路复用」。两侧各自画出：Dashboard（浏览器仅连本机）、localhost/peer API、infra/bridge 模块、本地/对端 agent+harness。强调机机总线是独立 Bridge WS，不复用浏览器 Hub。现代 SaaS 蓝灰配色、等宽无衬线、留白充足。（注意：含精确文字的架构图建议用 Mermaid/Excalidraw 生成；AI 生图只作概念示意图，文字以图注补充） -->
 
 - **Harness / GlobalProcessor** 保持单机语义；桥只负责把请求送到对端执行并把响应送回。
 - Dashboard 的 `WebSocketHub` 仅服务浏览器↔本机；**机机总线是独立的 Bridge WS**，不要复用 Hub。
@@ -178,7 +178,7 @@
 
 ### 6.5 项目和任务
 
-「项目和任务」仅访问当前 Octop 的 `/api/projects`、`/api/project-tasks`，暂不提供 Bridge 转发或远程节点选择。此前的 AgentComputer 专用项目/任务转发入口已移除；通用 Bridge 的远程专家、对话、历史和附件功能继续使用原有接口。
+「项目和任务」仅访问当前 inhere-box 的 `/api/projects`、`/api/project-tasks`，暂不提供 Bridge 转发或远程节点选择。此前的 AgentComputer 专用项目/任务转发入口已移除；通用 Bridge 的远程专家、对话、历史和附件功能继续使用原有接口。
 
 ## 7. 与现有组件关系
 
@@ -207,13 +207,13 @@
 2. **隧道面过大**：协议通用后需身份隔离 + 可选 path 策略 + 审计，避免误暴露危险管理 API。
 3. **双连接竞态**：两边同时 dial 同一 `connection_id` 必须合并。
 4. **流式对话**：不要把 turn 硬塞进模拟 HTTP SSE；HTTP 隧道与 turn 流分帧、同连接多路复用。
-5. **版本 skew**：握手带 octop / bridge protocol version；不兼容则拒绝并提示升级。
+5. **版本 skew**：握手带 inhere-box / bridge protocol version；不兼容则拒绝并提示升级。
 
 ## 10. 命名一览
 
 | 用途 | 命名 |
 |------|------|
-| 包 | `octop.infra.bridge` |
+| 包 | `inhere_box.infra.bridge` |
 | HTTP 管理 API | `/api/bridge/...` |
 | 远程 agent id | `bridge:{connection_id}:{remote_agent_id}` |
 | 表 | `bridge_connections` |

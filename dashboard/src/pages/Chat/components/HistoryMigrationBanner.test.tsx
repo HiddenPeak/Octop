@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { HistoryMigrationStatus } from "../../../api/modules/octopThreads";
+import type { HistoryMigrationStatus } from "../../../api/modules/inhereBoxThreads";
 import HistoryMigrationBanner from "./HistoryMigrationBanner";
 
 vi.mock("react-i18next", () => ({

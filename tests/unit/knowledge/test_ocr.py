@@ -8,8 +8,8 @@ from types import SimpleNamespace
 import pytest
 from pypdf import PdfWriter
 
-from octop.infra.knowledge import ocr
-from octop.infra.knowledge.parse import parse_document
+from inhere_box.infra.knowledge import ocr
+from inhere_box.infra.knowledge.parse import parse_document
 
 
 def test_ocr_disabled_by_default() -> None:

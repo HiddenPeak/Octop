@@ -1,5 +1,5 @@
 /**
- * Octop settings — Providers editor.
+ * inhere-box settings — Providers editor.
  *
  * Plan §14.6: list providers visible to the current user, show a "shared"
  * badge for admin-scope rows (``user_id === null``) with their ``note``
@@ -57,7 +57,7 @@ const PROVIDER_KINDS = [
   { value: "ollama", label: "Ollama" },
 ];
 
-export default function OctopProvidersPage() {
+export default function InhereBoxProvidersPage() {
   const { t } = useTranslation();
   const [rows, setRows] = useState<ProviderRow[]>([]);
   const [loading, setLoading] = useState(true);

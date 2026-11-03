@@ -6,7 +6,7 @@ import json
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
-from octop.infra.connectors import probe
+from inhere_box.infra.connectors import probe
 from tests.integration.test_project_tasks import settled
 from tests.integration.test_project_tasks import task_env as task_env
 from tests.support.auth import create_user

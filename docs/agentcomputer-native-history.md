@@ -1,14 +1,14 @@
 # AgentComputer 受托 Run 的原生历史 Turn 绑定
 
-本轮把内部受托引擎入口的业务 `turnID` 用作 Octop `HistoryArchive` 中的原生 Turn ID。它解决的是**身份关联和本地流内容落盘**：同一 Task 的 Octop 线程历史中，用户消息与已捕获的模型输出归属于这个固定 ID。此入口仍只供可信内部派发使用；项目 `ready`、生产 worker、公开 Task/Run 执行和远端停止证明均未开放。
+本轮把内部受托引擎入口的业务 `turnID` 用作 inhere-box `HistoryArchive` 中的原生 Turn ID。它解决的是**身份关联和本地流内容落盘**：同一 Task 的 inhere-box 线程历史中，用户消息与已捕获的模型输出归属于这个固定 ID。此入口仍只供可信内部派发使用；项目 `ready`、生产 worker、公开 Task/Run 执行和远端停止证明均未开放。
 
 ## 写入顺序与边界
 
-1. Turn 接收事务先在控制库固定 Run、Turn、输入快照、用户消息 ID 和 `octopThreadID`；派发事务再固定 claimant、双 epoch 与 `engineRequestID`。这些值来自经校验的服务端意图，不由调用者在引擎入口重新选择。
+1. Turn 接收事务先在控制库固定 Run、Turn、输入快照、用户消息 ID 和 `inhereBoxThreadID`；派发事务再固定 claimant、双 epoch 与 `engineRequestID`。这些值来自经校验的服务端意图，不由调用者在引擎入口重新选择。
 2. `EngineEntryMiddleware` 校验请求和工作区绑定后，先提交持久的 `EngineEntryReceipt`。已有收据阻断同一派发再次进入模型循环。然后通过 `HistoryArchive.begin_bound`，以原业务 UUID 建立 v2 历史 Turn，在模型调用前持久保存固定的用户消息。
 3. 引擎使用公开 `HarnessAgent.stream(..., protocol="langgraph")`。受托 hook 之前，Harness 可能先发原始输入快照和不含消息的 `before_agent` 设置事件；输入已由固定用户消息保存，只有严格匹配的这些前置事件会略过，其余前置输出会拒绝。受托 hook 建立历史后，每个流片段交给 `RecordingTracker`，写入结算后才继续消费；自然结束、异常或本地取消均结束该历史 Turn。异常保留失败状态，取消保留 `interrupted` 与已落盘片段。工具调用仍由受托 Middleware 拒绝，历史记录不能授权工具效果。
 
-`begin_bound` 只接受规范 UUID。既有同 ID、错专家归属，或同线程存在未结束/暂停 Turn 时拒绝建立新 Turn；它不把重复 ID 解释为恢复许可，也不自动重放模型。普通 Octop 聊天继续使用 `HistoryArchive.begin` 自行生成 ID，这项绑定不改变普通 Gateway 的历史策略。
+`begin_bound` 只接受规范 UUID。既有同 ID、错专家归属，或同线程存在未结束/暂停 Turn 时拒绝建立新 Turn；它不把重复 ID 解释为恢复许可，也不自动重放模型。普通 inhere-box 聊天继续使用 `HistoryArchive.begin` 自行生成 ID，这项绑定不改变普通 Gateway 的历史策略。
 
 ## 可用性与故障语义
 
@@ -18,7 +18,7 @@
 
 ## 启动时的只读历史对账
 
-daemon 在运行时创建前先保守收紧已派发 Run。对于**确实收紧、且在 Run 锁内已取得引擎入站 ACK** 的记录，扫描随后按固定 `turnID` 只读探测 `history_v2.sqlite`：先核对归档记录的控制库绝对路径身份，再按 Turn 主键取行，核对 v2 segment 的 Octop thread 与托管专家。没有 ACK 的 claimed/dispatching Run 尚未进入 `begin_bound`，因此不探测，也不将缺失历史误报为故障。晚到 ACK 若在收紧前已提交，则按锁后实际收据进入探测。
+daemon 在运行时创建前先保守收紧已派发 Run。对于**确实收紧、且在 Run 锁内已取得引擎入站 ACK** 的记录，扫描随后按固定 `turnID` 只读探测 `history_v2.sqlite`：先核对归档记录的控制库绝对路径身份，再按 Turn 主键取行，核对 v2 segment 的 inhere-box thread 与托管专家。没有 ACK 的 claimed/dispatching Run 尚未进入 `begin_bound`，因此不探测，也不将缺失历史误报为故障。晚到 ACK 若在收紧前已提交，则按锁后实际收据进入探测。
 
 内部 `RecoveryReport.history_observations` 只汇总这些观察到的状态：归档缺失/不可用、归档身份或 Turn 归属不匹配、Turn 缺失，以及 `active`、`paused`、`interrupted`、`failed`、`partial`、`complete`。`history_initial_messages` 单独计数固定初始消息文档是否已落盘；存在 Turn 而没有该文档是允许的崩溃窗口。daemon 将非空汇总写入启动警告日志，不包含 Run、用户或消息正文。计数只对本次成功收紧的 Run 增加，重复扫描不会把同一事实重复计入，也不积攒无限的逐 Run 报告。
 

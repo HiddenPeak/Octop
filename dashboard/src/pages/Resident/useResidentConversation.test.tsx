@@ -14,7 +14,7 @@ import {
 
 vi.mock("../../i18n", () => ({ default: { language: "zh" } }));
 vi.mock("../../api/config", () => ({
-  getWsUrl: (path: string) => `ws://octop.test/api${path}`,
+  getWsUrl: (path: string) => `ws://inhere_box.test/api${path}`,
 }));
 vi.mock("../../api/request", () => ({
   getAuthToken: () => "owner-token",
@@ -186,7 +186,7 @@ it("loads only the server-managed identity and subscribes through real resident 
   const ws = Socket.instances[0];
   expect(api.repair).not.toHaveBeenCalled();
   expect(api.markRead).not.toHaveBeenCalled();
-  expect(ws.url).toBe("ws://octop.test/api/project-tasks/ws");
+  expect(ws.url).toBe("ws://inhere_box.test/api/project-tasks/ws");
   act(() => {
     ws.open();
     ws.message({ type: "ready", protocol_version: 3 });

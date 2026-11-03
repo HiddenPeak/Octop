@@ -22,7 +22,7 @@ import {
   PanelsTopLeft,
   UserRound,
 } from "lucide-react";
-import type { OctopUser } from "../api/modules/auth";
+import type { InhereBoxUser } from "../api/modules/auth";
 import { navAllowed, userCan } from "../utils/permissions";
 
 export const EXPANDED_WIDTH = 220;
@@ -49,7 +49,7 @@ export interface NavSection {
   items: NavItem[];
 }
 
-/** Every nav item key the sidebar can show. Keep in sync with `SIDEBAR_NAV_KEYS` in `octop.infra.users.preferences`. */
+/** Every nav item key the sidebar can show. Keep in sync with `SIDEBAR_NAV_KEYS` in `inhere_box.infra.users.preferences`. */
 export const SIDEBAR_NAV_KEYS = [
   "chat",
   "experts",
@@ -136,7 +136,7 @@ export function isGroupedNavKey(key: string): boolean {
 }
 
 export function buildNavSections(
-  user: OctopUser | null,
+  user: InhereBoxUser | null,
   opts?: { mobileEnabled?: boolean; boxAccountMode?: boolean },
 ): NavSection[] {
   const sections: NavSection[] = [
@@ -222,7 +222,7 @@ export function buildNavSections(
       labelKey: "nav.knowledgeBases",
     });
   }
-  // User-scoped remote Octop links — always available (like personalization).
+  // User-scoped remote inhere-box links — always available (like personalization).
   if (!opts?.boxAccountMode)
     settingsItems.push({
       key: "bridge",

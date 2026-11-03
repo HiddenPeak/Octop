@@ -1,6 +1,6 @@
 import { Button, Result } from "antd";
 import { useTranslation } from "react-i18next";
-import { OctopEmptyMascot } from "../EmptyState";
+import { InhereBoxEmptyMascot } from "../EmptyState";
 import styles from "./BootOfflinePanel.module.less";
 
 interface BootOfflinePanelProps {
@@ -27,7 +27,7 @@ export default function BootOfflinePanel({ onRetry }: BootOfflinePanelProps) {
     <div role="alert" className={styles.wrap}>
       <Result
         className={styles.result}
-        icon={<OctopEmptyMascot />}
+        icon={<InhereBoxEmptyMascot />}
         title={t("errors.offlineTitle")}
         subTitle={t("errors.offlineSubtitle")}
         extra={

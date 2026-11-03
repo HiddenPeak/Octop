@@ -7,14 +7,14 @@ from unittest.mock import MagicMock
 import pytest
 from octop_gateway.models import MessageEvent, MessageEventType, TextContent
 
-from octop.infra.gateway.hitl.coordinator import (
+from inhere_box.infra.gateway.hitl.coordinator import (
     HitlChannelCoordinator,
     HitlSlashOutcome,
     HitlStreamContext,
 )
-from octop.infra.gateway.hitl.format import format_hitl_card, parse_action_requests
-from octop.infra.gateway.hitl.store import HitlPendingStore
-from octop.infra.gateway.process.stream_project import (
+from inhere_box.infra.gateway.hitl.format import format_hitl_card, parse_action_requests
+from inhere_box.infra.gateway.hitl.store import HitlPendingStore
+from inhere_box.infra.gateway.process.stream_project import (
     StreamProjectionState,
     project_resume_stream,
     project_stream,
@@ -34,7 +34,7 @@ def test_parse_action_requests() -> None:
 
 
 def test_parse_action_requests_unwraps_interrupt_envelope() -> None:
-    from octop.infra.gateway.hitl.format import normalize_hitl_request
+    from inhere_box.infra.gateway.hitl.format import normalize_hitl_request
 
     raw = {
         "id": "int-1",
@@ -342,7 +342,7 @@ def test_hitl_store_resolve_pending_for_thread() -> None:
 
 
 def test_pending_hitl_payload() -> None:
-    from octop.infra.gateway.hitl.coordinator import pending_hitl_payload
+    from inhere_box.infra.gateway.hitl.coordinator import pending_hitl_payload
 
     store = HitlPendingStore()
     record = store.register(

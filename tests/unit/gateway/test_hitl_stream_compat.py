@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.gateway.hitl.stream_compat import (
+from inhere_box.infra.gateway.hitl.stream_compat import (
     hitl_events_from_interrupts,
     merge_hitl_projection,
 )

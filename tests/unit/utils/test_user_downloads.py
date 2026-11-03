@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from octop.infra.utils.user_downloads import (
+from inhere_box.infra.utils.user_downloads import (
     is_local_dashboard_request,
     request_hostname,
     sanitize_download_filename,
@@ -48,7 +48,7 @@ def test_save_user_download_writes_bytes(tmp_path: Path) -> None:
 def test_local_dashboard_request_requires_loopback_host_and_peer() -> None:
     assert is_local_dashboard_request(_Req("127.0.0.1:8088", "127.0.0.1"))
     assert is_local_dashboard_request(_Req("localhost:8088", "127.0.0.1"))
-    assert not is_local_dashboard_request(_Req("octop.example", "127.0.0.1"))
+    assert not is_local_dashboard_request(_Req("inhere_box.example", "127.0.0.1"))
     assert not is_local_dashboard_request(_Req("127.0.0.1:8088", "8.8.8.8"))
 
 

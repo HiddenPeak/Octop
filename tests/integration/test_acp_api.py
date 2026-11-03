@@ -84,7 +84,7 @@ async def test_acp_tool_allowed_for_scoped_root_dir(env) -> None:
         config={
             "backend": {
                 "type": "local_shell",
-                "root_dir": "/tmp/octop-acp-scoped",
+                "root_dir": "/tmp/inhere-box-acp-scoped",
                 "virtual_mode": True,
             }
         },

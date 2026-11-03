@@ -9,13 +9,13 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from octop.infra.agents.providers.store import ProviderStore
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.providers import ProviderRepo
-from octop.infra.db.repos.settings import SettingsRepo
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects.model_routing import (
+from inhere_box.infra.agents.providers.store import ProviderStore
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.providers import ProviderRepo
+from inhere_box.infra.db.repos.settings import SettingsRepo
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects.model_routing import (
     REMOTE_THRESHOLDS,
     SETTINGS_KEY,
     ModelRoutingDecision,
@@ -120,7 +120,7 @@ def test_hybrid_uses_server_default_and_never_guesses_another_remote(services) -
     store = ProviderStore(services.provider_repo)
     decision = decide_model(store, configured(default_level=60), difficulty=50)
     assert decision.level == 60 and decision.model_ref == "cloud/strong"
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         decide_model(store, configured(remote_model_ref=None), level=100, difficulty=90)
     assert exc.value.code == ErrorCode.TASK_MODEL_UNAVAILABLE
 
@@ -132,7 +132,7 @@ def test_explicit_model_wins_without_requiring_configured_routing_sources(servic
     )
     assert decision.target == "explicit" and decision.model_ref == "another/chat"
     assert decision.reason_code == "explicit_model" and decision.difficulty is None
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         decide_model(store, configured(), explicit_model_ref="absent/model")
     assert exc.value.code == ErrorCode.TASK_MODEL_UNAVAILABLE
 
@@ -151,7 +151,7 @@ def test_unavailable_classifier_stays_on_box_and_preserves_failure_code(services
 
 @pytest.mark.parametrize("difficulty", [True, False, -1, 101, 10.0, "20"])
 def test_invalid_difficulty_does_not_route(services, difficulty) -> None:
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         decide_model(
             ProviderStore(services.provider_repo), configured(), level=20, difficulty=difficulty
         )
@@ -163,10 +163,10 @@ def test_images_can_select_explicit_remote_in_hybrid_but_not_in_box_or_zero(serv
     decision = decide_model(store, configured(), level=20, requires_images=True)
     assert decision.target == "remote" and decision.reason_code == "capability_image"
     for mode, level in (("box", 0), ("hybrid", 0)):
-        with pytest.raises(OctopError) as exc:
+        with pytest.raises(InhereBoxError) as exc:
             decide_model(store, configured(), mode=mode, level=level, requires_images=True)
         assert exc.value.code == ErrorCode.TASK_IMAGE_MODEL_REQUIRED
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         decide_model(
             store, configured(), level=100, requires_images=True, explicit_model_ref="box/local"
         )
@@ -175,10 +175,10 @@ def test_images_can_select_explicit_remote_in_hybrid_but_not_in_box_or_zero(serv
 
 def test_wrong_source_configuration_is_rejected_without_cross_source_guessing(services) -> None:
     store = ProviderStore(services.provider_repo)
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         decide_model(store, configured(box_model_ref="another/chat"), mode="box")
     assert exc.value.code == ErrorCode.TASK_MODEL_UNAVAILABLE
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         decide_model(
             store, configured(remote_model_ref="box/local-other"), level=100, difficulty=90
         )
@@ -202,7 +202,7 @@ def test_images_use_compatible_remote_when_remote_preference_is_text_only(servic
             assert decision.reason_code == "capability_image"
         else:
             assert decision.model_ref == "box/local" and decision.target == "box"
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         decide_model(
             store,
             settings,
@@ -239,7 +239,7 @@ def test_zero_settings_allow_an_unavailable_remote_but_hybrid_default_requires_i
     services.provider_repo.update(services.provider_repo.get_by_name("cloud").id, enabled=False)
     save_settings(services, configured(default_level=0))
     assert routing_capabilities(services).remote_available is False
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         save_settings(services, configured(default_level=20))
     assert exc.value.code == ErrorCode.TASK_MODEL_UNAVAILABLE
 
@@ -247,7 +247,7 @@ def test_zero_settings_allow_an_unavailable_remote_but_hybrid_default_requires_i
 @pytest.mark.parametrize("raw", ["not-json", '{"default_level":true}', '{"default_level":30}'])
 def test_corrupt_policy_is_a_localized_settings_error(services, raw) -> None:
     services.settings_repo.set(SETTINGS_KEY, raw)
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         load_settings(services)
     assert exc.value.code == ErrorCode.TASK_SETTINGS_INVALID
     assert exc.value.details == {"setting": SETTINGS_KEY}

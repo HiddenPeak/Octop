@@ -1,5 +1,7 @@
+当前源码已更名为 **inhere-box**。在本地运行 `uv sync` 后使用 `uv run inhere-box run`；本次本地修改尚未向发布站点上传新产物，上游链接仍指向原项目。详见[迁移说明](docs/inhere-box-renaming.md)。
+
 <p align="center">
-  <img src="docs/assets/readme-banner-zh.png" alt="Octop Banner" width="600" />
+  <img src="docs/assets/readme-banner-zh.png" alt="inhere-box Banner" width="600" />
 </p>
 
 <p align="center">
@@ -8,7 +10,7 @@
 
 <p align="center">
   <a href="https://trendshift.io/repositories/95504?utm_source=repository-badge&utm_medium=badge&utm_campaign=badge-repository-95504" target="_blank" rel="noopener noreferrer">
-    <img src="https://trendshift.io/api/badge/repositories/95504" alt="TencentCloud/Octop | Trendshift" width="250" height="55" />
+    <img src="https://trendshift.io/api/badge/repositories/95504" alt="TencentCloud/Octop upstream | Trendshift" width="250" height="55" />
   </a>
 </p>
 
@@ -39,7 +41,7 @@
 
 ---
 
-**Octop** 是一个开源、自托管的 AI 助手。它不仅是工具，更是可并行运作的数字生命体。通过多 Agent 架构，它为团队、家庭和个人构建了既独立又协作的智能环境。并且这一切都运行在你的机器上——完全自托管的设计让隐私不再是妥协，而单进程启动的便捷性，则让强大的 Web 控制台、CLI 与 IM 集成触手可及。
+**inhere-box** 是一个开源、自托管的 AI 助手。它不仅是工具，更是可并行运作的数字生命体。通过多 Agent 架构，它为团队、家庭和个人构建了既独立又协作的智能环境。并且这一切都运行在你的机器上——完全自托管的设计让隐私不再是妥协，而单进程启动的便捷性，则让强大的 Web 控制台、CLI 与 IM 集成触手可及。
 
 借助飞书、钉钉、QQ、微信、企业微信或 HTTP/SSE/WebSocket API 与任意 Agent 对话；通过**专家库**一键创建专业角色，通过 **Connector**（OAuth + MCP）接入外部服务，通过 **ACP** 与 IDE / 终端 AI 工具双向协作。
 
@@ -57,21 +59,21 @@
 | 🧠 | **可迁移记忆系统** | 基于 [Octop Memory](https://github.com/TencentCloud/octop-memory)，记忆随工作区迁移 |
 | 📚 | **知识库** | 基于文档的 RAG 检索；支持同实例共享语料，让回答锚定私有知识 |
 | 🧩 | **插件** | 支持第三方插件扩展；内置插件随安装注入，按需一键启用 |
-| ↔️ | **ACP 双向集成** | `octop acp` 增强 IDE 与终端 AI；对话中委派 OpenCode / Claude Code 等 |
+| ↔️ | **ACP 双向集成** | `inhere-box acp` 增强 IDE 与终端 AI；对话中委派 OpenCode / Claude Code 等 |
 | 💻 | **终端 AI+** | 浏览器内交互式 Shell，AI 辅助命令执行与排障 |
 | 🌐 | **浏览器 AI+** | 基于 Chromium 的无头浏览器会话，支持网页自动化、截图与远程操控 |
 | 🖥️ | **远程桌面** | 控制台内实时看屏与键鼠操控，跨 Linux / Windows / macOS；适合远程办公、GUI 软件操作，无图形 Linux 可一键搭建隔离桌面 |
 | 🪟 | **桌面客户端** | Windows / macOS / Linux 原生应用，另有飞牛（FnOS）安装包，可与 Web 控制台并行使用 |
-| 🏠 | **可自托管** | 一条 `octop run` 即可运行控制台、CLI、IM 通道与定时任务，数据存于 `~/.octop/` |
+| 🏠 | **可自托管** | 一条 `inhere-box run` 即可运行控制台、CLI、IM 通道与定时任务，数据存于 `~/.inhere-box/` |
 
 ## 📌 概述
 
-Octop 是面向家庭与小团队的自托管 AI 助手平台。单进程同时提供 Web 控制台、CLI、IM 通道（飞书、钉钉、QQ、微信、企业微信等）与定时任务，共享 `~/.octop/` 下的控制面数据库（默认 SQLite；可选 PostgreSQL）。
+inhere-box 是面向家庭与小团队的自托管 AI 助手平台。单进程同时提供 Web 控制台、CLI、IM 通道（飞书、钉钉、QQ、微信、企业微信等）与定时任务，共享 `~/.inhere-box/` 下的控制面数据库（默认 SQLite；可选 PostgreSQL）。
 
-> Octop 的设计目标：让每一次对话、工作区与凭据都留在你自己的机器上，同时为每个用户配备一组可按场景切换的专业 Agent。
+> inhere-box 的设计目标：让每一次对话、工作区与凭据都留在你自己的机器上，同时为每个用户配备一组可按场景切换的专业 Agent。
 
 <details>
-<summary>🐾 你能用 Octop 做什么</summary>
+<summary>🐾 你能用 inhere-box 做什么</summary>
 
 - **个人助理** — 让专属 Agent 帮你写周报、整理资料、定日程，记忆随工作区长期保留。
 - **家庭共享** — 一个管理员账号，全家共用；按成员分配不同 Agent 与专家角色，也可共享专家与知识库。
@@ -98,20 +100,20 @@ Octop 是面向家庭与小团队的自托管 AI 助手平台。单进程同时�
 | **ACP** | agent-client-protocol |
 | **构建 / 质量** | hatchling · ruff · mypy · pytest |
 
-Octop 基于一系列 Octop Harness 工程实践构建——它将这些专注的运行时组合进同一个进程：
+inhere-box 基于一系列 Octop Harness 工程实践构建——它将这些专注的运行时组合进同一个进程：
 
 - **[Octop Harness](https://github.com/TencentCloud/octop-harness)** — Agent 运行时：模型路由、工具、技能与对话检查点。
 - **[Octop Gateway](https://github.com/TencentCloud/octop-gateway)** — 多平台 IM 通道桥接，将各类入站消息归一为统一的处理管线。
 - **[Octop Memory](https://github.com/TencentCloud/octop-memory)** — 分层记忆与全文检索，让 Agent 的记忆随工作区一同迁移。
 - **[Octop Browser](https://github.com/TencentCloud/octop-browser)** — 基于 CDP 的浏览器自动化，支持持久化配置，用于网页类任务。
 
-Octop 不依赖外部消息队列或中间件，而是通过进程内的 `HarnessProcessor` 统一路由所有入口——Web UI、IM 与定时任务。最终呈现为一个可重启恢复的单进程：启动时整个状态都从控制面数据库重建（默认 `~/.octop/octop.db`，亦可配置 PostgreSQL）。
+inhere-box 不依赖外部消息队列或中间件，而是通过进程内的 `HarnessProcessor` 统一路由所有入口——Web UI、IM 与定时任务。最终呈现为一个可重启恢复的单进程：启动时整个状态都从控制面数据库重建（默认 `~/.inhere-box/inhere_box.db`，亦可配置 PostgreSQL）。
 
 ## 🤔 功能特性
 
 ### 服务器与认证
 - 多用户 JWT 认证，支持管理员角色
-- 首次运行向导（`octop init`）
+- 首次运行向导（`inhere-box init`）
 - 交互式 API 文档：`/api/docs`（默认关闭 — 在 `config.json` 中设置 `"enable_api_docs": true` 开启）
 
 ### 专家
@@ -129,24 +131,24 @@ Octop 不依赖外部消息队列或中间件，而是通过进程内的 `Harnes
 ### 使用入口
 - **Web 控制台** — 对话、专家 / 团队、连接器、通道、定时任务、知识库、插件、设置
 - **桌面客户端** — Windows / macOS / Linux 原生应用；飞牛（FnOS）安装包
-- **CLI** — `octop run`、`octop chats`、`octop acp`、管理命令
+- **CLI** — `inhere-box run`、`inhere-box chats`、`inhere-box acp`、管理命令
 - **HTTP/SSE/WebSocket API** — 完整的程序化访问能力
 - **远程桌面** — 在控制台操控本机桌面会话
 
 ### 知识库与插件
 - **知识库** — 基于文档的 RAG 检索；支持同实例内共享语料
-- **插件** — 安装并管理第三方插件（`octop plugin`）；内置插件随安装注入，按需在控制台一键启用
+- **插件** — 安装并管理第三方插件（`inhere-box plugin`）；内置插件随安装注入，按需在控制台一键启用
 
 ### ACP（Agent Client Protocol）
 
-Octop 支持两个方向的 ACP 集成：
+inhere-box 支持两个方向的 ACP 集成：
 
-1. **入站** — 外部工具使用**你的** Octop Agent
+1. **入站** — 外部工具使用**你的** inhere-box Agent
    ```bash
-   octop acp --agent main   # 为 Zed、OpenCode 等提供 stdio ACP 服务
+   inhere-box acp --agent main   # 为 Zed、OpenCode 等提供 stdio ACP 服务
    ```
 
-2. **出站** — Octop 委派给外部编程 Agent
+2. **出站** — inhere-box 委派给外部编程 Agent
    - 控制台 → **ACP**（`/acp`）：配置 Runner（按用户全局）
    - 为 Agent 启用 **acp_runner** 后，在对话中委派任务
 
@@ -172,9 +174,9 @@ Octop 支持两个方向的 ACP 集成：
 - [ ] **自进化能力** — 将日常对话自动沉淀为技能，让助手随使用不断成长。
 - [ ] **Managed Agents** — 平台托管的 Agent 生命周期（开通、伸缩与运维），无需自行维护完整自托管栈。
 - [ ] **Project** — 以项目为边界组织 Agent、文件与会话，围绕同一目标协作。
-- [ ] **云边端一体** — 本地运行 Octop，同时可将选定任务调度到云端执行：轻量工作留在本地，重活按需上云。
-- [ ] **插件市场** — 搭建插件市场，支持在 Octop 内发现、安装与更新第三方插件。
-- [ ] **对话式控制面** — 完善 Octop 自身 Skill，让对话即可覆盖当前控制台的完整能力：创建专家、配置通道、管理知识库，并支持开发插件。
+- [ ] **云边端一体** — 本地运行 inhere-box，同时可将选定任务调度到云端执行：轻量工作留在本地，重活按需上云。
+- [ ] **插件市场** — 搭建插件市场，支持在 inhere-box 内发现、安装与更新第三方插件。
+- [ ] **对话式控制面** — 完善 inhere-box 自身 Skill，让对话即可覆盖当前控制台的完整能力：创建专家、配置通道、管理知识库，并支持开发插件。
 
 规划会随社区发展动态调整，以上仅供参考。
 
@@ -183,7 +185,7 @@ Octop 支持两个方向的 ACP 集成：
 ### 环境要求
 
 - **macOS / Linux / Windows**
-- 无需预先安装 Python — 安装脚本通过 [uv](https://docs.astral.sh/uv/) 在 `~/.octop/` 下创建隔离的 Python 3.12 虚拟环境
+- 无需预先安装 Python — 安装脚本通过 [uv](https://docs.astral.sh/uv/) 在 `~/.inhere-box/` 下创建隔离的 Python 3.12 虚拟环境
 - 现代多核 CPU，并预留数 GB 内存供进程与模型/Embedding 缓存使用；磁盘需容纳数据库、Agent 工作区与文档语料
 
 ### 1. 安装
@@ -215,7 +217,7 @@ source ~/.zshrc   # Zsh
 source ~/.bashrc  # Bash
 ```
 
-安装脚本会将 `octop` 加入 PATH（`~/.octop/bin`）。可选附加组件：
+安装脚本会将 `inhere-box` 加入 PATH（`~/.inhere-box/bin`）。可选附加组件：
 
 ```bash
 # 下载 Playwright Chromium 用于浏览器自动化（若系统已有 Chrome / Chromium 则会跳过）
@@ -228,19 +230,19 @@ curl -fsSL https://finnie-1258344699.cos.ap-guangzhou.myqcloud.com/octop/install
 
 | 平台 | 制品 |
 |------|------|
-| Windows | `Octop-desktop-windows-amd64-<version>.exe`（64 位）/ `Octop-desktop-windows-arm64-<version>.exe`（ARM64）— NSIS 安装程序 |
-| macOS | `Octop-desktop-darwin-arm64-<version>.dmg`（Apple 芯片）/ `Octop-desktop-darwin-amd64-<version>.dmg`（Intel） |
-| Linux | `Octop-desktop-linux-amd64-<version>.tar.gz` / `Octop-desktop-linux-arm64-<version>.tar.gz` |
-| 飞牛 NAS（FnOS） | `Octop-fnos-docker-<version>.fpk`（推荐，尤其是 ARM；amd64/arm64 镜像）/ `Octop-fnos-native-<version>.fpk`（x86_64，无需 Docker）/ `Octop-fnos-native-arm64-<version>.fpk`（ARM64，无 Docker 时再用）— 通过应用中心安装 |
+| Windows | `inhere-box-desktop-windows-amd64-<version>.exe`（64 位）/ `inhere-box-desktop-windows-arm64-<version>.exe`（ARM64）— NSIS 安装程序 |
+| macOS | `inhere-box-desktop-darwin-arm64-<version>.dmg`（Apple 芯片）/ `inhere-box-desktop-darwin-amd64-<version>.dmg`（Intel） |
+| Linux | `inhere-box-desktop-linux-amd64-<version>.tar.gz` / `inhere-box-desktop-linux-arm64-<version>.tar.gz` |
+| 飞牛 NAS（FnOS） | `inhere-box-fnos-docker-<version>.fpk`（推荐，尤其是 ARM；amd64/arm64 镜像）/ `inhere-box-fnos-native-<version>.fpk`（x86_64，无需 Docker）/ `inhere-box-fnos-native-arm64-<version>.fpk`（ARM64，无 Docker 时再用）— 通过应用中心安装 |
 
 桌面客户端说明见 [desktop/README.md](desktop/README.md)，飞牛打包指南见 [fnos/README.md](fnos/README.md)。
 
 **备选 — PyPI**（若你已自行管理 Python 环境）：
 
 ```bash
-pip install octop
-# 可选本地 ONNX Embedding 模型缓存（设置 → 模型 → 本地）：pip install "octop[local-embedding]"
-# 仅下载目录模型到 ~/.octop/embedding_models；不用于对话，也不接入 Memory。
+pip install inhere-box
+# 可选本地 ONNX Embedding 模型缓存（设置 → 模型 → 本地）：pip install "inhere-box[local-embedding]"
+# 仅下载目录模型到 ~/.inhere-box/embedding_models；不用于对话，也不接入 Memory。
 # 浏览器自动化依赖已内置 Playwright；Chromium 可通过安装脚本 --extras browser、
 # 控制台，或执行：python -m playwright install chromium
 ```
@@ -254,25 +256,25 @@ uv sync --extra local-embedding
 ### 2. 初始化
 
 ```bash
-octop init
+inhere-box init
 ```
 
-交互式向导会在 `~/.octop/` 下创建 SQLite 数据库、JWT 密钥，并引导你设置首个管理员账号。
+交互式向导会在 `~/.inhere-box/` 下创建 SQLite 数据库、JWT 密钥，并引导你设置首个管理员账号。
 
 ### 3. 启动
 
 ```bash
 # 前台运行（API + Web 控制台）
-octop run
+inhere-box run
 
 # 自定义主机与端口
-octop run --host 0.0.0.0 --port 8088
+inhere-box run --host 0.0.0.0 --port 8088
 
 # 注册为系统服务（systemd / launchd / Windows 服务）
-octop service start
+inhere-box service start
 ```
 
-打开 **http://127.0.0.1:8088**。Docker 首次初始化会自动生成随机管理员密码（写入 `/data/.octop/credential.txt`），除非设置了 `OCTOP_DEFAULT_PASSWORD`。交互式 `octop init` / 设置向导会让你自行设置密码（至少 8 位，且同时包含字母和数字）。
+打开 **http://127.0.0.1:8088**。Docker 首次初始化会自动生成随机管理员密码（写入 `/data/.octop/credential.txt`），除非设置了 `INHERE_BOX_DEFAULT_PASSWORD`。交互式 `inhere-box init` / 设置向导会让你自行设置密码（至少 8 位，且同时包含字母和数字）。
 
 ### Docker（推荐用于生产部署）
 
@@ -284,22 +286,22 @@ docker compose -f docker/docker-compose.yml up -d
 bash docker/docker_build.sh
 docker run -d \
   -p 8088:8088 \
-  -v octop-data:/data/.octop \
+  -v inhere-box-data:/data/.octop \
   -e HOME=/data \
-  -e OCTOP_DEFAULT_PASSWORD="<自定义强密码，留空则自动生成随机密码>" \
-  octop:latest
+  -e INHERE_BOX_DEFAULT_PASSWORD="<自定义强密码，留空则自动生成随机密码>" \
+  inhere-box:latest
 ```
 
-打开 `http://localhost:8088`。首次初始化会创建管理员账号，并把凭据写入容器内 `/data/.octop/credential.txt`。未设置 `OCTOP_DEFAULT_PASSWORD` 时自动生成随机强密码；自行设置的密码须 ≥8 位且同时包含字母和数字（被应用密码策略拒绝的常见弱密码会自动回退为随机密码）。可通过 `OCTOP_ADMIN_USERNAME` 覆盖用户名。
+打开 `http://localhost:8088`。首次初始化会创建管理员账号，并把凭据写入容器内 `/data/.octop/credential.txt`。未设置 `INHERE_BOX_DEFAULT_PASSWORD` 时自动生成随机强密码；自行设置的密码须 ≥8 位且同时包含字母和数字（被应用密码策略拒绝的常见弱密码会自动回退为随机密码）。可通过 `INHERE_BOX_ADMIN_USERNAME` 覆盖用户名。
 
 > **密码策略：** 至少 8 位，且同时包含字母和数字。
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `OCTOP_PORT` | `8088` | HTTP 监听端口 |
-| `OCTOP_DEFAULT_PASSWORD` | _(未设置)_ | 首次运行管理员密码（Docker 引导）。未设置 = 自动生成随机密码并写入 `credential.txt` |
-| `OCTOP_ADMIN_USERNAME` | `admin` | 首次运行管理员用户名 |
-| `OCTOP_DATA` | `~/.octop` | 宿主机数据目录（compose 挂载） |
+| `INHERE_BOX_PORT` | `8088` | HTTP 监听端口 |
+| `INHERE_BOX_DEFAULT_PASSWORD` | _(未设置)_ | 首次运行管理员密码（Docker 引导）。未设置 = 自动生成随机密码并写入 `credential.txt` |
+| `INHERE_BOX_ADMIN_USERNAME` | `admin` | 首次运行管理员用户名 |
+| `INHERE_BOX_DATA` | `~/.inhere-box` | 宿主机数据目录（compose 挂载） |
 
 完整变量列表见 [`.env.example`](.env.example)。
 
@@ -334,52 +336,52 @@ docker run -d \
 
 | 方式 | 平台 | 说明 |
 |------|------|------|
-| 远程一键安装 | macOS / Linux | `curl …/octop/install.sh \| bash` |
-| 远程一键安装 | Windows | `irm …/octop/install.ps1 \| iex` 或 `install.bat` |
+| 远程一键安装 | macOS / Linux | `curl …/inhere-box/install.sh \| bash` |
+| 远程一键安装 | Windows | `irm …/inhere-box/install.ps1 \| iex` 或 `install.bat` |
 | 本地脚本 | macOS / Linux | `bash scripts/install.sh` |
 | 本地脚本 | Windows | `scripts\install.bat` 或 `install.ps1` |
-| PyPI | 全平台 | `pip install octop`（可选 extras 如 `local-embedding`） |
+| PyPI | 全平台 | `pip install inhere-box`（可选 extras 如 `local-embedding`） |
 | Docker | 全平台 | `docker/docker-compose.yml` |
 
-所有安装脚本均在 `~/.octop/venv` 创建隔离环境，并通过 `~/.octop/bin/octop` 包装 CLI，不会影响系统 Python。
+所有安装脚本均在 `~/.inhere-box/venv` 创建隔离环境，并通过 `~/.inhere-box/bin/inhere-box` 包装 CLI，不会影响系统 Python。
 
 ### 升级
 
-`octop update` 只替换 wheel / 二进制，你的 `~/.octop/` 数据库、工作区、密钥与 `config.json` 均会保留：
+`inhere-box update` 只替换 wheel / 二进制，你的 `~/.inhere-box/` 数据库、工作区、密钥与 `config.json` 均会保留：
 
 ```bash
-octop update          # 获取并安装最新版 Octop，若已注册系统服务则自动重启
+inhere-box update          # 获取并安装最新版 inhere-box，若已注册系统服务则自动重启
 ```
 
-数据库结构会在下次启动时自动迁移；仅当设置向导提示需要迁移时才运行 `octop init`。跨版本升级前请务必先备份（`octop backup`）。
+数据库结构会在下次启动时自动迁移；仅当设置向导提示需要迁移时才运行 `inhere-box init`。跨版本升级前请务必先备份（`inhere-box backup`）。
 
 ## ⚙️ 配置
 
-所有运行时数据存放在 `~/.octop/`。可通过 CLI 管理，也可直接编辑文件。
+所有运行时数据存放在 `~/.inhere-box/`。可通过 CLI 管理，也可直接编辑文件。
 
 ```bash
 # LLM 供应商与模型
-octop models
-octop provider list
+inhere-box models
+inhere-box provider list
 
 # IM 通道
-octop channel list
-octop channel install
+inhere-box channel list
+inhere-box channel install
 
 # Skill（按 Agent）
-octop skills list --agent main
+inhere-box skills list --agent main
 
 # 定时任务
-octop cron list
-octop cron create --help
+inhere-box cron list
+inhere-box cron create --help
 
 # 用户（管理员）
-octop user list
+inhere-box user list
 ```
 
 ### 支持的 LLM 供应商
 
-OpenAI 兼容 API、DashScope（千问）、Ollama 等预设 — 在控制台或通过 `octop provider` 按 Agent 配置。
+OpenAI 兼容 API、DashScope（千问）、Ollama 等预设 — 在控制台或通过 `inhere-box provider` 按 Agent 配置。
 
 ### 支持的通道
 
@@ -398,24 +400,24 @@ OpenAI 兼容 API、DashScope（千问）、Ollama 等预设 — 在控制台或
 
 | 命令 | 说明 |
 |------|------|
-| `octop init` | 初始化 `~/.octop/`（数据库、管理员、JWT 密钥） |
-| `octop run` | 前台启动 Octop |
-| `octop service start` | 安装并启动系统服务 |
-| `octop service stop` | 停止系统服务 |
-| `octop agent` | 创建、列出、启停 Agent |
-| `octop channel` | 安装与管理 IM 通道 |
-| `octop chats` | REPL 与会话管理 |
-| `octop acp` | 为 IDE 提供 stdio ACP 服务 |
-| `octop cron` | 管理定时任务 |
-| `octop models` | 供应商预设与模型解析 |
-| `octop skills` | 按 Agent 启用/禁用 Skill |
-| `octop plugin` | 安装并管理第三方插件 |
-| `octop backup` | 导出 / 恢复备份 |
-| `octop clean` | 清理 CLI 状态或清空 `~/.octop/` |
-| `octop memory list` | 列出可参与记忆维护的运行中 Agent；不改动数据库。 |
-| `octop memory slim [--agent ID]` | 通过运行中的宿主备份并精简 SQLite 记忆；使用指定 Agent 或按提示选择。在终端与控制台显示进度。[详情](docs/memory-slim.md) |
-| `octop memory slim --all` | 依次维护所有符合条件的运行中 Agent，逐个显示进度；首个失败即停止。 |
-| `octop update` | 检查并安装更新 |
+| `inhere-box init` | 初始化 `~/.inhere-box/`（数据库、管理员、JWT 密钥） |
+| `inhere-box run` | 前台启动 inhere-box |
+| `inhere-box service start` | 安装并启动系统服务 |
+| `inhere-box service stop` | 停止系统服务 |
+| `inhere-box agent` | 创建、列出、启停 Agent |
+| `inhere-box channel` | 安装与管理 IM 通道 |
+| `inhere-box chats` | REPL 与会话管理 |
+| `inhere-box acp` | 为 IDE 提供 stdio ACP 服务 |
+| `inhere-box cron` | 管理定时任务 |
+| `inhere-box models` | 供应商预设与模型解析 |
+| `inhere-box skills` | 按 Agent 启用/禁用 Skill |
+| `inhere-box plugin` | 安装并管理第三方插件 |
+| `inhere-box backup` | 导出 / 恢复备份 |
+| `inhere-box clean` | 清理 CLI 状态或清空 `~/.inhere-box/` |
+| `inhere-box memory list` | 列出可参与记忆维护的运行中 Agent；不改动数据库。 |
+| `inhere-box memory slim [--agent ID]` | 通过运行中的宿主备份并精简 SQLite 记忆；使用指定 Agent 或按提示选择。在终端与控制台显示进度。[详情](docs/memory-slim.md) |
+| `inhere-box memory slim --all` | 依次维护所有符合条件的运行中 Agent，逐个显示进度；首个失败即停止。 |
+| `inhere-box update` | 检查并安装更新 |
 
 在已登录的 Web 控制台或本地 CLI 聊天中，`/memory slim` 会说明当前 Agent 的维护方式；
 `/memory slim --all` 列出符合条件的 Agent。审阅影响后加 `--confirm` 开始维护。
@@ -426,10 +428,10 @@ OpenAI 兼容 API、DashScope（千问）、Ollama 等预设 — 在控制台或
 
 ## 🖥️ Web 控制台
 
-`octop run` 启动后访问 **http://127.0.0.1:8088**。
+`inhere-box run` 启动后访问 **http://127.0.0.1:8088**。
 
 <p align="center">
-  <img src="docs/assets/readme-chat-zh.png" alt="Octop Web 控制台" width="800" />
+  <img src="docs/assets/readme-chat-zh.png" alt="inhere-box Web 控制台" width="800" />
 </p>
 
 - **对话** — 与专家 / 团队实时聊天
@@ -449,18 +451,18 @@ OpenAI 兼容 API、DashScope（千问）、Ollama 等预设 — 在控制台或
 ## 📁 数据目录
 
 ```
-~/.octop/                          ← 安装与数据根目录
+~/.inhere-box/                          ← 安装与数据根目录
 ├── config.json                    # 进程配置（含可选 database 段）
-├── octop.db                       # 默认 SQLite 控制面（用户、Agent、通道、定时任务 …）
+├── inhere_box.db                       # 默认 SQLite 控制面（用户、Agent、通道、定时任务 …）
 ├── secrets/                       # JWT 密钥、通道 Token
 ├── agents/<agent_id>/             # 各 Agent 工作区（SOUL.md、skills …）
 ├── security/tool_guard/           # Shell 命令允许/拒绝规则
 ├── logs/                          # 运行日志
 ├── venv/                          # uv 管理的 Python（安装脚本布局）
-└── bin/octop                      # PATH 包装脚本 → venv/bin/octop
+└── bin/inhere-box                      # PATH 包装脚本 → venv/bin/inhere-box
 ```
 
-控制面也可改用 PostgreSQL（`config.json` → `database`，或 `OCTOP_DATABASE_*` / 首次设置向导）。控制面为 PostgreSQL 时，Agent 记忆**默认复用同一 DSN**（per-agent schema）；若需继续用文件记忆，在 agent 配置里设 `"memory": { "backend": { "type": "sqlite" } }`。详见 [docs/configuration.md](docs/configuration.md) 与 [docs/adr/002-database-backends.md](docs/adr/002-database-backends.md)。
+控制面也可改用 PostgreSQL（`config.json` → `database`，或 `INHERE_BOX_DATABASE_*` / 首次设置向导）。控制面为 PostgreSQL 时，Agent 记忆**默认复用同一 DSN**（per-agent schema）；若需继续用文件记忆，在 agent 配置里设 `"memory": { "backend": { "type": "sqlite" } }`。详见 [docs/configuration.md](docs/configuration.md) 与 [docs/adr/002-database-backends.md](docs/adr/002-database-backends.md)。
 
 环境变量与 `config.json` 详见 [docs/configuration.md](docs/configuration.md)。
 
@@ -469,7 +471,7 @@ OpenAI 兼容 API、DashScope（千问）、Ollama 等预设 — 在控制台或
 ## 🏗️ 架构
 
 ```
-OctopServer
+InhereBoxServer
  ├─ DatabasePool         SQLite (WAL) 或 PostgreSQL
  ├─ SharedServices       依赖注入根 — 所有 repo 与配置
  ├─ ExpertCatalog        启动时扫描 agents/experts/library/
@@ -490,9 +492,9 @@ OctopServer
 ## 📁 项目结构
 
 ```
-src/octop/
+src/inhere_box/
   config.py    环境变量配置
-  launch.py    OctopServer 启动 + uvicorn
+  launch.py    InhereBoxServer 启动 + uvicorn
   infra/       业务核心（agents、gateway、cron、db、users …）
   api/         HTTP 层 — FastAPI 路由、JWT、SSE
   cli/         CLI 层 — Click 命令
@@ -515,7 +517,7 @@ make all              # format-all + lint + typecheck + test（发布门槛）
 
 # 前端（另开终端）
 make dev-frontend     # Vite 开发服务器 :5173
-make build-frontend   # 生产构建 → src/octop/dashboard/
+make build-frontend   # 生产构建 → src/inhere_box/dashboard/
 cd dashboard && npx tsc -b
 ```
 
@@ -524,10 +526,10 @@ cd dashboard && npx tsc -b
 
 ## 🔒 安全与隐私
 
-- **本地优先**：配置、对话、工作区与凭证均存储在 `~/.octop/`。
+- **本地优先**：配置、对话、工作区与凭证均存储在 `~/.inhere-box/`。
 - **多用户隔离**：JWT 认证，按用户隔离 Agent 与工作区。
 - **敏感信息脱敏与工具审批**：离开工作区前自动脱敏敏感数据；高风险工具或 Shell 命令需依据护栏规则显式审批。
-- **工具护栏**：可在 `~/.octop/security/tool_guard/` 编辑 Shell 命令规则。
+- **工具护栏**：可在 `~/.inhere-box/security/tool_guard/` 编辑 Shell 命令规则。
 - **无厂商锁定**：可自由切换 LLM 供应商、存储后端与 IM 通道。
 
 ## 🤝 参与贡献

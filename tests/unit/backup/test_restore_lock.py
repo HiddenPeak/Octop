@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from octop.config import DatabaseConfig
-from octop.infra.agentcomputer.bootstrap import DaemonBootstrap
-from octop.infra.agents.resident_worker_lock import ResidentWorkerLock
-from octop.infra.backup import system_archive
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import DatabaseConfig
+from inhere_box.infra.agentcomputer.bootstrap import DaemonBootstrap
+from inhere_box.infra.agents.resident_worker_lock import ResidentWorkerLock
+from inhere_box.infra.backup import system_archive
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def _database(stack: ExitStack, root: Path, username: str) -> tuple[PathLayout, SqlitePool]:
@@ -53,7 +53,7 @@ def test_restore_refuses_live_writer_without_changing_database_or_task_files(
             resident.acquire()
             release = resident.release
         try:
-            with pytest.raises(OctopError) as rejected:
+            with pytest.raises(InhereBoxError) as rejected:
                 system_archive.restore_system_backup(
                     archive, paths=target, pool=live_pool, db_config=DatabaseConfig()
                 )
@@ -72,7 +72,7 @@ def test_restore_refuses_live_writer_without_changing_database_or_task_files(
 
 def _assert_writers_blocked(paths: PathLayout) -> None:
     with (
-        pytest.raises(OctopError) as rejected,
+        pytest.raises(InhereBoxError) as rejected,
         DaemonBootstrap(paths.agentcomputer_identity.parent),
     ):
         pass
@@ -124,7 +124,7 @@ def test_restore_holds_writer_locks_through_task_files_then_releases(
 def test_restore_releases_writer_locks_after_invalid_archive(tmp_path: Path) -> None:
     with ExitStack() as stack:
         target, pool = _database(stack, tmp_path / "target", "live-owner")
-        with pytest.raises(OctopError) as rejected:
+        with pytest.raises(InhereBoxError) as rejected:
             system_archive.restore_system_backup(
                 tmp_path / "missing.tar.gz", paths=target, pool=pool, db_config=DatabaseConfig()
             )

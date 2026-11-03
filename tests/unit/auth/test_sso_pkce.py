@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 
-from octop.infra.auth.sso.pkce import new_pkce_pair
+from inhere_box.infra.auth.sso.pkce import new_pkce_pair
 
 
 def test_new_pkce_pair_uses_sha256_urlsafe_challenge() -> None:

@@ -5,9 +5,9 @@ from uuid import uuid4
 
 import pytest
 
-from octop.i18n import error_message
-from octop.infra.projects import service, tasks
-from octop.infra.projects.models import ProjectFields
+from inhere_box.i18n import error_message
+from inhere_box.infra.projects import service, tasks
+from inhere_box.infra.projects.models import ProjectFields
 from tests.support.auth import create_user, resolve_user_id
 
 
@@ -279,7 +279,7 @@ async def test_project_deletion_stops_queue_but_retains_unconfirmed_running_turn
 async def test_project_delete_waits_for_execution_cleanup_and_closes_workbench(
     deletion_env, env_with_provider, monkeypatch
 ):
-    from octop.api.routers import project_task_workbench
+    from inhere_box.api.routers import project_task_workbench
 
     client, services, auth, owner = deletion_env
     worker = env_with_provider[1].project_task_worker
@@ -374,8 +374,8 @@ async def test_concurrent_project_delete_has_no_partial_failure(deletion_env):
 
 
 async def test_http_project_delete_stops_the_running_worker(env_with_provider, monkeypatch):
-    from octop.infra.projects import runtime
-    from octop.infra.projects.title import TitleResult
+    from inhere_box.infra.projects import runtime
+    from inhere_box.infra.projects.title import TitleResult
 
     client, server, auth = env_with_provider
     owner = await resolve_user_id(client, auth, "admin")

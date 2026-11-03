@@ -11,11 +11,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from octop.infra.db import migrate
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.project_sync import ProjectSyncRepo, all_task_scope, task_scope
-from octop.infra.db.repos.project_tasks import ProjectTaskRepo, ProjectTaskRow
+from inhere_box.infra.db import migrate
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.project_sync import ProjectSyncRepo, all_task_scope, task_scope
+from inhere_box.infra.db.repos.project_tasks import ProjectTaskRepo, ProjectTaskRow
 
 
 @pytest.fixture
@@ -68,11 +68,11 @@ def test_defaults_and_expert_foreign_key_preserve_task(task_db):
 
 
 def test_cli_delete_preserves_referenced_expert_workspace(task_db, monkeypatch, tmp_path):
-    from octop.cli.support import offline_ops
-    from octop.infra.errors import ErrorCode, OctopError
-    from octop.infra.utils.paths import PathLayout
+    from inhere_box.cli.support import offline_ops
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError
+    from inhere_box.infra.utils.paths import PathLayout
 
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     db, repo, agents, owner, _ = task_db
     workspace = tmp_path / "expert-workspace"
     workspace.mkdir()
@@ -82,7 +82,7 @@ def test_cli_delete_preserves_referenced_expert_workspace(task_db, monkeypatch, 
         repo.insert(conn, task(owner, selected_expert_id="expert"))
     services = SimpleNamespace(agent_repo=agents, paths=PathLayout(tmp_path))
     monkeypatch.setattr(offline_ops, "open_cli_services", lambda home: nullcontext(services))
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         offline_ops.delete_agent_offline("expert", home=tmp_path)
     assert error.value.code == ErrorCode.EXPERT_IN_USE
     assert agents.get("expert") is not None

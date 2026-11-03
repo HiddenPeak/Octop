@@ -10,9 +10,9 @@ from octop_memory.core import Memory
 from pydantic import ValidationError
 from tests.unit.projects.test_expert_execution import services  # noqa: F401
 
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects.expert_memory import ExpertMemory
-from octop.infra.projects.expert_memory_management import (
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects.expert_memory import ExpertMemory
+from inhere_box.infra.projects.expert_memory_management import (
     ExpertMemoryPolicyPatch,
     ExpertMemoryQuery,
     ExpertMemorySave,
@@ -21,7 +21,7 @@ from octop.infra.projects.expert_memory_management import (
     save_memory,
     update_memory_policy,
 )
-from octop.infra.projects.expert_profiles import resolve_expert_profile
+from inhere_box.infra.projects.expert_profiles import resolve_expert_profile
 
 
 @pytest.fixture
@@ -105,7 +105,7 @@ def test_scope_facts_do_not_escape_project_or_standalone_task(memory_tasks):
     )
     assert query(memory_tasks, "task-same-project", "scope", query="Mercury").entries
     assert query(memory_tasks, "task-other-project", "scope", query="Mercury").entries == []
-    with pytest.raises(OctopError) as wrong_scope:
+    with pytest.raises(InhereBoxError) as wrong_scope:
         query(memory_tasks, "task-other-project", "scope", path=project_fact.entry.path)
     assert wrong_scope.value.code == ErrorCode.NOT_FOUND
     save(
@@ -122,7 +122,7 @@ def test_scope_facts_do_not_escape_project_or_standalone_task(memory_tasks):
 def test_owner_and_expert_isolation_apply_to_management_and_known_paths(memory_tasks):
     saved = save(memory_tasks)
     assert query(memory_tasks, "task-other-expert", query="blueberry").entries == []
-    with pytest.raises(OctopError) as unknown_path:
+    with pytest.raises(InhereBoxError) as unknown_path:
         query(memory_tasks, "task-other-expert", path=saved.entry.path)
     assert unknown_path.value.code == ErrorCode.NOT_FOUND
     for operation in (
@@ -137,7 +137,7 @@ def test_owner_and_expert_isolation_apply_to_management_and_known_paths(memory_t
         ),
         lambda: memory_policy(memory_tasks, 2, "task-one"),
     ):
-        with pytest.raises(OctopError) as denied:
+        with pytest.raises(InhereBoxError) as denied:
             operation()
         assert denied.value.code == ErrorCode.NOT_FOUND
 
@@ -147,7 +147,7 @@ def test_manual_save_request_retries_replay_result_and_reject_different_content(
     second = save(memory_tasks)
     assert second.replayed is True and second.entry == first.entry
     assert len([entry for entry in query(memory_tasks).entries if entry.layer == "atom"]) == 1
-    with pytest.raises(OctopError) as conflict:
+    with pytest.raises(InhereBoxError) as conflict:
         save(memory_tasks, content="A different assertion under the same request.")
     assert conflict.value.code == ErrorCode.TASK_REQUEST_CONFLICT
 
@@ -179,7 +179,7 @@ def test_legacy_requires_explicit_policy_and_is_always_read_only(memory_tasks):
     original.backend.close()
     policy = memory_policy(memory_tasks, 1, "task-one")
     assert policy.legacy_recall_enabled is False
-    with pytest.raises(OctopError) as denied:
+    with pytest.raises(InhereBoxError) as denied:
         query(memory_tasks, source="legacy")
     assert denied.value.code == ErrorCode.TASK_RESOURCE_UNAVAILABLE
     updated = update_memory_policy(
@@ -198,7 +198,7 @@ def test_legacy_requires_explicit_policy_and_is_always_read_only(memory_tasks):
             source="legacy", request_id="legacy-denied-write", content="Must not write legacy."
         )
     assert query(memory_tasks, source="general", query="violet").entries == []
-    with pytest.raises(OctopError) as stale:
+    with pytest.raises(InhereBoxError) as stale:
         update_memory_policy(
             memory_tasks,
             1,
@@ -231,6 +231,6 @@ def test_policy_capture_switch_preserves_configuration_and_stale_panel_cannot_wr
         json.loads(after.config_json)["workspace_dir"]
         == json.loads(before.config_json)["workspace_dir"]
     )
-    with pytest.raises(OctopError) as stale:
+    with pytest.raises(InhereBoxError) as stale:
         save(memory_tasks, expected_expert_id="expert-two")
     assert stale.value.code == ErrorCode.TASK_REVISION_CONFLICT

@@ -5,11 +5,11 @@
   "info": {
     "0000": {
       "ProductVersion": "0.9.26",
-      "CompanyName": "Octop",
-      "FileDescription": "Octop desktop",
+      "CompanyName": "inhere-box",
+      "FileDescription": "inhere-box desktop",
       "LegalCopyright": "Copyright © 2026",
-      "ProductName": "Octop",
-      "Comments": "Octop desktop shell"
+      "ProductName": "inhere-box",
+      "Comments": "inhere-box desktop shell"
     }
   }
 }

@@ -14,8 +14,8 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from octop_harness import HarnessAgent
 from octop_harness.llm.factory import ChatModelFactory
 
-from octop.infra.projects import approval_policy, approval_reviewer, runtime, title
-from octop.infra.projects.approval_models import TaskApprovalSettings
+from inhere_box.infra.projects import approval_policy, approval_reviewer, runtime, title
+from inhere_box.infra.projects.approval_models import TaskApprovalSettings
 from tests.integration.test_project_task_checkpoints import parked
 from tests.integration.test_project_task_client_tools import CLIENT, claim, identity, result
 from tests.integration.test_project_tasks import settled
@@ -27,7 +27,7 @@ ARGUMENTS = {"command": ["fixture-command", "--check"]}
 
 @pytest.fixture
 async def review_env(env_with_provider, monkeypatch):
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     client, server, auth = env_with_provider
     monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 0.01)

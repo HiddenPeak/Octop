@@ -10,7 +10,7 @@
 
 ## 接收证据的范围
 
-`EngineEntryReceipt` 是 Octop 应用控制层保存的入站证据，表示固定 Run/Turn 的交接已被应用接收。
+`EngineEntryReceipt` 是 inhere-box 应用控制层保存的入站证据，表示固定 Run/Turn 的交接已被应用接收。
 它不等于 octop-harness 原生的幂等执行收据，不证明模型已开始，也不证明执行完成。
 本轮没有为 `HistoryArchive.begin` 增加原生幂等能力，未创建或预留与引擎原生 History Turn 绑定的 ID。
 业务 turnID 与未来原生历史回合仍需明确衔接，不能把应用收据的业务 turnID 当作原生历史身份。

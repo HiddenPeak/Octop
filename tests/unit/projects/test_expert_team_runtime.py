@@ -13,11 +13,11 @@ from langgraph.errors import GraphInterrupt
 from octop_harness import HarnessAgentConfig
 from octop_harness.request import ChatRequest
 
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import expert_team_runtime as module
-from octop.infra.projects.models import ProjectFields
-from octop.infra.projects.runtime import TaskActionModeMiddleware
-from octop.infra.usage.model_calls import current_model_call_scope
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import expert_team_runtime as module
+from inhere_box.infra.projects.models import ProjectFields
+from inhere_box.infra.projects.runtime import TaskActionModeMiddleware
+from inhere_box.infra.usage.model_calls import current_model_call_scope
 
 
 @pytest.fixture
@@ -222,10 +222,10 @@ async def test_member_shared_revocation_is_rechecked_before_invocation(prepared,
     await runtime.configure(profile, "ephemeral")
 
     def revoked(*_args):
-        raise OctopError.localized(ErrorCode.NOT_FOUND)
+        raise InhereBoxError.localized(ErrorCode.NOT_FOUND)
 
     monkeypatch.setattr(module, "expert_configuration", revoked)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await runtime.enrich("ephemeral", ChatRequest(messages="Delegate"))
 
 
@@ -239,7 +239,7 @@ async def test_stale_worker_cannot_replace_persisted_member_evidence(prepared):
     runtime.services.project_task_turn_repo.get = lambda *_: SimpleNamespace(
         status="running", worker_id="new-worker", cancel_requested=False
     )
-    with pytest.raises(OctopError) as stale:
+    with pytest.raises(InhereBoxError) as stale:
         await runtime.finished(
             SimpleNamespace(to_agent_id="ephemeral", message="Late old worker"),
             "peer-thread",

@@ -7,20 +7,20 @@ import json
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.agents.resident_identity import ensure_resident_identity
-from octop.infra.db import migrate
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_artifacts import ProjectTaskArtifactRow
-from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRow
-from octop.infra.db.repos.project_tasks import ProjectTaskRow
-from octop.infra.db.repos.resident_delegations import (
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.resident_identity import ensure_resident_identity
+from inhere_box.infra.db import migrate
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_artifacts import ProjectTaskArtifactRow
+from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRow
+from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
+from inhere_box.infra.db.repos.resident_delegations import (
     ResidentDelegationRepo,
     ResidentDelegationRow,
     ResidentTaskReportRepo,
 )
-from octop.infra.db.services import build_shared_services
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.utils.paths import PathLayout
 
 NOW = 1_800_000_000_000
 
@@ -31,7 +31,7 @@ def delegated(tmp_path):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     migrate.run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     services.user_repo.create(username="owner", password_hash="x", role="user")
     binding = asyncio.run(ensure_resident_identity(services, 1))
     with db.transaction() as conn:

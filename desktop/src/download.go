@@ -112,7 +112,9 @@ func portableVersion(root string) string {
 }
 
 func installedPackageVersion(root string) string {
-	matches, _ := filepath.Glob(filepath.Join(root, "packages", "octop-*.dist-info", "METADATA"))
+	matches, _ := filepath.Glob(filepath.Join(root, "packages", "inhere_box-*.dist-info", "METADATA"))
+	legacy, _ := filepath.Glob(filepath.Join(root, "packages", "octop-*.dist-info", "METADATA"))
+	matches = append(matches, legacy...)
 	version := ""
 	for _, metadata := range matches {
 		data, err := os.ReadFile(metadata)
@@ -131,7 +133,7 @@ func installedPackageVersion(root string) string {
 }
 
 func bundledPortableVersion() (string, error) {
-	if os.Getenv("OCTOP_DESKTOP_PORTABLE_ZIP") == "" && len(embeddedPortable) > 0 {
+	if envValue("INHERE_BOX_DESKTOP_PORTABLE_ZIP") == "" && len(embeddedPortable) > 0 {
 		reader, err := zip.NewReader(bytes.NewReader(embeddedPortable), int64(len(embeddedPortable)))
 		if err != nil {
 			return "", err
@@ -162,7 +164,7 @@ func versionFromZip(files []*zip.File) (string, error) {
 	}
 	return zipEntryVersion(files, func(name string) bool {
 		rel := filepath.ToSlash(name)
-		return strings.Contains(rel, "/octop-") && strings.HasSuffix(rel, ".dist-info/METADATA")
+		return (strings.Contains(rel, "/inhere_box-") || strings.Contains(rel, "/octop-")) && strings.HasSuffix(rel, ".dist-info/METADATA")
 	}, metadataVersion)
 }
 
@@ -197,7 +199,7 @@ func zipEntryVersion(files []*zip.File, match func(string) bool, parse func(stri
 
 func versionFromText(text string) string {
 	for _, line := range strings.Split(text, "\n") {
-		if value, ok := strings.CutPrefix(strings.TrimSpace(line), "octop_version="); ok {
+		if value, ok := strings.CutPrefix(strings.TrimSpace(line), "inhere_box_version="); ok {
 			return strings.TrimSpace(value)
 		}
 	}
@@ -215,7 +217,7 @@ func metadataVersion(text string) string {
 }
 
 func extractPortable(root string) error {
-	if os.Getenv("OCTOP_DESKTOP_PORTABLE_ZIP") != "" {
+	if envValue("INHERE_BOX_DESKTOP_PORTABLE_ZIP") != "" {
 		zipPath, err := bundledPortableZip()
 		if err != nil {
 			return err
@@ -233,7 +235,7 @@ func extractPortable(root string) error {
 }
 
 func bundledPortableZip() (string, error) {
-	if override := os.Getenv("OCTOP_DESKTOP_PORTABLE_ZIP"); override != "" {
+	if override := envValue("INHERE_BOX_DESKTOP_PORTABLE_ZIP"); override != "" {
 		if _, err := os.Stat(override); err != nil {
 			return "", fmt.Errorf("bundled portable package: %w", err)
 		}
@@ -245,7 +247,7 @@ func bundledPortableZip() (string, error) {
 	}
 	dir := filepath.Dir(exe)
 	plat := greenPlat()
-	legacy := fmt.Sprintf("Octop-%s.zip", plat)
+	legacy := fmt.Sprintf("inhere-box-%s.zip", plat)
 	searchDirs := []string{
 		dir,
 		filepath.Join(dir, "..", "Resources"),
@@ -256,7 +258,7 @@ func bundledPortableZip() (string, error) {
 		if _, err := os.Stat(legacyPath); err == nil {
 			return legacyPath, nil
 		}
-		matches, _ := filepath.Glob(filepath.Join(search, "Octop-portable-"+plat+"-*.zip"))
+		matches, _ := filepath.Glob(filepath.Join(search, "inhere-box-portable-"+plat+"-*.zip"))
 		if len(matches) > 0 {
 			sort.Strings(matches)
 			return matches[len(matches)-1], nil
@@ -287,7 +289,7 @@ func unzipGreenFiles(files []*zip.File, dest string) error {
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		return err
 	}
-	// Zip root is Octop-<plat>/… — strip that prefix.
+	// Zip root is inhere-box-<plat>/… — strip that prefix.
 	for _, f := range files {
 		name := f.Name
 		parts := strings.SplitN(name, "/", 2)

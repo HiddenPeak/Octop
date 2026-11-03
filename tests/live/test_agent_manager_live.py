@@ -1,4 +1,4 @@
-"""Live integration tests for :class:`octop.infra.agents.manager.AgentManager`.
+"""Live integration tests for :class:`inhere_box.infra.agents.manager.AgentManager`.
 
 Requires ``OPENAI_API_KEY``, ``OPENAI_BASE_URL``, and ``OPENAI_MODEL_NAME`` in
 the repo-root ``.env``. Skipped by default — run with::
@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.agents.manager import AgentCreateSpec
-from octop.infra.agents.providers import KIND_TO_PROTOCOL
-from octop.infra.errors import OctopError
+from inhere_box.infra.agents.manager import AgentCreateSpec
+from inhere_box.infra.agents.providers import KIND_TO_PROTOCOL
+from inhere_box.infra.errors import InhereBoxError
 
 pytestmark = pytest.mark.live
 
@@ -59,8 +59,8 @@ async def test_create_agent_seeds_workspace_and_starts(
     # execute-env injection (PR #376): platform identity folded into shell env
     assert backend.get("inherit_env") is True
     env = backend["env"]
-    assert env["OCTOP_AGENT_ID"] == row.agent_id
-    assert "OCTOP_AUTH_DIR" in env and "OCTOP_HOME" in env and "OCTOP_SKILLS_DIR" in env
+    assert env["INHERE_BOX_AGENT_ID"] == row.agent_id
+    assert "OCTOP_AUTH_DIR" in env and "INHERE_BOX_HOME" in env and "INHERE_BOX_SKILLS_DIR" in env
     assert str(cfg.workspace_dir) == str(ws)
 
 
@@ -107,7 +107,7 @@ async def test_delete_removes_agent(live_agent_manager, live_openai_config) -> N
     await live_agent_manager.delete(agent_id)
 
     assert live_agent_manager.get_row(agent_id) is None
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         live_agent_manager.get_agent(agent_id)
 
 

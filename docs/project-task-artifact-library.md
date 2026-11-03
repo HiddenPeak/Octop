@@ -39,7 +39,7 @@ erDiagram
 
 成果表不直接保存 `owner_id` 和 `project_id`。账号权限与项目归属从任务读取；无项目任务的 `project_id` 为 `null`。项目和任务的展示名称取当前值，文件名、内容及发布时间保持发布时的值。
 
-现状依据：[成果表结构](../src/octop/infra/db/migrations/037_task_artifacts.sql)、[成果 Repo](../src/octop/infra/db/repos/project_task_artifacts.py)、[任务归属](../src/octop/infra/db/repos/project_tasks.py)。
+现状依据：[成果表结构](../src/inhere_box/infra/db/migrations/037_task_artifacts.sql)、[成果 Repo](../src/inhere_box/infra/db/repos/project_task_artifacts.py)、[任务归属](../src/inhere_box/infra/db/repos/project_tasks.py)。
 
 ### 正式发布与普通工作文件的区别
 
@@ -49,7 +49,7 @@ erDiagram
 
 资料库按发布事实收录，不要求轮次最终为 `completed`。同一轮先成功发布文件、随后失败或取消时，已发布文件仍然有效；列表返回该轮当前状态，供界面解释来源。没有成功发布的文件不展示为成果。
 
-现状依据：[发布事务及限额](../src/octop/infra/projects/artifacts.py#L174)、[项目文件编辑不强制发布的用例](../tests/integration/test_project_task_artifacts.py#L419)。
+现状依据：[发布事务及限额](../src/inhere_box/infra/projects/artifacts.py#L174)、[项目文件编辑不强制发布的用例](../tests/integration/test_project_task_artifacts.py#L419)。
 
 ### 输入附件和知识库分别管理
 
@@ -71,7 +71,7 @@ erDiagram
 
 ## 接口设计
 
-所有接口使用当前 Octop 账号鉴权，沿用 `/api/project-tasks` 正式入口；不增加 AgentComputer 专用前缀或 Bridge 转发。新增 JSON 接口返回 `Cache-Control: private, no-store`，不返回文件字节、服务器绝对路径、工作区凭据或工具原始参数。
+所有接口使用当前 inhere-box 账号鉴权，沿用 `/api/project-tasks` 正式入口；不增加 AgentComputer 专用前缀或 Bridge 转发。新增 JSON 接口返回 `Cache-Control: private, no-store`，不返回文件字节、服务器绝对路径、工作区凭据或工具原始参数。
 
 | 操作           | 方法和路径                                                          | 状态         |
 | -------------- | ------------------------------------------------------------------- | ------------ |
@@ -144,7 +144,7 @@ GET /api/project-tasks/artifacts?task_id=task_example
 
 每个条目为 `TaskArtifactLibraryItem`，复用现有 `TaskArtifact` 全部字段，增加下表字段。`TaskArtifact` 同步新增必返回的 `business_category`；任务历史、WebSocket 的 `TaskTurn.artifacts` 和工具发布结果也返回该字段。
 
-`created_at` 继续返回 UTC 的 ISO 8601 时间；界面按 Octop `default_timezone` 显示，不直接采用浏览器或设备本地时区。
+`created_at` 继续返回 UTC 的 ISO 8601 时间；界面按 inhere-box `default_timezone` 显示，不直接采用浏览器或设备本地时区。
 
 | 新增字段                                           | 含义                                        |
 | -------------------------------------------------- | ------------------------------------------- |
@@ -307,7 +307,7 @@ schema 48 的 `048_task_artifact_business_category.sql` 与 `.pg.sql` 已为成�
 
 卡片摘要目前由客户端下载小型文本后提取，服务端摘要字段后续补充，不阻塞分类筛选接入。PostgreSQL 实库和查询计划仍属于后续验证项。
 
-本地会话成果与 Octop 成果具有不同来源，不能仅按文件名或 SHA-256 自动合并。接入时先明确当前展示的数据来源；本方案不自动迁移或上传客户端已有成果，也不探测 `client_directory`。
+本地会话成果与 inhere-box 成果具有不同来源，不能仅按文件名或 SHA-256 自动合并。接入时先明确当前展示的数据来源；本方案不自动迁移或上传客户端已有成果，也不探测 `client_directory`。
 
 | 操作或状态             | 资料库行为                                             |
 | ---------------------- | ------------------------------------------------------ |
@@ -348,14 +348,14 @@ schema 48 的 `048_task_artifact_business_category.sql` 与 `.pg.sql` 已为成�
 
 | 事实                     | 代码位置                                                              |
 | ------------------------ | --------------------------------------------------------------------- |
-| 成果统一表与任务轮次外键 | `src/octop/infra/db/migrations/037_task_artifacts.sql:2`；PG 同名迁移 |
-| 发布时保存快照           | `src/octop/infra/projects/artifacts.py:174`                           |
-| 下载归属与完整性校验     | `src/octop/infra/projects/artifacts.py:113`                           |
-| 当前成果公开字段         | `src/octop/infra/projects/artifact_models.py:113`                     |
-| 现有历史附带成果         | `src/octop/infra/projects/tasks.py:483`                               |
-| 删除任务清理成果         | `src/octop/infra/db/repos/project_tasks.py:110`                       |
-| 删除项目清理任务         | `src/octop/infra/projects/service.py:158`                             |
-| 输入附件另表保存         | `src/octop/infra/db/migrations/042_task_input_attachments.sql:2`      |
-| 现有签名游标             | `src/octop/infra/projects/cursors.py:34`                              |
+| 成果统一表与任务轮次外键 | `src/inhere_box/infra/db/migrations/037_task_artifacts.sql:2`；PG 同名迁移 |
+| 发布时保存快照           | `src/inhere_box/infra/projects/artifacts.py:174`                           |
+| 下载归属与完整性校验     | `src/inhere_box/infra/projects/artifacts.py:113`                           |
+| 当前成果公开字段         | `src/inhere_box/infra/projects/artifact_models.py:113`                     |
+| 现有历史附带成果         | `src/inhere_box/infra/projects/tasks.py:483`                               |
+| 删除任务清理成果         | `src/inhere_box/infra/db/repos/project_tasks.py:110`                       |
+| 删除项目清理任务         | `src/inhere_box/infra/projects/service.py:158`                             |
+| 输入附件另表保存         | `src/inhere_box/infra/db/migrations/042_task_input_attachments.sql:2`      |
+| 现有签名游标             | `src/inhere_box/infra/projects/cursors.py:34`                              |
 
 仓库早期 `agentcomputer-project-documents.md` 中的 `/api/agentcomputer/v1` 项目文档接口属于历史方案，不作为此次资料库接口基础。

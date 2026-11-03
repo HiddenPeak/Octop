@@ -9,8 +9,8 @@ import pytest
 from langchain_core.messages import HumanMessage
 from octop_gateway.models import ChannelSubject, InboundMessage, TextContent
 
-from octop.infra.gateway.process.processor import GlobalProcessor, _overwrite_last_user_text
-from octop.infra.gateway.slash.dispatcher import SlashDispatcher
+from inhere_box.infra.gateway.process.processor import GlobalProcessor, _overwrite_last_user_text
+from inhere_box.infra.gateway.slash.dispatcher import SlashDispatcher
 
 
 def _processor(*, thread: SimpleNamespace | None) -> GlobalProcessor:

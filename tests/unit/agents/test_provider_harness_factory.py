@@ -1,4 +1,4 @@
-"""Tests for :mod:`octop.infra.agents.providers.harness_factory`."""
+"""Tests for :mod:`inhere_box.infra.agents.providers.harness_factory`."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 from octop_harness.config import ProviderConfig
 
-from octop.infra.agents.providers.harness_factory import sync_providers_to_harness
+from inhere_box.infra.agents.providers.harness_factory import sync_providers_to_harness
 
 
 def test_sync_bootstraps_when_factory_missing() -> None:

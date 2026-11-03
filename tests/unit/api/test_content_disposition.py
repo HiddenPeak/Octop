@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from starlette.responses import Response
 
-from octop.api.common.content_disposition import content_disposition
+from inhere_box.api.common.content_disposition import content_disposition
 
 
 def test_ascii_filename() -> None:

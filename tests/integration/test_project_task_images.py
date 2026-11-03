@@ -11,8 +11,8 @@ from dataclasses import replace
 import pytest
 from PIL import Image
 
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import runtime, tasks
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import runtime, tasks
 from tests.integration.test_project_task_artifacts import real_model as real_model
 from tests.integration.test_project_task_checkpoints import parked
 from tests.integration.test_project_task_client_tools import CLIENT, OPTIONS, claim, result
@@ -324,7 +324,7 @@ async def test_nine_images_keep_order_and_reordered_replay_conflicts(task_env, t
     # Bypass the request model once to prove the domain also rejects ten real
     # uploads and rolls back task creation and every attachment binding.
     owner = await resolve_user_id(client, auth, "admin")
-    with pytest.raises(OctopError) as rejected:
+    with pytest.raises(InhereBoxError) as rejected:
         tasks.send(server.services, owner, tasks.TaskMessage.model_construct(**invalid))
     assert rejected.value.code == ErrorCode.TASK_ATTACHMENT_LIMIT
     response = await client.post("/api/project-tasks", headers=auth, json=invalid)
@@ -585,7 +585,7 @@ async def test_image_checkpoint_resumes_without_persisting_data_uri(
 ):
     from langchain_core.messages import AIMessage
 
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     client, server, auth = env_with_provider
     monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 0.01)

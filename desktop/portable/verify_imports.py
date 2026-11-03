@@ -3,7 +3,7 @@
 
 Usage:
   python desktop/portable/verify_imports.py \\
-    --packages desktop/portable/release/Octop-<plat>/packages \\
+    --packages desktop/portable/release/inhere-box-<plat>/packages \\
     --requirements desktop/portable/requirements-<plat>.txt \\
     [--overrides desktop/portable/overrides-<plat>.txt]
 """
@@ -22,7 +22,7 @@ _REQ_RE = re.compile(r"^(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)(?:\s*==\s*(?P<ver>[
 
 # Import names that have historically drifted across lock/install environments.
 _SMOKE_IMPORTS = (
-    "octop",
+    "inhere_box",
     "fastapi",
     "cryptography.fernet",
     "langchain_core",

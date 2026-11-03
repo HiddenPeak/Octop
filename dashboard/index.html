@@ -26,17 +26,33 @@
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
-    <meta name="apple-mobile-web-app-title" content="Octop" />
+    <meta name="apple-mobile-web-app-title" content="inhere-box" />
     <!-- Web App Manifest -->
     <link rel="manifest" href="/manifest.json" />
-    <title>Octop</title>
+    <title>inhere-box</title>
     <!--
       Resolve dashboard theme before first paint. Must stay a classic script:
       the splash CSS keys off html[data-theme], not prefers-color-scheme,
       so a stored "light" preference wins over an OS dark setting.
       Storage shape matches appearanceStorage.ts (THEME_STORAGE_KEY = "theme").
     -->
-    <script id="octop-boot-theme">
+    <script id="inhere-box-storage-migration">
+      (function () {
+        try {
+          var marker = "inhere-box:branding-migrated";
+          if (localStorage.getItem(marker) === "1") return;
+          Object.keys(localStorage).forEach(function (key) {
+            if (!/^octop[:-]/.test(key)) return;
+            var next = key.replace(/^octop/, "inhere-box");
+            if (localStorage.getItem(next) === null) {
+              localStorage.setItem(next, localStorage.getItem(key));
+            }
+          });
+          localStorage.setItem(marker, "1");
+        } catch (e) {}
+      })();
+    </script>
+    <script id="inhere-box-boot-theme">
       (function () {
         var KEY = "theme";
         var mode = "light";
@@ -93,7 +109,7 @@
         min-height: 100%;
         min-height: 100lvh;
       }
-      #octop-boot {
+      #inhere-box-boot {
         /* fixed + inset: always viewport-centered before app CSS sets #root height */
         position: fixed;
         inset: 0;
@@ -118,30 +134,30 @@
       html[data-theme="dark"] body {
         background: #12141c;
       }
-      html[data-theme="dark"] #octop-boot {
+      html[data-theme="dark"] #inhere-box-boot {
         background: #12141c;
         color: rgba(255, 255, 255, 0.55);
       }
-      #octop-boot-mark {
+      #inhere-box-boot-mark {
         position: relative;
         width: 88px;
         height: 88px;
         flex: none;
       }
-      #octop-boot-ring {
+      #inhere-box-boot-ring {
         box-sizing: border-box;
         position: absolute;
         inset: 0;
         border-radius: 50%;
         border: 3px solid rgba(232, 93, 117, 0.18);
         border-top-color: #e85d75;
-        animation: octop-boot-spin 0.85s linear infinite;
+        animation: inhere-box-boot-spin 0.85s linear infinite;
       }
-      html[data-theme="dark"] #octop-boot-ring {
+      html[data-theme="dark"] #inhere-box-boot-ring {
         border-color: rgba(240, 139, 154, 0.22);
         border-top-color: #f08b9a;
       }
-      .octop-boot-logo {
+      .inhere-box-boot-logo {
         position: absolute;
         inset: 14px;
         width: 60px;
@@ -149,29 +165,29 @@
         border-radius: 14px;
         object-fit: contain;
         display: block;
-        animation: octop-boot-breathe 1.6s ease-in-out infinite;
+        animation: inhere-box-boot-breathe 1.6s ease-in-out infinite;
       }
-      .octop-boot-logo--dark {
+      .inhere-box-boot-logo--dark {
         display: none;
       }
-      html[data-theme="dark"] .octop-boot-logo--light {
+      html[data-theme="dark"] .inhere-box-boot-logo--light {
         display: none;
       }
-      html[data-theme="dark"] .octop-boot-logo--dark {
+      html[data-theme="dark"] .inhere-box-boot-logo--dark {
         display: block;
       }
-      #octop-boot-text {
+      #inhere-box-boot-text {
         font-size: 14px;
         font-weight: 500;
         letter-spacing: 0.04em;
         user-select: none;
       }
-      @keyframes octop-boot-spin {
+      @keyframes inhere-box-boot-spin {
         to {
           transform: rotate(360deg);
         }
       }
-      @keyframes octop-boot-breathe {
+      @keyframes inhere-box-boot-breathe {
         0%,
         100% {
           transform: scale(1);
@@ -183,15 +199,15 @@
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        #octop-boot-ring,
-        .octop-boot-logo {
+        #inhere-box-boot-ring,
+        .inhere-box-boot-logo {
           animation: none;
         }
       }
     </style>
     <!--
       Classic script (not type=module) so it runs even when hashed chunks 404.
-      Shares octop:chunk-reload with reloadOnStaleChunk.ts.
+      Shares inhere-box:chunk-reload with reloadOnStaleChunk.ts.
     -->
     <script>
       (function () {
@@ -207,7 +223,7 @@
           });
         }
 
-        var KEY = "octop:chunk-reload";
+        var KEY = "inhere-box:chunk-reload";
         // Firefox fires error on <link rel="modulepreload"> for /assets/*.js
         // even when the file is fine; treating those as stale chunks caused
         // infinite location.reload() loops (and aborted real dynamic imports).
@@ -274,30 +290,30 @@
   </head>
   <body>
     <div id="root">
-      <div id="octop-boot" role="status" aria-live="polite">
-        <div id="octop-boot-mark" aria-hidden="true">
-          <div id="octop-boot-ring"></div>
+      <div id="inhere-box-boot" role="status" aria-live="polite">
+        <div id="inhere-box-boot-mark" aria-hidden="true">
+          <div id="inhere-box-boot-ring"></div>
           <img
-            class="octop-boot-logo octop-boot-logo--light"
+            class="inhere-box-boot-logo inhere-box-boot-logo--light"
             src="/logo_vertical_dark.svg"
             alt=""
             width="60"
             height="60"
           />
           <img
-            class="octop-boot-logo octop-boot-logo--dark"
+            class="inhere-box-boot-logo inhere-box-boot-logo--dark"
             src="/logo_vertical_white.svg"
             alt=""
             width="60"
             height="60"
           />
         </div>
-        <div id="octop-boot-text">Loading…</div>
+        <div id="inhere-box-boot-text">Loading…</div>
       </div>
     </div>
     <script>
       (function () {
-        var el = document.getElementById("octop-boot-text");
+        var el = document.getElementById("inhere-box-boot-text");
         if (!el) return;
         try {
           var lang = (

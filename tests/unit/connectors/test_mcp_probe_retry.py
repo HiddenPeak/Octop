@@ -17,7 +17,7 @@ import pytest
 from mcp.shared.exceptions import McpError
 from mcp.types import ErrorData
 
-from octop.infra.connectors import probe
+from inhere_box.infra.connectors import probe
 
 _URL = "https://mcp.notion.example/mcp"
 

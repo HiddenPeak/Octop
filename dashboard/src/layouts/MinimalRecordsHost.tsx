@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { message as antMessage } from "@/utils/antdMessage";
 import { useTranslation } from "react-i18next";
 import { useAgent, selectEnabledExperts } from "../context/AgentContext";
-import { octopThreadsApi } from "../api/modules/octopThreads";
+import { inhereBoxThreadsApi } from "../api/modules/inhereBoxThreads";
 import { apiErrorMessage } from "../utils/apiError";
 import MinimalAgentSessionNav from "../pages/Chat/components/MinimalAgentSessionNav";
 import { emitSessionEvent } from "../pages/Chat/hooks/chatStore";
@@ -73,7 +73,7 @@ export default function MinimalRecordsHost() {
     async (sessionId: string) => {
       if (!resolvedAgentId || !sessionId) return;
       try {
-        await octopThreadsApi.delete(resolvedAgentId, sessionId);
+        await inhereBoxThreadsApi.delete(resolvedAgentId, sessionId);
         emitSessionEvent({ kind: "sessionDeleted", sessionId });
         if (pathThreadId === sessionId) {
           navigate(`/chat/${resolvedAgentId}`, { replace: true });
@@ -90,7 +90,7 @@ export default function MinimalRecordsHost() {
       if (!resolvedAgentId) return;
       const next = formatThreadTitle(name) || name.trim();
       if (!next) return;
-      void octopThreadsApi
+      void inhereBoxThreadsApi
         .rename(resolvedAgentId, sessionId, next)
         .catch(() => {});
     },
@@ -100,7 +100,7 @@ export default function MinimalRecordsHost() {
   const handlePinActive = useCallback(
     (sessionId: string, pinned: boolean) => {
       if (!resolvedAgentId) return;
-      void octopThreadsApi
+      void inhereBoxThreadsApi
         .patch(resolvedAgentId, sessionId, { pinned })
         .catch(() => {});
     },
@@ -112,7 +112,7 @@ export default function MinimalRecordsHost() {
       const agent = agentId || resolvedAgentId;
       if (!agent || !threadId) return;
       try {
-        const created = await octopThreadsApi.fork(agent, threadId, {
+        const created = await inhereBoxThreadsApi.fork(agent, threadId, {
           assistant_turns_from_end: 1,
         });
         setActiveAgent(agent);

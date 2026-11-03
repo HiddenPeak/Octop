@@ -275,9 +275,11 @@ export default function LoginPage() {
       >
         <img
           src={
-            isDark ? "/logo_horizontal_white.png" : "/logo_horizontal_dark.png"
+            isDark
+              ? "/inhere-box-wordmark-white.svg"
+              : "/inhere-box-wordmark-dark.svg"
           }
-          alt="Octop"
+          alt="inhere-box"
           style={{
             height: 48,
             width: "auto",

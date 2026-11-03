@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRepo, ProjectTaskTurnRow
-from octop.infra.projects.tasks import TaskTurn, turn_view
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRepo, ProjectTaskTurnRow
+from inhere_box.infra.projects.tasks import TaskTurn, turn_view
 
 
 @pytest.fixture

@@ -26,11 +26,11 @@
 
 ## 2. 管理密钥从哪里来
 
-当前通过盒子本机的受信任维护终端生成。服务首次启动建立数据库与盒子身份后，停止本实例，执行 `octop box key init`，再启动服务。命令生成每盒独立的高熵随机管理密钥，标准输出只显示一次；数据库只保存摘要。密钥不通过匿名 HTTP 接口提供，不写入 URL，不保存在网页的 localStorage、sessionStorage 或 IndexedDB。
+当前通过盒子本机的受信任维护终端生成。服务首次启动建立数据库与盒子身份后，停止本实例，执行 `inhere-box box key init`，再启动服务。命令生成每盒独立的高熵随机管理密钥，标准输出只显示一次；数据库只保存摘要。密钥不通过匿名 HTTP 接口提供，不写入 URL，不保存在网页的 localStorage、sessionStorage 或 IndexedDB。
 
 停止服务是为了让 CLI 独占与服务端相同的认证锁，避免同时修改数据库和库外信任记录。维护命令不是普通用户的远程登录接口。量产时可以将这一可信交付环节接入设备屏幕、受保护的激活材料等硬件流程，本轮不假定已有物理按钮或屏幕。
 
-管理密钥长期有效，首次认领不会使它失效。忘记密钥时，可在受信任本机终端停服执行 `octop box key rotate`。这不是无需本机权限的远程找回。
+管理密钥长期有效，首次认领不会使它失效。忘记密钥时，可在受信任本机终端停服执行 `inhere-box box key rotate`。这不是无需本机权限的远程找回。
 
 凭据与会话的生命周期如下。长期管理密钥和分享码都由服务端使用安全随机数生成，数据库保存 SHA-256 摘要；原生私钥由客户端生成，不上传到盒子。
 
@@ -115,7 +115,7 @@ HTTP 下次鉴权拒绝失效会话；WebSocket和长响应持续重验；Task�
 
 库外信任记录 v2覆盖管理密钥摘要/版本、自有设备、客户端公钥、角色、用户映射和关键权限。数据库恢复不能静默恢复已撤销访问权；信任不一致时关闭认证并要求可信本机维护，不能自动降级成未认领。
 
-已运行061的实例必须停服备份，再显式执行 `octop box key init --upgrade-legacy`。升级前验证v1信任记录，升级后生成v2；若v1记录已损坏或与数据库不符，不把升级命令当作绕过校验的恢复入口。普通多用户服务器仍不支持直接改配置自动迁移为盒子。
+已运行061的实例必须停服备份，再显式执行 `inhere-box box key init --upgrade-legacy`。升级前验证v1信任记录，升级后生成v2；若v1记录已损坏或与数据库不符，不把升级命令当作绕过校验的恢复入口。普通多用户服务器仍不支持直接改配置自动迁移为盒子。
 
 ### 7.1 持久化对象
 
@@ -129,11 +129,11 @@ HTTP 下次鉴权拒绝失效会话；WebSocket和长响应持续重验；Task�
 | `box_admin_sessions` | 管理员、管理密钥版本、启动标识、有效期与撤销时间 | 不依赖客户端记录，不登记为设备。 |
 | `users` | 一位主人和各客户端的内部受邀身份 | 复用业务数据归属主键，不暴露注册或用户名密码登录流程。 |
 
-DDL 分别位于 [061 基础表](../src/octop/infra/db/migrations/061_box_accounts.sql) 、[062 管理身份增量](../src/octop/infra/db/migrations/062_box_management_identity.sql) 和 [063 多自有设备](../src/octop/infra/db/migrations/063_multiple_owner_devices.sql)，各自有对应 `.pg.sql`。旧状态枚举保留用于升级兼容，不代表旧审批能力仍可调用。SQLite 迁移通过幂等补列处理物理结构已升级但版本记录较旧的数据库；重复迁移不重置现有授权数据。
+DDL 分别位于 [061 基础表](../src/inhere_box/infra/db/migrations/061_box_accounts.sql) 、[062 管理身份增量](../src/inhere_box/infra/db/migrations/062_box_management_identity.sql) 和 [063 多自有设备](../src/inhere_box/infra/db/migrations/063_multiple_owner_devices.sql)，各自有对应 `.pg.sql`。旧状态枚举保留用于升级兼容，不代表旧审批能力仍可调用。SQLite 迁移通过幂等补列处理物理结构已升级但版本记录较旧的数据库；重复迁移不重置现有授权数据。
 
 ### 7.2 库外信任与恢复限制
 
-`OCTOP_HOME/box-auth/trust.json` 保存授权状态的版本与摘要，`trust-intent.json` 记录尚未完成的授权变更。授权变更同时维护数据库与库外记录；启动发现不一致或未完成记录时拒绝继续认证，不自动接受较旧的数据库状态。
+`INHERE_BOX_HOME/box-auth/trust.json` 保存授权状态的版本与摘要，`trust-intent.json` 记录尚未完成的授权变更。授权变更同时维护数据库与库外记录；启动发现不一致或未完成记录时拒绝继续认证，不自动接受较旧的数据库状态。
 
 普通备份恢复入口会拒绝替换已有盒子授权状态，也会拒绝导入包含盒子状态的快照，返回 `box_restore_requires_recovery`。当前没有完成协调数据库、盒子身份和库外信任的通用恢复工具；`key rotate` 和 `--upgrade-legacy` 都不能绕过损坏的信任记录。不要删除信任文件来重新开放认领。
 
@@ -155,7 +155,7 @@ DDL 分别位于 [061 基础表](../src/octop/infra/db/migrations/061_box_accoun
 
 签名使用 P-256/ES256，客户端必须核对挑战中的盒子、主体、动作和参数摘要符合当前意图；请求的 `platform`、名称或自报角色不参与赋权。新客户端加入只需用户输入一段分享码，盒子地址和公钥等协议字段由客户端维护，不让用户复制整份 JSON。
 
-默认连接使用 HTTPS/WSS；HTTP/WS 允许实际回环连接的本机开发。只能提供HTTP的部署可通过服务端 `box_http_origins` 明确列出允许的HTTP源（局域网与公网映射可分别列出），重启后启用兼容模式；默认空列表不开放远程HTTP，不能通过转发头启用。该列表不是网络访问控制，也不提供传输加密，管理密钥、会话和业务内容仍有被截获或修改的风险。网页 Cookie 写操作仍要求同源 Origin 和 `X-Octop-Box-CSRF`；安全读取接受同源 Origin、Fetch Metadata 或 Referer。Cookie 名称由盒子 ID 派生，Cookie 与原生 Bearer 不能互相替代。客户端配置及风险说明见[接线文档](box-local-account-client.md#3-传输与持钥证明)。
+按2026-11-03用户明确约定，局域网部署默认支持HTTP/WS，HTTPS/WSS可选；无需IP或Bonjour主机名白名单，旧 `box_http_origins` 仅保留读取兼容。HTTP不提供传输加密。网页 Cookie 写操作仍要求同源 Origin 和 `X-Inhere-Box-CSRF`；安全读取接受同源 Origin、Fetch Metadata 或 Referer。Cookie 名称由盒子 ID 派生，Cookie 与原生 Bearer 不能互相替代。当前接线规则见[接线文档](box-local-account-client.md#3-传输与持钥证明)。
 
 Task WebSocket 在握手阶段使用原生 Bearer 或同源网页 Cookie 完成认证，然后直接返回 `ready`。不使用 URL 中的 `token`/`access_token`，不再发送旧 `authenticate` 首帧。长连接和长响应会持续重验授权；客户端工具还必须绑定当前认证的 `paired_client_id`。
 
@@ -174,25 +174,25 @@ flowchart LR
 
 | 实现位置 | 职责 |
 | --- | --- |
-| [领域服务](../src/octop/infra/auth/box_accounts/service.py)、[签名处理](../src/octop/infra/auth/box_accounts/crypto.py)、[信任记录](../src/octop/infra/auth/box_accounts/trust.py) | 生命周期、事务、持钥证明、会话重验与信任一致性。 |
-| [账户仓储](../src/octop/infra/db/repos/box_accounts.py)、[迁移适配](../src/octop/infra/db/migrate.py) | SQL 持久化、原子消费、多个自有设备与幂等升级。 |
-| [HTTP 路由](../src/octop/api/routers/box_accounts.py)、[账户中间件](../src/octop/api/middleware/box_accounts.py)、[传输与权限检查](../src/octop/api/common/box_auth.py) | DTO、Cookie、Origin、CSRF、身份注入及访客入口限制。 |
-| [访客执行策略](../src/octop/infra/projects/box_guest_policy.py) | 配置检查、工具集合限制及执行前重验。 |
-| [本机维护命令](../src/octop/cli/commands/box.py) | 停服后初始化或轮换管理密钥、显式升级旧配对模型。 |
+| [领域服务](../src/inhere_box/infra/auth/box_accounts/service.py)、[签名处理](../src/inhere_box/infra/auth/box_accounts/crypto.py)、[信任记录](../src/inhere_box/infra/auth/box_accounts/trust.py) | 生命周期、事务、持钥证明、会话重验与信任一致性。 |
+| [账户仓储](../src/inhere_box/infra/db/repos/box_accounts.py)、[迁移适配](../src/inhere_box/infra/db/migrate.py) | SQL 持久化、原子消费、多个自有设备与幂等升级。 |
+| [HTTP 路由](../src/inhere_box/api/routers/box_accounts.py)、[账户中间件](../src/inhere_box/api/middleware/box_accounts.py)、[传输与权限检查](../src/inhere_box/api/common/box_auth.py) | DTO、Cookie、Origin、CSRF、身份注入及访客入口限制。 |
+| [访客执行策略](../src/inhere_box/infra/projects/box_guest_policy.py) | 配置检查、工具集合限制及执行前重验。 |
+| [本机维护命令](../src/inhere_box/cli/commands/box.py) | 停服后初始化或轮换管理密钥、显式升级旧配对模型。 |
 | [网页接口模块](../dashboard/src/api/modules/boxAccounts.ts)、[连接页面](../dashboard/src/pages/BoxConnect/)、[设备管理](../dashboard/src/pages/BoxDevices/) | 管理登录、Cookie 恢复、邀请、撤销、自有设备指定与密钥轮换。 |
 
 HTTP 适配层调用领域服务，领域规则不放入页面或路由。同步数据库和认证操作由 API 在事件循环外调用。正常服务器模式通过同一套业务服务保留原有权限行为。
 
 ## 10. 运维与故障处理
 
-命令必须在盒子主机执行，使用与服务相同的 `OCTOP_HOME`、配置和数据库。下表中的命令都要求先停止该实例并取得认证维护锁；执行完成后再启动服务。
+命令必须在盒子主机执行，使用与服务相同的 `INHERE_BOX_HOME`、配置和数据库。下表中的命令都要求先停止该实例并取得认证维护锁；执行完成后再启动服务。
 
 | 场景 | 操作 | 影响 |
 | --- | --- | --- |
-| 新盒子第一次启用 | 首次启动建立身份和库外信任，停服执行 `octop box key init` | 生成主人和长期管理密钥；不创建自有设备。 |
-| 已运行旧 061 模型 | 保留备份，停服执行 `octop box key init --upgrade-legacy` | 校验旧信任，保留主人业务数据，撤销旧授权并发放新管理密钥。 |
-| 忘记管理密钥 | 停服执行 `octop box key rotate` | 发放新密钥，撤销网页会话和全部未完成授权，默认保留客户端。 |
-| 需要全部重新授权 | 停服执行 `octop box key rotate --revoke-clients` | 同时撤销所有客户端，之后重新认领和邀请。 |
+| 新盒子第一次启用 | 首次启动建立身份和库外信任，停服执行 `inhere-box box key init` | 生成主人和长期管理密钥；不创建自有设备。 |
+| 已运行旧 061 模型 | 保留备份，停服执行 `inhere-box box key init --upgrade-legacy` | 校验旧信任，保留主人业务数据，撤销旧授权并发放新管理密钥。 |
+| 忘记管理密钥 | 停服执行 `inhere-box box key rotate` | 发放新密钥，撤销网页会话和全部未完成授权，默认保留客户端。 |
+| 需要全部重新授权 | 停服执行 `inhere-box box key rotate --revoke-clients` | 同时撤销所有客户端，之后重新认领和邀请。 |
 
 网页管理员也可以直接轮换密钥，无需停服。轮换成功后网页退出旧会话，保存一次展示的新密钥后重新登录。
 

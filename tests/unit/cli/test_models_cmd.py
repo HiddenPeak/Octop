@@ -1,10 +1,10 @@
-"""Tests for ``octop models`` ollama subcommands."""
+"""Tests for ``inhere-box models`` ollama subcommands."""
 
 from __future__ import annotations
 
 from click.testing import CliRunner
 
-from octop.cli.main import cli
+from inhere_box.cli.main import cli
 
 
 def test_models_help_lists_ollama_subcommands() -> None:

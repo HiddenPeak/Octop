@@ -58,10 +58,10 @@ def _start_wrapper_listener(port: int) -> subprocess.Popen[bytes]:
     )
 
 
-def _octop_native_user_exists() -> bool:
+def _inhere_box_native_user_exists() -> bool:
     return (
         subprocess.call(
-            ["id", "octop-native"],
+            ["id", "inhere-box-native"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -71,13 +71,13 @@ def _octop_native_user_exists() -> bool:
 
 def test_native_main_stop_releases_listen_port() -> None:
     text = (FNOS_NATIVE / "cmd" / "main").read_text(encoding="utf-8")
-    assert "free_octop_ports" in text
-    assert "octop_kill_pid_tree" in text
+    assert "free_inhere_box_ports" in text
+    assert "inhere_box_kill_pid_tree" in text
     assert "run_as_service_bg" in text
     assert "setsid" in text
     assert "_abort_start" in text
     assert "trap '_abort_start'" in text
-    assert 'printf "%s" "$octop_pid" > "${PID_FILE}"' in text
+    assert 'printf "%s" "$inhere_box_pid" > "${PID_FILE}"' in text
 
 
 def test_native_manifest_does_not_block_start_on_stale_port() -> None:
@@ -88,7 +88,7 @@ def test_native_manifest_does_not_block_start_on_stale_port() -> None:
 
 
 @linux_only
-def test_free_octop_ports_kills_listener(tmp_path: Path) -> None:
+def test_free_inhere_box_ports_kills_listener(tmp_path: Path) -> None:
     port = _free_tcp_port()
     proc = subprocess.Popen(["python3", "-c", _listen_script(port)])
     try:
@@ -97,8 +97,8 @@ def test_free_octop_ports_kills_listener(tmp_path: Path) -> None:
 set -euo pipefail
 source "{COMMON_SH}"
 export TRIM_APPDEST="{tmp_path}"
-export TRIM_TEMP_LOGFILE="{tmp_path / "octop.log"}"
-free_octop_ports {port}
+export TRIM_TEMP_LOGFILE="{tmp_path / "inhere-box.log"}"
+free_inhere_box_ports {port}
 """
         subprocess.check_call(["bash", "-c", script])
         assert _wait_until(lambda: not _port_open(port)), f"port {port} still listening"
@@ -110,8 +110,8 @@ free_octop_ports {port}
 
 
 @linux_only
-def test_free_octop_ports_kills_orphan_child(tmp_path: Path) -> None:
-    """Killing only the wrapper (old stop) leaves the listener; free_octop_ports must catch it."""
+def test_free_inhere_box_ports_kills_orphan_child(tmp_path: Path) -> None:
+    """Killing only the wrapper (old stop) leaves the listener; free_inhere_box_ports must catch it."""
     port = _free_tcp_port()
     wrapper = _start_wrapper_listener(port)
     try:
@@ -123,8 +123,8 @@ def test_free_octop_ports_kills_orphan_child(tmp_path: Path) -> None:
 set -euo pipefail
 source "{COMMON_SH}"
 export TRIM_APPDEST="{tmp_path}"
-export TRIM_TEMP_LOGFILE="{tmp_path / "octop.log"}"
-free_octop_ports {port}
+export TRIM_TEMP_LOGFILE="{tmp_path / "inhere-box.log"}"
+free_inhere_box_ports {port}
 """
         subprocess.check_call(["bash", "-c", script])
         assert _wait_until(lambda: not _port_open(port)), f"orphan still listening on {port}"
@@ -135,7 +135,7 @@ free_octop_ports {port}
 
 
 @linux_only
-def test_octop_kill_pid_tree_stops_child_listener() -> None:
+def test_inhere_box_kill_pid_tree_stops_child_listener() -> None:
     port = _free_tcp_port()
     wrapper = _start_wrapper_listener(port)
     try:
@@ -143,10 +143,10 @@ def test_octop_kill_pid_tree_stops_child_listener() -> None:
         script = f"""
 set -euo pipefail
 source "{COMMON_SH}"
-octop_kill_pid_tree {wrapper.pid} TERM
+inhere_box_kill_pid_tree {wrapper.pid} TERM
 sleep 1
 if kill -0 {wrapper.pid} 2>/dev/null; then
-  octop_kill_pid_tree {wrapper.pid} KILL
+  inhere_box_kill_pid_tree {wrapper.pid} KILL
 fi
 """
         subprocess.check_call(["bash", "-c", script])
@@ -162,8 +162,8 @@ fi
 def test_native_main_stop_frees_port_after_wrapper_start(tmp_path: Path) -> None:
     if shutil.which("python3") is None:
         pytest.skip("python3 required")
-    if _octop_native_user_exists() and os.geteuid() != 0:
-        pytest.skip("octop-native 存在且当前非 root，runuser 后无法在测试里停掉服务")
+    if _inhere_box_native_user_exists() and os.geteuid() != 0:
+        pytest.skip("inhere-box-native 存在且当前非 root，runuser 后无法在测试里停掉服务")
     port = _free_tcp_port()
     appdest = tmp_path / "app"
     pkgvar = tmp_path / "var"
@@ -173,12 +173,12 @@ def test_native_main_stop_frees_port_after_wrapper_start(tmp_path: Path) -> None
     bindir.mkdir(parents=True)
     pkgvar.mkdir()
     (data / ".octop").mkdir(parents=True)
-    (data / ".octop" / "octop.db").write_text("", encoding="utf-8")
+    (data / ".octop" / "inhere-box.db").write_text("", encoding="utf-8")
     cmd.mkdir()
     shutil.copy(FNOS_NATIVE / "cmd" / "main", cmd / "main")
     shutil.copy(COMMON_SH, cmd / "common.sh")
     (cmd / "main").chmod(0o755)
-    launcher = bindir / "octop"
+    launcher = bindir / "inhere-box"
     launcher.write_text(
         "#!/bin/bash\n"
         'if [ "${1:-}" = "--prepare" ]; then exit 0; fi\n'
@@ -200,8 +200,8 @@ def test_native_main_stop_frees_port_after_wrapper_start(tmp_path: Path) -> None
         "TRIM_PKGVAR": str(pkgvar),
         "TRIM_DATA_SHARE_PATHS": str(data),
         "TRIM_TEMP_LOGFILE": str(pkgvar / "appcenter.log"),
-        "OCTOP_PORT": str(port),
-        "OCTOP_START_WAIT_SECS": "10",
+        "INHERE_BOX_PORT": str(port),
+        "INHERE_BOX_START_WAIT_SECS": "10",
     }
     start = subprocess.run(
         ["bash", str(cmd / "main"), "start"],
@@ -244,7 +244,7 @@ def test_native_main_stop_frees_port_after_wrapper_start(tmp_path: Path) -> None
         )
         if _port_open(port):
             subprocess.run(
-                ["bash", "-c", f'source "{COMMON_SH}"; free_octop_ports {port}'],
+                ["bash", "-c", f'source "{COMMON_SH}"; free_inhere_box_ports {port}'],
                 check=False,
             )
 
@@ -261,8 +261,8 @@ def test_native_main_start_term_cleans_unready_child(tmp_path: Path) -> None:
     """飞牛若在端口就绪前杀掉 start，必须把已拉起的后台进程一起收掉。"""
     if shutil.which("python3") is None:
         pytest.skip("python3 required")
-    if _octop_native_user_exists() and os.geteuid() != 0:
-        pytest.skip("octop-native 存在且当前非 root，runuser 后无法在测试里停掉服务")
+    if _inhere_box_native_user_exists() and os.geteuid() != 0:
+        pytest.skip("inhere-box-native 存在且当前非 root，runuser 后无法在测试里停掉服务")
     port = _free_tcp_port()
     appdest = tmp_path / "app"
     pkgvar = tmp_path / "var"
@@ -270,17 +270,17 @@ def test_native_main_start_term_cleans_unready_child(tmp_path: Path) -> None:
     (appdest / "bin").mkdir(parents=True)
     pkgvar.mkdir()
     (data / ".octop").mkdir(parents=True)
-    (data / ".octop" / "octop.db").write_text("", encoding="utf-8")
+    (data / ".octop" / "inhere-box.db").write_text("", encoding="utf-8")
     cmd = tmp_path / "cmd"
     _copy_ctl(cmd)
-    launcher = appdest / "bin" / "octop"
+    launcher = appdest / "bin" / "inhere-box"
     launcher.write_text(
         "#!/bin/bash\n"
         'if [ "${1:-}" = "--prepare" ]; then exit 0; fi\n'
         "sleep 20\n"
         'python3 -c "import socket,time;'
         "s=socket.socket();s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);"
-        "s.bind(('127.0.0.1',int('$OCTOP_PORT')));s.listen(1);time.sleep(120)\"\n",
+        "s.bind(('127.0.0.1',int('$INHERE_BOX_PORT')));s.listen(1);time.sleep(120)\"\n",
         encoding="utf-8",
     )
     launcher.chmod(0o755)
@@ -290,8 +290,8 @@ def test_native_main_start_term_cleans_unready_child(tmp_path: Path) -> None:
         "TRIM_PKGVAR": str(pkgvar),
         "TRIM_DATA_SHARE_PATHS": str(data),
         "TRIM_TEMP_LOGFILE": str(pkgvar / "appcenter.log"),
-        "OCTOP_PORT": str(port),
-        "OCTOP_START_WAIT_SECS": "30",
+        "INHERE_BOX_PORT": str(port),
+        "INHERE_BOX_START_WAIT_SECS": "30",
     }
     proc = subprocess.Popen(
         ["bash", str(cmd / "main"), "start"],
@@ -300,11 +300,13 @@ def test_native_main_start_term_cleans_unready_child(tmp_path: Path) -> None:
         stderr=subprocess.PIPE,
     )
     try:
-        assert _wait_until(lambda: (pkgvar / "octop.pid").is_file(), timeout=3)
+        assert _wait_until(lambda: (pkgvar / "inhere-box.pid").is_file(), timeout=3)
         proc.send_signal(signal.SIGTERM)
         proc.wait(timeout=10)
         assert not _wait_until(lambda: _port_open(port), timeout=1.5)
-        assert not (pkgvar / "octop.pid").exists() or not _pid_file_alive(pkgvar / "octop.pid")
+        assert not (pkgvar / "inhere-box.pid").exists() or not _pid_file_alive(
+            pkgvar / "inhere-box.pid"
+        )
     finally:
         if proc.poll() is None:
             proc.kill()
@@ -313,7 +315,7 @@ def test_native_main_start_term_cleans_unready_child(tmp_path: Path) -> None:
             [
                 "bash",
                 "-c",
-                f'source "{COMMON_SH}"; export TRIM_APPDEST="{appdest}"; free_octop_ports {port}',
+                f'source "{COMMON_SH}"; export TRIM_APPDEST="{appdest}"; free_inhere_box_ports {port}',
             ],
             check=False,
         )
@@ -332,10 +334,10 @@ def _pid_file_alive(path: Path) -> bool:
 
 
 @linux_only
-def test_octop_fpk_native_run_pids_and_sweep(tmp_path: Path) -> None:
-    env = {**os.environ, "OCTOP_INSTALL_MODE": "fpk-native"}
+def test_inhere_box_fpk_native_run_pids_and_sweep(tmp_path: Path) -> None:
+    env = {**os.environ, "INHERE_BOX_INSTALL_MODE": "fpk-native"}
     proc = subprocess.Popen(
-        ["python3", "-c", "import time; time.sleep(120)  # octop.cli.main run"],
+        ["python3", "-c", "import time; time.sleep(120)  # inhere_box.cli.main run"],
         env=env,
     )
     try:
@@ -343,11 +345,11 @@ def test_octop_fpk_native_run_pids_and_sweep(tmp_path: Path) -> None:
 set -euo pipefail
 source "{COMMON_SH}"
 export TRIM_APPDEST="{tmp_path}"
-export TRIM_TEMP_LOGFILE="{tmp_path / "octop.log"}"
-found="$(octop_fpk_native_run_pids)"
+export TRIM_TEMP_LOGFILE="{tmp_path / "inhere-box.log"}"
+found="$(inhere_box_fpk_native_run_pids)"
 echo "$found" | grep -qx "{proc.pid}"
-octop_kill_pid_tree {proc.pid} TERM
-octop_wait_pids_gone 15 {proc.pid} || octop_kill_pid_tree {proc.pid} KILL
+inhere_box_kill_pid_tree {proc.pid} TERM
+inhere_box_wait_pids_gone 15 {proc.pid} || inhere_box_kill_pid_tree {proc.pid} KILL
 """
         subprocess.check_call(["bash", "-c", script])
         assert _wait_until(lambda: proc.poll() is not None), "fpk-native run was not swept"

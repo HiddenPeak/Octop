@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from octop.infra.auth.sso.service import RedirectResult, SsoService
+from inhere_box.infra.auth.sso.service import RedirectResult, SsoService
 from tests.support.auth import bearer, bootstrap_admin, login
 
 
@@ -55,7 +55,7 @@ async def test_oidc_public_routes_and_exchange_return_login_shape(
     start = await c.post("/api/auth/oidc/start", json={"redirect_after": "/chat"})
     assert start.status_code == 200
     assert "redirect=/chat" in start.json()["authorization_url"]
-    assert start.cookies["octop_sso_state"] == "browser-state"
+    assert start.cookies["inhere_box_sso_state"] == "browser-state"
     set_cookie = start.headers["set-cookie"]
     assert "HttpOnly" in set_cookie
     assert "Max-Age=600" in set_cookie
@@ -69,7 +69,7 @@ async def test_oidc_public_routes_and_exchange_return_login_shape(
     assert callback_response.status_code == 302
     assert callback_response.headers["location"] == "http://testserver/login?oidc_error=state"
     assert callback_states == []
-    assert "octop_sso_state=" in callback_response.headers["set-cookie"]
+    assert "inhere_box_sso_state=" in callback_response.headers["set-cookie"]
     assert "Max-Age=0" in callback_response.headers["set-cookie"]
 
     start = await c.post("/api/auth/oidc/start", json={"redirect_after": "/chat"})
@@ -109,7 +109,7 @@ async def test_oidc_config_requires_admin_and_returns_public_callback_url(
             "enabled": False,
             "display_name": "Company Login",
             "issuer": "https://issuer.example",
-            "client_id": "octop-client",
+            "client_id": "inhere-box-client",
             "dashboard_origin": "https://dashboard.example",
         },
     )

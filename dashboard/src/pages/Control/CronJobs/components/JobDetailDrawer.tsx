@@ -42,21 +42,26 @@ export function JobDetailDrawer({
 
   const meta = (job.meta as Record<string, unknown> | undefined) ?? {};
   const sessionKey =
-    typeof meta.octop_session_key === "string" ? meta.octop_session_key : "";
+    typeof meta.inhere_box_session_key === "string"
+      ? meta.inhere_box_session_key
+      : "";
   const channel = sessionKey
     ? channelFromSessionKey(sessionKey)
     : String(job.dispatch?.channel || "—");
   const agentPrompt = extractPromptFromJob(job) || null;
   const lastStatus =
-    typeof meta.octop_last_status === "string" ? meta.octop_last_status : "";
+    typeof meta.inhere_box_last_status === "string"
+      ? meta.inhere_box_last_status
+      : "";
   const lastError =
-    typeof meta.octop_last_error === "string" && meta.octop_last_error.trim()
-      ? meta.octop_last_error
+    typeof meta.inhere_box_last_error === "string" &&
+    meta.inhere_box_last_error.trim()
+      ? meta.inhere_box_last_error
       : null;
 
   const targetTaskId =
-    typeof meta.octop_target_task_id === "string"
-      ? meta.octop_target_task_id
+    typeof meta.inhere_box_target_task_id === "string"
+      ? meta.inhere_box_target_task_id
       : null;
   const handleGoToTask = () => {
     if (!targetTaskId) return;
@@ -157,8 +162,8 @@ export function JobDetailDrawer({
         </Descriptions.Item>
         <Descriptions.Item label={t("cronJobs.col.lastRunAt")}>
           {formatCronTimestamp(
-            typeof meta.octop_last_run_at === "number"
-              ? meta.octop_last_run_at
+            typeof meta.inhere_box_last_run_at === "number"
+              ? meta.inhere_box_last_run_at
               : null,
             timeZone,
           )}
@@ -220,16 +225,16 @@ export function JobDetailDrawer({
             </Text>
           </Descriptions.Item>
         )}
-        {job.model || meta.octop_model ? (
+        {job.model || meta.inhere_box_model ? (
           <Descriptions.Item label={t("cronJobs.form.model")}>
-            {String(job.model || meta.octop_model)}
+            {String(job.model || meta.inhere_box_model)}
           </Descriptions.Item>
         ) : null}
         <Descriptions.Item label={t("cronJobs.form.skipConfirmation")}>
           {job.skip_confirmation ? t("common.enabled") : t("common.disabled")}
         </Descriptions.Item>
         <Descriptions.Item label={t("cronJobs.col.freshThread")}>
-          {meta.octop_fresh_thread
+          {meta.inhere_box_fresh_thread
             ? t("cronJobs.col.freshThreadOn")
             : t("cronJobs.col.freshThreadOff")}
         </Descriptions.Item>

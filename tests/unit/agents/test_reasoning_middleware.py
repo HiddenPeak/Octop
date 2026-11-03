@@ -2,7 +2,7 @@ from langchain.agents.middleware import ModelRequest
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
 
-from octop.infra.agents.middleware import reasoning
+from inhere_box.infra.agents.middleware import reasoning
 
 
 def test_task_summary_uses_responses_and_preserves_effort_without_remote_storage(monkeypatch):

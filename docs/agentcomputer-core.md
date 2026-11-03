@@ -6,12 +6,12 @@
 
 ## 1. 持久事实与约束
 
-公共资源 ID 是 UUID 字符串，表使用整数 surrogate PK；owner 引用 Octop 现有整数用户 ID。SQL repo 只负责 SQL 与行映射，服务装配由 `RepoBundle / SharedServices` 提供。
+公共资源 ID 是 UUID 字符串，表使用整数 surrogate PK；owner 引用 inhere-box 现有整数用户 ID。SQL repo 只负责 SQL 与行映射，服务装配由 `RepoBundle / SharedServices` 提供。
 
 | 表 | 本轮事实 | 约束 |
 |---|---|---|
 | ac_projects | 盒子、工作区和默认专家绑定、准备状态、配置及摘要、配置 revision、writer Run | workspace/default agent 唯一；writer 属于同项目/owner |
-| ac_tasks | 项目/owner、session、Octop thread、准备状态、revision、下一个事件序号、active Run | thread/session 唯一；project owner 匹配；active Run 属于本 Task |
+| ac_tasks | 项目/owner、session、inhere-box thread、准备状态、revision、下一个事件序号、active Run | thread/session 唯一；project owner 匹配；active Run 属于本 Task |
 | ac_turns | 新用户消息、首个助手消息、固定配置与请求快照 | 同 Task/userMessage 只登记一次；不可重复 Turn 身份 |
 | ac_runs | Turn、Task、项目/owner、状态、派发阶段、恢复与执行代次、对账标记 | 同 Task、同项目最多一个活动或待对账 Run |
 | ac_commands | 命令 ID、用户作用域幂等键、目标、摘要、原始接收结果 | commandID 全局唯一；`UNIQUE(owner_id, idempotency_key)` |
@@ -74,7 +74,7 @@ accepted 只证明耐久登记，不能显示“模型已运行”。没有引�
 
 ```http
 GET /api/agentcomputer/v1/commands/{commandID}
-Authorization: Bearer <Octop 用户登录令牌>
+Authorization: Bearer <inhere-box 用户登录令牌>
 ```
 
 200 返回类型化 `CommandReceipt`。acceptedAt、restoreEpoch、资源 ID、receiptRevision、taskRevision 和 acceptedSequence 保留原始接收值；runState 是接收时的 queued，不是当前 Run 状态。查询响应 replayed=false，不执行重放。此接口也不创建缺失记录。

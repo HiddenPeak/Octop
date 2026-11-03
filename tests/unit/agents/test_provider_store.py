@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`octop.infra.agents.providers.store`."""
+"""Unit tests for :mod:`inhere_box.infra.agents.providers.store`."""
 
 from __future__ import annotations
 
@@ -7,14 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.agents.manager import AgentManager
-from octop.infra.agents.providers import KIND_TO_PROTOCOL, ProviderStore
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRow
-from octop.infra.db.services import build_shared_services
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.manager import AgentManager
+from inhere_box.infra.agents.providers import KIND_TO_PROTOCOL, ProviderStore
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRow
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def store(tmp_path: Path) -> ProviderStore:
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     return ProviderStore(
         provider_repo=services.repos.provider_repo,
     )
@@ -196,7 +196,7 @@ def test_resolve_default_model_returns_none_when_stale(store: ProviderStore) -> 
 
 
 def test_enabled_model_refs_excludes_disabled() -> None:
-    from octop.infra.agents.providers.store import enabled_model_refs
+    from inhere_box.infra.agents.providers.store import enabled_model_refs
 
     refs = enabled_model_refs(
         "hai",
@@ -210,13 +210,13 @@ def test_enabled_model_refs_excludes_disabled() -> None:
 
 
 def test_clear_stale_pins_for_provider(tmp_path: Path) -> None:
-    from octop.infra.agents.providers.store import clear_stale_pins_for_provider
+    from inhere_box.infra.agents.providers.store import clear_stale_pins_for_provider
 
     paths = PathLayout(tmp_path / ".octop")
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     agent_repo = services.repos.agent_repo
     settings_repo = services.repos.settings_repo
     agent_repo.create(
@@ -284,7 +284,7 @@ def test_manager_exposes_provider_store(tmp_path: Path) -> None:
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     manager = AgentManager(repos=services.repos, paths=services.paths)
     assert isinstance(manager.providers, ProviderStore)
 

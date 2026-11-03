@@ -49,7 +49,7 @@ def patch_resident_stream(monkeypatch: Any, stream: Any) -> None:
     """Replace only the model stream, retaining native Task claims and guards."""
     from langchain_core.messages import AIMessage, convert_to_messages
 
-    from octop.infra.agents.resident_identity import ResidentTextOnlyMiddleware
+    from inhere_box.infra.agents.resident_identity import ResidentTextOnlyMiddleware
 
     async def model_stream(self: Any, request: dict[str, Any]) -> Any:
         thread_id = next(
@@ -82,8 +82,8 @@ def patch_task_stream(monkeypatch: Any, stream: Any) -> None:
     """Program ordinary Tasks without intercepting the private resident runtime."""
     import json
 
-    from octop.infra.projects import resident_tasks
-    from octop.infra.projects import runtime as task_runtime
+    from inhere_box.infra.projects import resident_tasks
+    from inhere_box.infra.projects import runtime as task_runtime
 
     async def run(services: Any, owner: int, turn: Any, history: list[Any]) -> Any:
         target = (
@@ -276,12 +276,12 @@ def patch_harness(fake_agent: Any | None = None):
 
     with (
         patch(
-            "octop.infra.agents.manager.HarnessAgentManager",
+            "inhere_box.infra.agents.manager.HarnessAgentManager",
             side_effect=_constructor,
         ),
-        patch("octop.infra.projects.resident_tasks.HarnessAgent", TaskResidentHarness),
-        patch("octop.infra.projects.title.ChatModelFactory") as title_factory,
-        patch("octop.infra.projects.narration.ChatModelFactory") as narration_factory,
+        patch("inhere_box.infra.projects.resident_tasks.HarnessAgent", TaskResidentHarness),
+        patch("inhere_box.infra.projects.title.ChatModelFactory") as title_factory,
+        patch("inhere_box.infra.projects.narration.ChatModelFactory") as narration_factory,
     ):
         from langchain_core.messages import AIMessage
 

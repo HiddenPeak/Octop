@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from octop.infra.knowledge.index import KnowledgeIndex
+from inhere_box.infra.knowledge.index import KnowledgeIndex
 
 
 def test_index_replaces_document_chunks_and_returns_cosine_top_k(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     index = KnowledgeIndex("kb-1")
 
     index.replace_doc_chunks(

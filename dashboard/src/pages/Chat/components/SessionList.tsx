@@ -17,7 +17,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import type { Session } from "../hooks/useSessions";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import { isAgentChatReady } from "../../../utils/agentError";
 import { showConfirmModal } from "../../../utils/confirmModal";
 import { ExpertIcon } from "../../Experts/components/iconForName";
@@ -215,7 +215,7 @@ const SessionItem = memo(function SessionItem({
 });
 
 interface AgentCardProps {
-  agent: OctopAgent;
+  agent: InhereBoxAgent;
   sessions: Session[];
   activeId: string | null;
   searchQuery: string;
@@ -399,7 +399,7 @@ function ActiveAgentCard({
 }
 
 interface AgentRowProps {
-  agent: OctopAgent;
+  agent: InhereBoxAgent;
   onSelect: () => void;
   onNewChat?: () => void;
   onHide?: () => void;
@@ -494,7 +494,7 @@ function InactiveAgentRow({
 }
 
 interface SessionListProps {
-  agents: OctopAgent[];
+  agents: InhereBoxAgent[];
   sessions: Session[];
   activeId: string | null;
   activeAgentId: string | null;

@@ -12,8 +12,8 @@ from typing import Any
 
 import pytest
 
-from octop.infra.setup.password_file import WIZARD_FILE_NAME, read_password
-from tests.support.app import octop_client, write_octop_config
+from inhere_box.infra.setup.password_file import WIZARD_FILE_NAME, read_password
+from tests.support.app import inhere_box_client, write_inhere_box_config
 
 
 @pytest.fixture
@@ -122,10 +122,10 @@ async def test_status_reports_wizard_password_exists(env: Any) -> None:
     assert body["wizard_password_path"] == str(home / WIZARD_FILE_NAME)
 
 
-async def test_begin_issues_token_when_password_not_required(tmp_octop_home: Path) -> None:
-    write_octop_config(tmp_octop_home, require_setup_password=False)
+async def test_begin_issues_token_when_password_not_required(tmp_inhere_box_home: Path) -> None:
+    write_inhere_box_config(tmp_inhere_box_home, require_setup_password=False)
 
-    async with octop_client(tmp_octop_home) as (c, _srv):
+    async with inhere_box_client(tmp_inhere_box_home) as (c, _srv):
         r = await c.get("/api/setup/status")
         body = r.json()
         assert body["wizard_password_required"] is False
@@ -440,7 +440,7 @@ async def test_finish_rejects_invalid_token_after_admin_exists(env: Any) -> None
     assert r.status_code == 401
 
 
-async def test_wizard_password_relocated_to_octop_home(env: Any) -> None:
+async def test_wizard_password_relocated_to_inhere_box_home(env: Any) -> None:
     _c, srv, home = env
     assert srv.paths.root == home
     assert (home / WIZARD_FILE_NAME).is_file()

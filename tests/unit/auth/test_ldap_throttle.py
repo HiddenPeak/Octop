@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.auth.ldap.throttle import LdapBindThrottle
+from inhere_box.infra.auth.ldap.throttle import LdapBindThrottle
 
 
 def _throttle(*, max_attempts: int = 3, block_seconds: int = 60) -> LdapBindThrottle:
@@ -84,7 +84,7 @@ def test_identifier_matching_is_case_and_space_insensitive():
 def test_counters_expire_after_the_window(monkeypatch: pytest.MonkeyPatch):
     """A stale failure must not accumulate across an idle period."""
     clock = {"now": 1000.0}
-    monkeypatch.setattr("octop.infra.auth.ldap.throttle.time.monotonic", lambda: clock["now"])
+    monkeypatch.setattr("inhere_box.infra.auth.ldap.throttle.time.monotonic", lambda: clock["now"])
     throttle = _throttle(max_attempts=2)
     throttle.record_failure("alice", "10.0.0.1")
     clock["now"] += 3600  # well beyond the 60s window
@@ -94,7 +94,7 @@ def test_counters_expire_after_the_window(monkeypatch: pytest.MonkeyPatch):
 
 def test_eviction_keeps_the_map_bounded(monkeypatch: pytest.MonkeyPatch):
     clock = {"now": 1000.0}
-    monkeypatch.setattr("octop.infra.auth.ldap.throttle.time.monotonic", lambda: clock["now"])
+    monkeypatch.setattr("inhere_box.infra.auth.ldap.throttle.time.monotonic", lambda: clock["now"])
     throttle = LdapBindThrottle(max_attempts=5, window_seconds=60, block_seconds=60, max_keys=16)
     for index in range(200):
         clock["now"] += 1  # each entry ages, so eviction can drop them

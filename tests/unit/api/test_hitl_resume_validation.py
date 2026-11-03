@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from octop.api.routers.chat.models import HitlResumeBody
+from inhere_box.api.routers.chat.models import HitlResumeBody
 
 
 def _body(decisions: list[dict]) -> HitlResumeBody:

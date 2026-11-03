@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from octop.infra.agents.providers.presets import load_provider_presets
-from octop.infra.agents.providers.reasoning import reasoning_capability
+from inhere_box.infra.agents.providers.presets import load_provider_presets
+from inhere_box.infra.agents.providers.reasoning import reasoning_capability
 
 
 def test_load_provider_presets_integration() -> None:

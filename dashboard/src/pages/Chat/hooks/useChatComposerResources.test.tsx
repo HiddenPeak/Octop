@@ -44,8 +44,8 @@ vi.mock("../../../api/modules/preferences", () => ({
     set: vi.fn().mockResolvedValue(undefined),
   },
 }));
-vi.mock("../../../api/modules/octopThreads", () => ({
-  octopThreadsApi: { patch: vi.fn().mockResolvedValue({}) },
+vi.mock("../../../api/modules/inhereBoxThreads", () => ({
+  inhereBoxThreadsApi: { patch: vi.fn().mockResolvedValue({}) },
 }));
 vi.mock("../../../api/request", () => ({
   request: vi.fn().mockResolvedValue(null),

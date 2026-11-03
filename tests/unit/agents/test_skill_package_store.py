@@ -6,17 +6,17 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.skill_packages import SkillPackageRepo
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.skills.skill_package_store import SkillPackageStore
-from octop.infra.users.identity import Role, User
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.skill_packages import SkillPackageRepo
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.skills.skill_package_store import SkillPackageStore
+from inhere_box.infra.users.identity import Role, User
 
 
 @pytest.fixture
 def db(tmp_path: Path) -> SqlitePool:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     return pool
 
@@ -92,7 +92,7 @@ def test_write_and_delete_skill_updates_disk_summaries_and_count(
         ("delete_skill", "../unsafe", None),
     ],
 )
-def test_skill_validation_errors_are_mapped_to_octop_errors(
+def test_skill_validation_errors_are_mapped_to_inhere_box_errors(
     store: SkillPackageStore,
     method: str,
     slug: str,
@@ -100,7 +100,7 @@ def test_skill_validation_errors_are_mapped_to_octop_errors(
 ) -> None:
     row = store.create(name="P", description="", created_by="42")
 
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         if method == "write_skill":
             assert files is not None
             store.write_skill(row.id, slug, files)
@@ -135,7 +135,7 @@ def test_write_skill_recreates_empty_directories(store: SkillPackageStore) -> No
     assert list((skill_dir / "ai").iterdir()) == []
 
 
-def test_list_skill_summaries_localizes_octop_metadata(store: SkillPackageStore) -> None:
+def test_list_skill_summaries_localizes_inhere_box_metadata(store: SkillPackageStore) -> None:
     row = store.create(name="P", description="", created_by="42")
     store.write_skill(
         row.id,
@@ -204,7 +204,7 @@ def test_assert_can_mutate_allows_creator_and_admin_only(
     store.assert_can_mutate(row, creator)
     store.assert_can_mutate(row, admin)
 
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         store.assert_can_mutate(row, other)
     assert exc_info.value.code is ErrorCode.FORBIDDEN
 
@@ -238,7 +238,7 @@ def test_list_skill_tree_and_read_file(store: SkillPackageStore) -> None:
     assert store.read_skill_file_text(row.id, "pdf", "notes.txt") == "hello"
     assert store.read_skill_file_bytes(row.id, "pdf", "references/guide.md") == b"# Guide"
 
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         store.list_skill_tree(row.id, "pdf", "../escape")
     assert exc_info.value.code is ErrorCode.SLASH_BAD_ARGS
 

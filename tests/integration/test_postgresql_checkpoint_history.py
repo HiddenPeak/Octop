@@ -21,7 +21,7 @@ async def test_postgres_checkpoint_history_uses_graph_reader(
     from langgraph.graph import END, START, MessagesState, StateGraph
     from octop_memory import Memory
 
-    from octop.api.routers.chat.serialize import (
+    from inhere_box.api.routers.chat.serialize import (
         _isolated_sqlite_checkpoint_messages,
         _load_checkpoint_messages,
     )
@@ -29,7 +29,7 @@ async def test_postgres_checkpoint_history_uses_graph_reader(
     memory = Memory(
         namespace=f"history_{uuid.uuid4().hex[:12]}",
         backend="postgres",
-        backend_config={"dsn": os.environ["OCTOP_TEST_DATABASE_URL"]},
+        backend_config={"dsn": os.environ["INHERE_BOX_TEST_DATABASE_URL"]},
     )
     thread = f"history-{uuid.uuid4().hex}"
     builder = StateGraph(MessagesState)

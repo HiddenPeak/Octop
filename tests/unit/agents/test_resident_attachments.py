@@ -14,15 +14,15 @@ import pytest
 from tests.unit.agents.test_resident_profiles import profile_env as profile_env
 from tests.unit.agents.test_resident_tools import tool_env as tool_env
 
-from octop.infra.agents import resident_attachments, resident_tools
-from octop.infra.agents.resident_identity import (
+from inhere_box.infra.agents import resident_attachments, resident_tools
+from inhere_box.infra.agents.resident_identity import (
     ResidentTextOnlyMiddleware,
     resident_execution_scope,
 )
-from octop.infra.agents.resident_tools import resident_tools_scope
-from octop.infra.db.repos.project_tasks import ProjectTaskRow
-from octop.infra.projects import input_attachments, resident_tasks
-from octop.infra.projects.tasks import now_ms
+from inhere_box.infra.agents.resident_tools import resident_tools_scope
+from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
+from inhere_box.infra.projects import input_attachments, resident_tasks
+from inhere_box.infra.projects.tasks import now_ms
 
 
 @pytest.fixture
@@ -149,7 +149,7 @@ async def test_text_pages_are_actual_character_windows_and_temp_copies_are_remov
     def parse(path, *, ocr):
         assert ocr is None
         paths.append(path)
-        assert "octop-resident-attachment-" in str(path)
+        assert "inhere-box-resident-attachment-" in str(path)
         return original(path, ocr=ocr)
 
     monkeypatch.setattr(resident_attachments, "parse_document", parse)

@@ -59,8 +59,8 @@ def _generated_payload(*, prompt_count: int = 6) -> dict[str, Any]:
 
 @pytest.mark.asyncio
 async def test_generate_and_apply_skillhub_manifest_assets(tmp_path) -> None:
-    from octop.infra.agents.experts.catalog import ExpertCatalog
-    from octop.infra.agents.experts.manifest_generator import (
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog
+    from inhere_box.infra.agents.experts.manifest_generator import (
         generate_and_apply_skillhub_manifest_assets,
     )
 
@@ -132,7 +132,7 @@ async def test_generate_and_apply_skillhub_manifest_assets(tmp_path) -> None:
 
 
 def test_normalize_manifest_assets_rejects_empty_quick_prompts() -> None:
-    from octop.infra.agents.experts.manifest_generator import (
+    from inhere_box.infra.agents.experts.manifest_generator import (
         ExpertManifestGenerationError,
         normalize_manifest_assets,
     )
@@ -146,7 +146,7 @@ def test_normalize_manifest_assets_rejects_empty_quick_prompts() -> None:
 
 
 def test_normalize_manifest_assets_roleizes_fallback_label() -> None:
-    from octop.infra.agents.experts.manifest_generator import normalize_manifest_assets
+    from inhere_box.infra.agents.experts.manifest_generator import normalize_manifest_assets
 
     payload = _generated_payload()
     payload.pop("label")
@@ -165,7 +165,7 @@ def test_normalize_manifest_assets_roleizes_fallback_label() -> None:
 
 
 def test_normalize_manifest_assets_keeps_at_most_six_quick_prompts() -> None:
-    from octop.infra.agents.experts.manifest_generator import normalize_manifest_assets
+    from inhere_box.infra.agents.experts.manifest_generator import normalize_manifest_assets
 
     payload = _generated_payload()
     payload["quick_prompts"] = [
@@ -190,7 +190,7 @@ def test_normalize_manifest_assets_keeps_at_most_six_quick_prompts() -> None:
 
 
 def test_normalize_manifest_assets_shortens_long_welcome() -> None:
-    from octop.infra.agents.experts.manifest_generator import normalize_manifest_assets
+    from inhere_box.infra.agents.experts.manifest_generator import normalize_manifest_assets
 
     payload = _generated_payload()
     payload["welcome_message"] = {
@@ -211,7 +211,7 @@ def test_normalize_manifest_assets_shortens_long_welcome() -> None:
 
 
 def test_normalize_manifest_assets_avoids_ellipsis_on_oversized_welcome() -> None:
-    from octop.infra.agents.experts.manifest_generator import normalize_manifest_assets
+    from inhere_box.infra.agents.experts.manifest_generator import normalize_manifest_assets
 
     payload = _generated_payload()
     payload["welcome_message"] = {
@@ -242,7 +242,7 @@ def test_normalize_manifest_assets_avoids_ellipsis_on_oversized_welcome() -> Non
 
 
 def test_normalize_manifest_assets_rejects_chinese_in_english_welcome() -> None:
-    from octop.infra.agents.experts.manifest_generator import normalize_manifest_assets
+    from inhere_box.infra.agents.experts.manifest_generator import normalize_manifest_assets
 
     payload = _generated_payload()
     payload["welcome_message"] = {
@@ -265,7 +265,7 @@ def test_normalize_manifest_assets_rejects_chinese_in_english_welcome() -> None:
 
 
 def test_normalize_manifest_assets_uses_pastel_palette_for_quick_prompt_colors() -> None:
-    from octop.infra.agents.experts.manifest_generator import (
+    from inhere_box.infra.agents.experts.manifest_generator import (
         _COLOR_FALLBACKS,
         normalize_manifest_assets,
     )
@@ -285,7 +285,7 @@ def test_normalize_manifest_assets_uses_pastel_palette_for_quick_prompt_colors()
 
 
 def test_normalize_manifest_assets_pads_to_six_quick_prompts() -> None:
-    from octop.infra.agents.experts.manifest_generator import normalize_manifest_assets
+    from inhere_box.infra.agents.experts.manifest_generator import normalize_manifest_assets
 
     assets = normalize_manifest_assets(
         _generated_payload(prompt_count=3),
@@ -299,7 +299,7 @@ def test_normalize_manifest_assets_pads_to_six_quick_prompts() -> None:
 
 
 def test_normalize_manifest_assets_pads_task_examples() -> None:
-    from octop.infra.agents.experts.manifest_generator import normalize_manifest_assets
+    from inhere_box.infra.agents.experts.manifest_generator import normalize_manifest_assets
 
     payload = _generated_payload()
     payload["task_examples"] = {
@@ -320,7 +320,7 @@ def test_normalize_manifest_assets_pads_task_examples() -> None:
 
 
 def test_normalize_manifest_assets_pads_four_task_examples_to_six() -> None:
-    from octop.infra.agents.experts.manifest_generator import normalize_manifest_assets
+    from inhere_box.infra.agents.experts.manifest_generator import normalize_manifest_assets
 
     payload = _generated_payload()
     payload["task_examples"] = {
@@ -341,7 +341,7 @@ def test_normalize_manifest_assets_pads_four_task_examples_to_six() -> None:
 
 
 def test_normalize_manifest_assets_keeps_at_most_six_task_examples() -> None:
-    from octop.infra.agents.experts.manifest_generator import normalize_manifest_assets
+    from inhere_box.infra.agents.experts.manifest_generator import normalize_manifest_assets
 
     payload = _generated_payload()
     payload["task_examples"] = {
@@ -373,7 +373,7 @@ def test_collect_skill_context_reads_frontmatter_like_every_other_reader(tmp_pat
     * a file whose frontmatter fence is preceded by an HTML comment, which hid the
       whole block and left the raw ``---`` fence inside the excerpt.
     """
-    from octop.infra.agents.experts.manifest_generator import collect_skill_context
+    from inhere_box.infra.agents.experts.manifest_generator import collect_skill_context
 
     expert_dir = tmp_path / "expert"
     (expert_dir / "skills" / "folded").mkdir(parents=True)

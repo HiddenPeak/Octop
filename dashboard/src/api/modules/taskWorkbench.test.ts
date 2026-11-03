@@ -4,7 +4,7 @@ import { getApiUrl } from "../config";
 import { taskToolRequest, taskWorkbenchApi } from "./taskWorkbench";
 vi.mock("../config", () => ({
   getApiUrl: (path: string) => `/api${path}`,
-  getWsUrl: (path: string) => `wss://octop.test/api${path}`,
+  getWsUrl: (path: string) => `wss://inhere_box.test/api${path}`,
 }));
 vi.mock("../request", () => ({
   getAuthToken: () => "token",

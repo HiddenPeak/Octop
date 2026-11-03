@@ -7,8 +7,8 @@ from uuid import uuid4
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.projects import import_models
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.projects import import_models
 from tests.support.auth import create_user
 
 
@@ -219,7 +219,7 @@ async def test_import_documentation_has_typed_schemas(env, monkeypatch):
 
     import httpx
 
-    from octop.api.app import build_app
+    from inhere_box.api.app import build_app
 
     _client, server, auth = env
     monkeypatch.setattr(

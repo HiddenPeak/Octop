@@ -442,7 +442,7 @@ export function CustomMcpTab({ focusServerName }: CustomMcpTabProps) {
       message.warning(t("connectors.customMcp.emptyName", "请填写服务器名称"));
       return;
     }
-    const popup = window.open("", "octop-oauth", "width=520,height=720");
+    const popup = window.open("", "inhere-box-oauth", "width=520,height=720");
     if (!popup) {
       message.error(
         t(
@@ -510,7 +510,7 @@ export function CustomMcpTab({ focusServerName }: CustomMcpTabProps) {
     };
 
     const onMessage = (ev: MessageEvent) => {
-      if (ev.data?.type !== "octop:connector-oauth") return;
+      if (ev.data?.type !== "inhere-box:connector-oauth") return;
       if (ev.data.state_id !== stateId) return;
       void claimPending();
     };

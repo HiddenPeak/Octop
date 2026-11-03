@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.gateway.slash.parser import parse_slash
+from inhere_box.infra.gateway.slash.parser import parse_slash
 
 
 @pytest.mark.parametrize(

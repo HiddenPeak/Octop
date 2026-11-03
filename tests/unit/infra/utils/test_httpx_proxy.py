@@ -7,7 +7,7 @@ from collections.abc import Iterator
 import httpx
 import pytest
 
-from octop.infra.utils.httpx_proxy import (
+from inhere_box.infra.utils.httpx_proxy import (
     cidr_network_from_host,
     cidr_network_from_mount_pattern,
     get_environment_proxies,

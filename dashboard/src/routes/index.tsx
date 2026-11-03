@@ -28,7 +28,7 @@ const RemoteDesktopPage = lazy(() => import("../pages/Control/RemoteDesktop"));
 const ModelsPage = lazy(() => import("../pages/Settings/Models"));
 
 // Lazy-loaded pages — Admin
-const OctopAdminUsersPage = lazy(() => import("../pages/Admin/Users"));
+const InhereBoxAdminUsersPage = lazy(() => import("../pages/Admin/Users"));
 const AdminSecurityPage = lazy(() => import("../pages/Settings/Security"));
 const AdvancedSettingsPage = lazy(
   () => import("../pages/Settings/AdvancedSettings"),
@@ -47,7 +47,7 @@ function RedirectPreserveSearch({ to }: { to: string }) {
 }
 
 function AccountDevicesRoute() {
-  return isBoxAccountMode() ? <BoxDevicesPage /> : <OctopAdminUsersPage />;
+  return isBoxAccountMode() ? <BoxDevicesPage /> : <InhereBoxAdminUsersPage />;
 }
 
 function BridgeRoute() {
@@ -289,14 +289,17 @@ export const routeConfigs: RouteConfig[] = [
     path: "/orca/admin/audit",
     element: <Navigate to="/admin/security?tab=audit" replace />,
   },
-  { path: "/octop/cron", element: <Navigate to="/tasks" replace /> },
-  { path: "/octop/channels", element: <Navigate to="/channels" replace /> },
+  { path: "/inhere-box/cron", element: <Navigate to="/tasks" replace /> },
   {
-    path: "/octop/admin/users",
+    path: "/inhere-box/channels",
+    element: <Navigate to="/channels" replace />,
+  },
+  {
+    path: "/inhere-box/admin/users",
     element: <Navigate to="/admin/users" replace />,
   },
   {
-    path: "/octop/admin/audit",
+    path: "/inhere-box/admin/audit",
     element: <Navigate to="/admin/security?tab=audit" replace />,
   },
   {

@@ -16,9 +16,9 @@ from octop_harness.backends.bwrap_shell import BubbledLocalShellBackend
 from octop_harness.backends.local_shell import HarnessLocalShellBackend
 from octop_harness.llm.factory import ChatModelFactory
 
-from octop.infra.agents.security.policy_store import SecuritySettingsStore
-from octop.infra.projects import approval_reviewer, runtime
-from octop.infra.projects.approval_reviewer import ApprovalReviewResult, TaskApprovalReviewer
+from inhere_box.infra.agents.security.policy_store import SecuritySettingsStore
+from inhere_box.infra.projects import approval_reviewer, runtime
+from inhere_box.infra.projects.approval_reviewer import ApprovalReviewResult, TaskApprovalReviewer
 from tests.integration.test_project_task_interactions import approval, respond
 from tests.integration.test_project_tasks import settled
 from tests.support.auth import create_user

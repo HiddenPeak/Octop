@@ -5,7 +5,7 @@ export const WORKSPACE_MENTION_LIMIT = 20;
 
 const SKIP_SEGMENTS = new Set([
   ".octop",
-  ".octop-auth",
+  ".inhere-box-auth",
   "_builtin_skills",
   "node_modules",
   ".git",

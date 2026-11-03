@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.api.routers.browser.stream import _normalize_nav_url
+from inhere_box.api.routers.browser.stream import _normalize_nav_url
 
 
 def test_empty_and_blank() -> None:

@@ -7,16 +7,16 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.connectors import ConnectorRepo
-from octop.infra.db.repos.sessions import SessionRepo
-from octop.infra.db.repos.threads import ThreadRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.gateway.slash import BufferSink, SlashCommand, build_default_dispatcher
-from octop.infra.gateway.slash.ctx import SlashCtx
-from octop.infra.gateway.threads import ThreadRegistry
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.connectors import ConnectorRepo
+from inhere_box.infra.db.repos.sessions import SessionRepo
+from inhere_box.infra.db.repos.threads import ThreadRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.gateway.slash import BufferSink, SlashCommand, build_default_dispatcher
+from inhere_box.infra.gateway.slash.ctx import SlashCtx
+from inhere_box.infra.gateway.threads import ThreadRegistry
 
 
 @pytest.fixture

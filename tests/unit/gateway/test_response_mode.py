@@ -13,7 +13,7 @@ from octop_gateway.models import (
     TextContent,
 )
 
-from octop.infra.gateway.process.response_mode import (
+from inhere_box.infra.gateway.process.response_mode import (
     collapse_to_invoke_response,
     normalize_channel_response_mode,
     processor_for_response_mode,

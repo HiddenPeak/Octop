@@ -10,7 +10,7 @@ from uuid import uuid4
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from octop.infra.projects import resident_tasks
+from inhere_box.infra.projects import resident_tasks
 from tests.integration.test_project_task_artifacts import real_model as real_model
 from tests.integration.test_project_task_files import text_provider, tool_result, upload
 from tests.integration.test_project_task_images import image_bytes

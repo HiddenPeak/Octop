@@ -6,16 +6,16 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.knowledge import KnowledgeRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.knowledge import KnowledgeRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
 def db(tmp_path: Path) -> SqlitePool:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     return pool
 
@@ -65,7 +65,7 @@ def test_path_layout_knowledge_dir(tmp_path: Path) -> None:
 def test_knowledge_migrate_and_create(
     repo: KnowledgeRepo, owner_id: int, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     paths = PathLayout.from_env()
     assert paths.knowledge_dir == tmp_path / "knowledge"
 
@@ -162,13 +162,13 @@ def test_create_document_applies_limit_within_insert_transaction(
 
 
 def test_migration_007_rebuilds_text_primary_keys(tmp_path: Path) -> None:
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     with pool.connect() as conn:
         conn.executescript(
             (
                 Path(__file__).resolve().parents[3]
-                / "src/octop/infra/db/migrations/001_initial.sql"
+                / "src/inhere_box/infra/db/migrations/001_initial.sql"
             ).read_text()
         )
         conn.execute("UPDATE _schema_version SET version = 6")

@@ -11,13 +11,13 @@ from types import SimpleNamespace
 import pytest
 from click.testing import CliRunner
 
-from octop.config import DatabaseConfig
-from octop.infra.backup import pg_dump, system_archive
-from octop.infra.backup.manifest import BackupManifest
-from octop.infra.db import migrate
-from octop.infra.db.pool import SqlitePool
-from octop.infra.errors import OctopError
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import DatabaseConfig
+from inhere_box.infra.backup import pg_dump, system_archive
+from inhere_box.infra.backup.manifest import BackupManifest
+from inhere_box.infra.db import migrate
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def _pool(root: Path) -> tuple[PathLayout, SqlitePool]:
@@ -42,7 +42,7 @@ def test_box_target_rejected_before_offline_lock_or_archive_extraction(
     monkeypatch.setattr(system_archive, "offline_restore_guard", unexpected)
     monkeypatch.setattr(system_archive, "_extract_archive", unexpected)
     try:
-        with pytest.raises(OctopError) as error:
+        with pytest.raises(InhereBoxError) as error:
             system_archive.restore_system_backup(
                 b"not an archive", paths=paths, pool=pool, db_config=DatabaseConfig()
             )
@@ -63,7 +63,7 @@ def test_box_database_without_trust_files_is_still_not_a_server_target(tmp_path,
             pytest.fail("deleted box trust files must not enable ordinary restore")
 
         monkeypatch.setattr(system_archive, "offline_restore_guard", unexpected)
-        with pytest.raises(OctopError) as error:
+        with pytest.raises(InhereBoxError) as error:
             system_archive.restore_system_backup(
                 b"invalid", paths=paths, pool=pool, db_config=DatabaseConfig()
             )
@@ -103,7 +103,7 @@ def test_box_snapshot_cannot_be_imported_into_fresh_server(
 
         monkeypatch.setattr(system_archive, "restore_sqlite_into_pool", unexpected)
         monkeypatch.setattr(system_archive, "capture_chat_tables", unexpected)
-        with pytest.raises(OctopError) as error:
+        with pytest.raises(InhereBoxError) as error:
             system_archive.restore_system_backup(
                 archive,
                 paths=target,
@@ -193,7 +193,7 @@ def test_pg_preflight_failure_refuses_restore(tmp_path, monkeypatch):
     monkeypatch.setattr(
         pg_dump.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(returncode=1)
     )
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         pg_dump.postgres_snapshot_has_box_state(tmp_path / "archive.dump")
     assert error.value.details["reason"] == "box_restore_preflight_failed"
 
@@ -202,11 +202,11 @@ def test_box_postgres_archive_rejected_before_restore_process(tmp_path, monkeypa
     paths = PathLayout(tmp_path / "target")
     manifest = BackupManifest(
         manifest_version=1,
-        octop_version="1.0",
+        inhere_box_version="1.0",
         schema_version=61,
         created_at="now",
         home="",
-        db_file="db/octop.dump",
+        db_file="db/inhere_box.dump",
         database_driver="postgresql",
         database_dump_format="pg_custom",
     )
@@ -214,7 +214,7 @@ def test_box_postgres_archive_rejected_before_restore_process(tmp_path, monkeypa
     with tarfile.open(archive, "w:gz") as output:
         for name, data in [
             ("manifest.json", manifest.to_json().encode()),
-            ("db/octop.dump", b"dump"),
+            ("db/inhere_box.dump", b"dump"),
         ]:
             member = tarfile.TarInfo(name)
             member.size = len(data)
@@ -226,7 +226,7 @@ def test_box_postgres_archive_rejected_before_restore_process(tmp_path, monkeypa
         pytest.fail("box archive reached pg_restore against a real database")
 
     monkeypatch.setattr(system_archive, "restore_postgres", unexpected)
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         system_archive.restore_system_backup(
             archive,
             paths=paths,
@@ -237,7 +237,7 @@ def test_box_postgres_archive_rejected_before_restore_process(tmp_path, monkeypa
 
 
 def test_cli_rejects_box_restore_before_confirmation_or_opening_database(tmp_path, monkeypatch):
-    from octop.cli.commands import backup
+    from inhere_box.cli.commands import backup
 
     paths = PathLayout(tmp_path / "box")
     (paths.root / "box-auth").mkdir(parents=True)

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.backup.store import (
+from inhere_box.infra.backup.store import (
     BackupContentFlags,
     delete_backup_file,
     is_auto_backup_filename,
@@ -18,8 +18,8 @@ from octop.infra.backup.store import (
     read_backup_file,
     write_backup_file,
 )
-from octop.infra.errors import OctopError
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def test_backups_dir_paths(tmp_path: Path) -> None:
@@ -32,25 +32,25 @@ def test_backups_dir_paths(tmp_path: Path) -> None:
 
 def test_store_roundtrip(tmp_path: Path) -> None:
     layout = PathLayout(tmp_path / ".octop")
-    write_backup_file(layout, "octop-backup-test.tar.gz", b"payload")
+    write_backup_file(layout, "inhere-box-backup-test.tar.gz", b"payload")
     items = list_backup_files(layout)
     assert len(items) == 1
-    assert items[0].name == "octop-backup-test.tar.gz"
-    assert read_backup_file(layout, "octop-backup-test.tar.gz") == b"payload"
-    delete_backup_file(layout, "octop-backup-test.tar.gz")
+    assert items[0].name == "inhere-box-backup-test.tar.gz"
+    assert read_backup_file(layout, "inhere-box-backup-test.tar.gz") == b"payload"
+    delete_backup_file(layout, "inhere-box-backup-test.tar.gz")
     assert list_backup_files(layout) == []
 
 
 def test_reject_unsafe_filename() -> None:
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         normalize_backup_filename("../escape.tar.gz")
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         normalize_backup_filename("bad.zip")
 
 
 def test_created_at_from_canonical_filename(tmp_path: Path) -> None:
     layout = PathLayout(tmp_path / ".octop")
-    name = "octop-backup-20260721T013000Z.tar.gz"
+    name = "inhere-box-backup-20260721T013000Z.tar.gz"
     write_backup_file(layout, name, b"x")
     items = list_backup_files(layout)
     assert len(items) == 1
@@ -71,7 +71,7 @@ def test_created_at_falls_back_without_timestamp_in_name(tmp_path: Path) -> None
 def test_created_at_falls_back_on_invalid_filename_stamp(tmp_path: Path) -> None:
     layout = PathLayout(tmp_path / ".octop")
     # Matches regex but is not a real calendar datetime
-    write_backup_file(layout, "octop-backup-20261399T999999Z.tar.gz", b"x")
+    write_backup_file(layout, "inhere-box-backup-20261399T999999Z.tar.gz", b"x")
     items = list_backup_files(layout)
     assert len(items) == 1
     datetime.fromisoformat(items[0].created_at)
@@ -79,47 +79,47 @@ def test_created_at_falls_back_on_invalid_filename_stamp(tmp_path: Path) -> None
 
 def test_created_at_from_auto_filename(tmp_path: Path) -> None:
     layout = PathLayout(tmp_path / ".octop")
-    name = "octop-auto-backup-20260721T020000Z.tar.gz"
+    name = "inhere-box-auto-backup-20260721T020000Z.tar.gz"
     write_backup_file(layout, name, b"x")
     items = list_backup_files(layout)
     assert len(items) == 1
     assert items[0].created_at == "2026-07-21T02:00:00+00:00"
     assert is_auto_backup_filename(name)
-    assert not is_auto_backup_filename("octop-backup-20260721T020000Z.tar.gz")
+    assert not is_auto_backup_filename("inhere-box-backup-20260721T020000Z.tar.gz")
 
 
 def test_prune_auto_backups_keeps_newest_and_spares_manual(tmp_path: Path) -> None:
     layout = PathLayout(tmp_path / ".octop")
-    write_backup_file(layout, "octop-backup-20260101T000000Z.tar.gz", b"manual")
-    write_backup_file(layout, "octop-auto-backup-20260101T010000Z.tar.gz", b"a1")
-    write_backup_file(layout, "octop-auto-backup-20260102T010000Z.tar.gz", b"a2")
-    write_backup_file(layout, "octop-auto-backup-20260103T010000Z.tar.gz", b"a3")
+    write_backup_file(layout, "inhere-box-backup-20260101T000000Z.tar.gz", b"manual")
+    write_backup_file(layout, "inhere-box-auto-backup-20260101T010000Z.tar.gz", b"a1")
+    write_backup_file(layout, "inhere-box-auto-backup-20260102T010000Z.tar.gz", b"a2")
+    write_backup_file(layout, "inhere-box-auto-backup-20260103T010000Z.tar.gz", b"a3")
 
     deleted = prune_auto_backups(layout, keep=2)
-    assert set(deleted) == {"octop-auto-backup-20260101T010000Z.tar.gz"}
+    assert set(deleted) == {"inhere-box-auto-backup-20260101T010000Z.tar.gz"}
     names = {f.name for f in list_backup_files(layout)}
     assert names == {
-        "octop-backup-20260101T000000Z.tar.gz",
-        "octop-auto-backup-20260102T010000Z.tar.gz",
-        "octop-auto-backup-20260103T010000Z.tar.gz",
+        "inhere-box-backup-20260101T000000Z.tar.gz",
+        "inhere-box-auto-backup-20260102T010000Z.tar.gz",
+        "inhere-box-auto-backup-20260103T010000Z.tar.gz",
     }
 
 
 def test_prune_auto_backups_keep_zero_deletes_all_auto(tmp_path: Path) -> None:
     layout = PathLayout(tmp_path / ".octop")
-    write_backup_file(layout, "octop-backup-20260101T000000Z.tar.gz", b"manual")
-    write_backup_file(layout, "octop-auto-backup-20260101T010000Z.tar.gz", b"a1")
+    write_backup_file(layout, "inhere-box-backup-20260101T000000Z.tar.gz", b"manual")
+    write_backup_file(layout, "inhere-box-auto-backup-20260101T010000Z.tar.gz", b"a1")
     deleted = prune_auto_backups(layout, keep=0)
-    assert deleted == ["octop-auto-backup-20260101T010000Z.tar.gz"]
+    assert deleted == ["inhere-box-auto-backup-20260101T010000Z.tar.gz"]
     names = {f.name for f in list_backup_files(layout)}
-    assert names == {"octop-backup-20260101T000000Z.tar.gz"}
+    assert names == {"inhere-box-backup-20260101T000000Z.tar.gz"}
 
 
 def test_peek_backup_contents_reads_manifest(tmp_path: Path) -> None:
-    from octop.config import DatabaseConfig
-    from octop.infra.backup.system_archive import create_system_backup
-    from octop.infra.db.migrate import run_migrations
-    from octop.infra.db.pool import SqlitePool
+    from inhere_box.config import DatabaseConfig
+    from inhere_box.infra.backup.system_archive import create_system_backup
+    from inhere_box.infra.db.migrate import run_migrations
+    from inhere_box.infra.db.pool import SqlitePool
 
     layout = PathLayout(tmp_path / ".octop")
     layout.root.mkdir()
@@ -148,7 +148,7 @@ def test_peek_backup_contents_reads_manifest(tmp_path: Path) -> None:
         includes_knowledge=False,
         includes_chats=False,
     )
-    write_backup_file(layout, "octop-backup-peek.tar.gz", archive.read_bytes())
+    write_backup_file(layout, "inhere-box-backup-peek.tar.gz", archive.read_bytes())
     item = list_backup_files(layout)[0]
     assert item.includes_config is False
     assert item.includes_workspaces is False
@@ -174,11 +174,11 @@ def _minimal_manifest_json(**flags: bool) -> bytes:
 
     payload = {
         "manifest_version": 1,
-        "octop_version": "0.0.0-test",
+        "inhere_box_version": "0.0.0-test",
         "schema_version": 1,
         "created_at": "2026-01-01T00:00:00+00:00",
         "home": "/tmp",
-        "db_file": "db/octop.db",
+        "db_file": "db/inhere-box.db",
         "agents": [],
         "includes_config": flags.get("includes_config", True),
         "includes_env": False,

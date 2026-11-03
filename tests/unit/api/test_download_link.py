@@ -7,13 +7,13 @@ import pytest
 from tests.support.app import ensure_control_plane_bound
 from tests.support.auth import bearer, bootstrap_admin, login
 
-from octop.api.app import build_app
-from octop.infra.server import OctopServer
+from inhere_box.api.app import build_app
+from inhere_box.infra.server import InhereBoxServer
 
 
 @pytest.fixture
 async def client(tmp_path: Path):
-    srv = OctopServer(home=tmp_path)
+    srv = InhereBoxServer(home=tmp_path)
     await srv.start()
     await ensure_control_plane_bound(srv)
     app = build_app(srv)

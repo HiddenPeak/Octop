@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from octop.infra.gateway.process.processor import GlobalProcessor
-from octop.infra.gateway.slash import build_default_dispatcher, catalog
-from octop.infra.gateway.slash.ctx import SlashCtx, build_slash_ctx
-from octop.infra.gateway.slash.runner import try_handle_slash
+from inhere_box.infra.gateway.process.processor import GlobalProcessor
+from inhere_box.infra.gateway.slash import build_default_dispatcher, catalog
+from inhere_box.infra.gateway.slash.ctx import SlashCtx, build_slash_ctx
+from inhere_box.infra.gateway.slash.runner import try_handle_slash
 
 
 @pytest.fixture
@@ -205,7 +205,7 @@ async def test_slim_explains_impact_and_requires_confirmation(ctx, suffix):
 @pytest.mark.parametrize("phase", ["inspecting", "cleaning", "done"])
 @pytest.mark.parametrize("locale", ["zh", "en"])
 def test_page_postgres_status_uses_namespace_cleanup_report(phase, locale):
-    from octop.infra.gateway.slash.handlers.memory import _status_line
+    from inhere_box.infra.gateway.slash.handlers.memory import _status_line
 
     state = {
         "agent_id": "main",
@@ -222,7 +222,7 @@ def test_page_postgres_status_uses_namespace_cleanup_report(phase, locale):
 
 @pytest.mark.parametrize("locale", ["zh", "en"])
 def test_restore_status_does_not_expect_maintenance_file_statistics(locale):
-    from octop.infra.gateway.slash.handlers.memory import _status_line
+    from inhere_box.infra.gateway.slash.handlers.memory import _status_line
 
     text = _status_line(
         {

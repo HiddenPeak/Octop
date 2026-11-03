@@ -29,7 +29,7 @@ async def test_search_test_unknown_provider(env: Any) -> None:
 async def test_search_test_tavily_ok(env: Any) -> None:
     c, _srv, auth = env
     with patch(
-        "octop.infra.utils.search_probe._tavily",
+        "inhere_box.infra.utils.search_probe._tavily",
         new=AsyncMock(
             return_value={
                 "success": True,

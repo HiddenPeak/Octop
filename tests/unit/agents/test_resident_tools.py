@@ -17,20 +17,20 @@ from octop_harness.middleware.conversation_mode import ConversationModeMiddlewar
 from pydantic import Field, ValidationError
 from tests.unit.agents.test_resident_profiles import profile_env as profile_env
 
-from octop.infra.agents import resident_tools
-from octop.infra.agents.resident_identity import (
+from inhere_box.infra.agents import resident_tools
+from inhere_box.infra.agents.resident_identity import (
     ResidentTextOnlyMiddleware,
     resident_execution_scope,
 )
-from octop.infra.agents.resident_memory import (
+from inhere_box.infra.agents.resident_memory import (
     ResidentMemoryDeprecate,
     ResidentMemoryWrite,
     create_resident_memory,
     deprecate_resident_memory,
 )
-from octop.infra.agents.resident_profiles import ResidentProfileCreate, create_profile
-from octop.infra.agents.resident_tools import ResidentTaskContext, resident_tools_scope
-from octop.infra.projects.tasks import TaskMessage, now_ms
+from inhere_box.infra.agents.resident_profiles import ResidentProfileCreate, create_profile
+from inhere_box.infra.agents.resident_tools import ResidentTaskContext, resident_tools_scope
+from inhere_box.infra.projects.tasks import TaskMessage, now_ms
 
 
 def test_host_knowledge_selection_is_normalized_and_never_enables_defaults():
@@ -264,7 +264,7 @@ async def test_knowledge_search_uses_only_selected_currently_visible_bases(tool_
     base = services.knowledge_repo.create_base(owner_user_id=1, name="Selected")
     other = services.knowledge_repo.create_base(owner_user_id=2, name="Other private")
     retrieve = AsyncMock(return_value="Actual cited context [doc-1]")
-    monkeypatch.setattr("octop.infra.knowledge.retrieve.retrieve_context", retrieve)
+    monkeypatch.setattr("inhere_box.infra.knowledge.retrieve.retrieve_context", retrieve)
     with _scope(tool_env, read_tools=False, knowledge_base_ids=[base.id]):
         result = await resident_tools.aexecute_resident_tool(
             owner_id=1,

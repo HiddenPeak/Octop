@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from octop.infra.projects.engines.acp import ACPTaskSession
+from inhere_box.infra.projects.engines.acp import ACPTaskSession
 
 AGENT = """
 import json, sys

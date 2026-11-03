@@ -1,4 +1,4 @@
-"""OctopServer + ASGI client lifecycle for integration tests."""
+"""InhereBoxServer + ASGI client lifecycle for integration tests."""
 
 from __future__ import annotations
 
@@ -10,14 +10,14 @@ from typing import Any
 
 import httpx
 
-from octop.api.app import build_app
-from octop.config import DatabaseConfig, load_config
-from octop.infra.db.rebind import persist_database_config
-from octop.infra.server import OctopServer
+from inhere_box.api.app import build_app
+from inhere_box.config import DatabaseConfig, load_config
+from inhere_box.infra.db.rebind import persist_database_config
+from inhere_box.infra.server import InhereBoxServer
 from tests.support.harness import patch_harness
 
 
-def write_octop_config(home: Path, **overrides: object) -> None:
+def write_inhere_box_config(home: Path, **overrides: object) -> None:
     """Ensure ``home/config.json`` exists and apply overrides (for tests)."""
     cfg_path = home / "config.json"
     load_config(cfg_path)
@@ -26,7 +26,7 @@ def write_octop_config(home: Path, **overrides: object) -> None:
     cfg_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
-async def ensure_control_plane_bound(srv: OctopServer) -> None:
+async def ensure_control_plane_bound(srv: InhereBoxServer) -> None:
     """Bind default SQLite when greenfield start deferred the control-plane DB."""
     if srv.database_bound:
         return
@@ -35,14 +35,14 @@ async def ensure_control_plane_bound(srv: OctopServer) -> None:
 
 
 @asynccontextmanager
-async def octop_client(
+async def inhere_box_client(
     home: Path,
     *,
     fake_agent: Any | None = None,
     patch_llm: bool = True,
     bind_database: bool = True,
-) -> AsyncIterator[tuple[httpx.AsyncClient, OctopServer]]:
-    """Start OctopServer, yield ``(httpx client, server)``, then stop.
+) -> AsyncIterator[tuple[httpx.AsyncClient, InhereBoxServer]]:
+    """Start InhereBoxServer, yield ``(httpx client, server)``, then stop.
 
     Greenfield starts defer the control-plane DB until ``/setup/database``.
     Most tests set ``bind_database=True`` (default) to bind SQLite immediately.
@@ -50,7 +50,7 @@ async def octop_client(
     """
     ctx = patch_harness(fake_agent) if patch_llm else nullcontext(fake_agent)
     with ctx:
-        srv = OctopServer(home=home)
+        srv = InhereBoxServer(home=home)
         await srv.start()
         if bind_database and not srv.database_bound:
             await ensure_control_plane_bound(srv)
@@ -69,7 +69,7 @@ async def octop_client(
                 # Expose the ASGI app so tests can open WebSocket sessions on
                 # this same event loop (tests.support.http.ws_connect); httpx
                 # removed AsyncClient.websocket_connect.
-                client._octop_app = app  # type: ignore[attr-defined]
+                client._inhere_box_app = app  # type: ignore[attr-defined]
                 yield client, srv
         finally:
             await srv.stop()

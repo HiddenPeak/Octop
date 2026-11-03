@@ -16,11 +16,11 @@ from octop_harness.config import HarnessAgentConfig
 from octop_harness.llm import factory as harness_factory
 from openai import AuthenticationError
 
-from octop.infra.agents.providers.store import ProviderStore
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.providers import ProviderRepo
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.agents.providers.store import ProviderStore
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.providers import ProviderRepo
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def _completion(message: dict[str, Any], finish_reason: str) -> dict[str, Any]:

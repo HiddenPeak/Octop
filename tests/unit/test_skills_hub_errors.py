@@ -8,7 +8,7 @@ import sys
 import pytest
 from fastapi import HTTPException
 
-from octop.api.routers.skills import (
+from inhere_box.api.routers.skills import (
     _close_subprocess,
     _map_skillhub_install_error,
     _run_skillhub_cmd,
@@ -38,7 +38,7 @@ def test_map_install_error_unknown_returns_none() -> None:
 
 
 def test_map_install_error_ssl_record_layer() -> None:
-    from octop.i18n import error_message
+    from inhere_box.i18n import error_message
 
     err = (
         "Failed to fetch hot rankings: [SSL: RECORD_LAYER_FAILURE] "
@@ -51,8 +51,8 @@ def test_map_install_error_ssl_record_layer() -> None:
 
 
 def test_skillhub_cli_failure_detail_ssl() -> None:
-    from octop.api.routers.skills import _skillhub_cli_failure_detail
-    from octop.i18n import error_message
+    from inhere_box.api.routers.skills import _skillhub_cli_failure_detail
+    from inhere_box.i18n import error_message
 
     detail = _skillhub_cli_failure_detail(
         "rankings",
@@ -64,7 +64,7 @@ def test_skillhub_cli_failure_detail_ssl() -> None:
 
 
 def test_skillhub_cli_failure_detail_passthrough() -> None:
-    from octop.api.routers.skills import _skillhub_cli_failure_detail
+    from inhere_box.api.routers.skills import _skillhub_cli_failure_detail
 
     detail = _skillhub_cli_failure_detail("search", "network timeout", locale="en")
     assert detail == "skillhub search failed: network timeout"

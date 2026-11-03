@@ -15,8 +15,8 @@ import (
 
 func TestEnsurePortableUsesEmbeddedPackage(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("OCTOP_HOME", home)
-	t.Setenv("OCTOP_DESKTOP_PORTABLE_ZIP", "")
+	t.Setenv("INHERE_BOX_HOME", home)
+	t.Setenv("INHERE_BOX_DESKTOP_PORTABLE_ZIP", "")
 
 	zipPath := filepath.Join(t.TempDir(), "embedded.zip")
 	writeTestGreenZip(t, zipPath, "1.0.0")
@@ -38,10 +38,10 @@ func TestEnsurePortableUsesEmbeddedPackage(t *testing.T) {
 
 func TestEnsurePortableUsesBundledPackage(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("OCTOP_HOME", home)
+	t.Setenv("INHERE_BOX_HOME", home)
 
-	zipPath := filepath.Join(t.TempDir(), "Octop-"+greenPlat()+".zip")
-	t.Setenv("OCTOP_DESKTOP_PORTABLE_ZIP", zipPath)
+	zipPath := filepath.Join(t.TempDir(), "inhere-box-"+greenPlat()+".zip")
+	t.Setenv("INHERE_BOX_DESKTOP_PORTABLE_ZIP", zipPath)
 	writeTestGreenZip(t, zipPath, "1.0.0")
 
 	var statuses []string
@@ -64,7 +64,7 @@ func TestEnsurePortableUsesBundledPackage(t *testing.T) {
 
 func TestEnsurePortableReplacesOlderRuntime(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("OCTOP_HOME", home)
+	t.Setenv("INHERE_BOX_HOME", home)
 	root := portableDir()
 
 	oldZip := filepath.Join(t.TempDir(), "old.zip")
@@ -79,7 +79,7 @@ func TestEnsurePortableReplacesOlderRuntime(t *testing.T) {
 
 	newZip := filepath.Join(t.TempDir(), "new.zip")
 	writeTestGreenZip(t, newZip, "0.9.32")
-	t.Setenv("OCTOP_DESKTOP_PORTABLE_ZIP", newZip)
+	t.Setenv("INHERE_BOX_DESKTOP_PORTABLE_ZIP", newZip)
 	var statuses []string
 	if err := ensurePortable(LocaleZH, func(status string) { statuses = append(statuses, status) }); err != nil {
 		t.Fatal(err)
@@ -100,7 +100,7 @@ func TestEnsurePortableReplacesOlderRuntime(t *testing.T) {
 
 func TestEnsurePortableUpgradesBundledVersionAfterDatabaseBackup(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("OCTOP_HOME", home)
+	t.Setenv("INHERE_BOX_HOME", home)
 	root := portableDir()
 
 	oldZip := filepath.Join(t.TempDir(), "old.zip")
@@ -108,14 +108,14 @@ func TestEnsurePortableUpgradesBundledVersionAfterDatabaseBackup(t *testing.T) {
 	if err := unzipGreen(oldZip, root); err != nil {
 		t.Fatal(err)
 	}
-	database := filepath.Join(home, "octop.db")
+	database := filepath.Join(home, "inhere-box.db")
 	if err := os.WriteFile(database, []byte("database"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	newZip := filepath.Join(t.TempDir(), "new.zip")
 	writeTestGreenZip(t, newZip, "0.9.32")
-	t.Setenv("OCTOP_DESKTOP_PORTABLE_ZIP", newZip)
+	t.Setenv("INHERE_BOX_DESKTOP_PORTABLE_ZIP", newZip)
 
 	previousBackup := runSQLiteBackup
 	runSQLiteBackup = func(_ string, source string, destination string) error {
@@ -132,7 +132,7 @@ func TestEnsurePortableUpgradesBundledVersionAfterDatabaseBackup(t *testing.T) {
 	if got := portableVersion(root); got != "0.9.32" {
 		t.Fatalf("portable version = %q, want 0.9.32", got)
 	}
-	backups, err := filepath.Glob(filepath.Join(home, "backups", "octop-desktop-pre-upgrade-*.db"))
+	backups, err := filepath.Glob(filepath.Join(home, "backups", "inhere-box-desktop-pre-upgrade-*.db"))
 	if err != nil || len(backups) != 1 {
 		t.Fatalf("upgrade backup = %v, err = %v", backups, err)
 	}
@@ -140,7 +140,7 @@ func TestEnsurePortableUpgradesBundledVersionAfterDatabaseBackup(t *testing.T) {
 
 func TestEnsurePortableKeepsRuntimeWhenDatabaseBackupFails(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("OCTOP_HOME", home)
+	t.Setenv("INHERE_BOX_HOME", home)
 	root := portableDir()
 
 	oldZip := filepath.Join(t.TempDir(), "old.zip")
@@ -148,12 +148,12 @@ func TestEnsurePortableKeepsRuntimeWhenDatabaseBackupFails(t *testing.T) {
 	if err := unzipGreen(oldZip, root); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(home, "octop.db"), []byte("database"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(home, "inhere-box.db"), []byte("database"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	newZip := filepath.Join(t.TempDir(), "new.zip")
 	writeTestGreenZip(t, newZip, "0.9.32")
-	t.Setenv("OCTOP_DESKTOP_PORTABLE_ZIP", newZip)
+	t.Setenv("INHERE_BOX_DESKTOP_PORTABLE_ZIP", newZip)
 
 	previousBackup := runSQLiteBackup
 	runSQLiteBackup = func(_, _, _ string) error { return errors.New("backup unavailable") }
@@ -176,7 +176,7 @@ func TestEnsurePortableKeepsNewerExistingRuntime(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			home := t.TempDir()
-			t.Setenv("OCTOP_HOME", home)
+			t.Setenv("INHERE_BOX_HOME", home)
 			root := portableDir()
 
 			newZip := filepath.Join(t.TempDir(), "new.zip")
@@ -186,9 +186,9 @@ func TestEnsurePortableKeepsNewerExistingRuntime(t *testing.T) {
 			}
 			// An in-app package upgrade can leave the original VERSION.txt behind.
 			preserved := map[string]string{
-				filepath.Join(root, "VERSION.txt"): "octop_version=" + test.recorded + "\n",
-				filepath.Join(root, "keep.txt"):    "keep",
-				filepath.Join(home, "octop.db"):    "database",
+				filepath.Join(root, "VERSION.txt"):   "inhere_box_version=" + test.recorded + "\n",
+				filepath.Join(root, "keep.txt"):      "keep",
+				filepath.Join(home, "inhere-box.db"): "database",
 			}
 			for path, content := range preserved {
 				if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
@@ -198,7 +198,7 @@ func TestEnsurePortableKeepsNewerExistingRuntime(t *testing.T) {
 
 			oldZip := filepath.Join(t.TempDir(), "old.zip")
 			writeTestGreenZip(t, oldZip, test.bundled)
-			t.Setenv("OCTOP_DESKTOP_PORTABLE_ZIP", oldZip)
+			t.Setenv("INHERE_BOX_DESKTOP_PORTABLE_ZIP", oldZip)
 			if got, err := bundledPortableVersion(); err != nil || got != test.bundled {
 				t.Fatalf("bundled version = %q, err = %v, want %q", got, err, test.bundled)
 			}
@@ -239,7 +239,7 @@ func TestEnsurePortableKeepsNewerExistingRuntime(t *testing.T) {
 
 func TestPortableVersionPrefersNewerMetadataOverVersionTxt(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("OCTOP_HOME", home)
+	t.Setenv("INHERE_BOX_HOME", home)
 	root := portableDir()
 	b4Zip := filepath.Join(t.TempDir(), "b4.zip")
 	writeTestGreenZip(t, b4Zip, "1.0.2b4")
@@ -248,11 +248,11 @@ func TestPortableVersionPrefersNewerMetadataOverVersionTxt(t *testing.T) {
 	}
 
 	// An in-app upgrade can leave both the old VERSION.txt and old dist-info.
-	metadata := filepath.Join(root, "packages", "octop-1.0.2b5.dist-info", "METADATA")
+	metadata := filepath.Join(root, "packages", "inhere_box-1.0.2b5.dist-info", "METADATA")
 	if err := os.MkdirAll(filepath.Dir(metadata), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(metadata, []byte("Name: octop\nVersion: 1.0.2b5\n"), 0o644); err != nil {
+	if err := os.WriteFile(metadata, []byte("Name: inhere-box\nVersion: 1.0.2b5\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if got := portableVersion(root); got != "1.0.2b5" {
@@ -260,9 +260,9 @@ func TestPortableVersionPrefersNewerMetadataOverVersionTxt(t *testing.T) {
 	}
 
 	preserved := map[string]string{
-		filepath.Join(root, "VERSION.txt"): "octop_version=1.0.2b4\n",
-		filepath.Join(root, "keep.txt"):    "keep",
-		filepath.Join(home, "octop.db"):    "database",
+		filepath.Join(root, "VERSION.txt"):   "inhere_box_version=1.0.2b4\n",
+		filepath.Join(root, "keep.txt"):      "keep",
+		filepath.Join(home, "inhere-box.db"): "database",
 	}
 	for path, content := range preserved {
 		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
@@ -271,7 +271,7 @@ func TestPortableVersionPrefersNewerMetadataOverVersionTxt(t *testing.T) {
 	}
 	b5Zip := filepath.Join(t.TempDir(), "b5.zip")
 	writeTestGreenZip(t, b5Zip, "1.0.2b5")
-	t.Setenv("OCTOP_DESKTOP_PORTABLE_ZIP", b5Zip)
+	t.Setenv("INHERE_BOX_DESKTOP_PORTABLE_ZIP", b5Zip)
 	backupCalls := 0
 	previousBackup := runSQLiteBackup
 	runSQLiteBackup = func(_, _, _ string) error {
@@ -304,7 +304,7 @@ func TestPortableVersionPrefersNewerMetadataOverVersionTxt(t *testing.T) {
 
 func TestEnsurePortableKeepsCurrentRuntimeWhenReplacementIsInvalid(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("OCTOP_HOME", home)
+	t.Setenv("INHERE_BOX_HOME", home)
 	root := portableDir()
 
 	currentZip := filepath.Join(t.TempDir(), "current.zip")
@@ -315,7 +315,7 @@ func TestEnsurePortableKeepsCurrentRuntimeWhenReplacementIsInvalid(t *testing.T)
 
 	invalidZip := filepath.Join(t.TempDir(), "invalid.zip")
 	writeVersionOnlyZip(t, invalidZip, "0.9.32")
-	t.Setenv("OCTOP_DESKTOP_PORTABLE_ZIP", invalidZip)
+	t.Setenv("INHERE_BOX_DESKTOP_PORTABLE_ZIP", invalidZip)
 	var statuses []string
 	if err := ensurePortable(LocaleZH, func(status string) { statuses = append(statuses, status) }); err != nil {
 		t.Fatalf("existing runtime should still boot after a failed replacement: %v", err)
@@ -334,7 +334,7 @@ func TestEnsurePortableKeepsCurrentRuntimeWhenReplacementIsInvalid(t *testing.T)
 
 func TestEnsurePortableReplacesLegacyRuntimeWithoutVersionFiles(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("OCTOP_HOME", home)
+	t.Setenv("INHERE_BOX_HOME", home)
 	root := portableDir()
 
 	oldZip := filepath.Join(t.TempDir(), "old.zip")
@@ -351,7 +351,7 @@ func TestEnsurePortableReplacesLegacyRuntimeWithoutVersionFiles(t *testing.T) {
 
 	newZip := filepath.Join(t.TempDir(), "new.zip")
 	writeTestGreenZip(t, newZip, "0.9.32")
-	t.Setenv("OCTOP_DESKTOP_PORTABLE_ZIP", newZip)
+	t.Setenv("INHERE_BOX_DESKTOP_PORTABLE_ZIP", newZip)
 	if err := ensurePortable(LocaleZH, func(string) {}); err != nil {
 		t.Fatal(err)
 	}
@@ -363,7 +363,7 @@ func TestEnsurePortableReplacesLegacyRuntimeWithoutVersionFiles(t *testing.T) {
 func TestBundledPortableVersionFallsBackToMetadata(t *testing.T) {
 	zipPath := filepath.Join(t.TempDir(), "meta-only.zip")
 	writeMetadataOnlyZip(t, zipPath, "0.9.32")
-	t.Setenv("OCTOP_DESKTOP_PORTABLE_ZIP", zipPath)
+	t.Setenv("INHERE_BOX_DESKTOP_PORTABLE_ZIP", zipPath)
 	got, err := bundledPortableVersion()
 	if err != nil {
 		t.Fatal(err)
@@ -373,7 +373,7 @@ func TestBundledPortableVersionFallsBackToMetadata(t *testing.T) {
 	}
 }
 
-// Keep these cases aligned with octop.infra.setup.self_update.parse_version.
+// Keep these cases aligned with inhere_box.infra.setup.self_update.parse_version.
 func TestCompareVersions(t *testing.T) {
 	for _, test := range []struct {
 		left, right string
@@ -420,7 +420,7 @@ func TestEnsurePortablePrereleaseUpgrade(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			home := t.TempDir()
-			t.Setenv("OCTOP_HOME", home)
+			t.Setenv("INHERE_BOX_HOME", home)
 			root := portableDir()
 			oldZip := filepath.Join(t.TempDir(), "old.zip")
 			writeTestGreenZip(t, oldZip, test.installed)
@@ -428,7 +428,7 @@ func TestEnsurePortablePrereleaseUpgrade(t *testing.T) {
 				t.Fatal(err)
 			}
 			marker := filepath.Join(root, "keep.txt")
-			database := filepath.Join(home, "octop.db")
+			database := filepath.Join(home, "inhere-box.db")
 			for _, path := range []string{marker, database} {
 				if err := os.WriteFile(path, []byte("preserve"), 0o600); err != nil {
 					t.Fatal(err)
@@ -436,7 +436,7 @@ func TestEnsurePortablePrereleaseUpgrade(t *testing.T) {
 			}
 			newZip := filepath.Join(t.TempDir(), "new.zip")
 			writeTestGreenZip(t, newZip, test.bundled)
-			t.Setenv("OCTOP_DESKTOP_PORTABLE_ZIP", newZip)
+			t.Setenv("INHERE_BOX_DESKTOP_PORTABLE_ZIP", newZip)
 
 			backupCalls := 0
 			previousBackup := runSQLiteBackup
@@ -501,7 +501,7 @@ func TestEnsurePortablePrereleaseUpgrade(t *testing.T) {
 }
 
 func TestBundledPortableZipRequiresMatchingPackage(t *testing.T) {
-	t.Setenv("OCTOP_DESKTOP_PORTABLE_ZIP", filepath.Join(t.TempDir(), "missing.zip"))
+	t.Setenv("INHERE_BOX_DESKTOP_PORTABLE_ZIP", filepath.Join(t.TempDir(), "missing.zip"))
 	if _, err := bundledPortableZip(); err == nil {
 		t.Fatal("missing bundled package should fail")
 	}
@@ -509,7 +509,7 @@ func TestBundledPortableZipRequiresMatchingPackage(t *testing.T) {
 
 func TestLaunchReadyRejectsFlattenedPythonSymlink(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("OCTOP_HOME", home)
+	t.Setenv("INHERE_BOX_HOME", home)
 	root := portableDir()
 	if err := os.MkdirAll(filepath.Join(root, "runtime", "bin"), 0o755); err != nil {
 		t.Fatal(err)
@@ -532,7 +532,7 @@ func TestFormatHealthWaitErrorIsActionableChinese(t *testing.T) {
 	}
 	msg := err.Error()
 	for _, needle := range []string{
-		"Octop 服务未在",
+		"inhere-box 服务未在",
 		"1 分钟",
 		"http://127.0.0.1:8088",
 		"请确认",
@@ -552,10 +552,10 @@ func TestFormatHealthWaitErrorIsActionableChinese(t *testing.T) {
 func TestFormatHealthWaitErrorUsesEnglishWhenLocaleIsEn(t *testing.T) {
 	msg := formatHealthWaitError(LocaleEN, "http://127.0.0.1:8088", time.Minute, errors.New("connection refused"), 0).Error()
 	for _, needle := range []string{
-		"Octop did not become ready within",
+		"inhere-box did not become ready within",
 		"1 minute",
 		"http://127.0.0.1:8088",
-		"make sure Octop is running",
+		"make sure inhere-box is running",
 	} {
 		if !strings.Contains(msg, needle) {
 			t.Fatalf("English health error missing %q: %s", needle, msg)
@@ -595,7 +595,7 @@ func TestWaitHealthTimesOutWithFriendlyMessage(t *testing.T) {
 	if strings.Contains(err.Error(), "did not become healthy") {
 		t.Fatalf("should not use the old English diagnostic: %s", err)
 	}
-	if !strings.Contains(err.Error(), "Octop did not become ready within") {
+	if !strings.Contains(err.Error(), "inhere-box did not become ready within") {
 		t.Fatalf("timeout should follow the desktop locale: %s", err)
 	}
 }
@@ -608,25 +608,25 @@ func writeTestGreenZip(t *testing.T, path, version string) {
 	}
 	w := zip.NewWriter(f)
 	files := []string{
-		"Octop-test/launch.py",
-		"Octop-test/VERSION.txt",
-		"Octop-test/packages/octop-" + version + ".dist-info/METADATA",
+		"inhere-box-test/launch.py",
+		"inhere-box-test/VERSION.txt",
+		"inhere-box-test/packages/inhere_box-" + version + ".dist-info/METADATA",
 	}
 	if runtime.GOOS == "windows" {
-		files = append(files, "Octop-test/runtime/python.exe")
+		files = append(files, "inhere-box-test/runtime/python.exe")
 	} else {
 		files = append(files,
-			"Octop-test/runtime/bin/python3",
-			"Octop-test/runtime/bin/python3.12",
+			"inhere-box-test/runtime/bin/python3",
+			"inhere-box-test/runtime/bin/python3.12",
 		)
 	}
 	for _, name := range files {
 		header := &zip.FileHeader{Name: name, Method: zip.Store}
 		content := []byte("test executable payload")
 		if strings.HasSuffix(name, "/VERSION.txt") {
-			content = []byte("platform=test\noctop_version=" + version + "\n")
+			content = []byte("platform=test\ninhere_box_version=" + version + "\n")
 		} else if strings.HasSuffix(name, "/METADATA") {
-			content = []byte("Name: octop\nVersion: " + version + "\n")
+			content = []byte("Name: inhere-box\nVersion: " + version + "\n")
 		} else if strings.HasSuffix(name, "/python3") {
 			header.SetMode(os.ModeSymlink | 0o755)
 			content = []byte("python3.12")
@@ -659,11 +659,11 @@ func writeMetadataOnlyZip(t *testing.T, path, version string) {
 		t.Fatal(err)
 	}
 	w := zip.NewWriter(f)
-	entry, err := w.Create("Octop-test/packages/octop-" + version + ".dist-info/METADATA")
+	entry, err := w.Create("inhere-box-test/packages/inhere_box-" + version + ".dist-info/METADATA")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := entry.Write([]byte("Name: octop\nVersion: " + version + "\n")); err != nil {
+	if _, err := entry.Write([]byte("Name: inhere-box\nVersion: " + version + "\n")); err != nil {
 		t.Fatal(err)
 	}
 	if err := w.Close(); err != nil {
@@ -681,11 +681,11 @@ func writeVersionOnlyZip(t *testing.T, path, version string) {
 		t.Fatal(err)
 	}
 	w := zip.NewWriter(f)
-	entry, err := w.Create("Octop-test/VERSION.txt")
+	entry, err := w.Create("inhere-box-test/VERSION.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := entry.Write([]byte("octop_version=" + version + "\n")); err != nil {
+	if _, err := entry.Write([]byte("inhere_box_version=" + version + "\n")); err != nil {
 		t.Fatal(err)
 	}
 	if err := w.Close(); err != nil {
@@ -693,5 +693,14 @@ func writeVersionOnlyZip(t *testing.T, path, version string) {
 	}
 	if err := f.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestVersionMarkerRequiresMigration(t *testing.T) {
+	if got := versionFromText("octop_version=1.0.2b4\n"); got != "" {
+		t.Fatalf("legacy marker must be migrated before normal parsing: %q", got)
+	}
+	if got := versionFromText("inhere_box_version=1.0.2b4\n"); got != "1.0.2b4" {
+		t.Fatalf("migrated marker was not read: %q", got)
 	}
 }

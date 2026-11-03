@@ -9,7 +9,7 @@ from uuid import uuid4
 import httpx
 import pytest
 
-from octop.api.app import build_app
+from inhere_box.api.app import build_app
 from tests.support.auth import create_user
 
 

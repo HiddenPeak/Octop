@@ -1,9 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
-import type { OctopAgent } from "../context/AgentContext";
+import type { InhereBoxAgent } from "../context/AgentContext";
 
 const state = {
-  agents: [] as OctopAgent[],
+  agents: [] as InhereBoxAgent[],
   activeAgentId: "writer" as string | null,
   loading: false,
 };
@@ -30,8 +30,8 @@ vi.mock("../context/AgentContext", () => ({
 import AgentSelector from "./AgentSelector";
 
 function fakeAgent(
-  partial: Pick<OctopAgent, "agent_id" | "name"> & Partial<OctopAgent>,
-): OctopAgent {
+  partial: Pick<InhereBoxAgent, "agent_id" | "name"> & Partial<InhereBoxAgent>,
+): InhereBoxAgent {
   return {
     id: 1,
     description: null,

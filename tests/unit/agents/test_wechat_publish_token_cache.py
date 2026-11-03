@@ -17,7 +17,7 @@ from typing import Any
 
 import pytest
 
-from octop.infra.agents.experts.catalog import default_library_root
+from inhere_box.infra.agents.experts.catalog import default_library_root
 
 _SCRIPT = (
     default_library_root()

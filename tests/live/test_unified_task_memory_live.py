@@ -11,8 +11,8 @@ from uuid import uuid4
 import pytest
 from tests.live.unified_task_support import LiveTaskEnvironment, await_task, live_options
 
-from octop.infra.projects.expert_memory import ExpertMemory
-from octop.infra.projects.expert_profiles import _workspace
+from inhere_box.infra.projects.expert_memory import ExpertMemory
+from inhere_box.infra.projects.expert_profiles import _workspace
 
 pytestmark = pytest.mark.live
 

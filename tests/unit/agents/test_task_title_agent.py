@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from octop.infra.db.repos.project_task_titles import TaskTitleJob
-from octop.infra.projects import title
-from octop.infra.projects.title_policy import normalized_title, provisional_title
+from inhere_box.infra.db.repos.project_task_titles import TaskTitleJob
+from inhere_box.infra.projects import title
+from inhere_box.infra.projects.title_policy import normalized_title, provisional_title
 
 
 @pytest.mark.parametrize(

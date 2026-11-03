@@ -43,8 +43,8 @@ beforeEach(() => {
 describe("环境变量保存与任务展示刷新", () => {
   it("隐藏任务展示配置，保留普通环境变量", async () => {
     list.mockResolvedValue([
-      { key: "OCTOP_TASK_ACTION_TIMELINE_ENABLED", value: "true" },
-      { key: "OCTOP_TASK_STEP_PANEL_ENABLED", value: "false" },
+      { key: "INHERE_BOX_TASK_ACTION_TIMELINE_ENABLED", value: "true" },
+      { key: "INHERE_BOX_TASK_STEP_PANEL_ENABLED", value: "false" },
       { key: "EXAMPLE_SETTING", value: "true" },
     ]);
     render(
@@ -54,18 +54,18 @@ describe("环境变量保存与任务展示刷新", () => {
     );
     expect(await screen.findByDisplayValue("EXAMPLE_SETTING")).toBeVisible();
     expect(
-      screen.queryByDisplayValue("OCTOP_TASK_ACTION_TIMELINE_ENABLED"),
+      screen.queryByDisplayValue("INHERE_BOX_TASK_ACTION_TIMELINE_ENABLED"),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByDisplayValue("OCTOP_TASK_STEP_PANEL_ENABLED"),
+      screen.queryByDisplayValue("INHERE_BOX_TASK_STEP_PANEL_ENABLED"),
     ).not.toBeInTheDocument();
     expect(screen.getAllByPlaceholderText("Value")).toHaveLength(1);
   });
 
   it("仅有任务展示配置时显示空状态", async () => {
     list.mockResolvedValue([
-      { key: "OCTOP_TASK_ACTION_TIMELINE_ENABLED", value: "true" },
-      { key: "OCTOP_TASK_STEP_PANEL_ENABLED", value: "true" },
+      { key: "INHERE_BOX_TASK_ACTION_TIMELINE_ENABLED", value: "true" },
+      { key: "INHERE_BOX_TASK_STEP_PANEL_ENABLED", value: "true" },
     ]);
     render(
       <App>
@@ -80,8 +80,8 @@ describe("环境变量保存与任务展示刷新", () => {
 
   it("保存普通环境变量时不回写任务设置页更新前的隐藏值", async () => {
     list.mockResolvedValue([
-      { key: "OCTOP_TASK_ACTION_TIMELINE_ENABLED", value: "true" },
-      { key: "OCTOP_TASK_STEP_PANEL_ENABLED", value: "true" },
+      { key: "INHERE_BOX_TASK_ACTION_TIMELINE_ENABLED", value: "true" },
+      { key: "INHERE_BOX_TASK_STEP_PANEL_ENABLED", value: "true" },
       { key: "EXAMPLE_SETTING", value: "true" },
     ]);
     save.mockResolvedValue(undefined);

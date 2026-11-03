@@ -16,11 +16,11 @@ function optionalAgentHeaders(
 ): HeadersInit | undefined {
   const id = (agentId ?? "").trim();
   if (!id) return undefined;
-  return { "X-Octop-Agent-Id": id };
+  return { "X-Inhere-Box-Agent-Id": id };
 }
 
 export const acpApi = {
-  /** Host setup operations stay on this Octop host and never use Bridge. */
+  /** Host setup operations stay on this inhere-box host and never use Bridge. */
   getSetup: () => request<ACPSetupView>("/acp/setup"),
 
   connectCodex: () =>

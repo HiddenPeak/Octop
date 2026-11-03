@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Spin } from "antd";
 import { clearAuthToken, getAuthToken } from "../api/request";
-import { authApi, type OctopUser } from "../api/modules/auth";
+import { authApi, type InhereBoxUser } from "../api/modules/auth";
 import {
   BOX_AUTH_REQUIRED_EVENT,
   BOX_SESSION_EVENT,
@@ -46,7 +46,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
 
   const [checking, setChecking] = useState(true);
   const [authed, setAuthed] = useState(false);
-  const [user, setUser] = useState<OctopUser | null>(null);
+  const [user, setUser] = useState<InhereBoxUser | null>(null);
   const [offline, setOffline] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 

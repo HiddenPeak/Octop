@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from octop.infra.skills.skill_transfer import (
+from inhere_box.infra.skills.skill_transfer import (
     SkillTransferNotFound,
     copy_workspace_skill_to_workspace,
 )

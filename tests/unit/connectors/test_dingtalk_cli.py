@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 from tests.support.fakes import fake_bin_path
 
-from octop.infra.connectors.builder import validate_create_credentials
-from octop.infra.connectors.gateway.adapters import dingtalk_cli
-from octop.infra.connectors.gateway.registry import get_gateway_adapter
+from inhere_box.infra.connectors.builder import validate_create_credentials
+from inhere_box.infra.connectors.gateway.adapters import dingtalk_cli
+from inhere_box.infra.connectors.gateway.registry import get_gateway_adapter
 
 
 def test_credentials_are_an_optional_pair_with_isolation_key() -> None:
@@ -18,7 +18,7 @@ def test_credentials_are_an_optional_pair_with_isolation_key() -> None:
 
 
 def test_env_uses_official_app_without_pair(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     monkeypatch.setenv("DWS_CLIENT_ID", "host-wide")
     env = dingtalk_cli.prepare_env({"cli_config_key": "inst2"})
     assert "DWS_CLIENT_ID" not in env and "DWS_CLIENT_SECRET" not in env
@@ -26,7 +26,7 @@ def test_env_uses_official_app_without_pair(monkeypatch, tmp_path) -> None:
 
 
 def test_call_tool_passes_argv_and_isolated_env(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     seen: dict = {}
     monkeypatch.setattr(dingtalk_cli, "resolve_binary", lambda _n: fake_bin_path("dws"))
 
@@ -63,7 +63,7 @@ def test_llm_facing_schema_round_trips_a_command_line(monkeypatch, tmp_path) -> 
     # array schema made every real LLM call fail validation in the adapter.
     from octop_harness.mcp import mcp_args_model
 
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     seen: dict = {}
     monkeypatch.setattr(dingtalk_cli, "resolve_binary", lambda _n: fake_bin_path("dws"))
     monkeypatch.setattr(dingtalk_cli, "run_cli", lambda argv, **_: seen.setdefault("argv", argv))
@@ -86,7 +86,7 @@ def test_registered() -> None:
 
 
 def test_large_output_is_truncated_with_a_hint(monkeypatch, tmp_path) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     monkeypatch.setattr(dingtalk_cli, "resolve_binary", lambda _n: fake_bin_path("dws"))
     monkeypatch.setattr(dingtalk_cli, "run_cli", lambda argv, **_: "x" * 40_000)
     out = dingtalk_cli.call_tool({"cli_config_key": "i"}, "dws", {"args": "chat +chat-messages"})

@@ -1,25 +1,31 @@
 #!/usr/bin/env bash
-# Octop 安装脚本 (macOS / Linux)
+# inhere-box 安装脚本 (macOS / Linux)
 # 用法: bash scripts/install.sh              # 从 PyPI 安装（默认）
 #   或: bash scripts/install.sh --from-source  # 从本地源码安装
 #   或: curl -fsSL <url>/install.sh | bash   # 远程安装
 #
-# 将 Octop 安装到 ~/.octop，使用 uv 管理 Python 环境。
+# 将 inhere-box 安装到 ~/.inhere-box，使用 uv 管理 Python 环境。
 # 用户无需预先安装 Python — uv 会处理一切。
-# 安装后会尽量把 octop 链接到已在 PATH 中的目录（如 /usr/local/bin），
+# 安装后会尽量把 inhere-box 链接到已在 PATH 中的目录（如 /usr/local/bin），
 # 当前终端无需 source / 重开即可直接使用。
 set -euo pipefail
 
 # ── 默认配置 ──────────────────────────────────────────────────────────────────
-OCTOP_HOME="${OCTOP_HOME:-$HOME/.octop}"
-OCTOP_VENV="$OCTOP_HOME/venv"
-OCTOP_BIN="$OCTOP_HOME/bin"
+INHERE_BOX_HOME="${INHERE_BOX_HOME:-${OCTOP_HOME:-}}"
+if [ -z "$INHERE_BOX_HOME" ]; then
+  INHERE_BOX_HOME="$HOME/.inhere-box"
+  if [ ! -e "$INHERE_BOX_HOME" ] && [ -d "$HOME/.octop" ]; then
+    INHERE_BOX_HOME="$HOME/.octop"
+  fi
+fi
+INHERE_BOX_VENV="$INHERE_BOX_HOME/venv"
+INHERE_BOX_BIN="$INHERE_BOX_HOME/bin"
 PYTHON_VERSION="3.12"
-OCTOP_REPO="${OCTOP_REPO:-https://github.com/TencentCloud/Octop.git}"
-_OCTOP_REPO_BASE="${OCTOP_REPO%/*}"
-HARNESS_AGENT_REPO="${HARNESS_AGENT_REPO:-${_OCTOP_REPO_BASE}/octop-harness.git}"
-HARNESS_GATEWAY_REPO="${HARNESS_GATEWAY_REPO:-${_OCTOP_REPO_BASE}/octop-gateway.git}"
-HARNESS_BROWSER_REPO="${HARNESS_BROWSER_REPO:-${_OCTOP_REPO_BASE}/octop-browser.git}"
+INHERE_BOX_REPO="${INHERE_BOX_REPO:-https://github.com/TencentCloud/Octop.git}"
+_INHERE_BOX_REPO_BASE="${INHERE_BOX_REPO%/*}"
+HARNESS_AGENT_REPO="${HARNESS_AGENT_REPO:-${_INHERE_BOX_REPO_BASE}/octop-harness.git}"
+HARNESS_GATEWAY_REPO="${HARNESS_GATEWAY_REPO:-${_INHERE_BOX_REPO_BASE}/octop-gateway.git}"
+HARNESS_BROWSER_REPO="${HARNESS_BROWSER_REPO:-${_INHERE_BOX_REPO_BASE}/octop-browser.git}"
 
 if [ -n "${BASH_SOURCE[0]:-}" ]; then
     _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -49,9 +55,9 @@ else
     BOLD="" GREEN="" YELLOW="" RED="" RESET=""
 fi
 
-info()  { printf "${GREEN}[octop]${RESET} %s\n" "$*"; }
-warn()  { printf "${YELLOW}[octop]${RESET} %s\n" "$*"; }
-error() { printf "${RED}[octop]${RESET} %s\n" "$*" >&2; }
+info()  { printf "${GREEN}[inhere-box]${RESET} %s\n" "$*"; }
+warn()  { printf "${YELLOW}[inhere-box]${RESET} %s\n" "$*"; }
+error() { printf "${RED}[inhere-box]${RESET} %s\n" "$*" >&2; }
 die()   { error "$@"; exit 1; }
 
 # ── 解析参数 ──────────────────────────────────────────────────────────────────
@@ -76,7 +82,7 @@ while [[ $# -gt 0 ]]; do
             PYPI_MIRROR="$2"; shift 2 ;;
         -h|--help)
             cat <<EOF
-Octop installer (macOS / Linux)
+inhere-box installer (macOS / Linux)
 
 Usage: bash install.sh [OPTIONS]
 
@@ -94,17 +100,17 @@ Note: Playwright Chromium is not downloaded by default. Pass
   even with --extras browser.
 
 Environment variables:
-  OCTOP_HOME              Install directory (default: ~/.octop)
-  OCTOP_PYPI_MIRROR       PyPI mirror URL (same as --mirror)
-  OCTOP_REPO              Git URL to clone (used by --from-source with no local dir)
-  HARNESS_AGENT_REPO      octop-harness repo (derived from OCTOP_REPO by default)
-  HARNESS_GATEWAY_REPO    octop-gateway repo (derived from OCTOP_REPO by default)
+  INHERE_BOX_HOME              Install directory (default: ~/.inhere-box)
+  INHERE_BOX_PYPI_MIRROR       PyPI mirror URL (same as --mirror)
+  INHERE_BOX_REPO              Git URL to clone (used by --from-source with no local dir)
+  HARNESS_AGENT_REPO      octop-harness repo (derived from INHERE_BOX_REPO by default)
+  HARNESS_GATEWAY_REPO    octop-gateway repo (derived from INHERE_BOX_REPO by default)
   HARNESS_BROWSER_REPO    octop-browser repo (used for source installs)
   PLAYWRIGHT_DOWNLOAD_HOST  Playwright download mirror (optional; auto: npmmirror -> official)
   PLAYWRIGHT_INSTALL_TIMEOUT  Per-mirror download timeout in seconds (default 600)
 
 Details:
-  Everything is installed into an isolated virtualenv (~/.octop/venv), so the
+  Everything is installed into an isolated virtualenv (~/.inhere-box/venv), so the
   system Python is untouched. Playwright Chromium is opt-in (--extras browser):
   1. Playwright Chromium browser (skipped if a system browser exists)
   2. System libraries (Linux: apt/dnf/yum/pacman/zypper; only needed for Chromium)
@@ -123,7 +129,7 @@ case "$OS" in
     *) die "Unsupported OS: $OS. Use install.ps1 or install.bat on Windows." ;;
 esac
 
-printf "${GREEN}[octop]${RESET} Installing Octop into ${BOLD}%s${RESET}\n" "$OCTOP_HOME"
+printf "${GREEN}[inhere-box]${RESET} Installing inhere-box into ${BOLD}%s${RESET}\n" "$INHERE_BOX_HOME"
 
 # ── 步骤 1: 确保 uv 可用 ────────────────────────────────────────────────────
 _install_uv_via_pip() {
@@ -300,7 +306,7 @@ _uv_pip_install_with_mirror_fallback() {
         seen+=("$mirror")
 
         local -a args=(
-            --python "$OCTOP_VENV/bin/python"
+            --python "$INHERE_BOX_VENV/bin/python"
             --quiet
             --index-url https://pypi.org/simple
         )
@@ -383,8 +389,8 @@ _run_as_root() {
 # 当前将用于编译扩展的 Python 是否带有 Python.h（uv 自带或系统 python3-dev）
 _python_dev_headers_ok() {
     local py=""
-    if [ -x "${OCTOP_VENV:-}/bin/python" ]; then
-        py="$OCTOP_VENV/bin/python"
+    if [ -x "${INHERE_BOX_VENV:-}/bin/python" ]; then
+        py="$INHERE_BOX_VENV/bin/python"
     elif command -v python3 &>/dev/null; then
         py="$(command -v python3)"
     else
@@ -547,14 +553,14 @@ _ensure_old_glibc_build_toolchain() {
 }
 
 # ── 步骤 2: 创建/更新虚拟环境 ────────────────────────────────────────────────
-if [ -x "$OCTOP_VENV/bin/python" ]; then
+if [ -x "$INHERE_BOX_VENV/bin/python" ]; then
     info "Existing environment found, upgrading..."
 else
     info "Creating the Python $PYTHON_VERSION environment..."
-    uv venv "$OCTOP_VENV" --python "$PYTHON_VERSION" --quiet --seed
+    uv venv "$INHERE_BOX_VENV" --python "$PYTHON_VERSION" --quiet --seed
 fi
-[ -x "$OCTOP_VENV/bin/python" ] || die "Failed to create the virtualenv"
-info "Python environment ready ($("$OCTOP_VENV/bin/python" --version))"
+[ -x "$INHERE_BOX_VENV/bin/python" ] || die "Failed to create the virtualenv"
+info "Python environment ready ($("$INHERE_BOX_VENV/bin/python" --version))"
 
 # Linux 上始终确保可编译本地扩展（Ubuntu 缺 python3-dev、CentOS 缺 python3-devel 等）
 if [ "$OS" = "Linux" ]; then
@@ -562,7 +568,7 @@ if [ "$OS" = "Linux" ]; then
 fi
 _ensure_old_glibc_build_toolchain
 
-# ── 步骤 3: 安装 Octop ───────────────────────────────────────────────────────
+# ── 步骤 3: 安装 inhere-box ───────────────────────────────────────────────────────
 # playwright Python 包已是核心依赖；Chromium 浏览器仅在 --extras browser 时下载。
 _merge_install_extras() {
     local result="browser"
@@ -581,7 +587,7 @@ _merge_install_extras() {
 EXTRAS_MERGED="$(_merge_install_extras)"
 EXTRAS_SUFFIX="[$EXTRAS_MERGED]"
 
-_EXTRA_MIRROR="${PYPI_MIRROR:-${OCTOP_PYPI_MIRROR:-}}"
+_EXTRA_MIRROR="${PYPI_MIRROR:-${INHERE_BOX_PYPI_MIRROR:-}}"
 if [ -z "$_EXTRA_MIRROR" ]; then
     _select_fastest_pypi_mirror
     _EXTRA_MIRROR="$_FASTEST_MIRROR"
@@ -592,7 +598,7 @@ fi
 _CONSOLE_AVAILABLE=0
 prepare_console() {
     local repo_dir="$1"
-    local console_dest="$repo_dir/src/octop/dashboard"
+    local console_dest="$repo_dir/src/inhere_box/dashboard"
 
     if [ -f "$console_dest/index.html" ]; then
         _CONSOLE_AVAILABLE=1
@@ -622,7 +628,7 @@ prepare_console() {
 
 # TEMP: mcp 2.x 移除 RequestContext，与 langchain-mcp-adapters 不兼容。
 # octop-harness>=0.9.18 已在依赖中 pin；此处在验证前再钉一次，覆盖仍拉取到
-# 旧版 harness / 镜像滞后的安装路径。待 Octop 发版跟上后可删除。
+# 旧版 harness / 镜像滞后的安装路径。待 inhere-box 发版跟上后可删除。
 _pin_mcp_compat() {
     info "Pinning mcp<2 (langchain-mcp-adapters compatibility; temporary)..."
     if ! _uv_pip_install_with_mirror_fallback "mcp>=1.27.1,<2"; then
@@ -634,7 +640,7 @@ _pin_mcp_compat() {
 
 _verify_install() {
     info "Verifying the installation..."
-    if ! "$OCTOP_VENV/bin/python" -c "from octop.infra.agents.manager import AgentManager" 2>/dev/null; then
+    if ! "$INHERE_BOX_VENV/bin/python" -c "from inhere_box.infra.agents.manager import AgentManager" 2>/dev/null; then
         die "Verification failed: core modules cannot be imported. Check dependency versions or re-run the installer."
     fi
     info "Installation verified"
@@ -644,31 +650,31 @@ _clone_source_workspace() {
     local workdir="$1"
     command -v git &>/dev/null || die "git is required to clone the repos. Install git or use --from-pypi."
     mkdir -p "$workdir"
-    info "Cloning octop-harness / octop-gateway / Octop sources..."
+    info "Cloning octop-harness / octop-gateway / inhere-box sources..."
     git clone --depth 1 "$HARNESS_AGENT_REPO" "$workdir/octop-harness"
     git clone --depth 1 "$HARNESS_GATEWAY_REPO" "$workdir/octop-gateway"
     git clone --depth 1 "$HARNESS_BROWSER_REPO" "$workdir/octop-browser"
-    git clone --depth 1 "$OCTOP_REPO" "$workdir/orca"
+    git clone --depth 1 "$INHERE_BOX_REPO" "$workdir/orca"
 }
 
 if [ "$FROM_SOURCE" = true ]; then
     if [ -n "$SOURCE_DIR" ]; then
         info "Installing from local source: $SOURCE_DIR"
         prepare_console "$SOURCE_DIR"
-        uv pip install "${SOURCE_DIR}${EXTRAS_SUFFIX}" --python "$OCTOP_VENV/bin/python"
+        uv pip install "${SOURCE_DIR}${EXTRAS_SUFFIX}" --python "$INHERE_BOX_VENV/bin/python"
     else
         INSTALL_WORKDIR="$(mktemp -d)"
         trap 'rm -rf "$INSTALL_WORKDIR"' EXIT
         _clone_source_workspace "$INSTALL_WORKDIR"
         REPO_DIR="$INSTALL_WORKDIR/orca"
         prepare_console "$REPO_DIR"
-        uv pip install "${REPO_DIR}${EXTRAS_SUFFIX}" --python "$OCTOP_VENV/bin/python"
+        uv pip install "${REPO_DIR}${EXTRAS_SUFFIX}" --python "$INHERE_BOX_VENV/bin/python"
     fi
 else
-    # PEP 508: extras 必须在包名与版本说明符之间（octop[browser]==x.y.z），
-    # 不能拼在版本号后面（octop==x.y.z[browser] 是非法需求串，uv/pip 解析报错）。
-    PACKAGE="octop${EXTRAS_SUFFIX}"
-    [ -n "$VERSION" ] && PACKAGE="octop${EXTRAS_SUFFIX}==$VERSION"
+    # PEP 508: extras 必须在包名与版本说明符之间（inhere-box[browser]==x.y.z），
+    # 不能拼在版本号后面（inhere-box==x.y.z[browser] 是非法需求串，uv/pip 解析报错）。
+    PACKAGE="inhere-box${EXTRAS_SUFFIX}"
+    [ -n "$VERSION" ] && PACKAGE="inhere-box${EXTRAS_SUFFIX}==$VERSION"
 
     info "Installing ${PACKAGE} from PyPI..."
     if [ -n "${_EXTRA_MIRROR:-}" ]; then
@@ -687,11 +693,11 @@ fi
 _pin_mcp_compat || true
 _verify_install
 
-[ -x "$OCTOP_VENV/bin/octop" ] || die "Install failed: octop CLI not found in the virtualenv"
-info "Octop installed successfully"
+[ -x "$INHERE_BOX_VENV/bin/inhere-box" ] || die "Install failed: inhere-box CLI not found in the virtualenv"
+info "inhere-box installed successfully"
 
 if [ "$_CONSOLE_AVAILABLE" = 0 ]; then
-    CONSOLE_CHECK="$("$OCTOP_VENV/bin/python" -c "import importlib.resources, octop; p=importlib.resources.files('octop')/'dashboard'/'index.html'; print('yes' if p.is_file() else 'no')" 2>/dev/null || echo 'no')"
+    CONSOLE_CHECK="$("$INHERE_BOX_VENV/bin/python" -c "import importlib.resources, inhere_box; p=importlib.resources.files('inhere_box')/'dashboard'/'index.html'; print('yes' if p.is_file() else 'no')" 2>/dev/null || echo 'no')"
     [ "$CONSOLE_CHECK" = "yes" ] && _CONSOLE_AVAILABLE=1
 fi
 
@@ -742,7 +748,7 @@ _install_playwright_system_deps() {
         info "Detected the apt package manager (Debian/Ubuntu)..."
         info "Installing Playwright system dependencies..."
         # 优先使用 Playwright 自带的 install-deps
-        if "$OCTOP_VENV/bin/python" -m playwright install-deps chromium --with-deps 2>/dev/null; then
+        if "$INHERE_BOX_VENV/bin/python" -m playwright install-deps chromium --with-deps 2>/dev/null; then
             return
         fi
         # 回退：手动安装（Ubuntu 24+ 部分包名为 *t64）
@@ -828,9 +834,9 @@ _install_playwright_browsers() {
     local _pw_timeout="${PLAYWRIGHT_INSTALL_TIMEOUT:-600}"
     _run_playwright_chromium_install() {
         if command -v timeout &>/dev/null; then
-            timeout "$_pw_timeout" "$OCTOP_VENV/bin/python" -m playwright install chromium
+            timeout "$_pw_timeout" "$INHERE_BOX_VENV/bin/python" -m playwright install chromium
         else
-            "$OCTOP_VENV/bin/python" -m playwright install chromium
+            "$INHERE_BOX_VENV/bin/python" -m playwright install chromium
         fi
     }
 
@@ -866,7 +872,7 @@ _install_playwright_browsers() {
 
     warn "⚠ Playwright Chromium install failed; you can run this later:"
     warn "  PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright \\"
-    warn "    $OCTOP_VENV/bin/python -m playwright install chromium"
+    warn "    $INHERE_BOX_VENV/bin/python -m playwright install chromium"
     return 1
 }
 
@@ -875,7 +881,7 @@ _install_playwright_browsers() {
 _detect_system_chrome() {
     # 优先复用 octop-browser 的探测器（与运行期 launch 路径一致）
     local chrome
-    chrome="$("$OCTOP_VENV/bin/python" -c '
+    chrome="$("$INHERE_BOX_VENV/bin/python" -c '
 import sys
 try:
     from octop_browser.cdp.launcher import find_chrome
@@ -925,35 +931,41 @@ fi
 if [ "$_WANT_PW_CHROMIUM" != 1 ]; then
     info "Skipping Playwright Chromium download."
     info "For remote-browser automation, re-run with --extras browser, use the dashboard, or:"
-    info "  $OCTOP_VENV/bin/python -m playwright install chromium"
-elif "$OCTOP_VENV/bin/python" -c "import playwright" 2>/dev/null; then
+    info "  $INHERE_BOX_VENV/bin/python -m playwright install chromium"
+elif "$INHERE_BOX_VENV/bin/python" -c "import playwright" 2>/dev/null; then
     _SYSTEM_CHROME="$(_detect_system_chrome || true)"
     if [ -n "$_SYSTEM_CHROME" ]; then
         info "Detected system Chrome/Chromium: $_SYSTEM_CHROME"
         info "Using the system browser and skipping the Playwright Chromium download (faster, smaller)."
         info "To use Playwright's bundled Chromium instead, run:"
-        info "  $OCTOP_VENV/bin/python -m playwright install chromium"
+        info "  $INHERE_BOX_VENV/bin/python -m playwright install chromium"
     else
         _install_playwright_system_deps
         _install_playwright_browsers || true
     fi
 else
-    warn "playwright is not in the virtualenv, skipping Chromium; you can later run: uv pip install playwright --python $OCTOP_VENV/bin/python"
+    warn "playwright is not in the virtualenv, skipping Chromium; you can later run: uv pip install playwright --python $INHERE_BOX_VENV/bin/python"
 fi
 
 # ── 步骤 4: 创建包装脚本 ─────────────────────────────────────────────────────
-mkdir -p "$OCTOP_BIN"
+mkdir -p "$INHERE_BOX_BIN"
 
-cat > "$OCTOP_BIN/octop" << 'WRAPPER'
+cat > "$INHERE_BOX_BIN/inhere-box" << 'WRAPPER'
 #!/usr/bin/env bash
-# Octop CLI 包装脚本 — 委托给 uv 管理的环境。
+# inhere-box CLI 包装脚本 — 委托给 uv 管理的环境。
 set -euo pipefail
 
-OCTOP_HOME="${OCTOP_HOME:-$HOME/.octop}"
-REAL_BIN="$OCTOP_HOME/venv/bin/octop"
+INHERE_BOX_HOME="${INHERE_BOX_HOME:-${OCTOP_HOME:-}}"
+if [ -z "$INHERE_BOX_HOME" ]; then
+  INHERE_BOX_HOME="$HOME/.inhere-box"
+  if [ ! -e "$INHERE_BOX_HOME" ] && [ -d "$HOME/.octop" ]; then
+    INHERE_BOX_HOME="$HOME/.octop"
+  fi
+fi
+REAL_BIN="$INHERE_BOX_HOME/venv/bin/inhere-box"
 
 if [ ! -x "$REAL_BIN" ]; then
-    echo "Error: Octop environment not found in $OCTOP_HOME/venv" >&2
+    echo "Error: inhere-box environment not found in $INHERE_BOX_HOME/venv" >&2
     echo "Please re-run the installer" >&2
     exit 1
 fi
@@ -961,10 +973,10 @@ fi
 exec "$REAL_BIN" "$@"
 WRAPPER
 
-chmod +x "$OCTOP_BIN/octop"
-info "Wrapper script created: $OCTOP_BIN/octop"
+chmod +x "$INHERE_BOX_BIN/inhere-box"
+info "Wrapper script created: $INHERE_BOX_BIN/inhere-box"
 
-# ── 步骤 5: 让 octop 立即可用（无需 source）──────────────────────────────────
+# ── 步骤 5: 让 inhere-box 立即可用（无需 source）──────────────────────────────────
 # 子进程无法修改父 shell 的 PATH。要让 curl|bash / bash install.sh 后立刻可用，
 # 只能把可执行文件放进「当前 PATH 里已有」的目录（常见为 /usr/local/bin）。
 
@@ -974,10 +986,10 @@ _can_write_dir() {
 }
 
 _try_symlink() {
-    # 在 target_dir 创建指向包装脚本的 octop 符号链接。成功返回 0。
+    # 在 target_dir 创建指向包装脚本的 inhere-box 符号链接。成功返回 0。
     local target_dir="$1"
-    local link_path="$target_dir/octop"
-    local src="$OCTOP_BIN/octop"
+    local link_path="$target_dir/inhere-box"
+    local src="$INHERE_BOX_BIN/inhere-box"
 
     mkdir -p "$target_dir" 2>/dev/null || true
 
@@ -1014,7 +1026,7 @@ _link_into_existing_path() {
     local dir
     for dir in "${candidates[@]}"; do
         if _path_contains "$dir" && _try_symlink "$dir"; then
-            LINKED_PATH="$dir/octop"
+            LINKED_PATH="$dir/inhere-box"
             return 0
         fi
     done
@@ -1022,7 +1034,7 @@ _link_into_existing_path() {
     # 回退：~/.local/bin（Ubuntu/Debian 的 ~/.profile 会在目录存在时加入 PATH；
     # 若当前会话 PATH 尚无该目录，仍无法免 source，仅作持久化兜底）
     if _try_symlink "$HOME/.local/bin"; then
-        LINKED_PATH="$HOME/.local/bin/octop"
+        LINKED_PATH="$HOME/.local/bin/inhere-box"
         if _path_contains "$HOME/.local/bin"; then
             return 0
         fi
@@ -1035,18 +1047,18 @@ _link_into_existing_path() {
 IMMEDIATE_OK=false
 if _link_into_existing_path; then
     IMMEDIATE_OK=true
-    info "Linked to ${LINKED_PATH} (octop works in the current shell)"
+    info "Linked to ${LINKED_PATH} (inhere-box works in the current shell)"
 elif [ -n "$LINKED_PATH" ]; then
     info "Linked to $LINKED_PATH"
 fi
 
 # ── 步骤 6: 更新 shell / 系统 profile（新开终端持久生效）─────────────────────
-PATH_ENTRY="export PATH=\"${OCTOP_BIN}:\$PATH\""
+PATH_ENTRY="export PATH=\"${INHERE_BOX_BIN}:\$PATH\""
 
 add_to_profile() {
     local profile="$1"
     local create="$2"
-    if [ -f "$profile" ] && grep -qF "$OCTOP_BIN" "$profile" 2>/dev/null; then
+    if [ -f "$profile" ] && grep -qF "$INHERE_BOX_BIN" "$profile" 2>/dev/null; then
         return 0
     fi
     # 兼容旧版标记（仅含 .octop/bin 字样）
@@ -1054,7 +1066,7 @@ add_to_profile() {
         return 0
     fi
     if [ -f "$profile" ] || [ "$create" = "create" ]; then
-        printf '\n# Octop\n%s\n' "$PATH_ENTRY" >> "$profile"
+        printf '\n# inhere-box\n%s\n' "$PATH_ENTRY" >> "$profile"
         info "Updated $profile"
         return 0
     fi
@@ -1063,9 +1075,9 @@ add_to_profile() {
 
 _write_profile_d() {
     # CentOS / Ubuntu 登录 shell 会加载 /etc/profile.d/*.sh
-    local dest="/etc/profile.d/octop.sh"
-    local content="# Octop CLI
-export PATH=\"${OCTOP_BIN}:\$PATH\"
+    local dest="/etc/profile.d/inhere_box.sh"
+    local content="# inhere-box CLI
+export PATH=\"${INHERE_BOX_BIN}:\$PATH\"
 "
     if [ -d /etc/profile.d ]; then
         if [ -w /etc/profile.d ] || _can_write_dir /etc/profile.d; then
@@ -1101,24 +1113,24 @@ case "$OS" in
         ;;
 esac
 
-export PATH="$OCTOP_BIN:$PATH"
+export PATH="$INHERE_BOX_BIN:$PATH"
 
 
 # Probe mobile host capability into config.json
-if [ -f "$OCTOP_VENV/bin/python" ] && [ -d "$OCTOP_HOME" ]; then
-  CONFIG_PATH="$OCTOP_HOME/config.json"
+if [ -f "$INHERE_BOX_VENV/bin/python" ] && [ -d "$INHERE_BOX_HOME" ]; then
+  CONFIG_PATH="$INHERE_BOX_HOME/config.json"
   if [ ! -f "$CONFIG_PATH" ]; then
     echo "{}" > "$CONFIG_PATH"
   fi
-  "$OCTOP_VENV/bin/python" -m octop.infra.mobile "$CONFIG_PATH" || true
+  "$INHERE_BOX_VENV/bin/python" -m inhere_box.infra.mobile "$CONFIG_PATH" || true
 fi
 
 # ── 完成 ──────────────────────────────────────────────────────────────────────
 echo ""
-printf "${GREEN}${BOLD}Octop installed successfully!${RESET}\n"
+printf "${GREEN}${BOLD}inhere-box installed successfully!${RESET}\n"
 echo ""
-printf "  Location:          ${BOLD}%s${RESET}\n" "$OCTOP_HOME"
-printf "  Python:            ${BOLD}%s${RESET}\n" "$("$OCTOP_VENV/bin/python" --version 2>&1)"
+printf "  Location:          ${BOLD}%s${RESET}\n" "$INHERE_BOX_HOME"
+printf "  Python:            ${BOLD}%s${RESET}\n" "$("$INHERE_BOX_VENV/bin/python" --version 2>&1)"
 if [ -n "$LINKED_PATH" ]; then
     printf "  CLI link:          ${BOLD}%s${RESET}\n" "$LINKED_PATH"
 fi
@@ -1130,14 +1142,14 @@ fi
 echo ""
 
 if [ "$IMMEDIATE_OK" = true ]; then
-    info "octop is ready to use in the current shell (no source needed)"
+    info "inhere-box is ready to use in the current shell (no source needed)"
 elif [ -n "${BASH_SOURCE[0]:-}" ] && [ "${BASH_SOURCE[0]}" != "$0" ]; then
-    export PATH="$OCTOP_BIN:$PATH"
-    info "PATH updated; octop is available now"
+    export PATH="$INHERE_BOX_BIN:$PATH"
+    info "PATH updated; inhere-box is available now"
 else
     warn "Could not write to a directory already in PATH (e.g. /usr/local/bin). In this shell run:"
     echo ""
-    printf "  ${BOLD}export PATH=\"%s:\$PATH\"${RESET}\n" "$OCTOP_BIN"
+    printf "  ${BOLD}export PATH=\"%s:\$PATH\"${RESET}\n" "$INHERE_BOX_BIN"
     echo ""
     if [ "$UPDATED_PROFILE" = true ]; then
         echo "New shells will not need this step."
@@ -1146,9 +1158,9 @@ fi
 echo ""
 echo "Then run:"
 echo ""
-printf "  ${BOLD}octop run${RESET}       # Run in the foreground (API + Web console)\n"
-printf "  ${BOLD}octop service start${RESET}  # Install and run in the background (systemd / launchd)\n"
+printf "  ${BOLD}inhere-box run${RESET}       # Run in the foreground (API + Web console)\n"
+printf "  ${BOLD}inhere-box service start${RESET}  # Install and run in the background (systemd / launchd)\n"
 printf "  ${BOLD}open http://127.0.0.1:8088${RESET}\n"
 echo ""
-printf "Upgrade: re-run this installer. Cleanup: ${BOLD}octop clean${RESET}\n"
-printf "Playwright Chromium (optional): ${BOLD}$OCTOP_VENV/bin/python -m playwright install chromium${RESET}\n"
+printf "Upgrade: re-run this installer. Cleanup: ${BOLD}inhere-box clean${RESET}\n"
+printf "Playwright Chromium (optional): ${BOLD}$INHERE_BOX_VENV/bin/python -m playwright install chromium${RESET}\n"

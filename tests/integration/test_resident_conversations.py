@@ -11,7 +11,7 @@ import httpx
 import pytest
 from langchain_core.messages import AIMessage, convert_to_messages
 
-from tests.support.app import octop_client
+from tests.support.app import inhere_box_client
 from tests.support.auth import auth_header, bootstrap_admin, create_user, seed_openai_provider
 from tests.support.fakes import FakeHarnessAgent
 from tests.support.harness import patch_resident_stream
@@ -26,10 +26,10 @@ def _base(binding: dict[str, Any]) -> str:
 
 
 @pytest.fixture
-async def resident_docs_env(tmp_octop_home, monkeypatch):
-    monkeypatch.setenv("OCTOP_ENABLE_API_DOCS", "true")
-    async with octop_client(tmp_octop_home) as (client, server):
-        await bootstrap_admin(client, tmp_octop_home)
+async def resident_docs_env(tmp_inhere_box_home, monkeypatch):
+    monkeypatch.setenv("INHERE_BOX_ENABLE_API_DOCS", "true")
+    async with inhere_box_client(tmp_inhere_box_home) as (client, server):
+        await bootstrap_admin(client, tmp_inhere_box_home)
         auth = await auth_header(client)
         await seed_openai_provider(client, auth)
         yield client, server, auth
@@ -145,10 +145,10 @@ async def test_new_user_can_send_using_get_binding_without_initialization_reques
 
 
 async def test_server_start_prepares_existing_users_without_replacing_ready_identity(
-    tmp_octop_home,
+    tmp_inhere_box_home,
 ):
-    async with octop_client(tmp_octop_home) as (client, server):
-        await bootstrap_admin(client, tmp_octop_home)
+    async with inhere_box_client(tmp_inhere_box_home) as (client, server):
+        await bootstrap_admin(client, tmp_inhere_box_home)
         auth = await auth_header(client)
         original = (await client.get("/api/agents/resident-conversation", headers=auth)).json()
         legacy_owner = server.services.user_repo.create(
@@ -159,7 +159,7 @@ async def test_server_start_prepares_existing_users_without_replacing_ready_iden
         )
         server.services.user_repo.set_disabled(disabled_owner, True)
         assert server.services.resident_conversation_repo.get(legacy_owner) is None
-    async with octop_client(tmp_octop_home) as (client, server):
+    async with inhere_box_client(tmp_inhere_box_home) as (client, server):
         prepared = server.services.resident_conversation_repo.get(legacy_owner)
         assert prepared is not None and prepared.status == "ready"
         assert server.services.resident_conversation_repo.get(disabled_owner) is None
@@ -257,7 +257,7 @@ async def test_closing_the_http_client_after_acceptance_keeps_the_resident_turn_
     request_id = _request_id()
     try:
         async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=client._octop_app), base_url="http://testserver"
+            transport=httpx.ASGITransport(app=client._inhere_box_app), base_url="http://testserver"
         ) as separate_client:
             response = await separate_client.post(
                 f"{base}/messages",
@@ -441,9 +441,9 @@ async def test_resident_error_followed_by_done_is_failed_and_keeps_partial_reply
 
 @pytest.mark.parametrize("versioned_history", [False, True])
 async def test_resident_gateway_preserves_context_and_public_history_message_identity(
-    tmp_octop_home, monkeypatch, versioned_history
+    tmp_inhere_box_home, monkeypatch, versioned_history
 ):
-    monkeypatch.setenv("OCTOP_HISTORY_V2_ENABLED", str(versioned_history).lower())
+    monkeypatch.setenv("INHERE_BOX_HISTORY_V2_ENABLED", str(versioned_history).lower())
     observed = []
 
     async def contextual_stream(self, request):
@@ -468,8 +468,8 @@ async def test_resident_gateway_preserves_context_and_public_history_message_ide
         yield {"type": "state_snapshot", "data": {"messages": messages}}
 
     monkeypatch.setattr(FakeHarnessAgent, "stream", contextual_stream)
-    async with octop_client(tmp_octop_home) as (client, server):
-        await bootstrap_admin(client, tmp_octop_home)
+    async with inhere_box_client(tmp_inhere_box_home) as (client, server):
+        await bootstrap_admin(client, tmp_inhere_box_home)
         auth = await auth_header(client)
         await seed_openai_provider(client, auth)
         binding = await _binding(client, auth)

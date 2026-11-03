@@ -10,7 +10,7 @@ import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# Modules whose tests boot OctopServer, real harness, browser tooling, or bwrap.
+# Modules whose tests boot InhereBoxServer, real harness, browser tooling, or bwrap.
 # Tagged ``slow`` so ``make test-fast`` can skip them during local iteration.
 _SLOW_TEST_MODULES = frozenset(
     {
@@ -46,8 +46,8 @@ def repo_root() -> Path:
 
 # Creating an agent now starts a multi-hour asyncio.sleep (proactive care
 # defaults to on). pytest-asyncio waits for leftover tasks before fixture
-# teardown, so any test that boots OctopServer without going through
-# ``octop_client`` would hang the suite. Scheduler unit tests opt out.
+# teardown, so any test that boots InhereBoxServer without going through
+# ``inhere_box_client`` would hang the suite. Scheduler unit tests opt out.
 _PROACTIVE_SCHEDULER_TESTS = "tests/unit/proactive/test_scheduler.py"
 
 
@@ -58,7 +58,7 @@ def _suspend_proactive_care_loops(
 ) -> None:
     if _module_path(request.node.nodeid) == _PROACTIVE_SCHEDULER_TESTS:
         return
-    from octop.infra.proactive.scheduler import ProactiveCareScheduler
+    from inhere_box.infra.proactive.scheduler import ProactiveCareScheduler
 
     monkeypatch.setattr(ProactiveCareScheduler, "ensure_scheduled", lambda self, _id: None)
 
@@ -78,24 +78,24 @@ def _isolated_user_home(
 
     Keeping HOME off ``tmp_path`` avoids polluting directory listings and
     colliding with tests that create ``tmp_path / \"home\"`` themselves.
-    Required for xdist so workers never share ``~/.octop`` / CLI state.
+    Required for xdist so workers never share ``~/.inhere-box`` / CLI state.
     """
     home = tmp_path_factory.mktemp("user-home")
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.setenv("USERPROFILE", str(home))
     for key in (
-        "OCTOP_CAPTCHA_PROVIDER",
-        "OCTOP_CAPTCHA_SITE_KEY",
-        "OCTOP_CAPTCHA_SECRET",
-        "OCTOP_CAPTCHA_V3_MIN_SCORE",
+        "INHERE_BOX_CAPTCHA_PROVIDER",
+        "INHERE_BOX_CAPTCHA_SITE_KEY",
+        "INHERE_BOX_CAPTCHA_SECRET",
+        "INHERE_BOX_CAPTCHA_V3_MIN_SCORE",
     ):
         monkeypatch.delenv(key, raising=False)
     return home
 
 
 @pytest.fixture
-def tmp_octop_home(_isolated_user_home: Path) -> Iterator[Path]:
-    """Redirect ``~/.octop`` under the autouse isolated HOME."""
-    octop = _isolated_user_home / ".octop"
+def tmp_inhere_box_home(_isolated_user_home: Path) -> Iterator[Path]:
+    """Redirect ``~/.inhere-box`` under the autouse isolated HOME."""
+    octop = _isolated_user_home / ".inhere-box"
     octop.mkdir(exist_ok=True)
     yield octop

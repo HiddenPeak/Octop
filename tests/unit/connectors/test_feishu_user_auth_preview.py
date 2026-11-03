@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from tests.support.fakes import fake_bin_path
 
-from octop.infra.connectors.gateway import feishu_user_auth
+from inhere_box.infra.connectors.gateway import feishu_user_auth
 
 
 def test_live_preview_missing_secret() -> None:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.utils.env_file import (
+from inhere_box.infra.utils.env_file import (
     apply_env_file,
     apply_env_file_replace,
     format_env_file,
@@ -55,20 +55,20 @@ def test_apply_env_file_replace_unsets_removed_keys(tmp_path: Path, monkeypatch)
 
 
 def test_overlay_stdio_spec_env_skips_protected() -> None:
-    from octop.infra.utils.env_file import overlay_stdio_spec_env
+    from inhere_box.infra.utils.env_file import overlay_stdio_spec_env
 
     spec = overlay_stdio_spec_env(
         {"transport": "stdio", "command": "npx", "env": {"SPEC": "1"}},
-        {"TAVILY_API_KEY": "tvly", "OCTOP_HOME": "/nope", "HOME": "/hack"},
+        {"TAVILY_API_KEY": "tvly", "INHERE_BOX_HOME": "/nope", "HOME": "/hack"},
     )
     assert spec["env"]["TAVILY_API_KEY"] == "tvly"
     assert spec["env"]["SPEC"] == "1"
-    assert "OCTOP_HOME" not in spec["env"]
+    assert "INHERE_BOX_HOME" not in spec["env"]
     assert "HOME" not in spec["env"]
 
 
 def test_overlay_stdio_mcp_configs_applies_to_stdio_only() -> None:
-    from octop.infra.utils.env_file import overlay_stdio_mcp_configs
+    from inhere_box.infra.utils.env_file import overlay_stdio_mcp_configs
 
     configs = overlay_stdio_mcp_configs(
         {

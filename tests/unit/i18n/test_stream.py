@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.i18n.domains.stream import (
+from inhere_box.i18n.domains.stream import (
     MODEL_CALL_FAILED,
     MODEL_RETRY_FAILURE_MARK,
     PATH_OUTSIDE_ROOT,
@@ -111,7 +111,7 @@ def test_classify_model_call_failed_fallback() -> None:
 
 def test_classify_path_outside_root() -> None:
     msg = (
-        r"Path:D:\octop-data\data\文章存稿\x.md outside root directory: "
+        r"Path:D:\inhere-box-data\data\文章存稿\x.md outside root directory: "
         r"C:\Users\Administrator"
     )
     assert classify_stream_error_message(msg) == PATH_OUTSIDE_ROOT
@@ -120,7 +120,7 @@ def test_classify_path_outside_root() -> None:
 
 def test_format_path_outside_root_zh_guides_to_storage_root() -> None:
     msg = (
-        r"ValueError: Path:D:\octop-data\data\文章存稿\_核验与备选标题.md "
+        r"ValueError: Path:D:\inhere-box-data\data\文章存稿\_核验与备选标题.md "
         r"outside root directory: C:\Users\Administrator"
     )
     text = format_stream_error(msg, "zh")
@@ -165,7 +165,7 @@ def test_format_recursion_limit_zh_guides_to_config() -> None:
     assert "recursion_limit" not in text
 
 
-def test_stream_error_message_octop_key() -> None:
+def test_stream_error_message_inhere_box_key() -> None:
     assert "重试" in stream_error_message(STREAM_STALL, "zh")
 
 

@@ -16,7 +16,7 @@ describe("ssoApi", () => {
       enabled: true,
       display_name: "Acme SSO",
       issuer: "https://identity.example.com",
-      client_id: "octop",
+      client_id: "inhere-box",
       scopes: "openid profile email",
       dashboard_origin: "https://octop.example.com",
     };

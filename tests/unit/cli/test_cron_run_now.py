@@ -10,22 +10,22 @@ from unittest.mock import MagicMock
 import pytest
 from click.testing import CliRunner
 
-from octop.cli.main import cli
-from octop.cli.support import embedded_ops, offline_ops
-from octop.config import OctopConfig
-from octop.infra.cron.manager import CronManager
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.utils.paths import PathLayout
+from inhere_box.cli.main import cli
+from inhere_box.cli.support import embedded_ops, offline_ops
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.cron.manager import CronManager
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
 def cron_runtime(tmp_path, monkeypatch):
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
-    services = build_shared_services(db=db, paths=PathLayout(tmp_path), config=OctopConfig())
+    services = build_shared_services(db=db, paths=PathLayout(tmp_path), config=InhereBoxConfig())
     repos = services.repos
     uid = repos.user_repo.create(username="owner", password_hash="x", role="user")
     repos.agent_repo.create(agent_id="agent-1", user_id=uid, name="test-agent")
@@ -64,7 +64,7 @@ def cron_runtime(tmp_path, monkeypatch):
     [
         None,
         RuntimeError("delivery failed"),
-        OctopError(ErrorCode.AGENT_NOT_RUNNING, "agent stopped"),
+        InhereBoxError(ErrorCode.AGENT_NOT_RUNNING, "agent stopped"),
     ],
 )
 def test_cli_waits_for_delivery_and_bookkeeping(cron_runtime, error):

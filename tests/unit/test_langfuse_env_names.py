@@ -1,7 +1,7 @@
 """Every Langfuse variable shipped to the container must have a reader.
 
 `.env.example` and `docker/docker-compose.yml` advertise the observability
-knobs to self-hosters. Octop itself keeps the enable switch in the settings
+knobs to self-hosters. inhere-box itself keeps the enable switch in the settings
 table (`observability_langfuse_enabled`), while the credentials fall back to
 the Langfuse SDK's own environment variables — so a name neither side reads
 is a knob that silently does nothing.
@@ -26,13 +26,15 @@ def _shipped_langfuse_names() -> set[str]:
         for line in path.read_text(encoding="utf-8").splitlines():
             if line.lstrip().startswith("#"):
                 continue
-            names.update(re.findall(r"\b(LANGFUSE_[A-Z0-9_]+|OCTOP_LANGFUSE_[A-Z0-9_]+)\b", line))
+            names.update(
+                re.findall(r"\b(LANGFUSE_[A-Z0-9_]+|INHERE_BOX_LANGFUSE_[A-Z0-9_]+)\b", line)
+            )
     return names
 
 
 def _names_read_by_octop() -> set[str]:
     names: set[str] = set()
-    for path in (REPO_ROOT / "src/octop").rglob("*.py"):
+    for path in (REPO_ROOT / "src/inhere_box").rglob("*.py"):
         names.update(
             re.findall(
                 r"\b(?:getenv|environ\.get|environ\[)\(?\s*[\"']([A-Z][A-Z0-9_]{3,})[\"']",
@@ -47,11 +49,13 @@ def _sdk_env_names() -> set[str]:
     return {v for k, v in vars(module).items() if k.startswith("LANGFUSE_") and isinstance(v, str)}
 
 
-def test_octop_reads_no_langfuse_env_var() -> None:
-    """Guard the premise: Octop's switch lives in the settings table, not env."""
-    source = (REPO_ROOT / "src/octop/infra/agents/settings/langfuse.py").read_text(encoding="utf-8")
+def test_inhere_box_reads_no_langfuse_env_var() -> None:
+    """Guard the premise: inhere-box's switch lives in the settings table, not env."""
+    source = (REPO_ROOT / "src/inhere_box/infra/agents/settings/langfuse.py").read_text(
+        encoding="utf-8"
+    )
     assert '"observability_langfuse_enabled"' in source
-    assert not re.search(r"(?:getenv|environ(?:\.get)?)\(\s*[\"']OCTOP_LANGFUSE", source)
+    assert not re.search(r"(?:getenv|environ(?:\.get)?)\(\s*[\"']INHERE_BOX_LANGFUSE", source)
 
 
 def test_shipped_langfuse_names_have_a_reader() -> None:

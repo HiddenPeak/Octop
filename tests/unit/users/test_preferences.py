@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.users.preferences import (
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.users.preferences import (
     ModelReasoningPreference,
     get_model_reasoning_from_json,
     get_preferred_model_from_json,
@@ -47,7 +47,7 @@ def test_validate_title_fallback_to_hostname() -> None:
 
 def test_validate_rejects_over_limit() -> None:
     items = [{"url": f"https://site{i}.test", "title": f"S{i}"} for i in range(13)]
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         validate_remote_browser_bookmarks(items)
     assert ei.value.code is ErrorCode.SLASH_BAD_ARGS
 
@@ -128,12 +128,12 @@ def test_sidebar_nav_roundtrip_preserves_other_keys() -> None:
 
 
 def test_sidebar_nav_rejects_unknown_item_and_dangling_group() -> None:
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         validate_sidebar_nav({"groups": [], "items": [{"key": "not-a-nav"}]})
     assert ei.value.code is ErrorCode.SLASH_BAD_ARGS
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         validate_sidebar_nav({"groups": [], "items": [{"key": "chat", "group": "settings"}]})
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         validate_sidebar_nav({"groups": [{"id": "c_short", "name": "X"}], "items": []})
 
 

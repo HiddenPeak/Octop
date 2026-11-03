@@ -8,7 +8,7 @@ import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import StructuredTool
 
-from octop.infra.projects import runtime
+from inhere_box.infra.projects import runtime
 from tests.integration.test_project_capabilities import follow_up
 from tests.integration.test_project_task_checkpoints import parked
 from tests.integration.test_project_task_interactions import approval, respond

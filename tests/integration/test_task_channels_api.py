@@ -12,7 +12,7 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _enable_docs(monkeypatch: Any) -> None:
-    monkeypatch.setenv("OCTOP_ENABLE_API_DOCS", "true")
+    monkeypatch.setenv("INHERE_BOX_ENABLE_API_DOCS", "true")
 
 
 async def test_general_channel_crud_reloads_adapter_and_keeps_binding_out_of_credentials(
@@ -100,8 +100,8 @@ async def test_explicit_null_clears_expert_and_project_but_omitted_fields_preser
     assert cleared.json()["action_mode"] == "plan"
     row = server.services.channel_repo.get(identifier)
     assert row.agent_id is None
-    assert json.loads(row.config_json)["_octop_task"]["project_id"] is None
-    assert "_octop_task" not in cleared.json()["config"]
+    assert json.loads(row.config_json)["_inhere_box_task"]["project_id"] is None
+    assert "_inhere_box_task" not in cleared.json()["config"]
 
 
 async def test_channel_owner_isolation_and_foreign_project_rejection(

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from octop.infra.gateway.slash.catalog import list_specs
-from octop.infra.gateway.slash.help import format_help
+from inhere_box.infra.gateway.slash.catalog import list_specs
+from inhere_box.infra.gateway.slash.help import format_help
 
 
 def test_help_groups_by_category_zh():
@@ -27,7 +27,7 @@ def test_help_groups_by_category_en():
 
 
 def test_sessions_alias_in_catalog():
-    from octop.infra.gateway.slash.catalog import spec_for
+    from inhere_box.infra.gateway.slash.catalog import spec_for
 
     assert spec_for("sessions") is not None
     assert spec_for("sessions").name == "list"  # type: ignore[union-attr]

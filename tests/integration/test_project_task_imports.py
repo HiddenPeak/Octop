@@ -10,8 +10,8 @@ from uuid import uuid4
 
 import pytest
 
-from octop.api.routers import project_imports
-from octop.infra.projects import runtime
+from inhere_box.api.routers import project_imports
+from inhere_box.infra.projects import runtime
 from tests.integration.test_project_tasks import settled
 from tests.integration.test_project_tasks import task_env as task_env
 from tests.support.auth import create_user
@@ -189,7 +189,7 @@ async def test_import_replay_answer_update_and_append_preserve_existing_turn_ids
     manual = await client.patch(
         f"/api/project-tasks/{first['task_id']}",
         headers=auth,
-        json={"expected_revision": updated["list_revision"], "title": "My Octop title"},
+        json={"expected_revision": updated["list_revision"], "title": "My inhere-box title"},
     )
     assert manual.status_code == 200, manual.text
     after_rename = await imported(

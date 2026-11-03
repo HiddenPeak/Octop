@@ -11,9 +11,9 @@ import pytest
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 from langchain_core.messages import AIMessage, ToolMessage
 
-from octop.infra.agents.security.policy_store import SecuritySettingsStore
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import runtime
+from inhere_box.infra.agents.security.policy_store import SecuritySettingsStore
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import runtime
 from tests.integration.test_project_capabilities import follow_up, harness_models
 from tests.integration.test_project_task_checkpoints import parked
 from tests.integration.test_project_task_interactions import approval, respond
@@ -83,7 +83,7 @@ def step_command(command, call_id, index=0, **arguments):
 async def test_real_plan_progress_and_tool_results_restore_without_duplicates(
     env_with_provider, monkeypatch
 ):
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     client, server, auth = env_with_provider
     monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 0.01)
@@ -170,7 +170,7 @@ async def test_real_plan_progress_and_tool_results_restore_without_duplicates(
         live_turn = live["data"]["turn"]
         assert live_turn["status"] == "running" and live_turn["reply"] == ""
         initial_plan = live_turn["plan"]
-        assert initial_plan["source"] == "octop_planning"
+        assert initial_plan["source"] == "inhere_box_planning"
         assert initial_plan["revision"] == 1 and initial_plan["plan_id"]
         assert [step["content"] for step in initial_plan["steps"]] == initial
         assert [step["status"] for step in initial_plan["steps"]] == ["in_progress", "pending"]
@@ -345,7 +345,7 @@ async def test_cancelled_and_failed_turns_preserve_unfinished_plan(
                 yield event
                 if event["type"] == "plan":
                     await release.wait()
-                    raise OctopError.localized(ErrorCode.TASK_EXECUTION_FAILED)
+                    raise InhereBoxError.localized(ErrorCode.TASK_EXECUTION_FAILED)
         finally:
             await stream.aclose()
 

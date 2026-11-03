@@ -1,11 +1,11 @@
 import { useTranslation } from "react-i18next";
 import { Tooltip } from "antd";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import { isSharedExpertViewer } from "../../../utils/sharedExpert";
 import styles from "../index.module.less";
 
 /** Marks an expert the current user only has shared access to, naming the owner. */
-export default function SharedExpertHint({ agent }: { agent: OctopAgent }) {
+export default function SharedExpertHint({ agent }: { agent: InhereBoxAgent }) {
   const { t } = useTranslation();
   if (!isSharedExpertViewer(agent)) return null;
   const tip = t("chat.sharedExpert.banner", {

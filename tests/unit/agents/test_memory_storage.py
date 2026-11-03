@@ -12,8 +12,8 @@ from unittest.mock import MagicMock
 import pytest
 from tests.unit.agents.test_memory_slim import make_manager
 
-from octop.config import OctopConfig
-from octop.infra.agents.memory.storage import sqlite_store_is_shared
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.memory.storage import sqlite_store_is_shared
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def store(tmp_path):
     registry.get_row = lambda aid: row if aid == "a" else None
     registry._repos = SimpleNamespace(agent_repo=MagicMock())
     registry._repos.agent_repo.list_all.return_value = [row]
-    registry._config = OctopConfig()
+    registry._config = InhereBoxConfig()
     registry._paths = SimpleNamespace(root=tmp_path)
     yield coordinator, registry, memory, cfg, cp
     memory._checkpointer.conn.close()
@@ -111,7 +111,7 @@ def test_stopped_expert_sharing_sqlite_disables_maintenance(store, monkeypatch, 
     )
     registry._repos.agent_repo.list_all.return_value.append(other)
     monkeypatch.setattr(
-        "octop.infra.agents.memory.storage.workspace_for_agent_row",
+        "inhere_box.infra.agents.memory.storage.workspace_for_agent_row",
         lambda *args, **kwargs: tmp_path,
     )
     assert sqlite_store_is_shared(registry, "a", memory)
@@ -160,7 +160,7 @@ async def test_shared_file_counts_only_selected_namespace_and_never_maintains(st
 
 
 def test_read_only_counts_distinguish_missing_zero_and_timeout(tmp_path, monkeypatch):
-    from octop.infra.agents.memory.sqlite_storage import inspect_sqlite_storage
+    from inhere_box.infra.agents.memory.sqlite_storage import inspect_sqlite_storage
 
     path = tmp_path / "minimal.sqlite"
     with sqlite3.connect(path) as conn:
@@ -178,7 +178,7 @@ def test_read_only_counts_distinguish_missing_zero_and_timeout(tmp_path, monkeyp
     assert rows["checkpoints"]["rows"] == 3
     assert rows["checkpoint_threads"]["rows"] == 2
     assert path.read_bytes() == original
-    monkeypatch.setattr("octop.infra.agents.memory.sqlite_storage.COUNT_BUDGET_SECONDS", 0)
+    monkeypatch.setattr("inhere_box.infra.agents.memory.sqlite_storage.COUNT_BUDGET_SECONDS", 0)
     snapshot = inspect_sqlite_storage(backend, shared=False)
     assert snapshot["memory_counts"][0]["status"] == "timed_out"
     assert snapshot["memory_counts"][0]["rows"] is None
@@ -187,7 +187,7 @@ def test_read_only_counts_distinguish_missing_zero_and_timeout(tmp_path, monkeyp
 
 @pytest.mark.asyncio
 async def test_task_memory_operation_reserves_store_before_maintenance(store):
-    from octop.infra.agents.memory.locking import store_lock
+    from inhere_box.infra.agents.memory.locking import store_lock
 
     coordinator, registry, _memory, _cfg, _cp = store
     with store_lock(registry._paths.root, "a"):

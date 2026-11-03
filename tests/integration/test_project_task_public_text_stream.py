@@ -13,8 +13,8 @@ from langchain_core.outputs import ChatGenerationChunk
 from octop_harness import HarnessAgent
 from octop_harness.llm.factory import ChatModelFactory
 
-from octop.api.routers import project_tasks_ws
-from octop.infra.projects import runtime
+from inhere_box.api.routers import project_tasks_ws
+from inhere_box.infra.projects import runtime
 from tests.integration.test_project_task_planning import step_command
 from tests.integration.test_project_task_response_classification import (
     action_response,

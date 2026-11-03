@@ -5,8 +5,8 @@ import zipfile
 
 import pytest
 
-from octop.infra.skills.skill_archive import build_skill_zip, build_skills_zip
-from octop.infra.skills.skill_packages import SkillPackageError
+from inhere_box.infra.skills.skill_archive import build_skill_zip, build_skills_zip
+from inhere_box.infra.skills.skill_packages import SkillPackageError
 
 
 def test_build_skill_zip_uses_slug_folder() -> None:

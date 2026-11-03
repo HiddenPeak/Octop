@@ -3,7 +3,7 @@ import { getAuthToken } from "../../api/request";
 import type { InstalledPlugin } from "../../api/modules/plugins";
 import { createPluginUiHost } from "./host";
 import { unregisterPluginRenderers } from "./registry";
-import type { OctopPluginUIHost, PluginUiModule } from "./types";
+import type { InhereBoxPluginUIHost, PluginUiModule } from "./types";
 
 const loadedPlugins = new Set<string>();
 const blobUrls: string[] = [];
@@ -97,7 +97,7 @@ export function isPluginUiLoaded(pluginId: string): boolean {
 /** Re-run plugin setup with an isolated host and registry for a Task workbench. */
 export async function loadScopedPluginToolUis(
   plugins: InstalledPlugin[],
-  createHost: (pluginId: string) => OctopPluginUIHost,
+  createHost: (pluginId: string) => InhereBoxPluginUIHost,
 ): Promise<void> {
   for (const plugin of plugins) {
     if (plugin.error || !plugin.ui?.entry) continue;

@@ -20,7 +20,7 @@ import InvitePage from "./pages/Invite";
 import AuthGuard from "./components/AuthGuard";
 import AccountEntryGate from "./components/AccountEntryGate";
 import BoxConnectPage from "./pages/BoxConnect";
-import OctopSpinner from "./components/OctopSpinner";
+import InhereBoxSpinner from "./components/InhereBoxSpinner";
 import { AntdAppProvider } from "./components/AntdAppProvider";
 import GlobalErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
@@ -125,9 +125,9 @@ function ThemedApp() {
   return (
     <ConfigProvider
       theme={themeConfig}
-      prefixCls="octop"
+      prefixCls="inhere-box"
       locale={antdLocale}
-      spin={{ indicator: <OctopSpinner /> }}
+      spin={{ indicator: <InhereBoxSpinner /> }}
     >
       <AntdAppProvider>
         <DesktopChromeProvider value={desktopChrome}>

@@ -1,7 +1,7 @@
 """tests/unit/test_logging.py
 
-Covers the daily-rotation + retention logging strategy in ``octop.infra.server``:
-the log path lives under ``~/.octop/logs`` and stale rotated files are purged.
+Covers the daily-rotation + retention logging strategy in ``inhere_box.infra.server``:
+the log path lives under ``~/.inhere-box/logs`` and stale rotated files are purged.
 """
 
 from __future__ import annotations
@@ -17,9 +17,9 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.server import (
+from inhere_box.infra.server import (
     DEFAULT_LOG_MAX_BYTES,
-    OctopServer,
+    InhereBoxServer,
     SizeTimedRotatingFileHandler,
     _attach_log_handler,
     _build_log_handler,
@@ -76,7 +76,7 @@ def _stale_path(log_dir: Path, name: str, age_days: int) -> Path:
 
 
 def test_build_log_handler_uses_daily_rotation_and_retention(tmp_path: Path):
-    handler = _build_log_handler(tmp_path / "octop.log", retention_days=7, max_bytes=4096)
+    handler = _build_log_handler(tmp_path / "inhere-box.log", retention_days=7, max_bytes=4096)
     try:
         assert isinstance(handler, SizeTimedRotatingFileHandler)
         assert handler.when == "MIDNIGHT"
@@ -92,8 +92,8 @@ def test_build_log_handler_uses_daily_rotation_and_retention(tmp_path: Path):
 def test_purge_stale_logs_removes_only_old_files(tmp_path: Path):
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
-    old = _stale_path(log_dir, "octop.log.2020-01-01", age_days=100)
-    new = _stale_path(log_dir, "octop.log.2026-07-16", age_days=1)
+    old = _stale_path(log_dir, "inhere-box.log.2020-01-01", age_days=100)
+    new = _stale_path(log_dir, "inhere-box.log.2026-07-16", age_days=1)
 
     _purge_stale_logs(log_dir, retention_days=14)
 
@@ -104,7 +104,7 @@ def test_purge_stale_logs_removes_only_old_files(tmp_path: Path):
 def test_purge_stale_logs_skipped_when_retention_non_positive(tmp_path: Path):
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
-    old = _stale_path(log_dir, "octop.log.2020-01-01", age_days=100)
+    old = _stale_path(log_dir, "inhere-box.log.2020-01-01", age_days=100)
 
     _purge_stale_logs(log_dir, retention_days=0)
 
@@ -113,7 +113,7 @@ def test_purge_stale_logs_skipped_when_retention_non_positive(tmp_path: Path):
 
 def test_attach_log_handler_is_idempotent(tmp_path: Path):
     root = logging.getLogger()
-    handler = _build_log_handler(tmp_path / "octop.log", retention_days=7)
+    handler = _build_log_handler(tmp_path / "inhere-box.log", retention_days=7)
     try:
         _attach_log_handler(root, handler)
         _attach_log_handler(root, handler)
@@ -128,9 +128,9 @@ def test_attach_log_handler_is_idempotent(tmp_path: Path):
 
 
 def test_setup_logging_creates_logs_dir_and_file(tmp_path: Path, monkeypatch):
-    monkeypatch.delenv("OCTOP_LOG_LEVEL", raising=False)
-    monkeypatch.delenv("OCTOP_LOG_RETENTION_DAYS", raising=False)
-    server = OctopServer(home=tmp_path / ".octop")
+    monkeypatch.delenv("INHERE_BOX_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("INHERE_BOX_LOG_RETENTION_DAYS", raising=False)
+    server = InhereBoxServer(home=tmp_path / ".octop")
 
     server._setup_logging()
 
@@ -151,10 +151,10 @@ def test_setup_logging_creates_logs_dir_and_file(tmp_path: Path, monkeypatch):
 
 def test_setup_logging_migrates_legacy_log(tmp_path: Path):
     home = tmp_path / ".octop"
-    legacy = home / "octop.log"
+    legacy = home / "inhere-box.log"
     legacy.parent.mkdir(parents=True, exist_ok=True)
     legacy.write_text("legacy content", encoding="utf-8")
-    server = OctopServer(home=home)
+    server = InhereBoxServer(home=home)
 
     server._setup_logging()
 
@@ -164,8 +164,8 @@ def test_setup_logging_migrates_legacy_log(tmp_path: Path):
 
 
 def test_setup_logging_respects_retention_env(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OCTOP_LOG_RETENTION_DAYS", "3")
-    server = OctopServer(home=tmp_path / ".octop")
+    monkeypatch.setenv("INHERE_BOX_LOG_RETENTION_DAYS", "3")
+    server = InhereBoxServer(home=tmp_path / ".octop")
 
     server._setup_logging()
 
@@ -179,8 +179,8 @@ def test_setup_logging_respects_retention_env(tmp_path: Path, monkeypatch):
 
 
 def test_setup_logging_respects_level_env(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OCTOP_LOG_LEVEL", "debug")
-    server = OctopServer(home=tmp_path / ".octop")
+    monkeypatch.setenv("INHERE_BOX_LOG_LEVEL", "debug")
+    server = InhereBoxServer(home=tmp_path / ".octop")
 
     server._setup_logging()
 
@@ -188,8 +188,8 @@ def test_setup_logging_respects_level_env(tmp_path: Path, monkeypatch):
 
 
 def test_setup_logging_falls_back_on_invalid_level_env(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OCTOP_LOG_LEVEL", "not-a-level")
-    server = OctopServer(home=tmp_path / ".octop")
+    monkeypatch.setenv("INHERE_BOX_LOG_LEVEL", "not-a-level")
+    server = InhereBoxServer(home=tmp_path / ".octop")
 
     server._setup_logging()
 
@@ -197,8 +197,8 @@ def test_setup_logging_falls_back_on_invalid_level_env(tmp_path: Path, monkeypat
 
 
 def test_setup_logging_falls_back_on_invalid_retention_env(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OCTOP_LOG_RETENTION_DAYS", "oops")
-    server = OctopServer(home=tmp_path / ".octop")
+    monkeypatch.setenv("INHERE_BOX_LOG_RETENTION_DAYS", "oops")
+    server = InhereBoxServer(home=tmp_path / ".octop")
 
     server._setup_logging()
 
@@ -213,18 +213,18 @@ def test_setup_logging_falls_back_on_invalid_retention_env(tmp_path: Path, monke
 
 
 def test_parse_log_max_bytes_defaults_and_env(monkeypatch):
-    monkeypatch.delenv("OCTOP_LOG_MAX_BYTES", raising=False)
+    monkeypatch.delenv("INHERE_BOX_LOG_MAX_BYTES", raising=False)
     assert _parse_log_max_bytes() == DEFAULT_LOG_MAX_BYTES
-    monkeypatch.setenv("OCTOP_LOG_MAX_BYTES", "2048")
+    monkeypatch.setenv("INHERE_BOX_LOG_MAX_BYTES", "2048")
     assert _parse_log_max_bytes() == 2048
-    monkeypatch.setenv("OCTOP_LOG_MAX_BYTES", "bad")
+    monkeypatch.setenv("INHERE_BOX_LOG_MAX_BYTES", "bad")
     assert _parse_log_max_bytes() == DEFAULT_LOG_MAX_BYTES
 
 
 def test_log_handler_rotates_when_max_bytes_exceeded(tmp_path: Path):
-    log_path = tmp_path / "octop.log"
+    log_path = tmp_path / "inhere-box.log"
     handler = _build_log_handler(log_path, retention_days=3, max_bytes=256)
-    test_logger = logging.getLogger("test.octop.log.size_roll")
+    test_logger = logging.getLogger("test.inhere-box.log.size_roll")
     test_logger.handlers = []
     test_logger.propagate = False
     test_logger.setLevel(logging.INFO)
@@ -233,7 +233,7 @@ def test_log_handler_rotates_when_max_bytes_exceeded(tmp_path: Path):
         for _ in range(40):
             test_logger.info("x" * 40)
         handler.flush()
-        backups = [p for p in tmp_path.glob("octop.log*") if p != log_path]
+        backups = [p for p in tmp_path.glob("inhere-box.log*") if p != log_path]
         assert len(backups) >= 1
         # delaycompress: newest rotated file stays plain; older ones may be .gz
         plains = [p for p in backups if not p.name.endswith(".gz")]
@@ -249,11 +249,11 @@ def test_log_handler_rotates_when_max_bytes_exceeded(tmp_path: Path):
 
 
 def test_gzip_rotated_log_replaces_plain_file(tmp_path: Path):
-    plain = tmp_path / "octop.log.2026-09-02"
+    plain = tmp_path / "inhere-box.log.2026-09-02"
     # Binary write keeps LF on Windows (text mode would expand to CRLF).
     plain.write_bytes(b"hello\nworld\n")
     gzip_rotated_log(plain)
-    gz = tmp_path / "octop.log.2026-09-02.gz"
+    gz = tmp_path / "inhere-box.log.2026-09-02.gz"
     assert not plain.exists()
     assert gz.exists()
     assert gzip.decompress(gz.read_bytes()) == b"hello\nworld\n"
@@ -262,49 +262,49 @@ def test_gzip_rotated_log_replaces_plain_file(tmp_path: Path):
 def test_delaycompress_keeps_newest_plain_on_startup(tmp_path: Path):
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
-    older = log_dir / "octop.log.2026-08-28"
-    newer = log_dir / "octop.log.2026-08-29"
+    older = log_dir / "inhere-box.log.2026-08-28"
+    newer = log_dir / "inhere-box.log.2026-08-29"
     older.write_text("older\n", encoding="utf-8")
     newer.write_text("newer\n", encoding="utf-8")
     past = time.time() - 86400
     os.utime(older, (past, past))
     delaycompress_rotated_logs(log_dir, enabled=True)
     assert not older.exists()
-    assert (log_dir / "octop.log.2026-08-28.gz").exists()
+    assert (log_dir / "inhere-box.log.2026-08-28.gz").exists()
     assert newer.exists()
-    assert not (log_dir / "octop.log.2026-08-29.gz").exists()
+    assert not (log_dir / "inhere-box.log.2026-08-29.gz").exists()
 
 
 def test_delaycompress_single_plain_stays_uncompressed(tmp_path: Path):
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
-    plain = log_dir / "octop.log.2026-08-29"
+    plain = log_dir / "inhere-box.log.2026-08-29"
     plain.write_text("only\n", encoding="utf-8")
     delaycompress_rotated_logs(log_dir, enabled=True)
     assert plain.exists()
-    assert not (log_dir / "octop.log.2026-08-29.gz").exists()
+    assert not (log_dir / "inhere-box.log.2026-08-29.gz").exists()
 
 
 def test_parse_log_compress_env(monkeypatch):
-    monkeypatch.delenv("OCTOP_LOG_COMPRESS", raising=False)
+    monkeypatch.delenv("INHERE_BOX_LOG_COMPRESS", raising=False)
     assert _parse_log_compress() is True
-    monkeypatch.setenv("OCTOP_LOG_COMPRESS", "0")
+    monkeypatch.setenv("INHERE_BOX_LOG_COMPRESS", "0")
     assert _parse_log_compress() is False
 
 
 def test_purge_stale_logs_removes_old_gz_files(tmp_path: Path):
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
-    old = _stale_path(log_dir, "octop.log.2020-01-01.gz", age_days=100)
-    new = _stale_path(log_dir, "octop.log.2026-07-16.gz", age_days=1)
+    old = _stale_path(log_dir, "inhere-box.log.2020-01-01.gz", age_days=100)
+    new = _stale_path(log_dir, "inhere-box.log.2026-07-16.gz", age_days=1)
     _purge_stale_logs(log_dir, retention_days=14)
     assert not old.exists()
     assert new.exists()
 
 
 def test_setup_logging_respects_max_bytes_env(tmp_path: Path, monkeypatch):
-    monkeypatch.setenv("OCTOP_LOG_MAX_BYTES", "8192")
-    server = OctopServer(home=tmp_path / ".octop")
+    monkeypatch.setenv("INHERE_BOX_LOG_MAX_BYTES", "8192")
+    server = InhereBoxServer(home=tmp_path / ".octop")
     server._setup_logging()
     handler = next(
         h
@@ -327,8 +327,8 @@ def test_uvicorn_config_preserves_safe_file_logging(
     import uvicorn
 
     logging.getLogger().handlers = []
-    monkeypatch.setenv("OCTOP_LOG_LEVEL", "debug")
-    server = OctopServer(home=tmp_path / ".octop")
+    monkeypatch.setenv("INHERE_BOX_LOG_LEVEL", "debug")
+    server = InhereBoxServer(home=tmp_path / ".octop")
     server._setup_logging()
     root = logging.getLogger()
     file_handler = next(
@@ -338,7 +338,7 @@ def test_uvicorn_config_preserves_safe_file_logging(
     )
     for _ in range(listener_count):
         uvicorn.Config("fixture:app", log_config=None, log_level=log_level)
-    logging.getLogger("octop.api.task_websocket").info("task lifecycle persisted")
+    logging.getLogger("inhere_box.api.task_websocket").info("task lifecycle persisted")
     access = logging.getLogger("uvicorn.access")
     protocol = logging.getLogger("uvicorn.error")
     access.info(
@@ -388,7 +388,7 @@ def test_uvicorn_error_logs_keep_only_safe_exception_details(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], logger_name: str
 ) -> None:
     logging.getLogger().handlers = []
-    server = OctopServer(home=tmp_path / ".octop")
+    server = InhereBoxServer(home=tmp_path / ".octop")
     server._setup_logging()
     protocol = logging.getLogger(logger_name)
 
@@ -444,12 +444,12 @@ async def test_foreground_keeps_logging_configuration(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, dual_listeners: bool
 ) -> None:
     """Exercise real foreground Config creation without listening or booting services."""
-    from octop import launch
-    from octop.config import OctopConfig
-    from octop.infra.setup.tls.listeners import ListenPlan
+    from inhere_box import launch
+    from inhere_box.config import InhereBoxConfig
+    from inhere_box.infra.setup.tls.listeners import ListenPlan
 
-    server = OctopServer(home=tmp_path / ".octop")
-    config = OctopConfig()
+    server = InhereBoxServer(home=tmp_path / ".octop")
+    config = InhereBoxConfig()
     server.config = config
 
     async def start() -> None:
@@ -482,14 +482,18 @@ async def test_foreground_keeps_logging_configuration(
         ssl_certfile="fixture-cert" if dual_listeners else None,
         ssl_keyfile="fixture-key" if dual_listeners else None,
     )
-    monkeypatch.setattr(launch, "OctopServer", lambda **_kwargs: server)
+    monkeypatch.setattr(launch, "InhereBoxServer", lambda **_kwargs: server)
     monkeypatch.setattr(server, "start", start)
     monkeypatch.setattr(server, "stop", stop)
     monkeypatch.setattr(launch, "_schedule_linux_bubblewrap_ensure", lambda: None)
     monkeypatch.setattr(launch, "_serve", serve)
-    monkeypatch.setattr("octop.api.app.build_app", lambda _server: object())
-    monkeypatch.setattr("octop.infra.setup.tls.listeners.build_listen_plan", lambda *_a, **_k: plan)
-    monkeypatch.setattr("octop.infra.agents.memory.slim_control.MemorySlimControl", MemoryControl)
+    monkeypatch.setattr("inhere_box.api.app.build_app", lambda _server: object())
+    monkeypatch.setattr(
+        "inhere_box.infra.setup.tls.listeners.build_listen_plan", lambda *_a, **_k: plan
+    )
+    monkeypatch.setattr(
+        "inhere_box.infra.agents.memory.slim_control.MemorySlimControl", MemoryControl
+    )
 
     await launch.run_foreground(
         host="127.0.0.1",

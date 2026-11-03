@@ -11,8 +11,8 @@ from pathlib import Path
 
 import httpx
 
-from octop.infra.agents.providers.onnx_catalog import get_onnx_model_meta
-from octop.infra.agents.providers.onnx_download import (
+from inhere_box.infra.agents.providers.onnx_catalog import get_onnx_model_meta
+from inhere_box.infra.agents.providers.onnx_download import (
     COS_ENDPOINT_DEFAULT,
     HF_ENDPOINT_MIRROR,
     HF_ENDPOINT_OFFICIAL,
@@ -26,7 +26,7 @@ from octop.infra.agents.providers.onnx_download import (
 
 
 def test_bge_small_zh_infers_hf_repo_without_fastembed(monkeypatch) -> None:
-    from octop.infra.agents.providers import onnx_catalog as catalog
+    from inhere_box.infra.agents.providers import onnx_catalog as catalog
 
     monkeypatch.setattr(catalog, "_fastembed_meta_map", lambda: {})
     meta = get_onnx_model_meta("BAAI/bge-small-zh-v1.5")
@@ -35,7 +35,7 @@ def test_bge_small_zh_infers_hf_repo_without_fastembed(monkeypatch) -> None:
 
 
 def test_candidates_are_cos_hf_and_mirror_with_inferred_urls(monkeypatch) -> None:
-    from octop.infra.agents.providers import onnx_catalog as catalog
+    from inhere_box.infra.agents.providers import onnx_catalog as catalog
 
     monkeypatch.setattr(catalog, "_fastembed_meta_map", lambda: {})
     cands = build_download_candidates("BAAI/bge-small-zh-v1.5")
@@ -55,7 +55,7 @@ def test_candidates_are_cos_hf_and_mirror_with_inferred_urls(monkeypatch) -> Non
 
 
 def test_unknown_model_uses_model_id_as_hf_repo(monkeypatch) -> None:
-    from octop.infra.agents.providers import onnx_catalog as catalog
+    from inhere_box.infra.agents.providers import onnx_catalog as catalog
 
     monkeypatch.setattr(catalog, "_fastembed_meta_map", lambda: {})
     cands = build_download_candidates("jinaai/jina-embeddings-v2-base-zh")
@@ -151,7 +151,7 @@ def test_race_keeps_catalog_order_when_all_probes_fail() -> None:
 
 
 def test_download_uses_winner_then_falls_back(monkeypatch, tmp_path: Path) -> None:
-    from octop.infra.agents.providers import onnx_download as mod
+    from inhere_box.infra.agents.providers import onnx_download as mod
 
     cands = [
         DownloadCandidate(
@@ -186,7 +186,7 @@ def test_download_uses_winner_then_falls_back(monkeypatch, tmp_path: Path) -> No
 def test_hf_snapshot_emits_tqdm_byte_progress(monkeypatch, tmp_path: Path) -> None:
     import types
 
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     seen: list[tuple[int, int | None, str]] = []
 
     def fake_snapshot_download(**kwargs: object) -> str:
@@ -204,7 +204,7 @@ def test_hf_snapshot_emits_tqdm_byte_progress(monkeypatch, tmp_path: Path) -> No
         monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
     monkeypatch.setattr(hub, "snapshot_download", fake_snapshot_download, raising=False)
 
-    from octop.infra.agents.providers.onnx_download import _download_hf_snapshot
+    from inhere_box.infra.agents.providers.onnx_download import _download_hf_snapshot
 
     _download_hf_snapshot(
         DownloadCandidate(
@@ -224,7 +224,7 @@ def test_hf_snapshot_emits_tqdm_byte_progress(monkeypatch, tmp_path: Path) -> No
 def test_snapshot_disables_xet_before_hub_import(monkeypatch, tmp_path: Path) -> None:
     import types
 
-    from octop.infra.agents.providers import onnx_download as mod
+    from inhere_box.infra.agents.providers import onnx_download as mod
 
     seen: dict[str, object] = {}
     constants = types.ModuleType("huggingface_hub.constants")
@@ -257,14 +257,14 @@ def test_snapshot_disables_xet_before_hub_import(monkeypatch, tmp_path: Path) ->
 
 
 def test_cos_base_env_override(monkeypatch) -> None:
-    monkeypatch.setenv("OCTOP_ONNX_COS_BASE", "https://example-cos.example.com/")
+    monkeypatch.setenv("INHERE_BOX_ONNX_COS_BASE", "https://example-cos.example.com/")
     assert cos_file_url("BAAI/bge-small-zh-v1.5", "config.json") == (
         "https://example-cos.example.com/models/embedding/BAAI/bge-small-zh-v1.5/config.json"
     )
 
 
 def test_cos_download_writes_hf_cache(monkeypatch, tmp_path: Path) -> None:
-    from octop.infra.agents.providers.onnx_download import _download_cos_snapshot
+    from inhere_box.infra.agents.providers.onnx_download import _download_cos_snapshot
 
     files = {
         "files.json": json.dumps(
@@ -311,7 +311,7 @@ def test_cos_download_writes_hf_cache(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_cos_download_rejects_parent_paths(monkeypatch, tmp_path: Path) -> None:
-    from octop.infra.agents.providers.onnx_download import _download_cos_snapshot
+    from inhere_box.infra.agents.providers.onnx_download import _download_cos_snapshot
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("files.json"):
@@ -346,7 +346,7 @@ def test_cos_download_rejects_parent_paths(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_download_raced_uses_cos_winner(monkeypatch, tmp_path: Path) -> None:
-    from octop.infra.agents.providers import onnx_download as mod
+    from inhere_box.infra.agents.providers import onnx_download as mod
 
     cands = [
         DownloadCandidate(
@@ -378,7 +378,7 @@ def test_download_raced_uses_cos_winner(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_export_model_tree_writes_manifest(monkeypatch, tmp_path: Path) -> None:
-    from octop.infra.agents.providers import onnx_catalog as catalog
+    from inhere_box.infra.agents.providers import onnx_catalog as catalog
 
     monkeypatch.setattr(catalog, "_fastembed_meta_map", lambda: {})
     snapshot = tmp_path / "snap"

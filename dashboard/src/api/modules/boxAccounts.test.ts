@@ -122,7 +122,7 @@ it("requires explicit login after logout and can use the same key again", async 
   expect(box.hasBoxSession()).toBe(false);
   expect(await box.restoreBoxSession()).toBe(false);
   expect(cookie).toBeUndefined();
-  expect(localStorage.getItem("octop:box:paused:box-test")).toBe("1");
+  expect(localStorage.getItem("inhere-box:box:paused:box-test")).toBe("1");
   expect(await box.connectBoxSession("admin-key")).toBe(true);
   expect(box.boxSessionIdentity()).toBe("web-2");
 });
@@ -162,7 +162,7 @@ it("reads current CSRF before mutation and removes bearer auth", async () => {
   const call = fetchMock.mock.calls.find(([url]) =>
     String(url).endsWith("/api/private"),
   )!;
-  expect(new Headers(call[1].headers).get("X-Octop-Box-CSRF")).toBe(
+  expect(new Headers(call[1].headers).get("X-Inhere-Box-CSRF")).toBe(
     "fresh-csrf",
   );
   expect(new Headers(call[1].headers).has("Authorization")).toBe(false);
@@ -297,10 +297,10 @@ it("refreshes stale tab metadata when another tab replaced the shared cookie", a
 it("discards in-memory authorization when another tab signs out", async () => {
   const box = await import("./boxAccounts");
   await box.connectBoxSession("admin-key");
-  localStorage.setItem("octop:box:paused:box-test", "1");
+  localStorage.setItem("inhere-box:box:paused:box-test", "1");
   window.dispatchEvent(
     new StorageEvent("storage", {
-      key: "octop:box:paused:box-test",
+      key: "inhere-box:box:paused:box-test",
       newValue: "1",
     }),
   );

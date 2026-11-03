@@ -9,7 +9,7 @@ import {
   type PublishedExpert,
   type PublishExpertBody,
 } from "../../../api/modules/publishedExperts";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import { apiErrorMessage } from "../../../utils/apiError";
 import { pickLocale } from "../../../utils/localizedText";
 import styles from "../index.module.less";
@@ -17,7 +17,7 @@ import styles from "../index.module.less";
 export interface PublishExpertDrawerProps {
   open: boolean;
   mode: "publish" | "refresh";
-  agent: OctopAgent;
+  agent: InhereBoxAgent;
   published: PublishedExpert | null;
   onClose: () => void;
   onSuccess: () => void;

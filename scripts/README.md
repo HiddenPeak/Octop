@@ -2,9 +2,9 @@
 
 在**仓库根目录**运行以下命令。
 
-## 安装 Octop（终端用户）
+## 安装 inhere-box（终端用户）
 
-将 Octop 安装到隔离虚拟环境 `~/.octop/venv`，并创建 `~/.octop/bin/octop` 包装脚本加入 PATH。
+将 inhere-box 安装到隔离虚拟环境 `~/.inhere-box/venv`，并创建 `~/.inhere-box/bin/inhere-box` 包装脚本加入 PATH。
 
 ### 远程一键安装（推荐）
 
@@ -12,7 +12,7 @@
 |------|------|
 | macOS / Linux | `curl -fsSL https://finnie-1258344699.cos.ap-guangzhou.myqcloud.com/octop/install.sh \| bash` |
 | Windows (PowerShell) | `irm https://finnie-1258344699.cos.ap-guangzhou.myqcloud.com/octop/install.ps1 \| iex` |
-| Windows (cmd) | 下载 `…/octop/install.bat` 后运行，或使用下方本地脚本 |
+| Windows (cmd) | 下载 `…/inhere-box/install.bat` 后运行，或使用下方本地脚本 |
 
 ### 本地脚本（仓库内）
 
@@ -48,9 +48,9 @@ Windows PowerShell 等价参数：`-Version`、`-FromSource`、`-SourceDir`、`-
 
 | 变量 | 说明 |
 |------|------|
-| `OCTOP_HOME` | 安装根目录，默认 `~/.octop` |
-| `OCTOP_REPO` | `--from-source` 无本地目录时的 git 克隆地址 |
-| `OCTOP_PYPI_MIRROR` | PyPI 镜像（与 `--mirror` 等效） |
+| `INHERE_BOX_HOME` | 安装根目录，默认 `~/.inhere-box` |
+| `INHERE_BOX_REPO` | `--from-source` 无本地目录时的 git 克隆地址 |
+| `INHERE_BOX_PYPI_MIRROR` | PyPI 镜像（与 `--mirror` 等效） |
 | `PLAYWRIGHT_DOWNLOAD_HOST` | Playwright 浏览器下载镜像（仅 `--extras browser`） |
 
 默认不下载 Playwright Chromium。需要远程浏览器自动化时加 `--extras browser`，或安装后在控制台 / `python -m playwright install chromium` 按需安装。若系统已有 Chrome / Chromium，即使加了 `--extras browser` 也会跳过下载。
@@ -58,15 +58,15 @@ Windows PowerShell 等价参数：`-Version`、`-FromSource`、`-SourceDir`、`-
 安装完成后：
 
 ```bash
-octop init    # 初始化数据库与管理员
-octop run     # 启动服务 → http://127.0.0.1:8088
+inhere-box init    # 初始化数据库与管理员
+inhere-box run     # 启动服务 → http://127.0.0.1:8088
 ```
 
 ---
 
 ## 构建 PyPI wheel
 
-先构建前端（产物写入 `src/octop/dashboard/`，与 `dashboard/vite.config.ts` 的 `outDir` 一致），再打包 wheel。
+先构建前端（产物写入 `src/inhere_box/dashboard/`，与 `dashboard/vite.config.ts` 的 `outDir` 一致），再打包 wheel。
 
 ```bash
 bash scripts/wheel_build.sh

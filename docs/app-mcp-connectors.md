@@ -16,14 +16,14 @@ REST 完整路径均包含 `/api`。运行实例的 `/api/openapi.json`、`/api/
 不要把 `instance_id`、`kind` 或显示名当成 MCP 引用。本人自定义 MCP 的引用通常就是配置键；他人共享的自定义 MCP 使用服务端生成的防冲突引用，如 `custom__parent_id__my_docs`，其列表 ID 又是 `custom:parent_id:my_docs`。APP 不拼装这些值，分别保存服务端返回的 ID 和引用。
 
 ```http
-Authorization: Bearer <octop_access_token>
+Authorization: Bearer <inhere_box_access_token>
 Accept-Language: zh
 Content-Type: application/json
 ```
 
-`Content-Type` 用于 JSON 请求。除供应商 OAuth 回调和内部 MCP 协议外，本文 REST 均需 Octop 登录令牌。语言按现有账号偏好／请求语言规则解析；时间显示使用 `GET /api/settings/timezone` 返回的服务端时区。连接器的 `created_at`、`updated_at`、OAuth `expires_at` 是 Unix **秒**；Task 时间使用其原有 ISO 8601 契约。
+`Content-Type` 用于 JSON 请求。除供应商 OAuth 回调和内部 MCP 协议外，本文 REST 均需 inhere-box 登录令牌。语言按现有账号偏好／请求语言规则解析；时间显示使用 `GET /api/settings/timezone` 返回的服务端时区。连接器的 `created_at`、`updated_at`、OAuth `expires_at` 是 Unix **秒**；Task 时间使用其原有 ISO 8601 契约。
 
-连接、项目与 Task 的资源引用应来自同一目标 Octop 主机和账号；APP 按服务地址／host 与用户隔离缓存，不能把本机返回的 server_name 当成远端授权。远端接线继续使用[统一会话交接](agentcomputer-unified-conversations-handoff.md)中的 Bridge transport。
+连接、项目与 Task 的资源引用应来自同一目标 inhere-box 主机和账号；APP 按服务地址／host 与用户隔离缓存，不能把本机返回的 server_name 当成远端授权。远端接线继续使用[统一会话交接](agentcomputer-unified-conversations-handoff.md)中的 Bridge transport。
 
 成功响应直接返回对象或数组，没有统一 `data` 包装；删除成功为 `204`，无响应体。APP 响应 DTO 应容忍新增字段和可选字段缺失。管理页面按 `can_manage` 控制入口；共享可用不等于可管理，实例详情／编辑／测试／删除一般要求所有者或管理员，刷新 OAuth 和实例设备授权只允许所有者。
 
@@ -154,7 +154,7 @@ PATCH 可省略任意未修改字段；`status` 仅接受 `active/disabled`；`k
 | `shared` | boolean，默认 false | 共享连接供其他用户选择，不授予管理权限。 |
 | `default_open` | boolean，默认 false | 账号入口默认设置，不改写项目／统一 Task 选择。 |
 
-PATCH 支持上述除 `kind` 外的字段，以及 `status`；省略表示不改。当前常用凭证如下，参数属于执行 Octop 的主机，不能用 APP 本地路径代替服务器路径。
+PATCH 支持上述除 `kind` 外的字段，以及 `status`；省略表示不改。当前常用凭证如下，参数属于执行 inhere-box 的主机，不能用 APP 本地路径代替服务器路径。
 
 | 类型／连接器 | `credentials` |
 | --- | --- |
@@ -168,7 +168,7 @@ PATCH 支持上述除 `kind` 外的字段，以及 `status`；省略表示不改
 | `qq-mail` | `email`、`password` 必填；可选 `mail_provider`（qq/gmail/netease）或自定义 `imap_host/imap_port/smtp_host/smtp_port`；识别到邮箱域时采用对应预设。 |
 | `agently-cli` | `{}`；创建后走实例设备授权，隔离凭据目录由服务端管理。 |
 | `dingtalk-cli` | `{}`，或成对的 `client_id/client_secret`；创建后走实例设备授权。 |
-| `obsidian-cli` | `vault` 必填；可选 `binary_path`，均指 Octop 主机上的配置。 |
+| `obsidian-cli` | `vault` 必填；可选 `binary_path`，均指 inhere-box 主机上的配置。 |
 | `weknora` | `base_url` 必填；可选 `api_key/tenant_id/knowledge_base_ids`，后者接受数组或逗号字符串。 |
 | `dify` | `mcp_url` 必填，须含 `/mcp/server/` 且以 `/mcp` 结尾。 |
 
@@ -230,7 +230,7 @@ PATCH 支持上述除 `kind` 外的字段，以及 `status`；省略表示不改
 }
 ```
 
-上例说明请求结构，不表示服务端已安装示例程序。`stdio` 测试／执行会在 **Octop 主机** 启动进程；`command/args/env` 不在手机执行。HTTP MCP 的 `localhost`／局域网地址也是从 Octop 主机访问。
+上例说明请求结构，不表示服务端已安装示例程序。`stdio` 测试／执行会在 **inhere-box 主机** 启动进程；`command/args/env` 不在手机执行。HTTP MCP 的 `localhost`／局域网地址也是从 inhere-box 主机访问。
 
 | 字段 | 约束 |
 | --- | --- |
@@ -291,9 +291,9 @@ GET/PUT 的响应与保存后的规范化配置同形，但 OAuth 只返回预�
 ### 4.1 APP 的浏览器 OAuth 流程
 
 1. 内置连接器先读取目录，确认 `oauth_ready`；自定义 MCP 先保存配置并测试，确认 `oauth.available=true`。
-2. 调用统一 start，保存 `state_id`，在系统浏览器打开 `authorize_url`。Octop 服务端负责 state、PKCE、动态客户端注册和换 token。
-3. 供应商回调 **Octop 服务端**的 `/api/connectors/oauth/callback`。APP 不自行调用该回调换 token。
-4. APP 回到前台或用户完成浏览器授权后，用原 Octop 账号读取 pending；也可有限轮询。结果属于该账号，首次成功读取即被消费。
+2. 调用统一 start，保存 `state_id`，在系统浏览器打开 `authorize_url`。inhere-box 服务端负责 state、PKCE、动态客户端注册和换 token。
+3. 供应商回调 **inhere-box 服务端**的 `/api/connectors/oauth/callback`。APP 不自行调用该回调换 token。
+4. APP 回到前台或用户完成浏览器授权后，用原 inhere-box 账号读取 pending；也可有限轮询。结果属于该账号，首次成功读取即被消费。
 5. 内置连接器：将返回的完整 `tokens` 作为 `credentials` 创建连接，或 PATCH 当前待重新授权实例。自定义 MCP：回调已保存授权，`applied=true` 时直接刷新配置和资源目录，不再创建实例。
 6. 测试连接，刷新项目／Task 资源，再让用户选择。
 
@@ -315,7 +315,7 @@ GET/PUT 的响应与保存后的规范化配置同形，但 OAuth 只返回预�
 {"authorize_url": "https://auth.example.com/authorize?state=example", "state_id": "oauth_state_01"}
 ```
 
-`redirect_after` 仅支持站内 `/...` 路径，不支持 APP 自定义 scheme、Universal Link 绝对 URL 或外站回跳；无效值回退 `/connectors`。回调页面在网页 popup 场景用 `postMessage` 通知 opener，否则转到带 `oauth_state=<state_id>` 的站内页面。**这不构成原生 APP 的完成回调**，APP 应保留 state_id 并读 pending。浏览器不需要携带 Octop Bearer 给供应商。
+`redirect_after` 仅支持站内 `/...` 路径，不支持 APP 自定义 scheme、Universal Link 绝对 URL 或外站回跳；无效值回退 `/connectors`。回调页面在网页 popup 场景用 `postMessage` 通知 opener，否则转到带 `oauth_state=<state_id>` 的站内页面。**这不构成原生 APP 的完成回调**，APP 应保留 state_id 并读 pending。浏览器不需要携带 inhere-box Bearer 给供应商。
 
 `GET /api/connectors/oauth/pending/{state_id}`，无 body，内置连接器结果示例：
 
@@ -346,7 +346,7 @@ OAuth 重新授权不会根据 kind 自动匹配／覆盖已有内置实例。AP
 ### 4.2 可用范围与部署要求
 
 - 自定义 OAuth 仅用于公网 HTTPS 的 `streamable_http` MCP，需要能发现授权元数据并支持动态客户端注册（DCR）。本地／局域网 MCP 或明确不支持 DCR 的授权目标返回 `400 CONNECTOR_INVALID_CREDENTIALS`，`details.reason` 提供本地化原因；APP 改为引导填写 Token／headers 或服务自身支持的授权方式。
-- 要求 HTTPS 回调的目标在非 loopback HTTP 部署上会返回 `CONNECTOR_OAUTH_HTTPS_REQUIRED`。回调地址来自服务端公开基址／反向代理配置；APP 不传 redirect_uri。完成授权的系统浏览器必须能访问该回调地址，且地址还需符合供应商注册／HTTPS 要求；不要求供应商服务器主动访问 Octop。
+- 要求 HTTPS 回调的目标在非 loopback HTTP 部署上会返回 `CONNECTOR_OAUTH_HTTPS_REQUIRED`。回调地址来自服务端公开基址／反向代理配置；APP 不传 redirect_uri。完成授权的系统浏览器必须能访问该回调地址，且地址还需符合供应商注册／HTTPS 要求；不要求供应商服务器主动访问 inhere-box。
 - 自定义 MCP 的 OAuth token 由服务端保存和刷新，项目／Task 只提交引用。对 `stdio` 发起此 OAuth 会被拒绝。
 - 兼容旧接口 `POST /api/connectors/oauth/{kind}/start`，body 只有可选 `redirect_after`；新 APP 统一使用带 target 的 start。
 
@@ -362,7 +362,7 @@ OAuth 重新授权不会根据 kind 自动匹配／覆盖已有内置实例。AP
 
 ## 5. CLI 连接器和设备授权
 
-CLI 都安装和运行在 Octop 主机，APP 只调用 HTTP、打开授权 URL、展示用户码／状态。系统浏览器完成授权后不需要把命令行凭据拷到手机。
+CLI 都安装和运行在 inhere-box 主机，APP 只调用 HTTP、打开授权 URL、展示用户码／状态。系统浏览器完成授权后不需要把命令行凭据拷到手机。
 
 ### 5.1 安装状态
 
@@ -425,7 +425,7 @@ APP 打开 verification_url 后，用保存的 device_code 和原 cli_config_key
 
 ### 5.4 本机 WeKnora 检测
 
-`GET /api/connectors/weknora/detect-local` 无参数，返回 `{"found":false}`，或 `{"found":true,"base_url":"http://127.0.0.1:8080/api/v1","console_url":"http://127.0.0.1"}`。检测的是 Octop 主机固定 loopback 地址，不是 APP 所在设备；返回的 console_url 也不保证手机可以直接访问。不保存连接，仍需 POST 实例。
+`GET /api/connectors/weknora/detect-local` 无参数，返回 `{"found":false}`，或 `{"found":true,"base_url":"http://127.0.0.1:8080/api/v1","console_url":"http://127.0.0.1"}`。检测的是 inhere-box 主机固定 loopback 地址，不是 APP 所在设备；返回的 console_url 也不保证手机可以直接访问。不保存连接，仍需 POST 实例。
 
 ## 6. 在项目和任务中选择 MCP
 
@@ -556,7 +556,7 @@ TaskDetail 响应节选：
 
 ### 6.5 WebSocket 同样提交选择
 
-APP 使用 `/api/project-tasks/ws`，原生客户端优先在升级请求中设置 `Authorization: Bearer <octop_access_token>`，等待 `{"type":"ready","protocol_version":3}` 后发送命令，不再发送 authenticate。无法设置请求头时，才在连接打开后 10 秒内发送 `{"type":"authenticate","token":"<octop_access_token>"}` 并等待 ready；令牌不放 URL。完整连接、订阅和事件顺序见[WS 协议](project-task-websocket.md)。以下是与 REST 同义的完整消息示例：
+APP 使用 `/api/project-tasks/ws`，原生客户端优先在升级请求中设置 `Authorization: Bearer <inhere_box_access_token>`，等待 `{"type":"ready","protocol_version":3}` 后发送命令，不再发送 authenticate。无法设置请求头时，才在连接打开后 10 秒内发送 `{"type":"authenticate","token":"<inhere_box_access_token>"}` 并等待 ready；令牌不放 URL。完整连接、订阅和事件顺序见[WS 协议](project-task-websocket.md)。以下是与 REST 同义的完整消息示例：
 
 ```json
 {"type":"task.create","id":"cmd-mcp-create-0001","data":{"request_id":"app-create-mcp-0001","project_id":"proj_example","selected_expert_id":null,"expected_configuration_revision":1,"expected_project_revision":2,"prompt":"检索项目相关文档并给出摘要","options":{"mcp_servers":["tencent-docs__conn_docs_01"]}}}
@@ -584,7 +584,7 @@ APP 使用 `/api/project-tasks/ws`，原生客户端优先在升级请求中设�
 
 | HTTP／错误码 | 处理 |
 | --- | --- |
-| 401／认证错误 | 恢复 Octop 登录；与探测结果 body 中供应商的 status_code=401 区分。 |
+| 401／认证错误 | 恢复 inhere-box 登录；与探测结果 body 中供应商的 status_code=401 区分。 |
 | 403 `FORBIDDEN` | 无管理权；共享连接可用性与管理权分开显示。 |
 | 404 `CONNECTOR_NOT_FOUND` | 刷新连接和资源，处理已删除引用。 |
 | 409 `CONNECTOR_NAME_TAKEN` | 提示修改账号内显示名。 |
@@ -615,10 +615,10 @@ APP 联调按以下闭环验收：Token 连接创建→测试→修改→删除�
 
 | 实现／文档 | 用途 |
 | --- | --- |
-| [连接器路由](../src/octop/api/routers/connectors.py) | 请求模型、OAuth、实例与配置管理。 |
-| [目录和表单元数据](../src/octop/infra/connectors/catalog.json) | 内置 kind、授权方式、凭证字段。 |
-| [自定义 MCP 规范](../src/octop/infra/connectors/custom_mcp.py) | transport、引用名、OAuth 预览与规范化。 |
-| [连接服务](../src/octop/infra/connectors/service.py) | 存储、共享、按需刷新和可见配置。 |
-| [项目模型](../src/octop/infra/projects/models.py)／[任务实现](../src/octop/infra/projects/tasks.py) | MCP 候选、项目字段与每轮合并。 |
+| [连接器路由](../src/inhere_box/api/routers/connectors.py) | 请求模型、OAuth、实例与配置管理。 |
+| [目录和表单元数据](../src/inhere_box/infra/connectors/catalog.json) | 内置 kind、授权方式、凭证字段。 |
+| [自定义 MCP 规范](../src/inhere_box/infra/connectors/custom_mcp.py) | transport、引用名、OAuth 预览与规范化。 |
+| [连接服务](../src/inhere_box/infra/connectors/service.py) | 存储、共享、按需刷新和可见配置。 |
+| [项目模型](../src/inhere_box/infra/projects/models.py)／[任务实现](../src/inhere_box/infra/projects/tasks.py) | MCP 候选、项目字段与每轮合并。 |
 | [网页调用封装](../dashboard/src/api/modules/connectors.ts) | 已有请求封装参考；类型若与服务端不一致，以服务端为准。 |
 | [内置连接器目录](connectors.md)／[统一 Task APP 交接](agentcomputer-unified-conversations-handoff.md) | 供应商与会话全流程背景。 |

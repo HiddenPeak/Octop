@@ -766,14 +766,14 @@ const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
               onPaste={handlePaste}
               placeholder={t(
                 "chatWelcome.inputPlaceholder",
-                "Message Octop...",
+                "Message inhere-box...",
               )}
               rows={1}
               disabled={disabled}
               enterKeyHint={isMobile ? "enter" : undefined}
             />
             {/*
-            Slash badge (plan §14.5): octop's HarnessProcessor handles slash
+            Slash badge (plan §14.5): inhere-box's HarnessProcessor handles slash
             commands server-side. The composer doesn't intercept them — it
             just surfaces a small inline pill so the user sees they're
             issuing a command, not a regular message.

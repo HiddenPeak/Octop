@@ -13,7 +13,7 @@ import pytest
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 from langchain_core.messages import AIMessage
 
-from octop.infra.projects import runtime
+from inhere_box.infra.projects import runtime
 from tests.integration.test_project_task_checkpoints import parked
 from tests.integration.test_project_task_interactions import approval, respond
 from tests.integration.test_project_task_planning import planning_models, step_command, tool_call

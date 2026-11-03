@@ -251,7 +251,7 @@ it("does not present ACP compatibility zeros as measured turn usage", async () =
   expect(screen.queryByText(/输入 0/)).not.toBeInTheDocument();
 });
 
-it("counts ACP as missing in mixed history and does not poll Octop context for an ACP task", async () => {
+it("counts ACP as missing in mixed history and does not poll inhere-box context for an ACP task", async () => {
   const { engineCapabilities } = await import("./taskEngine");
   const engine = {
     engine_id: "acp",

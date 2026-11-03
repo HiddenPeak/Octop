@@ -11,7 +11,7 @@ import type {
   CallEntry,
 } from "../../../api/types";
 import type { HitlSessionPolicy } from "../../../api/types/hitl";
-import type { ThreadArtifact } from "../../../api/modules/octopThreads";
+import type { ThreadArtifact } from "../../../api/modules/inhereBoxThreads";
 import * as chatStore from "./chatStore";
 import { shouldBlockHistoryRefresh } from "./wsResumeGate";
 import {
@@ -739,8 +739,11 @@ async function loadThreadHistory(
   projectionLoading: boolean;
   retryAfterMs: number;
 }> {
-  const { octopThreadsApi, CHAT_HISTORY_PAGE_SIZE, normalizeThreadArtifacts } =
-    await import("../../../api/modules/octopThreads");
+  const {
+    inhereBoxThreadsApi,
+    CHAT_HISTORY_PAGE_SIZE,
+    normalizeThreadArtifacts,
+  } = await import("../../../api/modules/inhereBoxThreads");
   const {
     syncSessionArtifacts,
     syncSessionConversationMode,
@@ -748,7 +751,7 @@ async function loadThreadHistory(
   } = await import("./useSessions");
   const limit = params.limit ?? CHAT_HISTORY_PAGE_SIZE;
   const offset = params.offset ?? 0;
-  const history = await octopThreadsApi.history(agentId, threadId, {
+  const history = await inhereBoxThreadsApi.history(agentId, threadId, {
     limit,
     offset,
     cursor: params.cursor,

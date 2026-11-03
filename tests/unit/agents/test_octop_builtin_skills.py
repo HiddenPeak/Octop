@@ -1,4 +1,4 @@
-"""Tests for Octop-owned built-in Skills and the Skill Manager helper."""
+"""Tests for inhere-box-owned built-in Skills and the Skill Manager helper."""
 
 from __future__ import annotations
 
@@ -13,9 +13,9 @@ from pathlib import Path
 import pytest
 from tests.support.fakes import FakeHarnessAgent
 
-from octop.infra.agents.builtin_skills import sync_octop_builtin_skills
+from inhere_box.infra.agents.builtin_skills import sync_inhere_box_builtin_skills
 
-_PACKAGE = "octop.infra.agents.builtin_skills"
+_PACKAGE = "inhere_box.infra.agents.builtin_skills"
 
 
 def _manager_script() -> Path:
@@ -46,7 +46,7 @@ async def test_sync_seeds_manager_and_retires_old_installer(tmp_path: Path) -> N
         force=True,
     )
 
-    synced = await sync_octop_builtin_skills(agent.workspace)
+    synced = await sync_inhere_box_builtin_skills(agent.workspace)
 
     assert synced == ["skill-manager"]
     assert await agent.workspace.aexists("skills")
@@ -58,7 +58,7 @@ async def test_sync_seeds_manager_and_retires_old_installer(tmp_path: Path) -> N
     assert manager is not None and "name: skill-manager" in manager
     # Rendered workspace path uses forward slashes regardless of platform.
     assert tmp_path.as_posix() in manager.replace("\\", "/")
-    assert "{{OCTOP_WORKSPACE}}" not in manager
+    assert "{{INHERE_BOX_WORKSPACE}}" not in manager
     assert script is not None and "def main()" in script
 
     deployed = tmp_path / "_builtin_skills/skill-manager/scripts/manage_skills.py"
@@ -80,12 +80,12 @@ async def test_sync_uses_system_files_path(tmp_path: Path) -> None:
         system_files_path=".octop",
     )
 
-    synced = await sync_octop_builtin_skills(agent.workspace)
+    synced = await sync_inhere_box_builtin_skills(agent.workspace)
 
     assert synced == ["skill-manager"]
     manager = await agent.workspace.aread_text("_builtin_skills/skill-manager/SKILL.md")
     assert manager is not None
-    assert "{{OCTOP_SKILLS}}" not in manager
+    assert "{{INHERE_BOX_SKILLS}}" not in manager
     assert str(tmp_path / ".octop" / "skills") in manager.replace("\\", "/") or (
         tmp_path / ".octop" / "skills"
     ).as_posix() in manager.replace("\\", "/")
@@ -193,7 +193,7 @@ def test_manager_refuses_to_replace_itself(tmp_path: Path) -> None:
     result = _run_manager(tmp_path, "install", str(source), "--force")
 
     assert result.returncode == 1
-    assert "Octop-owned built-in" in result.stdout
+    assert "inhere-box-owned built-in" in result.stdout
     assert not (tmp_path / "skills" / "skill-manager").exists()
 
 

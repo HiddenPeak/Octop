@@ -4,14 +4,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from octop.infra.agents.experts.composer_files import (
+from inhere_box.infra.agents.experts.composer_files import (
     ComposerWorkspacePatch,
     apply_composer_workspace_patch,
     composer_copies_from_payload,
     composer_patch_from_payload,
     normalize_composer_relpath,
 )
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 @pytest.mark.parametrize(
@@ -34,7 +34,7 @@ def test_normalize_composer_relpath_accepts_editable_paths(name: str, expected: 
     [".octop/secret", "../AGENTS.md", "skills/../x", "etc/passwd", ""],
 )
 def test_normalize_composer_relpath_rejects_unsafe_paths(name: str) -> None:
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         normalize_composer_relpath(name, allow_skill_dir=True)
     assert exc.value.code == ErrorCode.SLASH_BAD_ARGS
 
@@ -124,7 +124,7 @@ async def test_apply_composer_workspace_patch_writes_and_omits() -> None:
 
 
 def test_composer_copies_from_payload_rejects_unsafe_source() -> None:
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         composer_copies_from_payload([{"agent_id": "../x", "slug": "demo"}])
     assert exc.value.code == ErrorCode.SLASH_BAD_ARGS
 
@@ -135,7 +135,7 @@ async def test_hub_skill_failure_is_reported_not_raised(monkeypatch: pytest.Monk
         raise RuntimeError("marketplace down")
 
     monkeypatch.setattr(
-        "octop.infra.skills.skillhub_market.download_skillhub_package",
+        "inhere_box.infra.skills.skillhub_market.download_skillhub_package",
         boom,
     )
     workspace = _FakeWorkspace()

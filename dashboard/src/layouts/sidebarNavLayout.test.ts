@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { OctopUser } from "../api/modules/auth";
+import type { InhereBoxUser } from "../api/modules/auth";
 import { buildNavSections } from "./sidebarNav";
 import {
   createGroup,
@@ -16,14 +16,14 @@ const adminUser = {
   username: "admin",
   role: "admin",
   permissions: ["*"],
-} as OctopUser;
+} as InhereBoxUser;
 
 const limitedUser = {
   id: 2,
   username: "ada",
   role: "user",
   permissions: [],
-} as OctopUser;
+} as InhereBoxUser;
 
 function catalog() {
   return buildNavSections(adminUser, { mobileEnabled: true });

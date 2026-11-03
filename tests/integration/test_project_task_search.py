@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from octop.infra.db.repos.project_tasks import ProjectTaskRow
+from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
 from tests.support.auth import create_user, resolve_user_id
 
 

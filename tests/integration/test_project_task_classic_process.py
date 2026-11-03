@@ -13,9 +13,9 @@ from langchain_core.utils.function_calling import convert_to_openai_tool
 from octop_harness import HarnessAgent
 from octop_harness.llm.factory import ChatModelFactory
 
-from octop.infra.projects import runtime
-from octop.infra.projects.settings import ACTION_TIMELINE_ENV
-from octop.infra.utils.env_file import save_env_file
+from inhere_box.infra.projects import runtime
+from inhere_box.infra.projects.settings import ACTION_TIMELINE_ENV
+from inhere_box.infra.utils.env_file import save_env_file
 from tests.integration.test_project_tasks import settled
 
 

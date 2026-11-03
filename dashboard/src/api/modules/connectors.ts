@@ -207,7 +207,7 @@ export const connectorsApi = {
   listInstances: (agentId?: string | null) =>
     request<ConnectorInstance[]>("/connector-instances", {
       headers: agentId?.trim()
-        ? { "X-Octop-Agent-Id": agentId.trim() }
+        ? { "X-Inhere-Box-Agent-Id": agentId.trim() }
         : undefined,
     }),
 

@@ -1,10 +1,10 @@
 # AgentComputer 统一会话接入交接
 
-> 2026-10-30：`account_mode=box_local` 采用长期管理密钥登录网页、唯一原生主设备、一次性分享码直接加入和独立受邀身份。浏览器不计入配对设备，分享不再二次审批。协议与迁移见[盒子账户客户端接线](box-local-account-client.md)；默认 `server` 模式保留原登录。App本轮仅更新接线文档，未修改Swift/UI。
+> 2026-11-03：最新网络入口见[APP 网络接入](app-network-connection-handoff.md)，支持局域网/外网 IP 或域名直连，局域网提供 Bonjour 发现，HTTP/WS 默认可用，无需地址白名单。`account_mode=box_local` 采用管理密钥网页登录、多台原生自有设备、一次性分享码直接加入和独立受邀身份；浏览器不计入配对设备，分享不再二次审批。认证与迁移见[盒子账户客户端接线](box-local-account-client.md)；默认 `server` 模式保留原登录。本轮未修改Swift/UI。下方较早部署时间和客户端切点按历史记录理解，当前网络和认证规则以此处链接为准。
 
 更新日期：2026-10-27。统一 Task 初始接口参考基线：`feature/agentcomputer-foundation @ 4cd685b7`，Bridge 安全修复已由 `34e918d5` 提供；2026-10-23 后续修订恢复项目及全部 Task 的永久删除，并在服务端先停止活动轮次。该次交付提交及重启验证记录见资料包的 `manifest.json` 与 `deployment-verification.json`。APP 代码切点的只读核对基线：`feature/0.0.2/octp @ eb51d07`；客户端 Swift/UI 未改动。接口已实现不等于其他运行服务已升级，也不代表真实用户旧会话已迁移。
 
-此前部署记录（2026-10-23）：Bridge 修复已在本机部署；项目删除修订于 2026-10-23 20:10（Asia/Shanghai）从当时工作树重启至本机 `127.0.0.1:8088`，进程为 `27383`。该次启动使用基于 `34e918d5` 的工作树源码，启动时改动尚未提交、未合入目标分支；运行来源为该隔离工作树，不能只用启动时的 HEAD 判断当时行为。健康、在线文档、新删除接口 OpenAPI、数据库完整性及原有记录校验通过，重启前后仍为 17 个项目、181 个 Task、785 个 Turn。验证记录：`/private/tmp/octop-project-deletion-restart-20261023T121038Z/result.json`。此前 `34e918d5` 资料包不包含这项后续修订，其他服务需单独升级。
+此前部署记录（2026-10-23）：Bridge 修复已在本机部署；项目删除修订于 2026-10-23 20:10（Asia/Shanghai）从当时工作树重启至本机 `127.0.0.1:8088`，进程为 `27383`。该次启动使用基于 `34e918d5` 的工作树源码，启动时改动尚未提交、未合入目标分支；运行来源为该隔离工作树，不能只用启动时的 HEAD 判断当时行为。健康、在线文档、新删除接口 OpenAPI、数据库完整性及原有记录校验通过，重启前后仍为 17 个项目、181 个 Task、785 个 Turn。验证记录：`/private/tmp/inhere-box-project-deletion-restart-20261023T121038Z/result.json`。此前 `34e918d5` 资料包不包含这项后续修订，其他服务需单独升级。
 
 历史部署记录（2026-10-26）：该次修订允许继承的已完成历史直接 fork/edit/regenerate，网页不再因 `history_only` 隐藏这些入口，APP 仍需接线。请求、执行边界及验收见[继承历史再次分支说明](agentcomputer-history-branching.md)。本机 8088 于当日 21:55（Asia/Shanghai）从 `release/1.0.0 @ 36500aa2` 加当时未提交的历史分支修改平滑重启，当时 PID 为 `53795`；该次健康、在线契约、网页构建和原记录一致性核验通过，数据库版本保持 `57`。历史运行记录为 `.runtime/8088/history-branching-latest.json`。这些信息仅描述当时状态，不代表当前进程或运行版本；2026-10-27 执行引擎部署另见[部署与提交范围](task-execution-engines.md#本机服务部署与提交范围)，本次文档整理未重新部署服务，其他实例需单独升级。
 
@@ -49,7 +49,7 @@ Task 就是普通工作会话。首条消息创建 `task_id`，追问沿用该 I
 
 项目持有 `directory`、`client_directory`、行动指南、Skill/MCP/插件等选择；专家持有人设、默认能力配置和长期记忆。创建或修改项目不会创建、绑定或修改专家。所选专家不决定本次项目工作目录。
 
-APP 现阶段继续用已有的部署地址、登录账号和连接代次隔离缓存。在该作用域内，以 `task_id` 保存详情、草稿、发送队列、订阅游标及工作台状态，不能以 `expert_id` 作为会话主键。退出账号或更换服务地址后，旧 socket、旧请求回执和异步媒体结果不得写入新作用域。
+`box_local` 模式以已认证的 `/api/box/account` 返回的 `(box_id, instance_id, account_id)` 隔离业务缓存，地址只是同一安装的连接候选，详见[最新网络接线](app-network-connection-handoff.md)。`server` 模式继续使用原部署地址、登录账号与连接代次范围。在各自账号作用域内，以 `task_id` 保存详情、草稿、发送队列、订阅游标及工作台状态，不能以 `expert_id` 作为会话主键。退出账号或切换连接时，旧 socket、旧请求回执和异步媒体结果不得写入新连接代次。
 
 跨主机使用 `TaskRef(host_id, task_id)`，见第 11 节。当前远端 TaskSummary/TaskDetail 仍保留远端原始 ID；客户端按所选 transport 附加 host 范围，Bridge 已观察引用接口另返回 host_id。不能要求普通 Task DTO 自带本机 host 字段。
 
@@ -72,7 +72,7 @@ APP 现阶段继续用已有的部署地址、登录账号和连接代次隔离�
 
 ## 4. 已实现的 REST 接线
 
-REST 使用 Octop 登录令牌 `Authorization: Bearer <access_token>`；JSON 请求使用 `Content-Type: application/json`。示例 ID、模型和版本均为占位值。
+REST 使用 inhere-box 登录令牌 `Authorization: Bearer <access_token>`；JSON 请求使用 `Content-Type: application/json`。示例 ID、模型和版本均为占位值。
 
 ### 4.1 列表和资源
 
@@ -173,7 +173,7 @@ PATCH /api/project-tasks/task_example
 
 ## 5. 项目、目录和版本边界
 
-两类路径独立：`Project.directory` 是 Octop 服务主机的工作目录，服务端校验；`client_directory` 是用户设备上的绝对路径，服务端只保存，不探测、不读取、不上传。APP 本地工具继续通过明确的 `client_id/client_tools` 和客户端授权执行，不能因为项目保存了路径就自动授予本机能力。
+两类路径独立：`Project.directory` 是 inhere-box 服务主机的工作目录，服务端校验；`client_directory` 是用户设备上的绝对路径，服务端只保存，不探测、不读取、不上传。APP 本地工具继续通过明确的 `client_id/client_tools` 和客户端授权执行，不能因为项目保存了路径就自动授予本机能力。
 
 无项目或项目未配置服务端目录时，Task 使用自己的工作空间。专家和团队成员均跟随此 Task 的项目目录，不转到专家原 workspace。运行中使用本轮冻结目录，空闲后新轮采用当前项目配置；APP 应清楚展示两者差异。
 
@@ -224,7 +224,7 @@ respond.expected_revision 取单项 interaction.revision，不能取轮次 inter
 
 发送框选择的是下一轮意图。历史显示使用 TaskTurn 的 expert_name、expert_config_revision、action_mode 和 model_ref；团队成员内容使用 speaker 字段，不能全部标为主持人，也不能从当前选中的专家名称反推旧轮。
 
-`options.model_ref` 使用资源目录的完整值，每轮显式选择优先于 routing。省略模型且省略 routing 时，按本轮专家默认模型、服务端默认模型的顺序解析，不继承上一轮；解析出的引用不可用时返回错误，不静默换模型。混合路由的实际结果取 `turn.routing`；恢复同轮使用冻结结果，手动 retry 是新轮选择。不要把路由中的 `target=remote` 解释成“远程专家”：这是模型服务商路由，与第 11 节跨 Octop 主机执行不同。详见[模型路由接入](project-task-model-routing.md)。
+`options.model_ref` 使用资源目录的完整值，每轮显式选择优先于 routing。省略模型且省略 routing 时，按本轮专家默认模型、服务端默认模型的顺序解析，不继承上一轮；解析出的引用不可用时返回错误，不静默换模型。混合路由的实际结果取 `turn.routing`；恢复同轮使用冻结结果，手动 retry 是新轮选择。不要把路由中的 `target=remote` 解释成“远程专家”：这是模型服务商路由，与第 11 节跨 inhere-box 主机执行不同。详见[模型路由接入](project-task-model-routing.md)。
 
 团队 roster 和各成员人设、能力、记忆按轮冻结；调用时继续核对授权。共享普通专家可以选择，其他人的私人记忆/legacy/凭据不会因此开放；共享团队目前不支持。可选项以当前账号 resources.experts 为准，不从旧 experts 页面自行拼出可执行权限。
 
@@ -328,18 +328,18 @@ project_id 必填，可明确传 null；省略 selected_expert_id 继承来源�
 
 下列是只读核对位置，不表示这些文件已修改：
 
-正式会话链路是 `OctopWorkspaceDataSource → OctopTaskSessionService → TaskConversationView`，由 `Features/Workspace/WorkspaceTaskRunCoordinator.swift` 装配。`OctopBoxTaskViewModel` 属于旧 UUID Box 路径，不作为新版统一会话的接入点；新能力应落在当前共享会话链路。
+正式会话链路是 `InhereBoxWorkspaceDataSource → InhereBoxTaskSessionService → TaskConversationView`，由 `Features/Workspace/WorkspaceTaskRunCoordinator.swift` 装配。`InhereBoxBoxTaskViewModel` 属于旧 UUID Box 路径，不作为新版统一会话的接入点；新能力应落在当前共享会话链路。
 
 | 位置（相对仓库内 AgentComputer/） | 具体改动 |
 | --- | --- |
-| `Services/Box/OctopTaskSummary.swift` | 增加 Task 配置/专家/置顶字段，缓存 schema 升级后刷新缺失版本。 |
-| `Services/Box/OctopTaskDetail.swift` | 增加本轮专家、目录、history_only、来源、成员 speaker 和 configuration_events；公开历史不恢复执行能力。 |
-| `Services/Box/OctopTaskSocketFrame.swift` | create/message/retry payload 增加专家/模式及两个 expected revision；不添加不存在的 WS 命令。 |
-| `Services/Box/OctopWorkspaceClient.swift` | 对接 resources.experts、全局 scope=all 列表、配置 PATCH、fork、from-thread、记忆与工作台 REST。 |
-| `Services/Box/OctopWorkspaceDataSource.swift` | 统一 Task 列表投影和筛选游标；保留 endpoint/账号/connection generation fencing。 |
-| `Services/Box/OctopTaskSessionService.swift` | 新增持久 pending/outbox，当前正式 lane 的 Submission 仅存内存；保存原请求体、配置版本与选项，冲突停队列，未知提交先核对原请求。旧 Box 的持久存储不能当作此链路已经具备持久化。 |
-| `Services/Box/OctopTaskSocket.swift`、`OctopTaskProjection.swift` | 复用现有唯一 receiver；新增字段进入各自正确版本组的投影，保持 Resident 独立观察。 |
-| `Data/Persistence/OctopWorkspaceCache.swift`、`OctopTaskBodyCache.swift` | 升级摘要/正文缓存格式；全部会话使用明确列表范围，不能把现有 projectID=nil 缓存直接解释为 scope=all。旧解码和 projectID 校验一并调整。 |
+| `Services/Box/InhereBoxTaskSummary.swift` | 增加 Task 配置/专家/置顶字段，缓存 schema 升级后刷新缺失版本。 |
+| `Services/Box/InhereBoxTaskDetail.swift` | 增加本轮专家、目录、history_only、来源、成员 speaker 和 configuration_events；公开历史不恢复执行能力。 |
+| `Services/Box/InhereBoxTaskSocketFrame.swift` | create/message/retry payload 增加专家/模式及两个 expected revision；不添加不存在的 WS 命令。 |
+| `Services/Box/InhereBoxWorkspaceClient.swift` | 对接 resources.experts、全局 scope=all 列表、配置 PATCH、fork、from-thread、记忆与工作台 REST。 |
+| `Services/Box/InhereBoxWorkspaceDataSource.swift` | 统一 Task 列表投影和筛选游标；保留 endpoint/账号/connection generation fencing。 |
+| `Services/Box/InhereBoxTaskSessionService.swift` | 新增持久 pending/outbox，当前正式 lane 的 Submission 仅存内存；保存原请求体、配置版本与选项，冲突停队列，未知提交先核对原请求。旧 Box 的持久存储不能当作此链路已经具备持久化。 |
+| `Services/Box/InhereBoxTaskSocket.swift`、`InhereBoxTaskProjection.swift` | 复用现有唯一 receiver；新增字段进入各自正确版本组的投影，保持 Resident 独立观察。 |
+| `Data/Persistence/InhereBoxWorkspaceCache.swift`、`InhereBoxTaskBodyCache.swift` | 升级摘要/正文缓存格式；全部会话使用明确列表范围，不能把现有 projectID=nil 缓存直接解释为 scope=all。旧解码和 projectID 校验一并调整。 |
 | `Features/Workspace/WorkspaceTaskRunCoordinator.swift`、`WorkspaceAgentViewModel.swift`、`Core/ConversationRunController.swift` | 沿当前共享会话装配接入可选专家、空闲切换、ask/plan/craft 和实际身份投影；保留 Resident 的独立装配。 |
 | `Features/Workspace/TaskConversationView.swift`、`ProjectWorkspaceView.swift`、`MobileWorkspaceView.swift` 及 composer | 在 macOS/iOS 的正式入口展示逐轮身份、成员来源、只读历史和工作台；不接回旧 UUID Box 页面。 |
 | 既有项目编辑与本机工具执行层 | 项目目录独立；client_directory 与本机授权仍分开，绝不继承专家旧目录。 |
@@ -471,7 +471,7 @@ capability 同时返回 max_request_bytes=16777216（16 MiB）；单次请求和
 
 新增顶层入口默认 per_job；策略可选 per_run/per_job/task/continue_target。per_run 每次独立建 Task，per_job 复用此作业在同一项目下的 Task；修改项目后下一次触发在新项目建 Task，原项目历史保留。task 必须指定本人 target_task_id，且与所选项目一致；该策略沿用目标 Task 当前配置的专家，定时任务上的专家字段不覆盖目标身份，客户端应禁用此策略的专家选择并说明。其他策略不能附 target_task_id。continue_target 保留已有来源绑定规则，不是客户端自行寻找“最近会话”。PATCH 省略可空绑定字段表示保留，明确 null 才清空；已受理的触发保留当时配置，后续触发读取新配置。触发时间使用服务端时区。
 
-POST、PATCH 与 CronResponse 增加 `skip_confirmation:boolean`，创建和旧记录迁移默认 false。PATCH 省略或 null 保留，false 关闭；不要把它与可空项目/专家字段的清空语义混用。true 是该定时器的独立显式授权，只让此 Cron 生成的 Octop 内置执行轮次跳过服务端工具确认，包括 execute、MCP、发送和发布；不修改账号全局审批模式。原安全规则必须允许 allow_once，管理员 require_human_tools、禁止及既有拒绝仍优先；客户端电脑授权、ACP 原生权限和提问均保留。每个受理 occurrence 与生成 turn 固定此选择，之后编辑不影响已受理轮次；同 Task 手动追问、fork、retry 不继承。实际批准按 allow_once、来源 cron_skip_confirmation 留审计。客户端不能在普通 Task 消息中自行传同名字段获得授权。POST true、PATCH false 示例及完整边界见[定时授权](cron-api.md#显式跳过工具确认)；CLI 本轮不新增选项。
+POST、PATCH 与 CronResponse 增加 `skip_confirmation:boolean`，创建和旧记录迁移默认 false。PATCH 省略或 null 保留，false 关闭；不要把它与可空项目/专家字段的清空语义混用。true 是该定时器的独立显式授权，只让此 Cron 生成的 inhere-box 内置执行轮次跳过服务端工具确认，包括 execute、MCP、发送和发布；不修改账号全局审批模式。原安全规则必须允许 allow_once，管理员 require_human_tools、禁止及既有拒绝仍优先；客户端电脑授权、ACP 原生权限和提问均保留。每个受理 occurrence 与生成 turn 固定此选择，之后编辑不影响已受理轮次；同 Task 手动追问、fork、retry 不继承。实际批准按 allow_once、来源 cron_skip_confirmation 留审计。客户端不能在普通 Task 消息中自行传同名字段获得授权。POST true、PATCH false 示例及完整边界见[定时授权](cron-api.md#显式跳过工具确认)；CLI 本轮不新增选项。
 
 旧 `/api/agents/{agent_id}/cron` 路由保留兼容。通过旧路由创建时指定项目，或将旧定时任务明确绑定项目后，服务端清空旧生命周期字段 `agent_id`，会话键改为 `cron:{cron_id}`；`selected_expert_id` 作为可选执行配置独立保留或清空。删除原专家不会连带删除该项目定时任务。APP 本轮仅更新接线契约，Swift/UI 尚未修改。
 
@@ -488,6 +488,6 @@ POST、PATCH 与 CronResponse 增加 `skip_confirmation:boolean`，创建和旧�
 - 本机旧链接解析、显式单条续接、批迁逐项结果，以及跨桥迁移暂不开放。
 ## 执行引擎接线增量（2026-10-27）
 
-服务端新增独立于专家的 Task.engine 和每轮 execution_engine；详情、创建、PATCH、Fork 与 WebSocket schema 已同步。读取执行盒子的 execution_engines 能力和引擎目录后，按其 capabilities 显示入口，不能使用控制端本机 ACP 状态。模型须区分 Octop Provider/model_ref 与 ACP connection/model_id；历史身份优先使用当轮 actual_model_id。APP Swift/UI 本轮未修改，后续接线按 [执行引擎协议](task-execution-engines.md) 和 [WebSocket 增量](project-task-websocket.md) 实施。
+服务端新增独立于专家的 Task.engine 和每轮 execution_engine；详情、创建、PATCH、Fork 与 WebSocket schema 已同步。读取执行盒子的 execution_engines 能力和引擎目录后，按其 capabilities 显示入口，不能使用控制端本机 ACP 状态。模型须区分 inhere-box Provider/model_ref 与 ACP connection/model_id；历史身份优先使用当轮 actual_model_id。APP Swift/UI 本轮未修改，后续接线按 [执行引擎协议](task-execution-engines.md) 和 [WebSocket 增量](project-task-websocket.md) 实施。
 
 Codex 的一键连接接口为管理员调用执行盒子的 `POST /api/acp/codex/connect`，返回 `202 ACPSetupJob`，`kind="connect"`。盒子连续完成缺失组件安装、已有授权检测、必要时设备码授权、连接检测及启用；APP 只需轮询 `GET /api/acp/jobs/{job_id}`、显示设备码，并用系统浏览器打开 `authorization.url`。用户关闭连接面板或重进 APP 后，可从 `GET /api/acp/setup.active_jobs` 恢复进度；取消沿用 `/api/acp/jobs/{job_id}/cancel`。成功以 `status="succeeded"` 且 `setup.connection="ready", setup.enabled=true` 为准，不另发启用请求，不在用户电脑下载安装 Codex，不搬运宿主凭据。进度 job 不跨服务重启恢复，重启后重新点击连接会检查现有安装和授权。APP 的 Swift/UI 接线仍留待后续实施。

@@ -5,14 +5,14 @@ import {
   buildNavSections,
   isGroupedNavKey,
 } from "./sidebarNav";
-import type { OctopUser } from "../api/modules/auth";
+import type { InhereBoxUser } from "../api/modules/auth";
 
 const adminUser = {
   id: 1,
   username: "admin",
   role: "admin",
   permissions: ["*"],
-} as OctopUser;
+} as InhereBoxUser;
 
 describe("sidebarNav", () => {
   it("leads with unified records and names the retained chat entry explicitly", () => {

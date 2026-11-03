@@ -10,9 +10,9 @@ from unittest.mock import MagicMock
 import pytest
 from octop_harness.security.models import SecurityPolicy
 
-from octop.config import OctopConfig
-from octop.infra.agents.manager import AgentManager
-from octop.infra.agents.security.hitl_session import (
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.manager import AgentManager
+from inhere_box.infra.agents.security.hitl_session import (
     HitlSessionPolicy,
     HitlSessionPolicyStore,
     apply_session_bypass,
@@ -26,16 +26,16 @@ from octop.infra.agents.security.hitl_session import (
 
 @pytest.fixture
 def manager(tmp_path: Path) -> AgentManager:
-    from octop.infra.db.migrate import run_migrations
-    from octop.infra.db.pool import SqlitePool
-    from octop.infra.db.services import build_shared_services
-    from octop.infra.utils.paths import PathLayout
+    from inhere_box.infra.db.migrate import run_migrations
+    from inhere_box.infra.db.pool import SqlitePool
+    from inhere_box.infra.db.services import build_shared_services
+    from inhere_box.infra.utils.paths import PathLayout
 
     paths = PathLayout(tmp_path / ".octop")
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     return AgentManager(repos=services.repos, paths=services.paths)
 
 

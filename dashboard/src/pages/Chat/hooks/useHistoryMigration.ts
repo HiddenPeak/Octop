@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  octopThreadsApi,
+  inhereBoxThreadsApi,
   type HistoryMigrationStatus,
-} from "../../../api/modules/octopThreads";
+} from "../../../api/modules/inhereBoxThreads";
 
 export function useHistoryMigration(
   agentId: string | null | undefined,
@@ -24,7 +24,7 @@ export function useHistoryMigration(
     const pull = async () => {
       let delay = 30_000;
       try {
-        const next = await octopThreadsApi.historyMigrationStatus(agentId);
+        const next = await inhereBoxThreadsApi.historyMigrationStatus(agentId);
         if (!stopped) setStatus(next);
         if (next.remaining > 0) {
           delay = next.processing || next.agent_busy ? 2000 : 10_000;
@@ -47,7 +47,7 @@ export function useHistoryMigration(
     setStarting(true);
     setStartFailed(false);
     try {
-      setStatus(await octopThreadsApi.startHistoryMigration(agentId));
+      setStatus(await inhereBoxThreadsApi.startHistoryMigration(agentId));
     } catch {
       setStartFailed(true);
     } finally {

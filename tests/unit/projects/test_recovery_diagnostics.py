@@ -7,9 +7,9 @@ from urllib.error import HTTPError, URLError
 import httpx
 import pytest
 
-from octop.infra.projects.recovery import TaskInterruption, diagnostic, transient
-from octop.infra.projects.runtime import McpToolsUnavailable, SkillPreparationError
-from octop.infra.skills.skillhub_market import SkillHubMarketTimeout, SkillHubPackageError
+from inhere_box.infra.projects.recovery import TaskInterruption, diagnostic, transient
+from inhere_box.infra.projects.runtime import McpToolsUnavailable, SkillPreparationError
+from inhere_box.infra.skills.skillhub_market import SkillHubMarketTimeout, SkillHubPackageError
 
 
 def httpx_error(status):

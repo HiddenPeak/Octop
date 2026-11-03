@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from octop.infra.bridge.manager import BridgeManager
-from octop.infra.db.repos.bridge_connections import BridgeConnectionRow
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.bridge.manager import BridgeManager
+from inhere_box.infra.db.repos.bridge_connections import BridgeConnectionRow
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 def _row(**overrides: Any) -> BridgeConnectionRow:
@@ -53,27 +53,27 @@ async def test_create_connection_rolls_back_when_connect_fails(
         advertise_base_url="http://local.test",
     )
     monkeypatch.setattr(
-        "octop.infra.bridge.manager.normalize_peer_base_url",
+        "inhere_box.infra.bridge.manager.normalize_peer_base_url",
         lambda url: url.rstrip("/"),
     )
     monkeypatch.setattr(
-        "octop.infra.bridge.manager.new_short_id",
+        "inhere_box.infra.bridge.manager.new_short_id",
         lambda: "01CONN",
     )
     monkeypatch.setattr(
-        "octop.infra.bridge.manager.login_peer",
+        "inhere_box.infra.bridge.manager.login_peer",
         AsyncMock(return_value={"access_token": "tok", "expires_in": 3600}),
     )
     monkeypatch.setattr(
-        "octop.infra.bridge.manager.encrypt_payload",
+        "inhere_box.infra.bridge.manager.encrypt_payload",
         lambda _s, _p: b"enc",
     )
     mgr.connect = AsyncMock(  # type: ignore[method-assign]
-        side_effect=OctopError(ErrorCode.BRIDGE_PEER_UNREACHABLE, "ws failed")
+        side_effect=InhereBoxError(ErrorCode.BRIDGE_PEER_UNREACHABLE, "ws failed")
     )
     mgr.disconnect = AsyncMock()  # type: ignore[method-assign]
 
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await mgr.create_connection(
             owner_user_id=1,
             peer_base_url="https://peer.example",
@@ -100,10 +100,10 @@ async def test_create_connection_rejects_taken_display_name(
         advertise_base_url="http://local.test",
     )
     monkeypatch.setattr(
-        "octop.infra.bridge.manager.normalize_peer_base_url",
+        "inhere_box.infra.bridge.manager.normalize_peer_base_url",
         lambda url: url.rstrip("/"),
     )
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await mgr.create_connection(
             owner_user_id=1,
             peer_base_url="https://peer.example",
@@ -144,11 +144,11 @@ async def test_create_peer_account_identity_preserves_username_case(
         advertise_base_url="http://local.test",
     )
     login = AsyncMock(return_value={"access_token": "tok"})
-    monkeypatch.setattr("octop.infra.bridge.manager.login_peer", login)
+    monkeypatch.setattr("inhere_box.infra.bridge.manager.login_peer", login)
     monkeypatch.setattr(
-        "octop.infra.bridge.manager.normalize_peer_base_url", lambda url: url.rstrip("/")
+        "inhere_box.infra.bridge.manager.normalize_peer_base_url", lambda url: url.rstrip("/")
     )
-    monkeypatch.setattr("octop.infra.bridge.manager.encrypt_payload", lambda _s, _p: b"enc")
+    monkeypatch.setattr("inhere_box.infra.bridge.manager.encrypt_payload", lambda _s, _p: b"enc")
 
     if allowed:
         result = await mgr.create_connection(
@@ -165,7 +165,7 @@ async def test_create_peer_account_identity_preserves_username_case(
             base_url=requested_url.rstrip("/"), username="alice", password="secret"
         )
     else:
-        with pytest.raises(OctopError) as exc:
+        with pytest.raises(InhereBoxError) as exc:
             await mgr.create_connection(
                 owner_user_id=1,
                 peer_base_url=requested_url,

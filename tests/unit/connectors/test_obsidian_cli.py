@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from octop.infra.connectors.gateway import cli_install
-from octop.infra.connectors.gateway.adapters import obsidian_cli
+from inhere_box.infra.connectors.gateway import cli_install
+from inhere_box.infra.connectors.gateway.adapters import obsidian_cli
 
 
 def _patch_binary(monkeypatch: pytest.MonkeyPatch) -> None:

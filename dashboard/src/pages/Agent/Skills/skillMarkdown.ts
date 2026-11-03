@@ -20,7 +20,7 @@ export function parseSkillPreviewFromMarkdown(
   const name = yamlTopLevel(fm, "name") || slug;
   const description = yamlTopLevel(fm, "description") || "";
   let emoji = DEFAULT_SKILL_EMOJI;
-  const emojiMatch = fm.match(/octop:\s*\n\s*emoji:\s*(.+)/);
+  const emojiMatch = fm.match(/inhere-box:\s*\n\s*emoji:\s*(.+)/);
   if (emojiMatch?.[1]) {
     const value = emojiMatch[1].trim().replace(/^["']|["']$/g, "");
     if (value) emoji = value;

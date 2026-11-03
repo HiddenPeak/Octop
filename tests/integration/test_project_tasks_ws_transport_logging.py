@@ -13,8 +13,8 @@ import uvicorn
 from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed
 
-from octop.api.routers import project_tasks_ws
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.api.routers import project_tasks_ws
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 from tests.support.http import ws_token
 
 
@@ -32,7 +32,7 @@ async def test_real_transport_correlates_ids_and_persists_without_content(
     if failure == "service":
 
         def unavailable(*_args):
-            raise OctopError(ErrorCode.CONTROL_PLANE_BUSY, secret, status=503)
+            raise InhereBoxError(ErrorCode.CONTROL_PLANE_BUSY, secret, status=503)
 
         monkeypatch.setattr(project_tasks_ws, "_services", unavailable)
     elif failure == "unexpected":
@@ -45,14 +45,14 @@ async def test_real_transport_correlates_ids_and_persists_without_content(
     elif failure == "authentication":
 
         def unauthenticated(*_args):
-            raise OctopError(ErrorCode.AUTH_FAILED, secret, status=401)
+            raise InhereBoxError(ErrorCode.AUTH_FAILED, secret, status=401)
 
         monkeypatch.setattr(project_tasks_ws, "resolve_user_from_token", unauthenticated)
 
     # Match real startup order: domain logging first, Uvicorn config second.
     # TRACE exercises the framework paths that would otherwise dump headers/frames.
     config = uvicorn.Config(
-        client._octop_app,
+        client._inhere_box_app,
         host="127.0.0.1",
         port=0,
         log_config=None,
@@ -90,7 +90,7 @@ async def test_real_transport_correlates_ids_and_persists_without_content(
             assert ws.response is not None
             headers = ws.response.headers
             assert headers["x-agentcomputer-connection-id"] == connection_id
-            server_id = headers["x-octop-connection-id"]
+            server_id = headers["x-inhere-box-connection-id"]
             if failure in {None, "unexpected"}:
                 assert json.loads(await ws.recv())["type"] == "ready"
             if failure is None:

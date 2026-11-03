@@ -40,7 +40,7 @@ async def test_hub_search_returns_list(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Authenticated GET returns direct HTTP search results."""
-    from octop.infra.skills import skillhub_market
+    from inhere_box.infra.skills import skillhub_market
 
     async def fake_search(
         query: str,
@@ -68,7 +68,7 @@ async def test_hub_search_with_query(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Authenticated GET passes its query to the HTTP client."""
-    from octop.infra.skills import skillhub_market
+    from inhere_box.infra.skills import skillhub_market
 
     async def fake_search(
         query: str,
@@ -104,7 +104,7 @@ async def test_hub_rankings_returns_dict(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Authenticated GET rankings returns the direct HTTP client payload."""
-    from octop.infra.skills import skillhub_market
+    from inhere_box.infra.skills import skillhub_market
 
     async def fake_fetch_rankings(
         ranking_type: str,
@@ -156,8 +156,8 @@ async def test_hub_install_persists_market_name_and_icon(
     env: Any,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from octop.api.routers import skills as skills_router
-    from octop.infra.skills import skillhub_market
+    from inhere_box.api.routers import skills as skills_router
+    from inhere_box.infra.skills import skillhub_market
     from tests.support.auth import create_agent, seed_openai_provider
 
     async def fake_download(
@@ -219,7 +219,7 @@ async def test_hub_install_persists_market_name_and_icon(
     assert payload["icon_url"] == icon_url
     assert payload["emoji"] == "📦"
     assert payload["frontmatter"]["name"] == "english-package-name"
-    assert payload["frontmatter"]["metadata"]["octop"] == {
+    assert payload["frontmatter"]["metadata"]["inhere_box"] == {
         "source": "skillhub",
         "icon_url": icon_url,
         "label": {"zh": "中文展示名称", "en": "Friendly Name"},
@@ -231,8 +231,8 @@ async def test_hub_install_falls_back_to_cli_on_http_failure(
     env: Any,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from octop.api.routers import skills as skills_router
-    from octop.infra.skills import skillhub_market
+    from inhere_box.api.routers import skills as skills_router
+    from inhere_box.infra.skills import skillhub_market
     from tests.support.auth import create_agent, seed_openai_provider
 
     async def failed_download(
@@ -287,8 +287,8 @@ async def test_hub_install_does_not_fallback_after_package_validation_failure(
     env: Any,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from octop.api.routers import skills as skills_router
-    from octop.infra.skills import skillhub_market
+    from inhere_box.api.routers import skills as skills_router
+    from inhere_box.infra.skills import skillhub_market
     from tests.support.auth import create_agent, seed_openai_provider
 
     async def invalid_download(

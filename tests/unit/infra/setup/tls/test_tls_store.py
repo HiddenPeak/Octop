@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from octop.config import TlsConfig, load_config
-from octop.infra.setup.tls.store import install_letsencrypt_cert, resolve_tls_paths
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import TlsConfig, load_config
+from inhere_box.infra.setup.tls.store import install_letsencrypt_cert, resolve_tls_paths
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def test_install_letsencrypt_cert_updates_config(tmp_path: Path):
@@ -17,7 +17,7 @@ def test_install_letsencrypt_cert_updates_config(tmp_path: Path):
 
     install_letsencrypt_cert(
         paths,
-        domain="octop.example.com",
+        domain="inhere_box.example.com",
         cert_pem=b"-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n",
         key_pem=b"-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n",
         expires_at="2030-01-01T00:00:00+00:00",
@@ -28,7 +28,7 @@ def test_install_letsencrypt_cert_updates_config(tmp_path: Path):
     assert raw["bind_host"] == "0.0.0.0"
     assert raw["port"] == 443
     assert raw["tls"]["enabled"] is True
-    assert raw["tls"]["domains"] == ["octop.example.com"]
+    assert raw["tls"]["domains"] == ["inhere_box.example.com"]
     assert raw["tls"]["http_port"] == 80
     assert (paths.ssl_dir / "fullchain.pem").is_file()
     assert (paths.ssl_dir / "privkey.pem").is_file()

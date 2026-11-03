@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from octop.api.common.client_ip import UNKNOWN_CLIENT, resolve_client_ip
+from inhere_box.api.common.client_ip import UNKNOWN_CLIENT, resolve_client_ip
 
 
 @dataclass

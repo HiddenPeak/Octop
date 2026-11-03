@@ -42,7 +42,7 @@
 | `selected_expert_id`  | string / null | null        | 可选的可用专家 ID；省略或 null 使用通用助手                                                         |
 | `task_type`           | string        | `"text"`    | `"text"` 原文提醒，不调用模型；`"agent"` 每次触发时执行模型任务                                     |
 | `enabled`             | boolean       | true        | 是否启用自动触发                                                                                    |
-| `skip_confirmation`   | boolean       | false       | 独立授权此定时器生成的模型执行轮次跳过 Octop 服务端工具确认，范围与限制见后文                        |
+| `skip_confirmation`   | boolean       | false       | 独立授权此定时器生成的模型执行轮次跳过 inhere-box 服务端工具确认，范围与限制见后文                        |
 | `conversation_policy` | string        | `"per_job"` | Task 复用策略，见后文                                                                               |
 | `target_task_id`      | string / null | null        | 仅 `task` 策略使用的目标 Task                                                                       |
 | `model`               | string / null | null        | 可选模型引用；null 表示不指定模型覆盖，由 Task 执行链路解析                                         |
@@ -97,7 +97,7 @@ cron 表达式顺序为“分、时、日、月、星期”，星期数字沿用
 
 创建请求、PATCH 和 `CronResponse` 均支持布尔字段 `skip_confirmation`，创建默认 `false`，已有定时器升级后同样为 `false`。`false` 沿用账号现有审批规则；`true` 是此定时器的独立显式授权，不修改账号全局 `approval_policy` 或扩大账号 `full_access` 模式的工具范围。
 
-开启后，仅此 Cron 在 Octop 内置执行引擎生成的模型执行轮次，可对原安全策略允许 `allow_once` 的服务端工具审批保存单次批准，涵盖 `execute`、MCP 以及发送、发布工具。管理员 `require_human_tools`、禁止规则和既有拒绝仍生效；客户端电脑的目录/命令授权、ACP 原生权限不变，提问仍等待回答。暂停、取消和来源或资源撤权仍在派发前检查。`task_type: "text"` 不执行模型工具。
+开启后，仅此 Cron 在 inhere-box 内置执行引擎生成的模型执行轮次，可对原安全策略允许 `allow_once` 的服务端工具审批保存单次批准，涵盖 `execute`、MCP 以及发送、发布工具。管理员 `require_human_tools`、禁止规则和既有拒绝仍生效；客户端电脑的目录/命令授权、ACP 原生权限不变，提问仍等待回答。暂停、取消和来源或资源撤权仍在派发前检查。`task_type: "text"` 不执行模型工具。
 
 一次触发受理时，在 occurrence 与生成轮次中固定该选择；之后编辑定时器不会改写已受理触发或轮次。授权只属于该次 Cron 轮次，不流入同一 Task 的手动追问、fork 或 retry。每个实际放行的动作记录 `allow_once`，审计来源为 `cron_skip_confirmation`，不能由普通消息、工具文本或客户端自行声明为可信批准。CLI 本轮不新增此字段的命令行选项。
 

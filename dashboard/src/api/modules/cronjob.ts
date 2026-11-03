@@ -1,11 +1,11 @@
 import { request } from "../request";
 import type {
-  OctopCronRow,
-  OctopCronCreateBody,
-  OctopCronPatchBody,
+  InhereBoxCronRow,
+  InhereBoxCronCreateBody,
+  InhereBoxCronPatchBody,
 } from "../types";
 
-export interface OctopCronSettings {
+export interface InhereBoxCronSettings {
   timezone: string;
 }
 
@@ -14,22 +14,22 @@ export interface CronTaskExamples {
   en?: string[];
 }
 
-export const octopCronApi = {
-  settings: () => request<OctopCronSettings>("/settings/timezone"),
+export const inhereBoxCronApi = {
+  settings: () => request<InhereBoxCronSettings>("/settings/timezone"),
 
-  list: () => request<OctopCronRow[]>("/cron", { cache: "no-store" }),
+  list: () => request<InhereBoxCronRow[]>("/cron", { cache: "no-store" }),
 
-  create: (body: OctopCronCreateBody) =>
-    request<OctopCronRow>("/cron", {
+  create: (body: InhereBoxCronCreateBody) =>
+    request<InhereBoxCronRow>("/cron", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   get: (cronId: string) =>
-    request<OctopCronRow>(`/cron/${encodeURIComponent(cronId)}`),
+    request<InhereBoxCronRow>(`/cron/${encodeURIComponent(cronId)}`),
 
-  patch: (cronId: string, body: OctopCronPatchBody) =>
-    request<OctopCronRow>(`/cron/${encodeURIComponent(cronId)}`, {
+  patch: (cronId: string, body: InhereBoxCronPatchBody) =>
+    request<InhereBoxCronRow>(`/cron/${encodeURIComponent(cronId)}`, {
       method: "PATCH",
       body: JSON.stringify(body),
     }),

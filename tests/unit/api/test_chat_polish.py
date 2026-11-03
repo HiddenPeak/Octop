@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from octop.api.routers.chat.serialize import (
+from inhere_box.api.routers.chat.serialize import (
     _enrich_history_tool_media,
     _entry_matches_thread,
     _is_offload_placeholder_block,
@@ -19,7 +19,7 @@ from octop.api.routers.chat.serialize import (
     _strip_thinking,
     _ts_to_ms,
 )
-from octop.infra.utils.llm_text import llm_text_content as _llm_text_content
+from inhere_box.infra.utils.llm_text import llm_text_content as _llm_text_content
 
 
 def test_enrich_history_tool_media_prefers_entry_agent_id(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -31,7 +31,7 @@ def test_enrich_history_tool_media_prefers_entry_agent_id(monkeypatch: pytest.Mo
         return f"{output}|{agent_id}"
 
     monkeypatch.setattr(
-        "octop.infra.gateway.media.tool_media.enrich_tool_output_string_sync",
+        "inhere_box.infra.gateway.media.tool_media.enrich_tool_output_string_sync",
         fake_enrich,
     )
     out = _enrich_history_tool_media(
@@ -77,7 +77,7 @@ def test_serialize_history_message_includes_thinking_and_tools() -> None:
         HumanMessage(
             content="hello",
             additional_kwargs={
-                "octop_composer_context": {
+                "inhere_box_composer_context": {
                     "skills": ["docx"],
                     "model": "openai/gpt-4o",
                 },
@@ -136,7 +136,7 @@ def test_serialize_history_message_includes_thinking_and_tools() -> None:
         AIMessage(
             content="模型服务返回余额或额度不足。",
             additional_kwargs={
-                "octop_stream_error": True,
+                "inhere_box_stream_error": True,
                 "error_code": "TOKEN_QUOTA_EXCEEDED",
             },
         )
@@ -147,7 +147,7 @@ def test_serialize_history_message_includes_thinking_and_tools() -> None:
 
 
 def test_split_string_thinking_parses_redacted_block() -> None:
-    from octop.api.routers.chat.serialize import _split_string_thinking
+    from inhere_box.api.routers.chat.serialize import _split_string_thinking
 
     blocks = _split_string_thinking("<think>internal</think>Visible answer")
     assert blocks[0] == {"type": "thinking", "thinking": "internal"}
@@ -286,7 +286,7 @@ def test_load_projected_falls_back_to_created_at() -> None:
 
     from langchain_core.messages import message_to_dict
 
-    from octop.api.routers.chat.serialize import _load_projected_thread_messages
+    from inhere_box.api.routers.chat.serialize import _load_projected_thread_messages
 
     row = SimpleNamespace(
         seq=1,
@@ -350,7 +350,7 @@ def test_serialize_history_message_drops_image_offload_placeholder_for_image_use
             {"type": "text", "text": _PLACEHOLDER_TEXT},
         ],
         additional_kwargs={
-            "octop_inbound_attachments": [
+            "inhere_box_inbound_attachments": [
                 {
                     "filename": "image.png",
                     "media_type": "image/png",
@@ -378,7 +378,7 @@ def test_serialize_history_message_keeps_user_caption_alongside_image_placeholde
             {"type": "text", "text": _PLACEHOLDER_TEXT},
         ],
         additional_kwargs={
-            "octop_inbound_attachments": [
+            "inhere_box_inbound_attachments": [
                 {
                     "filename": "image.png",
                     "media_type": "image/png",
@@ -414,7 +414,7 @@ def test_serialize_history_message_drops_placeholder_for_en_locale() -> None:
             {"type": "text", "text": _PLACEHOLDER_TEXT},
         ],
         additional_kwargs={
-            "octop_inbound_attachments": [
+            "inhere_box_inbound_attachments": [
                 {
                     "filename": "image.png",
                     "media_type": "image/png",
@@ -437,7 +437,7 @@ def test_strip_image_only_text_blocks_without_user_skips_zh_default() -> None:
             {"type": "text", "text": _PLACEHOLDER_TEXT},
         ],
         additional_kwargs={
-            "octop_inbound_attachments": [
+            "inhere_box_inbound_attachments": [
                 {
                     "filename": "image.png",
                     "media_type": "image/png",
@@ -461,7 +461,7 @@ def test_strip_image_only_text_blocks_keeps_voice_caption() -> None:
             {"type": "text", "text": _PLACEHOLDER_TEXT},  # NOT real, but tests shape
         ],
         additional_kwargs={
-            "octop_inbound_attachments": [
+            "inhere_box_inbound_attachments": [
                 {
                     "filename": "voice.m4a",
                     "media_type": "audio/mp4",
@@ -487,7 +487,7 @@ def test_serialize_history_message_drops_zip_path_hint() -> None:
     msg = HumanMessage(
         content=[{"type": "text", "text": f"请解压\n\n{hint}"}],
         additional_kwargs={
-            "octop_inbound_attachments": [
+            "inhere_box_inbound_attachments": [
                 {
                     "filename": "report.zip",
                     "media_type": "application/zip",
@@ -516,7 +516,7 @@ def test_serialize_history_message_drops_workspace_image_ref() -> None:
             },
         ],
         additional_kwargs={
-            "octop_inbound_attachments": [
+            "inhere_box_inbound_attachments": [
                 {
                     "filename": "shot.png",
                     "media_type": "image/png",
@@ -604,7 +604,7 @@ def test_strip_image_only_text_blocks_directly() -> None:
 
 @pytest.mark.asyncio
 async def test_load_checkpoint_messages_falls_back_to_graph_state() -> None:
-    from octop.api.routers.chat.serialize import _load_checkpoint_messages
+    from inhere_box.api.routers.chat.serialize import _load_checkpoint_messages
 
     human = HumanMessage(content="fallback hello")
 

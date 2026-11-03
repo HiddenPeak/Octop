@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.connectors import probe
-from octop.infra.connectors.builder import build_http_mcp_spec, validate_create_credentials
-from octop.infra.connectors.catalog import get_catalog_entry, is_mcp_oauth_remote
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.connectors import probe
+from inhere_box.infra.connectors.builder import build_http_mcp_spec, validate_create_credentials
+from inhere_box.infra.connectors.catalog import get_catalog_entry, is_mcp_oauth_remote
 
 
 def test_github_catalog_uses_pat_without_dynamic_oauth() -> None:
@@ -37,7 +37,7 @@ def test_github_remote_spec_uses_official_endpoint_and_bearer_pat() -> None:
         entry=entry,
         instance_id="github-test-instance",
         creds=credentials,
-        config=OctopConfig(),
+        config=InhereBoxConfig(),
     )
     assert spec["transport"] == "http"
     assert spec["url"] == "https://api.githubcopilot.com/mcp/"
@@ -64,7 +64,7 @@ async def test_github_probe_uses_streamable_http_instead_of_raw_http(
         entry,
         {"token": "github-test-pat"},
         instance_id="github-test-instance",
-        config=OctopConfig(),
+        config=InhereBoxConfig(),
     )
 
     assert response == result

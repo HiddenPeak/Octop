@@ -266,19 +266,21 @@ describe("multi-root browse tree (Windows drives)", () => {
         value: "D:/",
         title: "D:",
         isLeaf: false,
-        children: [{ value: "D:/octop", title: "octop", isLeaf: false }],
+        children: [
+          { value: "D:/inhere-box", title: "inhere-box", isLeaf: false },
+        ],
       },
       // Orphan: not under any configured root.
       { value: "E:/secret", title: "E:", isLeaf: false },
     ];
     const next = sanitizeTree(tree, drives);
     expect(next.map((n) => n.value)).toEqual(["C:/", "D:/"]);
-    expect(pathExistsInTree(next, "D:/octop")).toBe(true);
+    expect(pathExistsInTree(next, "D:/inhere-box")).toBe(true);
     expect(pathExistsInTree(next, "E:/secret")).toBe(false);
   });
 
   it("sanitizeTree still dedupes a repeated value across the forest", () => {
-    const dup = { value: "D:/octop", title: "octop", isLeaf: false };
+    const dup = { value: "D:/inhere-box", title: "inhere-box", isLeaf: false };
     const next = sanitizeTree(
       [
         {
@@ -291,7 +293,7 @@ describe("multi-root browse tree (Windows drives)", () => {
       ],
       drives,
     );
-    const occurrences = JSON.stringify(next).split("D:/octop").length - 1;
+    const occurrences = JSON.stringify(next).split("D:/inhere-box").length - 1;
     expect(occurrences).toBe(1);
   });
 
@@ -301,9 +303,9 @@ describe("multi-root browse tree (Windows drives)", () => {
   });
 
   it("ancestorDirPaths picks the longest matching root, not the first", () => {
-    expect(ancestorDirPaths("D:/octop/data", drives)).toEqual([
+    expect(ancestorDirPaths("D:/inhere-box/data", drives)).toEqual([
       "D:/",
-      "D:/octop",
+      "D:/inhere-box",
     ]);
     expect(ancestorDirPaths("C:/Users/me/docs", drives)).toEqual([
       "C:/",
@@ -314,6 +316,6 @@ describe("multi-root browse tree (Windows drives)", () => {
 
   it("ancestorDirPaths returns [] for a drive root or a path outside all roots", () => {
     expect(ancestorDirPaths("D:/", drives)).toEqual([]);
-    expect(ancestorDirPaths("E:/octop", drives)).toEqual([]);
+    expect(ancestorDirPaths("E:/inhere-box", drives)).toEqual([]);
   });
 });

@@ -10,8 +10,8 @@ import httpx
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from octop.infra.server import OctopServer
-from tests.support.app import octop_client, write_octop_config
+from inhere_box.infra.server import InhereBoxServer
+from tests.support.app import inhere_box_client, write_inhere_box_config
 from tests.support.box_accounts import (
     _action,
     _admin_login,
@@ -24,11 +24,11 @@ from tests.support.box_accounts import (
 
 @pytest.fixture
 async def box_env(
-    tmp_octop_home: Path,
-) -> AsyncIterator[tuple[httpx.AsyncClient, OctopServer, Path]]:
-    write_octop_config(tmp_octop_home, account_mode="box_local", enable_api_docs=True)
-    async with octop_client(tmp_octop_home) as (client, server):
-        yield client, server, tmp_octop_home
+    tmp_inhere_box_home: Path,
+) -> AsyncIterator[tuple[httpx.AsyncClient, InhereBoxServer, Path]]:
+    write_inhere_box_config(tmp_inhere_box_home, account_mode="box_local", enable_api_docs=True)
+    async with inhere_box_client(tmp_inhere_box_home) as (client, server):
+        yield client, server, tmp_inhere_box_home
 
 
 @pytest.mark.parametrize("secret_only", [False, True])
@@ -121,7 +121,7 @@ async def test_box_docs_have_typed_public_and_protected_operations(box_env) -> N
         assert "$ref" in operation["responses"]["200"]["content"]["application/json"]["schema"]
     for path in ["/api/box/account", "/api/box/clients"]:
         assert paths[path]["get"]["security"] == [{"BearerAuth": []}, {"BoxAdminCookie": []}]
-    from octop.api.common.box_auth import BOX_CSRF_HEADER, browser_cookie_name
+    from inhere_box.api.common.box_auth import BOX_CSRF_HEADER, browser_cookie_name
 
     schemes = response.json()["components"]["securitySchemes"]
     assert schemes["BoxAdminCookie"]["in"] == "cookie"
@@ -165,19 +165,21 @@ async def test_box_docs_have_typed_public_and_protected_operations(box_env) -> N
     assert (await client.get("/api/docs")).status_code == 200
 
 
-async def test_box_transport_does_not_trust_forwarded_loopback(box_env) -> None:
+async def test_box_http_is_available_without_forwarded_headers_or_whitelist(box_env) -> None:
     client, _server, _home = box_env
-    app = client._octop_app
+    app = client._inhere_box_app
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app, client=("198.51.100.20", 1234)),
         base_url="http://127.0.0.1",
     ) as external:
+        response = await external.get("/api/box/status")
+        assert response.status_code == 200, response.text
         response = await external.get(
             "/api/box/status",
             headers={"X-Forwarded-For": "127.0.0.1", "X-Forwarded-Proto": "https"},
         )
-        assert response.status_code == 403, response.text
-        assert response.json()["error"]["details"]["reason"] == "box_tls_required"
+        assert response.status_code == 200, response.text
+        assert (await external.get("/api/projects")).status_code == 401
 
 
 async def test_server_mode_cannot_use_box_authentication(app_client) -> None:
@@ -194,7 +196,7 @@ async def test_server_mode_cannot_use_box_authentication(app_client) -> None:
 async def test_server_mode_status_discovery_remains_available_over_lan_http(app_client) -> None:
     client, _server, _home = app_client
     async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=client._octop_app, client=("198.51.100.20", 1234)),
+        transport=httpx.ASGITransport(app=client._inhere_box_app, client=("198.51.100.20", 1234)),
         base_url="http://server.test",
     ) as external:
         response = await external.get("/api/box/status")
@@ -230,17 +232,19 @@ async def test_approval_endpoints_are_retired(box_env) -> None:
         assert response.status_code == 410
 
 
-async def test_trusted_cli_key_initialization_and_rotation_require_stopped_daemon(tmp_octop_home):
+async def test_trusted_cli_key_initialization_and_rotation_require_stopped_daemon(
+    tmp_inhere_box_home,
+):
     import asyncio
     import re
 
     from click.testing import CliRunner
 
-    from octop.cli.main import cli
+    from inhere_box.cli.main import cli
 
-    write_octop_config(tmp_octop_home, account_mode="box_local")
+    write_inhere_box_config(tmp_inhere_box_home, account_mode="box_local")
     runner = CliRunner()
-    async with octop_client(tmp_octop_home) as (_client, _server):
+    async with inhere_box_client(tmp_inhere_box_home) as (_client, _server):
         refused = await asyncio.to_thread(runner.invoke, cli, ["box", "key", "init"])
         assert refused.exit_code != 0 and not refused.stdout
     initialized = await asyncio.to_thread(runner.invoke, cli, ["box", "key", "init"])
@@ -250,7 +254,7 @@ async def test_trusted_cli_key_initialization_and_rotation_require_stopped_daemo
     assert initialized.stdout == management_key + "\n" and management_key not in initialized.stderr
     duplicate = await asyncio.to_thread(runner.invoke, cli, ["box", "key", "init"])
     assert duplicate.exit_code != 0 and not duplicate.stdout
-    async with octop_client(tmp_octop_home) as (client, _server):
+    async with inhere_box_client(tmp_inhere_box_home) as (client, _server):
         client.base_url = httpx.URL("http://localhost")
         response = await client.post(
             "/api/auth/browser/sessions",
@@ -265,7 +269,7 @@ async def test_trusted_cli_key_initialization_and_rotation_require_stopped_daemo
     assert rotated.exit_code == 0
     new_key = rotated.stdout.strip()
     assert re.fullmatch(r"[A-Za-z0-9_-]{43}", new_key) and new_key != management_key
-    async with octop_client(tmp_octop_home) as (client, _server):
+    async with inhere_box_client(tmp_inhere_box_home) as (client, _server):
         client.base_url = httpx.URL("http://localhost")
         for candidate, expected in [(management_key, 401), (new_key, 200)]:
             response = await client.post(

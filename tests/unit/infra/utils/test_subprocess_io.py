@@ -6,7 +6,7 @@ import json
 import subprocess
 import sys
 
-from octop.infra.utils.subprocess_io import parse_json_lines, parse_subprocess_json_lines
+from inhere_box.infra.utils.subprocess_io import parse_json_lines, parse_subprocess_json_lines
 
 
 def test_parse_json_lines_decodes_ndjson() -> None:

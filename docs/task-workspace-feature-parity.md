@@ -32,7 +32,7 @@
 - 当前是按目录筛选与逐级浏览，不承诺全仓递归搜索。系统目录及越界软链接不作为候选，不探测客户端目录。
 - `@relative/path` 与 `@"path with spaces"` 仅是交给模型的路径提示。后端文件工具仍做权限和目录检查；引用不代表已读取或执行。
 
-对应源：`src/octop/infra/projects/composer_resources.py`、`workbench.py::public_path/tree`、`src/octop/api/routers/projects.py::composer_project_files`。
+对应源：`src/inhere_box/infra/projects/composer_resources.py`、`workbench.py::public_path/tree`、`src/inhere_box/api/routers/projects.py::composer_project_files`。
 
 ### Skill 完整选择语义
 
@@ -98,10 +98,10 @@ npx vitest run src/pages/BoxProjects/TaskComposerResources.test.tsx \
 最终两文件 22 项通过：快捷组件 14 项覆盖文件/Skill token、项目草稿目录、已有 Task scope 与带空格路径、无项目禁用、系统路径与 traversal 拒绝、专家和项目默认绑定合并、显式空列表、工作区技能替换确认、来源冲突、默认元数据缺失、保留 `/compact` 命令、选择确认不误触发送、跨 Task 迟到响应隔离。恢复卡 8 项覆盖安全恢复、未决结果/不可恢复/失败/历史禁止恢复、操作中禁用、折叠诊断和普通状态不渲染。
 
 ```bash
-PYTHONPATH=src:. PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/private/tmp/octop-unify-uv-cache \
+PYTHONPATH=src:. PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/private/tmp/inhere-box-unify-uv-cache \
   uv run --no-sync python -m pytest --no-testmon \
   tests/integration/test_project_task_composer_resources.py -q --tb=short \
-  --basetemp=/private/tmp/octop-composer-resources-backend
+  --basetemp=/private/tmp/inhere-box-composer-resources-backend
 ```
 
 新 HTTP/SQLite 8 项通过（5.47 秒）：不创建 Task/Thread/模型调用；owner、项目 revision（精确返回 PROJECT_REVISION_CONFLICT）、归档和删除 fence；越界/系统目录；越界软链接；仅客户端目录时拒绝；资源目录不读取专家 persona/Skill 正文。
@@ -132,11 +132,11 @@ PYTHONPATH=src:. PYTHONDONTWRITEBYTECODE=1 UV_CACHE_DIR=/private/tmp/octop-unify
 | `TaskRecoveryNotice.test.tsx` | 8 |
 | **合计** | **168** |
 
-核对记录：`/private/tmp/octop-workspace-final-regression.log` 提供基础文件结果；队列以 `/private/tmp/octop-task-queue-confirmed.log` 的 13 项通过替换初轮失败结果；Unified、Composer、Workbench 和导航采用 `/private/tmp/octop-workspace-final-followup-ui.log` 的最新结果。项目表单、模型/知识库/润色和资源/恢复分别见 `/private/tmp/octop-workspace-project-tests.log`、`/private/tmp/octop-composer-workbench-targeted.log`、`/private/tmp/octop-composer-recovery-ui-final.log`。
+核对记录：`/private/tmp/inhere-box-workspace-final-regression.log` 提供基础文件结果；队列以 `/private/tmp/inhere-box-task-queue-confirmed.log` 的 13 项通过替换初轮失败结果；Unified、Composer、Workbench 和导航采用 `/private/tmp/inhere-box-workspace-final-followup-ui.log` 的最新结果。项目表单、模型/知识库/润色和资源/恢复分别见 `/private/tmp/inhere-box-workspace-project-tests.log`、`/private/tmp/inhere-box-composer-workbench-targeted.log`、`/private/tmp/inhere-box-composer-recovery-ui-final.log`。
 
-当前基线的后端针对性回归 **137 项通过**：`/private/tmp/octop-workspace-final-backend.log` 记录 133 项，`/private/tmp/octop-workspace-expert-regression.log` 补充专家回归 4 项。这里的 137 是最终后端回归合计，前述新接口 8 项不再额外重复相加。
+当前基线的后端针对性回归 **137 项通过**：`/private/tmp/inhere-box-workspace-final-backend.log` 记录 133 项，`/private/tmp/inhere-box-workspace-expert-regression.log` 补充专家回归 4 项。这里的 137 是最终后端回归合计，前述新接口 8 项不再额外重复相加。
 
-TypeScript 检查、ESLint 与生产构建均通过。ESLint 为 0 errors，保留 `Experts/components/EditAgentDrawer.tsx` 中两条既有 React Hooks 依赖 warning；构建日志 `/private/tmp/octop-workspace-final-build.log` 记录 `tsc -b && vite build` 成功。本轮未执行或宣称 `make all`、完整测试门禁全部通过。
+TypeScript 检查、ESLint 与生产构建均通过。ESLint 为 0 errors，保留 `Experts/components/EditAgentDrawer.tsx` 中两条既有 React Hooks 依赖 warning；构建日志 `/private/tmp/inhere-box-workspace-final-build.log` 记录 `tsc -b && vite build` 成功。本轮未执行或宣称 `make all`、完整测试门禁全部通过。
 
 ### 服务重启与已有数据
 
@@ -162,7 +162,7 @@ TypeScript 检查、ESLint 与生产构建均通过。ESLint 为 0 errors，保�
 - 文件、浏览器、终端、录制、Tool UI 五类工作台面板均可达；这不表示五类工具的全部外部操作都已实测。
 - 终端通过真实 PTY 的 `pwd` 核对该 Task 的独立工作目录，验收后已结束 PTY。
 - 将该 QA Task 从通用助手切换为「通用专家」后，旧轮的历史 speaker 仍为通用助手；记忆开关区分 Task 记忆与专家长期记忆两种作用域。
-- Octop 项目的概览和完整编辑表单已完成只读验收：分别检查基本信息、能力与协作、行动指南，取消退出，未保存项目修改。由项目概览新建草稿会继承 Octop 项目、使用通用助手；未发送消息，不创建空 Task。该项目没有服务端目录，文件引用据此禁用，客户端路径只展示。
+- inhere-box 项目的概览和完整编辑表单已完成只读验收：分别检查基本信息、能力与协作、行动指南，取消退出，未保存项目修改。由项目概览新建草稿会继承 inhere-box 项目、使用通用助手；未发送消息，不创建空 Task。该项目没有服务端目录，文件引用据此禁用，客户端路径只展示。
 - 知识库入口保留。当前环境没有配置可用的 embedding 能力，页面显示“当前不可用”，属于环境能力状态，不是移除知识库功能；本轮未据此宣称真实检索通过。
 
 麦克风输入、真实浏览器接管和录制尚未实测。独立 `/workbench` 的 AI/Autopilot 仍走前文说明的旧 Thread 链路；本轮没有将其改成统一 Task，也没有宣称全功能均经过真实模型或真实外部工具验证。
@@ -201,6 +201,6 @@ TypeScript 检查、ESLint 与生产构建均通过。ESLint 为 0 errors，保�
 
 2026-10-26 的正常提交门禁还纠正了数据库兜底投递测试的旧前提：仅修改 Resident 收据会被权威 Task 的后续同步覆盖，不能用抢先读到投影来证明兜底可靠。该用例现经真实 Task 持久化链路提交合成内容，在订阅前屏蔽所有 Resident 本机通知，验证周期检查仍能投递正文和完成终态；未调整生产逻辑、共享等待器或超时上限。
 
-修改源文件的严格 mypy、Ruff、ESLint、差异空白检查及 `npm run build`（`tsc -b && vite build`）通过。本轮使用定向验证，未重新执行或宣称完整 `make all`。关键日志位于 `/private/tmp/octop-task-retry-directory-regression.log`、`octop-resident-cancel-reentry-final.log`、`octop-resident-extract-audit-fix.log`、`octop-memory-scope-audit-3f9.log` 和 `octop-resident-round2-build.log`。
+修改源文件的严格 mypy、Ruff、ESLint、差异空白检查及 `npm run build`（`tsc -b && vite build`）通过。本轮使用定向验证，未重新执行或宣称完整 `make all`。关键日志位于 `/private/tmp/inhere-box-task-retry-directory-regression.log`、`inhere-box-resident-cancel-reentry-final.log`、`inhere-box-resident-extract-audit-fix.log`、`octop-memory-scope-audit-3f9.log` 和 `inhere-box-resident-round2-build.log`。
 
 本轮未发现已接入的 Task 功能因页面改造被删除；入口可达、定向回归及真实主链不代表所有外部工具均实测。上文旧 Chat slash/文本点名和独立工作台 Thread 链路的边界仍在。Resident 的知识库选择、完整项目/资源委派参数、定时执行 Task、按日历史浏览等服务端能力尚未全部接到新 Web 页面，不能据此声称接口全覆盖。候选提炼/批准/拒绝仅在隔离临时库验证，本轮没有对用户旧材料执行真实模型提炼。

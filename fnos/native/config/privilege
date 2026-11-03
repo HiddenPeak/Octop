@@ -2,6 +2,6 @@
     "defaults": {
         "run-as": "root"
     },
-    "username": "octop-native",
-    "groupname": "octop-native"
+    "username": "inhere-box-native",
+    "groupname": "inhere-box-native"
 }

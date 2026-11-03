@@ -1,6 +1,6 @@
-import type { OctopUiHint, ParsedToolOutput } from "./types";
+import type { InhereBoxUiHint, ParsedToolOutput } from "./types";
 
-function asOctopUi(value: unknown): OctopUiHint | undefined {
+function asInhereBoxUi(value: unknown): InhereBoxUiHint | undefined {
   if (!value || typeof value !== "object") return undefined;
   const obj = value as Record<string, unknown>;
   const renderer = typeof obj.renderer === "string" ? obj.renderer.trim() : "";
@@ -13,10 +13,10 @@ function asOctopUi(value: unknown): OctopUiHint | undefined {
 }
 
 /**
- * Parse tool ``output`` for the ``octop_ui`` envelope.
+ * Parse tool ``output`` for the ``inhere_box_ui`` envelope.
  * Accepts a JSON string or an already-parsed object.
  */
-export function parseOctopToolOutput(output: unknown): ParsedToolOutput {
+export function parseInhereBoxToolOutput(output: unknown): ParsedToolOutput {
   if (output === undefined || output === null || output === "") {
     return {
       isJson: false,
@@ -33,7 +33,9 @@ export function parseOctopToolOutput(output: unknown): ParsedToolOutput {
     return {
       isJson: true,
       raw: output,
-      octopUi: asOctopUi(obj.octop_ui),
+      inhereBoxUi: asInhereBoxUi(
+        "inhere_box_ui" in obj ? obj.inhere_box_ui : obj.octop_ui,
+      ),
       data: "data" in obj ? obj.data : undefined,
       text: typeof obj.text === "string" ? obj.text : undefined,
     };
@@ -53,10 +55,12 @@ export function parseOctopToolOutput(output: unknown): ParsedToolOutput {
       };
     }
     const obj = raw as Record<string, unknown>;
-    const octopUi = asOctopUi(obj.octop_ui);
+    const inhereBoxUi = asInhereBoxUi(
+      "inhere_box_ui" in obj ? obj.inhere_box_ui : obj.octop_ui,
+    );
     const text = typeof obj.text === "string" ? obj.text : undefined;
     const data = "data" in obj ? obj.data : undefined;
-    return { isJson: true, raw, octopUi, data, text };
+    return { isJson: true, raw, inhereBoxUi, data, text };
   } catch {
     return { isJson: false, raw: output, text: output };
   }
@@ -67,7 +71,7 @@ export function mergePatchedToolOutput(
   previousOutput: string | undefined,
   nextData: unknown,
 ): string {
-  const parsed = parseOctopToolOutput(previousOutput);
+  const parsed = parseInhereBoxToolOutput(previousOutput);
   if (parsed.isJson && parsed.raw && typeof parsed.raw === "object") {
     const base = { ...(parsed.raw as Record<string, unknown>) };
     base.data = nextData;
@@ -99,7 +103,7 @@ export function resolvePluginUiData(
   if (parsed.data !== undefined) return parsed.data;
   const raw = parsed.raw;
   if (
-    parsed.octopUi &&
+    parsed.inhereBoxUi &&
     raw !== null &&
     typeof raw === "object" &&
     !Array.isArray(raw) &&

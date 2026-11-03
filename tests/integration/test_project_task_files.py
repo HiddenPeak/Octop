@@ -8,7 +8,7 @@ from dataclasses import replace
 
 import pytest
 
-from octop.infra.projects import input_attachments
+from inhere_box.infra.projects import input_attachments
 from tests.integration.test_project_task_artifacts import real_model as real_model
 from tests.integration.test_project_task_images import image_bytes
 from tests.integration.test_project_tasks import settled
@@ -303,7 +303,7 @@ async def test_file_references_are_owner_and_task_scoped(task_env):
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "TASK_ATTACHMENT_UNAVAILABLE"
     owner = await resolve_user_id(client, auth, "admin")
-    with pytest.raises(input_attachments.OctopError):
+    with pytest.raises(input_attachments.InhereBoxError):
         input_attachments.download(
             server.services, owner, attachment["attachment_id"], task_id="other"
         )

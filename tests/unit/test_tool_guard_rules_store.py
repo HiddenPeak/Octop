@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.agents.security import ToolGuardRulesStore
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.agents.security import ToolGuardRulesStore
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture

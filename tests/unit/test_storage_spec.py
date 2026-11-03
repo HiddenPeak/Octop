@@ -6,22 +6,25 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.backend.adapter import row_to_backend_spec, storage_backend_kind_agent_resolvable
-from octop.infra.backend.resolver import (
+from inhere_box.infra.backend.adapter import (
+    row_to_backend_spec,
+    storage_backend_kind_agent_resolvable,
+)
+from inhere_box.infra.backend.resolver import (
     backend_spec_supports_execution,
     collect_named_storage_backend_refs,
     find_agents_using_storage_backend,
     resolve_agent_backend_spec,
     rewrite_named_storage_backend_refs,
 )
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.backends import BackendRepo, BackendRow
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.backends import BackendRepo, BackendRow
 
 
 @pytest.fixture
 def repo(tmp_path: Path) -> BackendRepo:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     return BackendRepo(db)
 
@@ -162,7 +165,7 @@ def test_resolve_inline_postgres_drops_connection_string() -> None:
 
 
 def test_row_to_backend_spec_opensandbox() -> None:
-    from octop.infra.backend.adapter import storage_spec_previewable
+    from inhere_box.infra.backend.adapter import storage_spec_previewable
 
     row = BackendRow(
         id=1,
@@ -218,7 +221,7 @@ def test_row_to_backend_spec_docker() -> None:
 
 
 def test_enrich_docker_backend_spec_defaults() -> None:
-    from octop.infra.backend.docker_spec import (
+    from inhere_box.infra.backend.docker_spec import (
         docker_spec_previewable,
         enrich_docker_backend_spec,
     )
@@ -254,7 +257,7 @@ def test_enrich_docker_backend_spec_defaults() -> None:
 
 
 def test_inject_docker_global_environment_sets_file() -> None:
-    from octop.infra.backend.docker_spec import inject_docker_global_environment
+    from inhere_box.infra.backend.docker_spec import inject_docker_global_environment
 
     spec = inject_docker_global_environment(
         {"type": "docker", "environment": {"FOO": "from-spec"}},

@@ -1,0 +1,947 @@
+"""HTTP API for instance-global skill packages."""
+
+from __future__ import annotations
+
+import asyncio
+import base64
+from dataclasses import asdict
+from typing import Any, Literal
+
+from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi.responses import Response
+from pydantic import BaseModel, Field
+
+from inhere_box.api.common.content_disposition import content_disposition
+from inhere_box.api.common.workspace import coerce_read_content
+from inhere_box.api.deps import get_server, require_permission
+from inhere_box.infra.agents.experts.skillhub_market import (
+    SkillHubMarketError,
+    SkillHubMarketErrorKind,
+)
+from inhere_box.infra.db.repos.skill_packages import SkillPackageRow
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.server import InhereBoxServer
+from inhere_box.infra.skills.install import valid_skillhub_icon_url
+from inhere_box.infra.skills.skill_archive import build_skills_zip
+from inhere_box.infra.skills.skill_package_from_skillhub import create_package_from_skillhub
+from inhere_box.infra.skills.skill_package_store import (
+    SkillPackageStore,
+    is_skill_package_name_conflict,
+    raise_skill_package_name_taken,
+)
+from inhere_box.infra.skills.skill_packages import SkillPackageError, read_skill_directory
+from inhere_box.infra.skills.skillhub_market import SkillHubMarketError as SkillHubDownloadError
+from inhere_box.infra.users.identity import User
+from inhere_box.infra.utils.frontmatter import parse_frontmatter
+from inhere_box.infra.utils.locale import Locale, resolve_request_locale
+
+router = APIRouter(prefix="/skill-packages")
+
+_SAFE_SKILLHUB_REASONS: dict[SkillHubMarketErrorKind, str] = {
+    SkillHubMarketErrorKind.NOT_FOUND: "skillset not found",
+    SkillHubMarketErrorKind.INVALID_SLUG: "invalid skillset id",
+    SkillHubMarketErrorKind.UPSTREAM_TIMEOUT: "upstream timeout",
+    SkillHubMarketErrorKind.UPSTREAM_BAD_PAYLOAD: "invalid upstream response",
+    SkillHubMarketErrorKind.PACKAGE_INVALID: "invalid skillset package",
+    SkillHubMarketErrorKind.PACKAGE_TOO_LARGE: "skillset package too large",
+    SkillHubMarketErrorKind.UPSTREAM_FAILED: "upstream request failed",
+    SkillHubMarketErrorKind.SSL_ERROR: "ssl error",
+}
+
+
+class CreateSkillPackageBody(BaseModel):
+    name: str
+    description: str = ""
+    icon_name: str = ""
+    icon_url: str = ""
+    shared: bool = False
+    copy_policy: Literal["snapshot", "lock", "deny"] = "snapshot"
+    allow_download: bool = True
+
+
+class UpdateSkillPackageBody(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    icon_name: str | None = None
+    icon_url: str | None = None
+    shared: bool | None = None
+    copy_policy: Literal["snapshot", "lock", "deny"] | None = Field(
+        default=None,
+        description=(
+            "Controls copying package skills into an agent workspace for users who "
+            "can already view the package (including the owner's other experts)."
+        ),
+    )
+    allow_download: bool | None = Field(
+        default=None,
+        description="When false, non-owner users who can view the package cannot export a ZIP.",
+    )
+
+
+class FromSkillHubBody(BaseModel):
+    slug: str
+    name: str | None = None
+    description: str | None = None
+    icon_name: str | None = None
+    icon_url: str | None = None
+    shared: bool = False
+
+
+class SkillFilePart(BaseModel):
+    path: str
+    content_base64: str
+
+
+class CreatePackageSkillBody(BaseModel):
+    name: str
+    content: str = ""
+    files: list[SkillFilePart] | None = None
+    overwrite: bool = False
+
+
+class UpdatePackageSkillBody(BaseModel):
+    content: str = ""
+    files: list[SkillFilePart] | None = None
+
+
+class ImportPackageSkillBody(BaseModel):
+    bundle_url: str
+    version: str = ""
+    overwrite: bool = False
+
+
+def _files_from_package_skill_body(
+    *,
+    content: str,
+    files: list[SkillFilePart] | None,
+) -> list[tuple[str, bytes]]:
+    if files:
+        decoded: list[tuple[str, bytes]] = []
+        for part in files:
+            try:
+                decoded.append((part.path, base64.b64decode(part.content_base64, validate=True)))
+            except Exception as exc:
+                raise InhereBoxError(
+                    ErrorCode.SLASH_BAD_ARGS,
+                    f"invalid base64 content for {part.path!r}",
+                ) from exc
+        return decoded
+    if not content:
+        raise InhereBoxError(ErrorCode.SLASH_BAD_ARGS, "content or files is required")
+    return [("SKILL.md", content.encode("utf-8"))]
+
+
+def _package_skill_exists(store: SkillPackageStore, package_id: str, slug: str) -> bool:
+    return (store.package_skills_dir(package_id) / slug / "SKILL.md").is_file()
+
+
+class LocalizedSkillCopy(BaseModel):
+    zh: str | None = None
+    en: str | None = None
+
+
+class HubInstallPackageSkillBody(BaseModel):
+    skill_name: str
+    display_name: str | None = None
+    icon_url: str | None = None
+    label: LocalizedSkillCopy | None = None
+    summary: LocalizedSkillCopy | None = None
+    overwrite: bool = False
+
+
+def _store(server: InhereBoxServer) -> SkillPackageStore:
+    if server.services is None:
+        raise InhereBoxError(ErrorCode.INTERNAL_ERROR, "skill package store not initialized")
+    return SkillPackageStore(
+        repo=server.services.skill_package_repo,
+        root=server.paths.skill_packages_dir,
+    )
+
+
+def _package_or_404(
+    store: SkillPackageStore,
+    package_id: str,
+    *,
+    locale: str,
+) -> SkillPackageRow:
+    row = store.repo.get(package_id)
+    if row is None:
+        raise InhereBoxError.localized(ErrorCode.SKILL_PACKAGE_NOT_FOUND, locale)
+    return row
+
+
+def _row_public_dict(row: SkillPackageRow) -> dict[str, Any]:
+    payload = asdict(row)
+    payload.pop("pk", None)
+    return payload
+
+
+def _package_payload(
+    store: SkillPackageStore,
+    row: SkillPackageRow,
+    *,
+    locale: Locale | None = None,
+) -> dict[str, Any]:
+    return {
+        **_row_public_dict(row),
+        "skills": store.list_skill_summaries(row.id, locale=locale),
+    }
+
+
+def _creator_fields(server: InhereBoxServer, created_by: str) -> dict[str, str | None]:
+    raw = str(created_by or "").strip()
+    if not raw.isdigit():
+        return {"creator_username": None, "creator_display_name": None}
+    if server.services is None:
+        return {"creator_username": None, "creator_display_name": None}
+    owner = server.services.user_repo.get(int(raw))
+    if owner is None:
+        return {"creator_username": None, "creator_display_name": None}
+    return {
+        "creator_username": owner.username,
+        "creator_display_name": owner.display_name or owner.username,
+    }
+
+
+def _package_payload_with_creator(
+    server: InhereBoxServer,
+    store: SkillPackageStore,
+    row: SkillPackageRow,
+    *,
+    locale: Locale | None = None,
+) -> dict[str, Any]:
+    return {
+        **_package_payload(store, row, locale=locale),
+        **_creator_fields(server, row.created_by),
+    }
+
+
+def _required(value: str, field: str) -> str:
+    value = value.strip()
+    if not value:
+        raise InhereBoxError(ErrorCode.SLASH_BAD_ARGS, f"{field} is required")
+    return value
+
+
+def _icon_url(value: str) -> str:
+    value = value.strip()
+    if len(value) > 2048:
+        raise InhereBoxError(ErrorCode.SLASH_BAD_ARGS, "icon_url is too long")
+    if value and not valid_skillhub_icon_url(value):
+        raise InhereBoxError(ErrorCode.SLASH_BAD_ARGS, "icon_url must be an HTTP(S) URL")
+    return value
+
+
+def _visible_packages(store: SkillPackageStore, user: User) -> list[SkillPackageRow]:
+    if user.is_admin:
+        return store.repo.list_all()
+    return store.repo.list_visible(user.id)
+
+
+def _package_visible_or_404(
+    store: SkillPackageStore,
+    package_id: str,
+    user: User,
+    *,
+    locale: str,
+) -> SkillPackageRow:
+    row = _package_or_404(store, package_id, locale=locale)
+    store.assert_can_view(row, user)
+    return row
+
+
+def _map_skillhub_error(exc: BaseException) -> InhereBoxError:
+    kind = getattr(exc, "kind", SkillHubMarketErrorKind.UPSTREAM_FAILED)
+    if kind in (
+        SkillHubMarketErrorKind.NOT_FOUND,
+        SkillHubMarketErrorKind.INVALID_SLUG,
+    ):
+        return InhereBoxError(ErrorCode.NOT_FOUND, "skillhub skillset not found")
+    if kind == SkillHubMarketErrorKind.SSL_ERROR:
+        return InhereBoxError(
+            ErrorCode.SKILLHUB_SSL_FAILED,
+            "skillhub ssl error",
+            details={"reason": "ssl_error", "kind": kind.value},
+        )
+    reason = _SAFE_SKILLHUB_REASONS.get(
+        kind,
+        _SAFE_SKILLHUB_REASONS[SkillHubMarketErrorKind.UPSTREAM_FAILED],
+    )
+    return InhereBoxError(
+        ErrorCode.EXPERT_MARKET_FAILED,
+        f"skillhub market failed: {reason}",
+        details={"reason": reason, "kind": kind.value},
+    )
+
+
+def _package_skill_or_404(
+    store: SkillPackageStore,
+    package_id: str,
+    slug: str,
+    *,
+    locale: Locale | None = None,
+) -> dict[str, Any]:
+    for skill in store.list_skill_summaries(
+        package_id,
+        locale=locale,
+    ):
+        if skill["slug"] == slug:
+            return skill
+    raise InhereBoxError(ErrorCode.NOT_FOUND, f"skill {slug!r} not found")
+
+
+@router.get("", summary="List global skill packages")
+async def list_skill_packages(
+    writable_only: bool = False,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> list[dict[str, Any]]:
+    store = _store(server)
+    return [
+        {
+            **_row_public_dict(row),
+            **_creator_fields(server, row.created_by),
+            "can_write": store.can_mutate(row, user),
+            "can_copy": store.can_copy(row, user),
+            "can_download": store.can_download(row, user),
+        }
+        for row in _visible_packages(store, user)
+        if not writable_only or store.can_mutate(row, user)
+    ]
+
+
+@router.get("/hub/search", summary="Search SkillHub for installing into packages")
+async def package_hub_search(
+    q: str = "",
+    limit: int = 50,
+    _user: User = Depends(require_permission("skill_packages")),
+) -> list[dict[str, Any]]:
+    from fastapi import HTTPException  # noqa: PLC0415
+
+    from inhere_box.infra.skills.skillhub_market import (  # noqa: PLC0415
+        SkillHubMarketError,
+        search_skillhub,
+    )
+
+    query = q.strip() or "a"
+    effective_limit = max(1, min(limit, 100))
+    try:
+        return await search_skillhub(query, limit=effective_limit)
+    except SkillHubMarketError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get("/hub/rankings", summary="SkillHub rankings for installing into packages")
+async def package_hub_rankings(
+    type: str = "all",
+    _user: User = Depends(require_permission("skill_packages")),
+) -> dict[str, Any]:
+    from fastapi import HTTPException  # noqa: PLC0415
+
+    from inhere_box.infra.skills.skillhub_market import (  # noqa: PLC0415
+        SkillHubMarketError,
+        SkillHubMarketTimeout,
+        fetch_skillhub_rankings,
+    )
+
+    ranking_types = {"all", "hot", "featured", "newest", "recommended", "trending", "paid"}
+    rtype = type if type in ranking_types else "all"
+    try:
+        return await fetch_skillhub_rankings(rtype)
+    except SkillHubMarketTimeout as exc:
+        raise HTTPException(status_code=504, detail=str(exc)) from exc
+    except SkillHubMarketError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.post("", summary="Create a global skill package")
+async def create_skill_package(
+    body: CreateSkillPackageBody,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> dict[str, Any]:
+    store = _store(server)
+    name = _required(body.name, "name")
+    try:
+        row = store.create(
+            name=name,
+            description=body.description.strip(),
+            created_by=str(user.id),
+            icon_name=body.icon_name.strip(),
+            icon_url=_icon_url(body.icon_url),
+            shared=bool(body.shared),
+            copy_policy=body.copy_policy,
+            allow_download=bool(body.allow_download),
+        )
+    except Exception as exc:
+        if is_skill_package_name_conflict(exc):
+            raise_skill_package_name_taken(name)
+        raise
+    return _package_payload_with_creator(server, store, row)
+
+
+@router.post(
+    "/from-skillhub",
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a skill package from a SkillHub skillset",
+)
+async def create_from_skillhub(
+    body: FromSkillHubBody,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> dict[str, Any]:
+    store = _store(server)
+    try:
+        result = await asyncio.to_thread(
+            create_package_from_skillhub,
+            store,
+            slug=_required(body.slug, "slug"),
+            created_by=str(user.id),
+            name=body.name.strip() if body.name is not None else None,
+            description=body.description.strip() if body.description is not None else None,
+            icon_name=body.icon_name.strip() if body.icon_name is not None else None,
+            icon_url=_icon_url(body.icon_url) if body.icon_url is not None else None,
+            shared=bool(body.shared),
+        )
+    except (SkillHubMarketError, SkillHubDownloadError) as exc:
+        raise _map_skillhub_error(exc) from exc
+    return _package_payload_with_creator(server, store, result.row)
+
+
+@router.get("/{package_id}", summary="Get a global skill package and its skills")
+async def get_skill_package(
+    package_id: str,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> dict[str, Any]:
+    store = _store(server)
+    locale = resolve_request_locale(request)
+    row = _package_visible_or_404(store, package_id, user, locale=locale)
+    return {
+        **_package_payload_with_creator(
+            server,
+            store,
+            row,
+            locale=locale,
+        ),
+        "can_write": store.can_mutate(row, user),
+        "can_copy": store.can_copy(row, user),
+        "can_download": store.can_download(row, user),
+    }
+
+
+@router.patch("/{package_id}", summary="Update global skill package metadata")
+async def update_skill_package(
+    package_id: str,
+    body: UpdateSkillPackageBody,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> dict[str, Any]:
+    store = _store(server)
+    locale = resolve_request_locale(request)
+    row = _package_or_404(store, package_id, locale=locale)
+    store.assert_can_mutate(row, user)
+    name = _required(body.name, "name") if body.name is not None else None
+    description = body.description.strip() if body.description is not None else None
+    icon_name = body.icon_name.strip() if body.icon_name is not None else None
+    icon_url = _icon_url(body.icon_url) if body.icon_url is not None else None
+    try:
+        store.repo.update(
+            package_id,
+            name=name,
+            description=description,
+            icon_name=icon_name,
+            icon_url=icon_url,
+            copy_policy=body.copy_policy,
+            allow_download=None if body.allow_download is None else int(body.allow_download),
+            shared=None if body.shared is None else int(body.shared),
+        )
+    except Exception as exc:
+        if name is not None and is_skill_package_name_conflict(exc):
+            raise_skill_package_name_taken(name)
+        raise
+    updated = _package_or_404(store, package_id, locale=locale)
+    if body.shared is not None and server.app_runtime is not None:
+        await server.app_runtime.agent_registry.refresh_agents_for_package(package_id)
+    return _package_payload_with_creator(
+        server,
+        store,
+        updated,
+        locale=locale,
+    )
+
+
+@router.delete(
+    "/{package_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a global skill package"
+)
+async def delete_skill_package(
+    package_id: str,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> None:
+    store = _store(server)
+    row = _package_or_404(store, package_id, locale=resolve_request_locale(request))
+    store.assert_can_mutate(row, user)
+    store.delete_package(package_id)
+    if server.app_runtime is not None:
+        await server.app_runtime.agent_registry.strip_skill_package_id(package_id)
+
+
+@router.get("/{package_id}/skills", summary="List skills in a global skill package")
+async def list_package_skills(
+    package_id: str,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> list[dict[str, Any]]:
+    store = _store(server)
+    locale = resolve_request_locale(request)
+    _package_visible_or_404(store, package_id, user, locale=locale)
+    return store.list_skill_summaries(package_id, locale=locale)
+
+
+@router.get("/{package_id}/skills/{slug}", summary="Get a global package skill")
+async def get_package_skill(
+    package_id: str,
+    slug: str,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> dict[str, Any]:
+    store = _store(server)
+    locale = resolve_request_locale(request)
+    _package_visible_or_404(store, package_id, user, locale=locale)
+    skill = _package_skill_or_404(store, package_id, slug, locale=locale)
+    raw = (store.package_skills_dir(package_id) / slug / "SKILL.md").read_text(encoding="utf-8")
+    frontmatter, body = parse_frontmatter(raw)
+    return {**skill, "frontmatter": frontmatter, "body": body, "raw": raw}
+
+
+@router.get(
+    "/{package_id}/skills/{slug}/tree",
+    summary="List files under a global package skill path",
+)
+async def list_package_skill_tree(
+    package_id: str,
+    slug: str,
+    request: Request,
+    path: str = Query(default="", description="Path relative to the skill root"),
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> list[dict[str, Any]]:
+    store = _store(server)
+    locale = resolve_request_locale(request)
+    _package_visible_or_404(store, package_id, user, locale=locale)
+    _package_skill_or_404(store, package_id, slug, locale=locale)
+    return await asyncio.to_thread(store.list_skill_tree, package_id, slug, path)
+
+
+@router.get(
+    "/{package_id}/skills/{slug}/file",
+    summary="Read a UTF-8 text file from a global package skill",
+)
+async def read_package_skill_file(
+    package_id: str,
+    slug: str,
+    path: str,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> dict[str, Any]:
+    store = _store(server)
+    locale = resolve_request_locale(request)
+    _package_visible_or_404(store, package_id, user, locale=locale)
+    _package_skill_or_404(store, package_id, slug, locale=locale)
+    content = await asyncio.to_thread(store.read_skill_file_text, package_id, slug, path)
+    return {"path": path, "content": coerce_read_content(content)}
+
+
+@router.get(
+    "/{package_id}/skills/{slug}/download",
+    summary="Download a file from a global package skill",
+    response_class=Response,
+    responses={200: {"content": {"application/octet-stream": {}}}},
+)
+async def download_package_skill_file(
+    package_id: str,
+    slug: str,
+    path: str,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> Response:
+    store = _store(server)
+    locale = resolve_request_locale(request)
+    _package_visible_or_404(store, package_id, user, locale=locale)
+    _package_skill_or_404(store, package_id, slug, locale=locale)
+    payload = await asyncio.to_thread(store.read_skill_file_bytes, package_id, slug, path)
+    fname = path.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1] or "download.bin"
+    return Response(
+        content=payload,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": content_disposition(fname)},
+    )
+
+
+def _read_package_skill_files(
+    store: SkillPackageStore, package_id: str
+) -> list[tuple[str, list[tuple[str, bytes]]]]:
+    packed: list[tuple[str, list[tuple[str, bytes]]]] = []
+    root = store.package_skills_dir(package_id)
+    for summary in store.list_skill_summaries(package_id):
+        if summary.get("corrupt"):
+            continue
+        slug = str(summary.get("slug") or "")
+        packed.append((slug, read_skill_directory(root / slug)))
+    if not packed:
+        raise SkillPackageError("skill package has no skills")
+    return packed
+
+
+@router.get(
+    "/{package_id}/export",
+    summary="Download a skill package as a ZIP",
+    description=(
+        "Pack every skill in the package into one ZIP. Each skill is a top-level "
+        "folder containing SKILL.md, matching the dashboard ZIP importer."
+    ),
+    response_class=Response,
+    responses={200: {"content": {"application/zip": {}}}},
+)
+async def export_skill_package(
+    package_id: str,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    _user: User = Depends(require_permission("skill_packages")),
+) -> Response:
+    store = _store(server)
+    row = _package_or_404(store, package_id, locale=resolve_request_locale(request))
+    store.assert_can_download(row, _user)
+    try:
+        packed = await asyncio.to_thread(_read_package_skill_files, store, package_id)
+        payload = await asyncio.to_thread(build_skills_zip, packed)
+    except SkillPackageError as exc:
+        raise InhereBoxError(ErrorCode.SLASH_BAD_ARGS, str(exc)) from exc
+    filename = f"{(row.name or package_id).strip() or package_id}.zip"
+    return Response(
+        content=payload,
+        media_type="application/zip",
+        headers={"Content-Disposition": content_disposition(filename)},
+    )
+
+
+@router.post("/{package_id}/skills", summary="Add a skill to a global skill package")
+async def create_package_skill(
+    package_id: str,
+    body: CreatePackageSkillBody,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> dict[str, Any]:
+    store = _store(server)
+    row = _package_or_404(store, package_id, locale=resolve_request_locale(request))
+    store.assert_can_mutate(row, user)
+    slug = _required(body.name, "name")
+    if _package_skill_exists(store, package_id, slug) and not body.overwrite:
+        raise InhereBoxError.localized(
+            ErrorCode.SKILL_ALREADY_EXISTS,
+            resolve_request_locale(request),
+            name=slug,
+        )
+    store.write_skill(
+        package_id,
+        slug,
+        _files_from_package_skill_body(content=body.content, files=body.files),
+    )
+    if server.app_runtime is not None:
+        await server.app_runtime.agent_registry.refresh_agents_for_package(package_id)
+    return _package_skill_or_404(store, package_id, slug)
+
+
+@router.put("/{package_id}/skills/{slug}", summary="Replace a global package skill")
+async def update_package_skill(
+    package_id: str,
+    slug: str,
+    body: UpdatePackageSkillBody,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> dict[str, Any]:
+    """Update a package skill.
+
+    A ``content``-only body (dashboard SKILL.md editor) rewrites just the
+    manifest in place so sibling files and directories are preserved. A
+    ``files`` payload replaces the whole skill directory.
+    """
+    store = _store(server)
+    row = _package_or_404(store, package_id, locale=resolve_request_locale(request))
+    store.assert_can_mutate(row, user)
+    _package_skill_or_404(store, package_id, slug)
+    # Truthiness mirrors ``_files_from_package_skill_body`` / workspace skills.
+    if body.files:
+        store.write_skill(
+            package_id,
+            slug,
+            _files_from_package_skill_body(content=body.content, files=body.files),
+        )
+    else:
+        if not body.content:
+            raise InhereBoxError(ErrorCode.SLASH_BAD_ARGS, "content or files is required")
+        store.write_skill_manifest(package_id, slug, body.content)
+    if server.app_runtime is not None:
+        await server.app_runtime.agent_registry.refresh_agents_for_package(package_id)
+    return _package_skill_or_404(store, package_id, slug)
+
+
+@router.delete(
+    "/{package_id}/skills/{slug}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a global package skill",
+)
+async def delete_package_skill(
+    package_id: str,
+    slug: str,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> None:
+    store = _store(server)
+    row = _package_or_404(store, package_id, locale=resolve_request_locale(request))
+    store.assert_can_mutate(row, user)
+    _package_skill_or_404(store, package_id, slug)
+    store.delete_skill(package_id, slug)
+    if server.app_runtime is not None:
+        await server.app_runtime.agent_registry.refresh_agents_for_package(package_id)
+
+
+def _package_has_skill(store: SkillPackageStore, package_id: str, slug: str) -> bool:
+    return (store.package_skills_dir(package_id) / slug / "SKILL.md").is_file()
+
+
+async def _refresh_package(server: InhereBoxServer, package_id: str) -> None:
+    if server.app_runtime is not None:
+        await server.app_runtime.agent_registry.refresh_agents_for_package(package_id)
+
+
+class _PackageInstallTarget:
+    """Install skills into a global skill package on disk."""
+
+    def __init__(
+        self,
+        *,
+        store: SkillPackageStore,
+        package_id: str,
+        server: InhereBoxServer,
+    ) -> None:
+        self._store = store
+        self._package_id = package_id
+        self._server = server
+
+    async def skill_exists(self, slug: str) -> bool:
+        return _package_has_skill(self._store, self._package_id, slug)
+
+    async def write_files(self, slug: str, files: list[tuple[str, bytes]]) -> None:
+        self._store.write_skill(self._package_id, slug, files)
+
+    async def after_install(self, slug: str, *, enable: bool | None = None) -> None:
+        del slug, enable
+        await _refresh_package(self._server, self._package_id)
+
+
+@router.post(
+    "/{package_id}/skills/import",
+    status_code=status.HTTP_201_CREATED,
+    summary="Import a skill URL into a global skill package",
+)
+async def import_package_skill(
+    package_id: str,
+    body: ImportPackageSkillBody,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> dict[str, Any]:
+    import asyncio  # noqa: PLC0415
+    from urllib.error import HTTPError, URLError  # noqa: PLC0415
+
+    from inhere_box.infra.skills.install import (  # noqa: PLC0415
+        SkillAlreadyExistsError,
+        commit_skill_install,
+        resolve_url_import,
+    )
+    from inhere_box.infra.skills.skill_packages import SkillPackageError  # noqa: PLC0415
+    from inhere_box.infra.skills.skills_hub import is_supported_skill_url  # noqa: PLC0415
+
+    locale = resolve_request_locale(request)
+    store = _store(server)
+    row = _package_or_404(store, package_id, locale=locale)
+    store.assert_can_mutate(row, user)
+
+    bundle_url = body.bundle_url.strip()
+    if not bundle_url:
+        raise InhereBoxError(ErrorCode.SLASH_BAD_ARGS, "bundle_url is required")
+    if not is_supported_skill_url(bundle_url):
+        raise InhereBoxError.localized(ErrorCode.SKILL_IMPORT_UNSUPPORTED_URL, locale)
+
+    target = _PackageInstallTarget(store=store, package_id=package_id, server=server)
+    try:
+        package = await asyncio.to_thread(
+            resolve_url_import,
+            bundle_url=bundle_url,
+            version=body.version,
+        )
+        await commit_skill_install(
+            target,
+            package,
+            overwrite=body.overwrite,
+        )
+    except SkillAlreadyExistsError as exc:
+        raise InhereBoxError.localized(
+            ErrorCode.SKILL_ALREADY_EXISTS,
+            locale,
+            name=exc.slug,
+        ) from exc
+    except SkillPackageError as exc:
+        raise InhereBoxError.localized(
+            ErrorCode.SKILL_IMPORT_FAILED,
+            locale,
+            reason=str(exc),
+        ) from exc
+    except ValueError as exc:
+        raise InhereBoxError.localized(
+            ErrorCode.SKILL_IMPORT_FAILED,
+            locale,
+            reason=str(exc),
+        ) from exc
+    except RuntimeError as exc:
+        raise InhereBoxError.localized(
+            ErrorCode.SKILL_IMPORT_FAILED,
+            locale,
+            reason=str(exc),
+        ) from exc
+    except (HTTPError, URLError, TimeoutError, OSError) as exc:
+        raise InhereBoxError.localized(
+            ErrorCode.SKILL_IMPORT_FAILED,
+            locale,
+            reason=str(exc),
+        ) from exc
+
+    return _package_skill_or_404(store, package_id, package.slug)
+
+
+@router.post(
+    "/{package_id}/skills/hub/install",
+    status_code=status.HTTP_201_CREATED,
+    summary="Install a SkillHub skill into a global skill package",
+)
+async def hub_install_package_skill(
+    package_id: str,
+    body: HubInstallPackageSkillBody,
+    request: Request,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(require_permission("skill_packages")),
+) -> dict[str, Any]:
+    from fastapi import HTTPException  # noqa: PLC0415
+
+    from inhere_box.infra.skills.install import (  # noqa: PLC0415
+        SkillAlreadyExistsError,
+        install_skill_from_skillhub,
+        valid_skillhub_icon_url,
+    )
+    from inhere_box.infra.skills.skill_packages import (  # noqa: PLC0415
+        SkillPackageError,
+        SkillPackageTooLarge,
+        validate_skill_slug,
+    )
+    from inhere_box.infra.skills.skillhub_market import (  # noqa: PLC0415
+        SkillHubMarketError,
+        SkillHubPackageError,
+        SkillHubPackageTooLarge,
+        download_skillhub_package,
+    )
+
+    locale = resolve_request_locale(request)
+    store = _store(server)
+    row = _package_or_404(store, package_id, locale=locale)
+    store.assert_can_mutate(row, user)
+
+    try:
+        skill_name = validate_skill_slug(body.skill_name)
+    except SkillPackageError:
+        raise HTTPException(
+            status_code=400,
+            detail="skill_name is required and must not contain path separators or start with .",
+        ) from None
+
+    display_name = (body.display_name or "").strip()
+    icon_url = (body.icon_url or "").strip()
+    label = (
+        {key: value.strip() for key, value in body.label.model_dump().items() if value}
+        if body.label
+        else {}
+    )
+    summary = (
+        {key: value.strip() for key, value in body.summary.model_dump().items() if value}
+        if body.summary
+        else {}
+    )
+    if len(display_name) > 200:
+        raise HTTPException(status_code=400, detail="display_name is too long")
+    if any(len(value) > 200 for value in label.values()):
+        raise HTTPException(status_code=400, detail="localized skill label is too long")
+    if any(len(value) > 1024 for value in summary.values()):
+        raise HTTPException(status_code=400, detail="localized skill summary is too long")
+    if len(icon_url) > 2048 or (icon_url and not valid_skillhub_icon_url(icon_url)):
+        raise HTTPException(status_code=400, detail="icon_url must be an HTTP(S) URL")
+
+    target = _PackageInstallTarget(store=store, package_id=package_id, server=server)
+    transport = "http"
+    try:
+        files = await download_skillhub_package(skill_name)
+    except SkillHubPackageTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except SkillHubPackageError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except SkillHubMarketError:
+        transport = "cli"
+        from inhere_box.api.routers.skills import (  # noqa: PLC0415
+            _download_skillhub_package_via_cli,
+        )
+
+        try:
+            files = await _download_skillhub_package_via_cli(skill_name)
+        except (SkillHubPackageTooLarge, SkillPackageTooLarge) as package_exc:
+            raise HTTPException(status_code=413, detail=str(package_exc)) from package_exc
+        except (SkillHubPackageError, SkillPackageError) as package_exc:
+            raise HTTPException(status_code=502, detail=str(package_exc)) from package_exc
+
+    try:
+        await install_skill_from_skillhub(
+            target,
+            skill_name=skill_name,
+            files=files,
+            display_name=display_name,
+            icon_url=icon_url,
+            label=label,
+            summary=summary,
+            overwrite=body.overwrite,
+        )
+    except SkillAlreadyExistsError as exc:
+        raise InhereBoxError.localized(
+            ErrorCode.SKILL_ALREADY_EXISTS,
+            locale,
+            name=exc.slug,
+        ) from exc
+    except SkillPackageTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except SkillPackageError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    return {
+        "installed": True,
+        "name": skill_name,
+        "transport": transport,
+        "skill": _package_skill_or_404(store, package_id, skill_name, locale=locale),
+    }

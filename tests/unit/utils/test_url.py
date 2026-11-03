@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.utils.url import normalize_nav_url
+from inhere_box.infra.utils.url import normalize_nav_url
 
 
 def test_empty_and_blank() -> None:

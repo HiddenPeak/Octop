@@ -1,8 +1,8 @@
-# Octop Docker 部署
+# inhere-box Docker 部署
 
 ---
 
-本目录包含 Octop 的 Docker 构建与部署相关文件。
+本目录包含 inhere-box 的 Docker 构建与部署相关文件。
 
 ### 文件说明
 
@@ -13,7 +13,7 @@
 | `docker_build.sh` | 从源码构建镜像（默认开启 BuildKit 缓存） |
 | `docker-compose.yml` | 本地开发 / 自托管一键启动 |
 | `docker-compose.postgres.yml` | 仅 PostgreSQL（+ pgvector）开发/测试库；扩展在 `postgres/init-vector.sql` |
-| `postgres/init-vector.sql` | 实例级 `CREATE EXTENSION vector`（initdb.d；**不**进 Octop 迁移） |
+| `postgres/init-vector.sql` | 实例级 `CREATE EXTENSION vector`（initdb.d；**不**进 inhere-box 迁移） |
 | `docker-entrypoint.sh` | 容器入口：首次初始化数据库并启动服务 |
 
 ### 快速开始
@@ -26,7 +26,7 @@
 docker compose -f docker/docker-compose.yml up -d --build
 ```
 
-访问 `http://localhost:8088`。设置 `OCTOP_DEFAULT_PASSWORD` 可创建初始管理员（须 ≥8 位且同时包含字母和数字）。未设置或密码未通过策略时，打开设置向导；一次性向导口令保存在 `/data/.octop/octop-login.txt`。初始凭据或向导说明写入 `/data/.octop/credential.txt`。
+访问 `http://localhost:8088`。设置 `INHERE_BOX_DEFAULT_PASSWORD` 可创建初始管理员（须 ≥8 位且同时包含字母和数字）。未设置或密码未通过策略时，打开设置向导；一次性向导口令保存在 `/data/.octop/inhere-box-login.txt`。初始凭据或向导说明写入 `/data/.octop/credential.txt`。
 
 Compose 将 `nofile` 设为 65535，以支持多个专家、流连接及连接器子进程。使用 `docker run` 时添加 `--ulimit nofile=65535:65535`。
 
@@ -35,11 +35,11 @@ Compose 将 `nofile` 设为 65535，以支持多个专家、流连接及连接�
 ```bash
 bash docker/docker_build.sh
 docker run -d \
-  --name octop \
+  --name inhere-box \
   -p 8088:8088 \
-  -v octop-data:/data/.octop \
+  -v inhere-box-data:/data/.octop \
   -e HOME=/data \
-  octop:latest
+  inhere-box:latest
 ```
 
 ### 国内镜像加速
@@ -58,30 +58,30 @@ bash docker/docker_build.sh
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `HOME` | `/data` | 必须为 `/data`，数据目录映射到 `~/.octop` |
-| `OCTOP_PORT` | `8088` | HTTP 服务端口 |
-| `OCTOP_DEFAULT_PASSWORD` | _(未设置)_ | 首次管理员密码（≥8 位，字母+数字）。未设置时自动生成随机密码并写入 `credential.txt` |
-| `OCTOP_ADMIN_USERNAME` | `admin` | 首次管理员用户名 |
-| `OCTOP_DATABASE_URL` | — | PostgreSQL DSN（或其他 `OCTOP_DATABASE_*`，见 [configuration.md](../docs/configuration.md)） |
-| `OCTOP_DATABASE_DRIVER` | — | 通过环境变量覆盖时：`sqlite` \| `postgresql` |
+| `HOME` | `/data` | 必须为 `/data`，数据目录映射到 `~/.inhere-box` |
+| `INHERE_BOX_PORT` | `8088` | HTTP 服务端口 |
+| `INHERE_BOX_DEFAULT_PASSWORD` | _(未设置)_ | 首次管理员密码（≥8 位，字母+数字）。未设置时自动生成随机密码并写入 `credential.txt` |
+| `INHERE_BOX_ADMIN_USERNAME` | `admin` | 首次管理员用户名 |
+| `INHERE_BOX_DATABASE_URL` | — | PostgreSQL DSN（或其他 `INHERE_BOX_DATABASE_*`，见 [configuration.md](../docs/configuration.md)） |
+| `INHERE_BOX_DATABASE_DRIVER` | — | 通过环境变量覆盖时：`sqlite` \| `postgresql` |
 | `OPENAI_API_KEY` | — | OpenAI 兼容 API Key |
 | `DASHSCOPE_API_KEY` | — | 阿里云通义千问 API Key |
 
-Compose 可在 `docker/.env` 中配置上述变量。注意：`.env` 只参与 Compose 插值，变量必须出现在 `docker-compose.yml` 的 `environment:` 中才会进入容器。也可把相同键写入挂载数据目录下的 `~/.octop/env`。
+Compose 可在 `docker/.env` 中配置上述变量。注意：`.env` 只参与 Compose 插值，变量必须出现在 `docker-compose.yml` 的 `environment:` 中才会进入容器。也可把相同键写入挂载数据目录下的 `~/.inhere-box/env`。
 
 ### 连接盒子模型
 
-Octop 与模型服务部署在同一台盒子上时，在「设置 → 模型」添加「盒子模型」，无需填写 API Key。主模型默认地址为 `http://127.0.0.1:58000/v1`，模型为 `RM-01 VLM`。在语音设置中分别配置盒子语音识别（58100，`qwen3-asr`）和语音合成（58101，`qwen3-tts`）；语音合成通过音色描述使用 VoiceDesign。
+inhere-box 与模型服务部署在同一台盒子上时，在「设置 → 模型」添加「盒子模型」，无需填写 API Key。主模型默认地址为 `http://127.0.0.1:58000/v1`，模型为 `RM-01 VLM`。在语音设置中分别配置盒子语音识别（58100，`qwen3-asr`）和语音合成（58101，`qwen3-tts`）；语音合成通过音色描述使用 VoiceDesign。
 
-上述地址由 Octop 服务端访问。容器内的 `127.0.0.1` 指向 Octop 容器自身；模型位于其他容器时，填写共享网络中的模型服务名；模型位于宿主机时，填写容器可达的宿主机地址。三个地址均可在设置中修改，盒子连接不发送认证头。
+上述地址由 inhere-box 服务端访问。容器内的 `127.0.0.1` 指向 inhere-box 容器自身；模型位于其他容器时，填写共享网络中的模型服务名；模型位于宿主机时，填写容器可达的宿主机地址。三个地址均可在设置中修改，盒子连接不发送认证头。
 
 远端 Provider 可同时保留并继续使用各自的 Key。在「项目和任务」的本轮模型选项中选择盒子或远端模型；语音识别、语音合成独立选择来源。配置盒子不会自动更换当前远端模型或语音来源。
 
 ### 数据持久化
 
-- Compose 默认将宿主机 `~/.octop` 挂载到容器 `/data/.octop`
-- `docker run` 示例使用命名卷 `octop-data`
-- 首次启动会自动执行 `octop init`，凭据写入容器内 `/data/.octop/credential.txt`。未设置 `OCTOP_DEFAULT_PASSWORD` 时自动生成随机密码；指定的密码被应用密码策略拒绝时自动回退为随机密码（首次初始化绝不因弱默认密码而失败）。
+- Compose 默认将宿主机 `~/.inhere-box` 挂载到容器 `/data/.octop`
+- `docker run` 示例使用命名卷 `inhere-box-data`
+- 首次启动会自动执行 `inhere-box init`，凭据写入容器内 `/data/.octop/credential.txt`。未设置 `INHERE_BOX_DEFAULT_PASSWORD` 时自动生成随机密码；指定的密码被应用密码策略拒绝时自动回退为随机密码（首次初始化绝不因弱默认密码而失败）。
 
 ### 健康检查
 
@@ -94,8 +94,8 @@ curl http://localhost:8088/api/health
 ### 常用运维命令
 
 ```bash
-docker logs -f octop
-docker exec -it octop octop --version
+docker logs -f inhere-box
+docker exec -it inhere-box inhere-box --version
 docker compose -f docker/docker-compose.yml down
 docker compose -f docker/docker-compose.yml up -d --build
 ```

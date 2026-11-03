@@ -1,10 +1,10 @@
 # AgentComputer 精确 Run 取消命令与状态查询（第十轮）
 
-本轮把第九轮的持久取消内核接到认证 HTTP。请求只作用于路径中的一个 `runID`；不通过 Octop thread 的“当前回合”寻找目标，也不调用线程级取消。`adapterVersion=0.10.0`、`capabilityRevision=10`，数据库仍为 schema25。当前没有生产 Run 创建和 Run 专属引擎停止证明，所以 `cancellation` 声明为 `supported=true`、`available=false`、`reasonCode=executionUnavailable`；`runs`、`tasks`、审批和提问的客户端可用性仍关闭。
+本轮把第九轮的持久取消内核接到认证 HTTP。请求只作用于路径中的一个 `runID`；不通过 inhere-box thread 的“当前回合”寻找目标，也不调用线程级取消。`adapterVersion=0.10.0`、`capabilityRevision=10`，数据库仍为 schema25。当前没有生产 Run 创建和 Run 专属引擎停止证明，所以 `cancellation` 声明为 `supported=true`、`available=false`、`reasonCode=executionUnavailable`；`runs`、`tasks`、审批和提问的客户端可用性仍关闭。
 
 ## 命令与收据
 
-`POST /api/agentcomputer/v1/runs/{runID}/cancel` 要求 Octop 用户 Bearer token。body 是严格类型化的 `CancelRunCommand`：`commandID`、`idempotencyKey`、`expectedRestoreEpoch`、`expectedRevision`。owner 从认证会话取得，路径 `runID` 是唯一目标，不能在 body 中换目标。成功返回 HTTP 201 和原始 `CancelRunReceipt`；其中 `status=cancelRequested` 仅证明请求已经持久化，`status=stopped` 只出现在事务能证明从未派发的 Run。`acceptedAt`、原命令 ID、请求时和结果 Run revision、所属 Project/Task/Turn/Run 及两个执行代次均记录在收据中。
+`POST /api/agentcomputer/v1/runs/{runID}/cancel` 要求 inhere-box 用户 Bearer token。body 是严格类型化的 `CancelRunCommand`：`commandID`、`idempotencyKey`、`expectedRestoreEpoch`、`expectedRevision`。owner 从认证会话取得，路径 `runID` 是唯一目标，不能在 body 中换目标。成功返回 HTTP 201 和原始 `CancelRunReceipt`；其中 `status=cancelRequested` 仅证明请求已经持久化，`status=stopped` 只出现在事务能证明从未派发的 Run。`acceptedAt`、原命令 ID、请求时和结果 Run revision、所属 Project/Task/Turn/Run 及两个执行代次均记录在收据中。
 
 同一 owner、幂等键、Run 和请求语义的重试返回首个原收据，响应中的 `replayed=true`；历史 `GET /api/agentcomputer/v1/commands/{commandID}` 仍返回不可变原收据的 `replayed=false`。当前 `restoreEpoch` 在重放前核对；旧代次、改动后的 revision/目标/语义、跨 owner 或复用命令 ID 都不能变成新的取消。未知 Run 与其他用户的 Run 均为 404；修订、代次和幂等冲突为 409；非法 body/ID 为 422；超过 65,536 UTF-8 字节的 body 为 413；损坏的持久关联图安全返回 503。成功和错误响应均禁止缓存。
 

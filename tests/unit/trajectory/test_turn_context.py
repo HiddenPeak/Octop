@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from octop_harness.backends.workspace import DEFAULT_MEMORY_FILES
 
-from octop.infra.history.trajectory.turn_context import (
+from inhere_box.infra.history.trajectory.turn_context import (
     build_turn_start_chunks,
     filter_turn_skill_names,
     memory_file_order,
@@ -20,7 +20,7 @@ def test_memory_file_order_matches_harness_default_memory_files() -> None:
 def test_build_turn_start_includes_system_and_memory_skills_mcp() -> None:
     chunks = build_turn_start_chunks(
         include_system=True,
-        system_prompt="You are Octop.\nBe helpful.",
+        system_prompt="You are inhere-box.\nBe helpful.",
         workspace_files=["AGENTS.md", "USER.md"],
         skills=["bash", "read"],
         mcp_servers=["github"],
@@ -29,7 +29,7 @@ def test_build_turn_start_includes_system_and_memory_skills_mcp() -> None:
     assert kinds == ["system", "context", "context", "context", "context"]
     assert chunks[0]["label"] == "Initial System Prompt"
     assert "content" not in chunks[0]
-    assert chunks[0]["content_chars"] == len("You are Octop.\nBe helpful.")
+    assert chunks[0]["content_chars"] == len("You are inhere-box.\nBe helpful.")
     assert len(str(chunks[0]["content_sha256"])) == 64
     assert chunks[1]["source"] == "memory"
     assert chunks[1]["label"] == "AGENTS.md"
@@ -44,7 +44,7 @@ def test_build_turn_start_includes_system_and_memory_skills_mcp() -> None:
 def test_build_turn_start_skips_system_when_already_present() -> None:
     chunks = build_turn_start_chunks(
         include_system=False,
-        system_prompt="You are Octop.",
+        system_prompt="You are inhere-box.",
         workspace_files=[],
         skills=["bash"],
         mcp_servers=None,

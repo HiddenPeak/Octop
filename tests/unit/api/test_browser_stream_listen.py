@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from octop.api.routers.browser import stream as stream_mod
-from octop.api.routers.browser.harness import resolve_harness_session
+from inhere_box.api.routers.browser import stream as stream_mod
+from inhere_box.api.routers.browser.harness import resolve_harness_session
 
 
 class _ListenProbe:
@@ -123,7 +123,7 @@ async def test_resolve_harness_session_never_falls_back_to_another_profile() -> 
 
 @pytest.mark.asyncio
 async def test_resolve_harness_session_create_true_rejects_empty_hint() -> None:
-    from octop.infra.errors import OctopError
+    from inhere_box.infra.errors import InhereBoxError
 
     fake_registry: dict[str, Any] = {"user-2": object()}
     tool_iface = SimpleNamespace(_registry=fake_registry)
@@ -133,6 +133,6 @@ async def test_resolve_harness_session_create_true_rejects_empty_hint() -> None:
             sys.modules,
             {"octop_browser": hb, "octop_browser.tool_interface": tool_iface},
         ),
-        pytest.raises(OctopError, match="browser profile is required"),
+        pytest.raises(InhereBoxError, match="browser profile is required"),
     ):
         await resolve_harness_session("auto", create=True)

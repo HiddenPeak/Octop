@@ -7,14 +7,14 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.agents.resident_history import history_days, history_page
-from octop.infra.agents.resident_identity import ensure_resident_identity
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import OctopError
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.resident_history import history_days, history_page
+from inhere_box.infra.agents.resident_identity import ensure_resident_identity
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def services(tmp_path):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     services.user_repo.create(username="owner", password_hash="x", role="user")
     services.user_repo.create(username="other", password_hash="x", role="user")
     asyncio.run(ensure_resident_identity(services, 1))
@@ -129,10 +129,10 @@ def test_seven_nonempty_days_date_location_and_scope_bound_cursors(services):
     assert {day.day_key for day in first.days}.isdisjoint(day.day_key for day in second.days)
     located = history_days(services, 1, binding.agent_id, binding.thread_id, 7, None, "2026-10-14")
     assert located.days[0].day_key == "2026-10-13"
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         history_days(services, 2, other.agent_id, other.thread_id, 7, first.next_cursor, "")
     assert error.value.code.value == "PROJECT_SYNC_RESET"
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         history_days(
             services, 1, binding.agent_id, binding.thread_id, 7, first.next_cursor[:-1] + "!", ""
         )
@@ -180,7 +180,7 @@ def test_each_history_branch_applies_a_database_limit_before_merging(services, m
     binding = services.resident_conversation_repo.get(1)
     for number in range(200):
         _turn(services, number, 1000 + number, "2026-10-20")
-    from octop.infra.db.repos.resident_history import ResidentHistoryRow
+    from inhere_box.infra.db.repos.resident_history import ResidentHistoryRow
 
     original = ResidentHistoryRow.from_row
     loaded = []

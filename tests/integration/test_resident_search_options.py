@@ -13,8 +13,8 @@ from langchain_core.tools import StructuredTool
 from octop_harness import HarnessAgent
 from octop_harness.llm.factory import ChatModelFactory
 
-from octop.infra.projects import resident_tasks
-from octop.infra.projects.tasks import now_ms
+from inhere_box.infra.projects import resident_tasks
+from inhere_box.infra.projects.tasks import now_ms
 from tests.integration.test_project_tasks_ws import connected, until
 from tests.integration.test_resident_conversations import _base, _binding
 from tests.integration.test_resident_conversations import resident_docs_env as resident_docs_env

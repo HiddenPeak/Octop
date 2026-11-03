@@ -10,12 +10,12 @@ import pytest
 from tests.unit.projects.test_expert_execution import services  # noqa: F401
 from tests.unit.projects.test_unified_ingress import message
 
-from octop.infra.agents.acp_setup import ACPSetupService
-from octop.infra.agents.settings.acp import ACPSettingsStore
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_tasks import ProjectTaskRepo
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import (
+from inhere_box.infra.agents.acp_setup import ACPSetupService
+from inhere_box.infra.agents.settings.acp import ACPSettingsStore
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_tasks import ProjectTaskRepo
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import (
     engine_catalog,
     ingress,
     interactions,
@@ -23,8 +23,8 @@ from octop.infra.projects import (
     task_submission,
     tasks,
 )
-from octop.infra.projects.interaction_models import TaskControl
-from octop.infra.projects.models import ProjectFields
+from inhere_box.infra.projects.interaction_models import TaskControl
+from inhere_box.infra.projects.models import ProjectFields
 
 
 def ready(services, monkeypatch, owner=1):
@@ -79,7 +79,7 @@ def test_catalog_is_passive_owner_scoped_and_intersects_protocol_capabilities(
     assert not entry.capabilities.images and not entry.capabilities.plugins
     assert entry.models[0].model_id == "native-model"
     assert "secret-never-expose" not in entry.model_dump_json()
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         engine_catalog.validate_engine(services, 2, selection)
     store.save_runners(1, {"native-test": {"command": "changed", "enabled": True}})
     assert not next(
@@ -87,7 +87,7 @@ def test_catalog_is_passive_owner_scoped_and_intersects_protocol_capabilities(
     ).available
 
 
-def test_acp_needs_no_octop_provider_and_history_keeps_frozen_engine(services, monkeypatch):
+def test_acp_needs_no_inhere_box_provider_and_history_keeps_frozen_engine(services, monkeypatch):
     selection, _ = ready(services, monkeypatch)
     body = tasks.TaskCreate(request_id="native-create", prompt="hello", engine=selection)
     task = tasks.send(services, 1, body)
@@ -95,7 +95,7 @@ def test_acp_needs_no_octop_provider_and_history_keeps_frozen_engine(services, m
     assert task.turns[0].model_ref == ""
     assert task.turns[0].execution_engine.connection_id == "native-test"
     assert "secret-never-expose" not in task.model_dump_json()
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         tasks.patch(
             services,
             1,
@@ -130,7 +130,7 @@ def test_acp_needs_no_octop_provider_and_history_keeps_frozen_engine(services, m
         ),
         task_id=task.task_id,
     )
-    assert next_turn.turns[-1].execution_engine.engine_id == "octop"
+    assert next_turn.turns[-1].execution_engine.engine_id == "inhere-box"
     assert next_turn.turns[0].execution_engine.engine_id == "acp"
 
 
@@ -176,7 +176,7 @@ def test_acp_pause_and_resume_do_not_replay_native_work(services, monkeypatch, p
     task = tasks.send(
         services, 1, tasks.TaskCreate(request_id="native-control", prompt="hello", engine=selection)
     )
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         interactions.control(
             services,
             1,
@@ -187,14 +187,14 @@ def test_acp_pause_and_resume_do_not_replay_native_work(services, monkeypatch, p
     assert error.value.code == ErrorCode.TASK_CONTROL_INVALID
 
 
-async def test_acp_does_not_invoke_octop_routing_classifier(services, monkeypatch):
+async def test_acp_does_not_invoke_inhere_box_routing_classifier(services, monkeypatch):
     selection, _ = ready(services, monkeypatch)
 
     async def unexpected(*args):
-        pytest.fail("ACP invoked the Octop classifier")
+        pytest.fail("ACP invoked the inhere-box classifier")
 
     monkeypatch.setattr(task_submission, "classify_difficulty", unexpected)
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         await task_submission.submit(
             services,
             1,
@@ -212,7 +212,7 @@ async def test_im_cannot_inherit_logged_in_native_engine_and_admission_rolls_bac
     services, monkeypatch
 ):
     selection, _ = ready(services, monkeypatch)
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         await ingress.submit(
             services,
             1,
@@ -232,7 +232,7 @@ async def test_im_cannot_inherit_logged_in_native_engine_and_admission_rolls_bac
 
 def test_native_compaction_is_rejected_before_work_is_queued(services, monkeypatch):
     selection, _ = ready(services, monkeypatch)
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         tasks.send(
             services,
             1,
@@ -251,7 +251,7 @@ def test_acp_cannot_reinterpret_client_directory_as_host_workspace(services, mon
         ProjectFields(name="Client work", client_directory=str(tmp_path / "client-only")),
         "native-client-project",
     )
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         tasks.send(
             services,
             1,
@@ -273,7 +273,7 @@ def test_acp_rejects_expert_tool_policy_before_queueing_native_work(services, mo
     configuration = json.loads(expert.config_json)
     configuration["tools_disabled"] = ["execute"]
     services.agent_repo.update_config("expert-one", config_json=json.dumps(configuration))
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         tasks.send(
             services,
             1,

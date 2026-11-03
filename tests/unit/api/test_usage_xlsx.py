@@ -5,8 +5,8 @@ from io import BytesIO
 import pytest
 from openpyxl import load_workbook
 
-from octop.api.common.usage_xlsx import build_usage_xlsx
-from octop.infra.db.repos.usage import UsageRow
+from inhere_box.api.common.usage_xlsx import build_usage_xlsx
+from inhere_box.infra.db.repos.usage import UsageRow
 
 
 @pytest.mark.parametrize(

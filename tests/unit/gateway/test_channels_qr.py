@@ -33,8 +33,8 @@ def mock_server_and_user():
 def _make_app(server, user):
     from fastapi import FastAPI
 
-    from octop.api.deps import current_user, get_server
-    from octop.api.routers import channels as ch_module
+    from inhere_box.api.deps import current_user, get_server
+    from inhere_box.api.routers import channels as ch_module
 
     app = FastAPI()
     app.include_router(ch_module.router)
@@ -58,7 +58,8 @@ def test_wecom_qrcode_generate_returns_scode(mock_server_and_user):
     mock_async_client.__aexit__ = AsyncMock(return_value=False)
 
     with patch(
-        "octop.infra.gateway.channels.qr_bind.httpx.AsyncClient", return_value=mock_async_client
+        "inhere_box.infra.gateway.channels.qr_bind.httpx.AsyncClient",
+        return_value=mock_async_client,
     ):
         app = _make_app(server, user)
         client = TestClient(app)
@@ -85,7 +86,8 @@ def test_wecom_qrcode_poll_returns_status(mock_server_and_user):
     mock_async_client.__aexit__ = AsyncMock(return_value=False)
 
     with patch(
-        "octop.infra.gateway.channels.qr_bind.httpx.AsyncClient", return_value=mock_async_client
+        "inhere_box.infra.gateway.channels.qr_bind.httpx.AsyncClient",
+        return_value=mock_async_client,
     ):
         app = _make_app(server, user)
         client = TestClient(app)
@@ -103,7 +105,7 @@ def test_qq_qrcode_generate_returns_task(mock_server_and_user):
     """qq/qrcode/generate should return the task token and render URL."""
     server, user = mock_server_and_user
     with patch(
-        "octop.api.routers.channels.qr_bind.qq_qr_generate",
+        "inhere_box.api.routers.channels.qr_bind.qq_qr_generate",
         new=AsyncMock(
             return_value={"qrcode_token": "qq-task", "qrcode_url": "https://q.qq.com/qr"}
         ),
@@ -126,7 +128,7 @@ def test_qq_qrcode_poll_returns_credentials(mock_server_and_user):
         "user_openid": "operator-openid",
     }
     with patch(
-        "octop.api.routers.channels.qr_bind.qq_qr_poll",
+        "inhere_box.api.routers.channels.qr_bind.qq_qr_poll",
         new=AsyncMock(return_value=result),
     ):
         app = _make_app(server, user)
@@ -141,9 +143,9 @@ def test_qq_qrcode_poll_returns_credentials(mock_server_and_user):
 
 
 def test_dingtalk_qrcode_generate_keeps_device_code_server_side(mock_server_and_user):
-    """Only an opaque Octop registration ID and public QR metadata reach the browser."""
+    """Only an opaque inhere-box registration ID and public QR metadata reach the browser."""
     server, user = mock_server_and_user
-    from octop.api.routers import channels as ch_module
+    from inhere_box.api.routers import channels as ch_module
 
     ch_module._dingtalk_registration_sessions.clear()
     result = {
@@ -154,7 +156,7 @@ def test_dingtalk_qrcode_generate_keeps_device_code_server_side(mock_server_and_
         "interval": 5,
     }
     with patch(
-        "octop.api.routers.channels.dingtalk_registration.generate",
+        "inhere_box.api.routers.channels.dingtalk_registration.generate",
         new=AsyncMock(return_value=result),
     ):
         client = TestClient(_make_app(server, user))
@@ -175,7 +177,7 @@ def test_dingtalk_qrcode_poll_creates_channel_without_returning_secret(
 ):
     """Successful authorization probes and persists credentials only on the server."""
     server, user = mock_server_and_user
-    from octop.api.routers import channels as ch_module
+    from inhere_box.api.routers import channels as ch_module
 
     ch_module._dingtalk_registration_sessions.clear()
     gateway = server.app_runtime.gateway
@@ -195,11 +197,11 @@ def test_dingtalk_qrcode_poll_creates_channel_without_returning_secret(
     }
     with (
         patch(
-            "octop.api.routers.channels.dingtalk_registration.generate",
+            "inhere_box.api.routers.channels.dingtalk_registration.generate",
             new=AsyncMock(return_value=generated),
         ),
         patch(
-            "octop.api.routers.channels.dingtalk_registration.poll",
+            "inhere_box.api.routers.channels.dingtalk_registration.poll",
             new=AsyncMock(return_value=authorized),
         ),
     ):
@@ -233,7 +235,7 @@ def test_dingtalk_qrcode_poll_creates_channel_without_returning_secret(
 
 def test_dingtalk_qrcode_poll_rejects_different_user(mock_server_and_user):
     server, user = mock_server_and_user
-    from octop.api.routers import channels as ch_module
+    from inhere_box.api.routers import channels as ch_module
 
     ch_module._dingtalk_registration_sessions.clear()
     generated = {
@@ -244,7 +246,7 @@ def test_dingtalk_qrcode_poll_rejects_different_user(mock_server_and_user):
         "interval": 5,
     }
     with patch(
-        "octop.api.routers.channels.dingtalk_registration.generate",
+        "inhere_box.api.routers.channels.dingtalk_registration.generate",
         new=AsyncMock(return_value=generated),
     ):
         client = TestClient(_make_app(server, user))
@@ -260,7 +262,7 @@ def test_dingtalk_qrcode_poll_rejects_different_user(mock_server_and_user):
 
 
 def test_dingtalk_registration_client_uses_official_device_flow_endpoints():
-    from octop.infra.gateway.channels import dingtalk_registration
+    from inhere_box.infra.gateway.channels import dingtalk_registration
 
     init_response = MagicMock()
     init_response.json.return_value = {
@@ -296,7 +298,7 @@ def test_dingtalk_registration_client_uses_official_device_flow_endpoints():
 
 def test_pkill_chrome_profile_accepts_resolved_path(monkeypatch: pytest.MonkeyPatch, tmp_path):
     """pkill pattern must not fail validation on the '=' separator."""
-    from octop.api.routers.channels import _pkill_chrome_profile, _safe_profile_directory
+    from inhere_box.api.routers.channels import _pkill_chrome_profile, _safe_profile_directory
 
     # Isolate from BROWSER_USE_PROFILES_DIR left by earlier agent/browser tests.
     root = (tmp_path / "browser-profiles").resolve()
@@ -305,9 +307,9 @@ def test_pkill_chrome_profile_accepts_resolved_path(monkeypatch: pytest.MonkeyPa
     monkeypatch.delenv("HARNESS_BROWSER_PROFILES_DIR", raising=False)
 
     profile_dir = _safe_profile_directory("feishu")
-    assert profile_dir == root / "octop-feishu-bot"
+    assert profile_dir == root / "inhere-box-feishu-bot"
 
-    with patch("octop.api.routers.channels.asyncio.to_thread", new_callable=AsyncMock):
+    with patch("inhere_box.api.routers.channels.asyncio.to_thread", new_callable=AsyncMock):
         import asyncio
 
         asyncio.run(_pkill_chrome_profile(profile_dir))
@@ -321,13 +323,13 @@ def test_feishu_bot_creator_start_without_pkill_mock(mock_server_and_user):
     mock_proc.pid = 1234
 
     with (
-        patch("octop.api.routers.channels.subprocess.Popen", return_value=mock_proc),
+        patch("inhere_box.api.routers.channels.subprocess.Popen", return_value=mock_proc),
         patch(
-            "octop.api.routers.channels._bot_creator_script",
+            "inhere_box.api.routers.channels._bot_creator_script",
             return_value="/fake/feishu_bot_creator.py",
         ),
-        patch("octop.api.routers.channels.asyncio.to_thread", new_callable=AsyncMock),
-        patch("octop.api.routers.channels.subprocess.run") as mock_run,
+        patch("inhere_box.api.routers.channels.asyncio.to_thread", new_callable=AsyncMock),
+        patch("inhere_box.api.routers.channels.subprocess.run") as mock_run,
     ):
         mock_run.return_value = MagicMock(returncode=1)
         app = _make_app(server, user)
@@ -349,12 +351,12 @@ def test_feishu_bot_creator_start_returns_pid(mock_server_and_user):
     mock_proc.pid = 1234
 
     with (
-        patch("octop.api.routers.channels.subprocess.Popen", return_value=mock_proc),
+        patch("inhere_box.api.routers.channels.subprocess.Popen", return_value=mock_proc),
         patch(
-            "octop.api.routers.channels._bot_creator_script",
+            "inhere_box.api.routers.channels._bot_creator_script",
             return_value="/fake/feishu_bot_creator.py",
         ),
-        patch("octop.api.routers.channels.asyncio.to_thread", new_callable=AsyncMock),
+        patch("inhere_box.api.routers.channels.asyncio.to_thread", new_callable=AsyncMock),
     ):
         app = _make_app(server, user)
         client = TestClient(app)
@@ -387,9 +389,9 @@ def test_yuanbao_bot_creator_start_returns_pid(mock_server_and_user):
     mock_proc.pid = 9999
 
     with (
-        patch("octop.api.routers.channels.subprocess.Popen", return_value=mock_proc),
+        patch("inhere_box.api.routers.channels.subprocess.Popen", return_value=mock_proc),
         patch(
-            "octop.api.routers.channels._bot_creator_script",
+            "inhere_box.api.routers.channels._bot_creator_script",
             return_value="/fake/yuanbao_bot_creator.py",
         ),
     ):

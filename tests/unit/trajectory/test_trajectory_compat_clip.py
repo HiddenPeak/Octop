@@ -12,18 +12,18 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.thread_messages import ThreadMessageRepo
-from octop.infra.db.repos.threads import ThreadRepo
-from octop.infra.db.repos.trajectory_events import TrajectoryEventRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.history.service import HistoryArchive
-from octop.infra.history.store import HistoryStore
-from octop.infra.history.trajectory.settings import PAYLOAD_MAX_CHARS, SUMMARY_MAX_CHARS
-from octop.infra.history.trajectory.types import TrajectoryEvent
-from octop.infra.history.trajectory_compat import ArchiveTrajectoryStore
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.thread_messages import ThreadMessageRepo
+from inhere_box.infra.db.repos.threads import ThreadRepo
+from inhere_box.infra.db.repos.trajectory_events import TrajectoryEventRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.history.service import HistoryArchive
+from inhere_box.infra.history.store import HistoryStore
+from inhere_box.infra.history.trajectory.settings import PAYLOAD_MAX_CHARS, SUMMARY_MAX_CHARS
+from inhere_box.infra.history.trajectory.types import TrajectoryEvent
+from inhere_box.infra.history.trajectory_compat import ArchiveTrajectoryStore
 
 _OVERSIZED_SUMMARY = SUMMARY_MAX_CHARS + 20
 _OVERSIZED_CONTENT = PAYLOAD_MAX_CHARS + 50

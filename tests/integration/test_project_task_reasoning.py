@@ -13,8 +13,8 @@ from langchain_core.messages import AIMessage
 from octop_harness import HarnessAgent
 from octop_harness.llm.factory import ChatModelFactory
 
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import runtime
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import runtime
 from tests.integration.test_project_capabilities import create_task, harness_models
 from tests.integration.test_project_tasks import settled
 from tests.integration.test_project_tasks_ws import command, connected, until
@@ -117,7 +117,7 @@ async def test_reasoning_only_updates_stream_and_survive_terminal_states_and_rec
         yield {"type": "reasoning", "content": "再确认结论。"}
         await finish.wait()
         if status == "failed":
-            raise OctopError.localized(ErrorCode.TASK_EXECUTION_FAILED)
+            raise InhereBoxError.localized(ErrorCode.TASK_EXECUTION_FAILED)
         yield {"type": "token", "content": "正式答案"}
 
     monkeypatch.setattr(runtime, "run_turn", run)

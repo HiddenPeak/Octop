@@ -28,7 +28,7 @@ import {
 import {
   engineCapabilities,
   engineEntry,
-  OCTOP_ENGINE,
+  INHERE_BOX_ENGINE,
   taskOptionsForEngine,
 } from "./taskEngine";
 import { apiErrorMessage } from "../../utils/apiError";
@@ -63,7 +63,7 @@ export default function TaskExecutionSettings({
   project,
   disabled,
   selectedExpertID,
-  engine = OCTOP_ENGINE,
+  engine = INHERE_BOX_ENGINE,
   onEngineChange,
   engineCatalog,
   compact = false,
@@ -81,7 +81,7 @@ export default function TaskExecutionSettings({
   const resourceCallback = useRef(onResourcesLoaded);
   const skillConfirmation = useRef<ReturnType<typeof Modal.confirm>>();
   resourceCallback.current = onResourcesLoaded;
-  const external = engine.engine_id !== "octop";
+  const external = engine.engine_id !== "inhere-box";
   const capabilities = engineCapabilities(
     engine,
     engineCatalog ?? resources?.execution_engines,

@@ -8,15 +8,15 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from octop_gateway.models import ChannelSubject, InboundMessage, TextContent
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.sessions import SessionRepo
-from octop.infra.db.repos.threads import ThreadRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.gateway.gateway import Gateway
-from octop.infra.gateway.process.message_keys import session_key_from_message
-from octop.infra.gateway.threads import ThreadRegistry
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.sessions import SessionRepo
+from inhere_box.infra.db.repos.threads import ThreadRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.gateway.gateway import Gateway
+from inhere_box.infra.gateway.process.message_keys import session_key_from_message
+from inhere_box.infra.gateway.threads import ThreadRegistry
 
 
 @pytest.mark.asyncio
@@ -79,7 +79,7 @@ async def test_preempt_cancel_ignores_non_stop() -> None:
 async def test_preempt_cancel_keeps_dashboard_and_im_protocols_separate(
     monkeypatch, channel_type, uses_task
 ):
-    from octop.infra.gateway.process.task_adapter import TaskChannelAdapter
+    from inhere_box.infra.gateway.process.task_adapter import TaskChannelAdapter
 
     submit = AsyncMock()
     monkeypatch.setattr(TaskChannelAdapter, "submit", submit)

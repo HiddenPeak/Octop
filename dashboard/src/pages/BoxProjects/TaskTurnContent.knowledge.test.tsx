@@ -59,7 +59,7 @@ const citation = {
   path: "手册/操作指南.md",
 };
 const marker = (source = citation) =>
-  `<!--octop-kb-citations:${JSON.stringify([source])}-->`;
+  `<!--inhere-box-kb-citations:${JSON.stringify([source])}-->`;
 const document = {
   id: "doc_guide",
   kb_id: "kb_shared",
@@ -165,7 +165,9 @@ describe("任务持久化知识来源", () => {
     expect(
       screen.getAllByRole("button", { name: "操作指南.md · 共享知识" }),
     ).toHaveLength(1);
-    expect(screen.queryByText(/octop-kb-citations/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/inhere-box-kb-citations/),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("最终答复。")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: /模型编造来源/ }),
@@ -257,7 +259,9 @@ describe("任务持久化知识来源", () => {
       />,
     );
     expect(screen.getByText("历史答复。")).toBeVisible();
-    expect(screen.queryByText(/octop-kb-citations/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/inhere-box-kb-citations/),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("region", { name: "知识来源" }),
     ).not.toBeInTheDocument();

@@ -7,11 +7,11 @@ from types import SimpleNamespace
 import pytest
 from tests.unit.skills.test_skill_transfer import _MemWorkspace
 
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.skills.skill_package_store import (
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.skills.skill_package_store import (
     normalize_copy_policy,
 )
-from octop.infra.skills.skill_transfer import (
+from inhere_box.infra.skills.skill_transfer import (
     _stamp_locked_manifest,
     copy_package_skills_to_workspace,
 )
@@ -38,7 +38,7 @@ def _row(
 
 
 def _store() -> SimpleNamespace:
-    from octop.infra.skills.skill_package_store import SkillPackageStore
+    from inhere_box.infra.skills.skill_package_store import SkillPackageStore
 
     return SkillPackageStore(repo=SimpleNamespace(), root=None)  # type: ignore[arg-type]
 
@@ -62,7 +62,7 @@ def test_can_copy_matrix(policy: str | None, user: SimpleNamespace, allowed: boo
 
 def test_assert_can_copy_raises_deny_for_others() -> None:
     store = _store()
-    with pytest.raises(OctopError) as excinfo:
+    with pytest.raises(InhereBoxError) as excinfo:
         store.assert_can_copy(_row("deny"), _user(2))
     assert excinfo.value.code == ErrorCode.SKILL_PACKAGE_COPY_DENIED
     # creator passes without raising
@@ -126,8 +126,8 @@ async def _run_guard(
     *,
     user: SimpleNamespace,
     origin_created_by: str = "7",
-) -> OctopError | None:
-    from octop.api.routers.skills import _guard_package_only_skill_write
+) -> InhereBoxError | None:
+    from inhere_box.api.routers.skills import _guard_package_only_skill_write
 
     files = {"skills/alpha/SKILL.md": manifest} if manifest is not None else {}
     workspace = _MemWorkspace(files)
@@ -144,7 +144,7 @@ async def _run_guard(
     )
     try:
         await _guard_package_only_skill_write(workspace, {}, server, "alpha", user)
-    except OctopError as exc:
+    except InhereBoxError as exc:
         return exc
     return None
 

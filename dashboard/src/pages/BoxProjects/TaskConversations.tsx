@@ -75,7 +75,7 @@ import {
   engineEntry,
   engineKey,
   engineLabel,
-  OCTOP_ENGINE,
+  INHERE_BOX_ENGINE,
   taskOptionsForEngine,
 } from "./taskEngine";
 import { useServerTimezone } from "../../hooks/useServerTimezone";
@@ -155,7 +155,7 @@ export default function TaskConversations({
   const [resourceError, setResourceError] = useState("");
   const [resourceVersion, setResourceVersion] = useState(0);
   const [expertID, setExpertID] = useState<string | null>(defaultExpertID);
-  const [engine, setEngine] = useState<EngineSelection>(OCTOP_ENGINE);
+  const [engine, setEngine] = useState<EngineSelection>(INHERE_BOX_ENGINE);
   const [inspectingEngine, setInspectingEngine] = useState(false);
   const [actionMode, setActionMode] = useState<TaskActionMode>("craft");
   const [search, setSearch] = useState("");
@@ -382,7 +382,7 @@ export default function TaskConversations({
     webSearchSaving ||
     approvalSaving;
   const selectedExpert = taskID ? detail?.selected_expert_id ?? null : expertID;
-  const selectedEngine = taskID ? detail?.engine ?? OCTOP_ENGINE : engine;
+  const selectedEngine = taskID ? detail?.engine ?? INHERE_BOX_ENGINE : engine;
   const selectedEngineEntry = engineEntry(
     selectedEngine,
     resources?.execution_engines,
@@ -395,7 +395,7 @@ export default function TaskConversations({
     activeTurn?.execution_engine?.capabilities ?? capabilities;
   const engineUnavailable =
     !!resources?.execution_engines && !selectedEngineEntry?.available;
-  const externalEngine = selectedEngine.engine_id !== "octop";
+  const externalEngine = selectedEngine.engine_id !== "inhere-box";
   const engineClientDirectoryConflict =
     externalEngine && !!project?.client_directory;
   const submissionOptions = taskOptionsForEngine(options, selectedEngine);
@@ -535,7 +535,7 @@ export default function TaskConversations({
     setWorkbenchTool(null);
     setDraft(queue.drafts.current.get(draftKey) ?? "");
     setExpertID(defaultExpertID);
-    setEngine(OCTOP_ENGINE);
+    setEngine(INHERE_BOX_ENGINE);
     setActionMode("craft");
     const created = createdTaskSelection.current;
     setOptions(
@@ -677,7 +677,7 @@ export default function TaskConversations({
       (!taskID &&
         ((pending.current.body as TaskCreate).selected_expert_id !== expertID ||
           JSON.stringify(
-            (pending.current.body as TaskCreate).engine ?? OCTOP_ENGINE,
+            (pending.current.body as TaskCreate).engine ?? INHERE_BOX_ENGINE,
           ) !== JSON.stringify(selectedEngine) ||
           (pending.current.body as TaskCreate).action_mode !== actionMode)) ||
       JSON.stringify(pending.current.body.attachment_ids ?? []) !==
@@ -697,7 +697,7 @@ export default function TaskConversations({
           ...(!taskID
             ? { selected_expert_id: expertID, action_mode: actionMode }
             : {}),
-          ...(!taskID && selectedEngine.engine_id !== "octop"
+          ...(!taskID && selectedEngine.engine_id !== "inhere-box"
             ? { engine: selectedEngine }
             : {}),
           ...(attachmentIDs.length ? { attachment_ids: attachmentIDs } : {}),
@@ -1637,7 +1637,9 @@ export default function TaskConversations({
                         </Typography.Text>
                         <Tag title={t("projects.tasks.engine")}>
                           {turn.execution_engine?.label ||
-                            engineLabel(turn.execution_engine ?? OCTOP_ENGINE)}
+                            engineLabel(
+                              turn.execution_engine ?? INHERE_BOX_ENGINE,
+                            )}
                         </Tag>
                         {turn.action_mode && (
                           <Tag title={t("projects.tasks.actionMode")}>
@@ -2525,7 +2527,7 @@ export default function TaskConversations({
           <Typography.Text>{t("projects.tasks.engine")}</Typography.Text>
           <TaskEngineSelect
             branch
-            value={branch?.engine ?? detail?.engine ?? OCTOP_ENGINE}
+            value={branch?.engine ?? detail?.engine ?? INHERE_BOX_ENGINE}
             catalog={resources?.execution_engines}
             disabled={forking}
             hostID={hostID}

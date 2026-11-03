@@ -1,6 +1,6 @@
 # Architecture
 
-Octop is a self-hosted AI assistant platform for multiple users and agents,
+inhere-box is a self-hosted AI assistant platform for multiple users and agents,
 delivered as a single Python process.
 It glues three reusable libraries — `octop-harness` (LangGraph-based
 chat runtime), `octop-gateway` (IM channel pipeline), and a React
@@ -35,13 +35,13 @@ provider the user configures.
 
 ## 2. Process model
 
-`OctopServer.start()` wires the runtime tree in dependency order. The
-composition root lives in `src/octop/infra/server.py`; FastAPI/uvicorn
-is attached from `src/octop/launch.py` (the only module that may import
+`InhereBoxServer.start()` wires the runtime tree in dependency order. The
+composition root lives in `src/inhere_box/infra/server.py`; FastAPI/uvicorn
+is attached from `src/inhere_box/launch.py` (the only module that may import
 both `infra/server` and `api/app`).
 
 ```
-OctopServer.start()
+InhereBoxServer.start()
  ├─ PathLayout.from_env()            (root + DB + secrets dirs)
  ├─ load_config(config.json)        (env overrides on top)
  ├─ open_database()                  (SQLite WAL or PostgreSQL via PostgresPool)
@@ -49,7 +49,7 @@ OctopServer.start()
  ├─ SharedServices (repos + factories)
  ├─ WizardTokenStore                 (5-min TTL setup tokens)
  ├─ ExpertCatalog  / SubagentCatalog (bundled MD libraries)
- ├─ PluginManager.seed_bundled() then load_installed()  (~/.octop/plugins/*; bundled default off)
+ ├─ PluginManager.seed_bundled() then load_installed()  (~/.inhere-box/plugins/*; bundled default off)
  ├─ AgentManager (global registry — one per process)
  │    └─ for each agent row: builds HarnessAgentRuntime on demand
  │       ├─ HarnessAgent (LangGraph)
@@ -74,7 +74,7 @@ a separate per-user `AgentManager`. The single global registry
 dispatches to whichever harness runtime matches the row, which keeps
 admin tooling (`/api/admin/*`) and cross-user diagnostics simple.
 
-The dashboard always talks to Octop over `/api` HTTP/WebSocket; the
+The dashboard always talks to inhere-box over `/api` HTTP/WebSocket; the
 React SPA never imports a Python module and never opens the SQLite
 file directly.
 
@@ -85,7 +85,7 @@ Three surfaces share the same agent runtime:
 | Surface | Wire | Session key (default) | Notes |
 |---------|------|-----------------------|-------|
 | Web UI | WebSocket `/api/agents/{aid}/chat/ws` | `<aid>:dashboard:<user_id>:dm` | Dashboard turn endpoint |
-| CLI | Embedded `OctopServer` (REPL) or WebSocket | `<aid>:cli:<user_id>:dm` | `octop chats send` / `chats repl` |
+| CLI | Embedded `InhereBoxServer` (REPL) or WebSocket | `<aid>:cli:<user_id>:dm` | `inhere-box chats send` / `chats repl` |
 | IM channel | gateway `ChannelManager` | `<aid>:<channel_kind>:<platform_session>:<dm\|group>` | See `infra/gateway/process/message_keys.py` |
 | Cron job | APScheduler trigger → `Gateway.push_text_from_session` | row's `session_key` (defaults to `dashboard_key` of the owner) | `task_type=text\|agent` chooses direct-push vs run-AI-then-push |
 
@@ -105,11 +105,11 @@ see `infra/gateway/threads.py` for the full state machine.
 The **control plane** (users, agents, providers, channels, cron,
 sessions, audit, JWT secret) lives in either:
 
-* SQLite — default file under `~/.octop/` (legacy `octop.db` or
+* SQLite — default file under `~/.inhere-box/` (legacy `inhere-box.db` or
   `config.json` → `database.sqlite_path`), or
-* PostgreSQL — `config.json` / `OCTOP_DATABASE_*` / Setup wizard database step.
+* PostgreSQL — `config.json` / `INHERE_BOX_DATABASE_*` / Setup wizard database step.
 
-Migrations: `src/octop/infra/db/migrations/NNN_*.sql` (SQLite) and
+Migrations: `src/inhere_box/infra/db/migrations/NNN_*.sql` (SQLite) and
 `NNN_*.pg.sql` (PostgreSQL). Connection PRAGMAs live on the SQLite pool;
 PostgreSQL extensions (e.g. `vector`) are docker/ops init, not app
 migrations. Agent memory DDL is owned by octop-memory. See
@@ -120,10 +120,10 @@ The wheel ships the built dashboard SPA, so the entire stack is one
 
 Per-agent workspace files (Markdown, skills, expert templates) are
 read and written through the agent's `BackendWorkspace`
-(`octop.infra.backend` → `octop_harness.backends`). The default
+(`inhere_box.infra.backend` → `octop_harness.backends`). The default
 backend is a `filesystem` adapter rooted at
-`~/.octop/agents/<agent_id>/`; remote backends (S3, COS) are mounted
-on top of the same root_dir and the Octop service never reads
+`~/.inhere-box/agents/<agent_id>/`; remote backends (S3, COS) are mounted
+on top of the same root_dir and the inhere-box service never reads
 content files via `Path.write_text` / `read_text` (see
 [agent-backend-file-io.md](./agent-backend-file-io.md) for the full
 rules). Checkpointing, langgraph state, and the
@@ -134,8 +134,8 @@ they are harness-managed.
 
 Server-owned strings (slash replies, IM status, API error messages,
 tool display names, CLI output) come from the bundles in
-`src/octop/i18n/{en,zh}.json` and helpers under
-`src/octop/i18n/domains/`. Locale resolution lives in
+`src/inhere_box/i18n/{en,zh}.json` and helpers under
+`src/inhere_box/i18n/domains/`. Locale resolution lives in
 `infra/utils/locale.py`: stored user preference → `Accept-Language`
 header → channel-type hint. The dashboard mirrors the codes under
 `dashboard/src/locales/{en,zh}.json → apiErrors.*` and may hydrate
@@ -148,7 +148,7 @@ tool labels from `GET /api/i18n/tools`.
 [agent-interop-mailbox.md](./agent-interop-mailbox.md) for the queue
 contract and [agent-call-agent.md](./agent-call-agent.md) /
 [agent-delegation.md](./agent-delegation.md) for the two user-side
-entry points. Octop's `GlobalProcessor` implements the
+entry points. inhere-box's `GlobalProcessor` implements the
 `TeamProcessor` protocol so replies land back in the parent thread
 checkpoint and are pushed to the dashboard / IM channel by
 `on_reply`.
@@ -157,7 +157,7 @@ checkpoint and are pushed to the dashboard / IM channel by
 
 - [AGENTS.md](../AGENTS.md) — module boundaries, hard bans, change workflow
 - [Architecture Decision Records](./adr/) — single-process, no queue (ADR 001)
-- [Configuration](configuration.md) — `~/.octop/` layout + env vars
+- [Configuration](configuration.md) — `~/.inhere-box/` layout + env vars
 - [API reference](api.md) — every route, body, and error
 - [CLI reference](cli.md) — every subcommand
 - [Personas](personas.md) — MBTI templates and the mbti_profiles data module

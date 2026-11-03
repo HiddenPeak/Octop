@@ -10,22 +10,22 @@ import pytest
 from deepagents.backends.local_shell import LocalShellBackend
 from octop_harness.backends.workspace import BackendWorkspace
 
-from octop.infra.agents.builtin_skills import OCTOP_BUILTIN_SKILLS_ROOT
-from octop.infra.agents.experts.catalog import (
+from inhere_box.infra.agents.builtin_skills import INHERE_BOX_BUILTIN_SKILLS_ROOT
+from inhere_box.infra.agents.experts.catalog import (
     MANIFEST_FILENAME,
     WORKSPACE_MANIFEST_PATH,
     seed_expert_directory,
 )
-from octop.infra.agents.experts.publish import (
+from inhere_box.infra.agents.experts.publish import (
     PublishedExpertSnapshotMeta,
     assert_can_mutate_published,
     export_agent_workspace_to_dir,
     resolve_published_expert_slug,
 )
-from octop.infra.db.repos.published_experts import PublishedExpertRow
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.users.identity import Role, User
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.db.repos.published_experts import PublishedExpertRow
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.users.identity import Role, User
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def _workspace(root: Path) -> BackendWorkspace:
@@ -56,7 +56,7 @@ def test_only_creator_or_admin_can_mutate_published_expert() -> None:
 
     assert_can_mutate_published(row, owner)
     assert_can_mutate_published(row, admin)
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         assert_can_mutate_published(row, other)
     assert exc.value.code is ErrorCode.FORBIDDEN
 
@@ -74,7 +74,7 @@ def test_resolve_published_expert_slug_retries_derived_name_and_rejects_taken_ex
     repo = Repo()
 
     assert resolve_published_expert_slug(repo=repo, name="Source Expert") == "source-expert-2"
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         resolve_published_expert_slug(repo=repo, name="Other", slug="chosen-slug")
     assert exc.value.code is ErrorCode.PUBLISHED_EXPERT_SLUG_TAKEN
 
@@ -193,7 +193,7 @@ async def test_export_snapshot_excludes_runtime_workspace_dirs(tmp_path: Path) -
         [
             (MANIFEST_FILENAME, json.dumps(manifest, ensure_ascii=False).encode()),
             ("SOUL.md", b"# Source soul"),
-            (f"{OCTOP_BUILTIN_SKILLS_ROOT}/skill-manager/SKILL.md", b"# Builtin"),
+            (f"{INHERE_BOX_BUILTIN_SKILLS_ROOT}/skill-manager/SKILL.md", b"# Builtin"),
             ("logs/agent.log", b"runtime log line"),
         ]
     )
@@ -216,7 +216,7 @@ async def test_export_snapshot_excludes_runtime_workspace_dirs(tmp_path: Path) -
     )
 
     assert set(exported) == {MANIFEST_FILENAME, "SOUL.md"}
-    assert not (destination / OCTOP_BUILTIN_SKILLS_ROOT).exists()
+    assert not (destination / INHERE_BOX_BUILTIN_SKILLS_ROOT).exists()
     assert not (destination / "logs").exists()
     merged = json.loads((destination / MANIFEST_FILENAME).read_text(encoding="utf-8"))
     assert merged["id"] == "published-expert"
@@ -477,7 +477,7 @@ def test_published_creation_imports_when_psycopg_has_no_libpq(
     import importlib
     import sys
 
-    target = "octop.infra.agents.experts.published_creation"
+    target = "inhere_box.infra.agents.experts.published_creation"
     importlib.import_module(target)
     saved = sys.modules.pop(target)
     real_import = builtins.__import__
@@ -510,7 +510,7 @@ async def test_publish_agent_expert_maps_sqlite_integrity_error(
 ) -> None:
     from sqlite3 import IntegrityError
 
-    from octop.infra.agents.experts import published_creation as mod
+    from inhere_box.infra.agents.experts import published_creation as mod
 
     async def _noop_export(**_kwargs: object) -> list[str]:
         return []
@@ -541,7 +541,7 @@ async def test_publish_agent_expert_maps_sqlite_integrity_error(
         icon_url=None,
     )
 
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         await mod.publish_agent_expert(
             services=services,
             registry=registry,

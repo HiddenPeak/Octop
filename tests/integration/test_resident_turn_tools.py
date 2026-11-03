@@ -12,9 +12,9 @@ import httpx
 import pytest
 from langchain_core.messages import AIMessage, SystemMessage, convert_to_messages
 
-from octop.i18n import tr
-from octop.infra.agents.resident_identity import ResidentTextOnlyMiddleware
-from octop.infra.projects.tasks import now_ms
+from inhere_box.i18n import tr
+from inhere_box.infra.agents.resident_identity import ResidentTextOnlyMiddleware
+from inhere_box.infra.projects.tasks import now_ms
 from tests.support.auth import create_user, resolve_user_id
 from tests.support.fakes import FakeHarnessAgent
 from tests.support.harness import patch_task_stream
@@ -56,7 +56,7 @@ def _content(message):
 
 @pytest.fixture(autouse=True)
 def docs_enabled(monkeypatch):
-    monkeypatch.setenv("OCTOP_ENABLE_API_DOCS", "true")
+    monkeypatch.setenv("INHERE_BOX_ENABLE_API_DOCS", "true")
 
 
 @pytest.fixture
@@ -593,7 +593,7 @@ async def test_http_selected_knowledge_is_per_turn_and_revocation_does_not_break
         retrieved.append(arguments)
         return "Evidence from the selected base only."
 
-    monkeypatch.setattr("octop.infra.knowledge.retrieve.retrieve_context", retrieve)
+    monkeypatch.setattr("inhere_box.infra.knowledge.retrieve.retrieve_context", retrieve)
     searched, release = asyncio.Event(), asyncio.Event()
 
     async def search(guard, current):

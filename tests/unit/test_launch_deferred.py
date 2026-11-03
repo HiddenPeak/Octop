@@ -6,13 +6,15 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.server import OctopServer
+from inhere_box.infra.server import InhereBoxServer
 
 
 @pytest.mark.asyncio
-async def test_deferred_start_exposes_config_for_listen(tmp_octop_home: Path, monkeypatch) -> None:
-    """``octop run`` reads bind host/port from config before the DB is bound."""
-    from octop.infra import server as server_module
+async def test_deferred_start_exposes_config_for_listen(
+    tmp_inhere_box_home: Path, monkeypatch
+) -> None:
+    """``inhere-box run`` reads bind host/port from config before the DB is bound."""
+    from inhere_box.infra import server as server_module
 
     guarded = []
     monkeypatch.setattr(server_module, "ensure_nofile_limit", lambda: guarded.append(True))
@@ -23,7 +25,7 @@ async def test_deferred_start_exposes_config_for_listen(tmp_octop_home: Path, mo
         return original_probe(path)
 
     monkeypatch.setattr(server_module, "ensure_mobile_capabilities_probed", probe)
-    srv = OctopServer(home=tmp_octop_home)
+    srv = InhereBoxServer(home=tmp_inhere_box_home)
     await srv.start()
     try:
         assert srv.services is None

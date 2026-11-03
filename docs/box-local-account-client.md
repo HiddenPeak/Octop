@@ -1,6 +1,6 @@
 # 盒子账户：管理密钥、自有设备和分享码接线
 
-更新：2026-11-02。适用于显式启用 `account_mode=box_local` 的实例。默认 `server` 模式保留原账户协议。服务端与Dashboard已改造；App本轮仅更新此文档，不修改Swift/UI。架构、数据模型与运维规则见[技术设计与实施说明](box-local-account-pairing-plan.md)，精确DTO以部署的 `/api/openapi.json`、`/api/docs` 为准。
+更新：2026-11-03。适用于显式启用 `account_mode=box_local` 的实例。默认 `server` 模式保留原账户协议。局域网/外网地址、Bonjour 搜索、HTTP/WS 与连接恢复先读[APP 网络接入](app-network-connection-handoff.md)。服务端与Dashboard已改造；App本轮仅更新文档，不修改Swift/UI。架构、数据模型与运维规则见[技术设计与实施说明](box-local-account-pairing-plan.md)，精确DTO以部署的 `/api/openapi.json`、`/api/docs` 为准。
 
 协议兼容：认证模型版本仍为 2，签名协议仍为 1；`GET /api/box/status` 新增 `multiple_owner_devices=true`。客户端不得再根据 `primary_client_id` 是否非空禁止添加自有设备。`primary_client_id` 已弃用，仅保留一个代表设备 ID，不用于授权或工具路由；实际权限取决于已认证客户端的角色。`GET /api/box/account` 的 `owner_client_ids` 返回活动自有设备列表（受邀端返回空列表）。
 
@@ -20,10 +20,10 @@
 
 ## 2. 首次管理密钥与本机维护
 
-维护命令与服务的运行环境必须指向同一个 `OCTOP_HOME`。首次启动盒子服务建立控制数据库、稳定身份和库外信任记录，然后停止这个实例，在可信本机终端执行：
+维护命令与服务的运行环境必须指向同一个 `INHERE_BOX_HOME`。首次启动盒子服务建立控制数据库、稳定身份和库外信任记录，然后停止这个实例，在可信本机终端执行：
 
 ```sh
-octop box key init
+inhere-box box key init
 ```
 
 输出一次长期管理密钥；请安全保存，之后再启动服务。数据库只存摘要。命令必须取得与服务端相同的daemon锁，运行中的服务会导致命令拒绝，不能绕过锁写库。这里的“本机”指部署Octop的主机，不是任意客户端电脑。
@@ -31,26 +31,26 @@ octop box key init
 已使用旧061配对模型的实例，备份并停服后明确执行：
 
 ```sh
-octop box key init --upgrade-legacy
+inhere-box box key init --upgrade-legacy
 ```
 
-此操作先校验原信任，保留主人与业务数据，撤销旧客户端/会话/分享材料。旧浏览器不转为自有设备。原 `octop box pair` 入口退役。
+此操作先校验原信任，保留主人与业务数据，撤销旧客户端/会话/分享材料。旧浏览器不转为自有设备。原 `inhere-box box pair` 入口退役。
 
-丢失管理密钥时，在可信本机停服执行 `octop box key rotate`；如需同时撤销客户端，加 `--revoke-clients`。运行中的网页管理员也有轮换入口。普通服务器多用户实例不能直接套用此升级命令。
+丢失管理密钥时，在可信本机停服执行 `inhere-box box key rotate`；如需同时撤销客户端，加 `--revoke-clients`。运行中的网页管理员也有轮换入口。普通服务器多用户实例不能直接套用此升级命令。
 
 ## 3. 传输与持钥证明
 
-默认使用HTTPS/WSS并正常验证盒子服务身份。实际连接来自回环地址时允许HTTP/WS供本机开发；不能通过Host或转发头伪造回环例外。盒子URL、box_id用于定位和标识，不单独证明TLS服务身份；原生端如采用证书固定，必须通过可信渠道取得对应材料，不能全局跳过验证。
+本项目面向局域网使用，默认支持HTTP/WS，HTTPS/WSS保持可选。不要求IP、端口或Bonjour主机名白名单，也不需要额外开启HTTP；DHCP更换IP后按客户端实际访问地址连接即可。旧 `box_http_origins` 字段保留读取兼容，但不再控制HTTP放行。Bonjour发布的 `scheme` 与实际监听协议一致。
 
-只能提供HTTP的部署可在服务端 `config.json` 中显式配置 `"box_http_origins": ["http://盒子地址:端口"]`，重启后为列出的精确源开放HTTP/WS兼容模式。可以同时列出局域网地址和公网映射地址。每项必须仅含HTTP协议、主机和可选端口，不含路径、末尾斜线、账号或查询参数；省略或设为空列表即恢复默认限制。端口映射场景填写客户端访问的地址，不能用转发头自动启用。
+HTTP/WS与HTTPS/WSS使用相同的管理密钥验证、设备持钥证明、网页同源/CSRF校验、访客隔离和撤销机制。网页同源校验比较本次请求的协议、Host和端口，不固定服务IP；跨源请求仍拒绝。HTTP Cookie保留HttpOnly、SameSite和路径约束，不设置Secure；HTTPS Cookie仍设置Secure。
 
-HTTP兼容模式没有传输加密：管理密钥、分享码、会话令牌和业务内容可能被链路上的人读取或修改；设备签名不消除这个风险。地址列表只限定启用范围，不是网络访问控制。该模式保留管理密钥验证、设备持钥证明、网页同源/CSRF校验、访客隔离和撤销机制。HTTP Cookie保留HttpOnly、SameSite和路径约束，但不能设置Secure；HTTPS Cookie仍设置Secure。原生客户端若有平台HTTP限制，需要针对该部署明确允许，服务端配置不会自动修改客户端网络策略。
+HTTP没有传输加密，设备签名不提供链路加密。选用HTTPS时仍正常验证证书与服务身份；盒子URL、box_id只用于定位和标识，不替代TLS验证。原生客户端自身的HTTP网络策略由客户端处理，服务端不会修改客户端设置。
 
 每个原生客户端安装生成独立P-256密钥；公钥JWK仅提交 `kty="EC"`、`crv="P-256"`、`x`、`y`。坐标为32字节无填充base64url。私钥保存在系统安全存储中，不上传、不跨客户端复用。
 
 挑战包含 `challenge_id`、完整 `payload` 和 epoch秒 `expires_at`。payload绑定 `box_id`、challenge、nonce、action、params_hash、subject、auth_revision、boot_id、exp。签署前核对盒子、主体、动作和参数符合当前意图；不能修改payload或加claims。
 
-签名为compact JWS，受保护头只能是 `{"alg":"ES256","typ":"octop-box-proof+jwt"}`。ES256 签名值采用 64 字节的 `r||s`，不能直接使用 DER 编码签名。`params_hash` 为参数对象规范JSON（排序键、无额外空白、保留Unicode）的UTF-8 SHA-256十六进制摘要。挑战有效期60秒、只消费一次；响应丢失时申请新挑战，不重放旧proof。
+签名为compact JWS，受保护头只能是 `{"alg":"ES256","typ":"inhere-box-proof+jwt"}`，访问令牌的 `aud` 为 `inhere-box-api`。ES256 签名值采用 64 字节的 `r||s`，不能直接使用 DER 编码签名。`params_hash` 为参数对象规范JSON（排序键、无额外空白、保留Unicode）的UTF-8 SHA-256十六进制摘要。挑战有效期60秒、只消费一次；响应丢失时申请新挑战，不重放旧proof。
 
 ## 4. HTTP接口
 
@@ -129,7 +129,7 @@ HTTP兼容模式没有传输加密：管理密钥、分享码、会话令牌和�
 
 `POST /api/auth/browser/sessions` 请求只有 `{"management_key":"..."}`。要求同源Origin；若携带仍有效的管理员Cookie，还需要对应CSRF。失效或过期Cookie不阻止重新输入管理密钥登录。原生proof和分享码不能替代management_key。
 
-Cookie为HttpOnly、SameSite=Strict，HTTPS下Secure，Path=/api；服务端校验独立管理员会话，paired_client_id为null。响应只包含会话元数据与CSRF token，不返回可由JS持久保存的管理令牌。后续写操作发送 `X-Octop-Box-CSRF`。
+Cookie为HttpOnly、SameSite=Strict，HTTPS下Secure，Path=/api；服务端校验独立管理员会话，paired_client_id为null。响应只包含会话元数据与CSRF token，不返回可由JS持久保存的管理令牌。后续写操作发送 `X-Inhere-Box-CSRF`。
 
 默认网页会话24小时，页面重开可以恢复未失效Cookie。当前Dashboard不自动调用refresh接口，也不保存管理密钥自动重新登录。退出、清除浏览器存储、到期或服务重启后重新输入密钥；这不会影响管理密钥长期有效，也不会新增浏览器设备。
 
@@ -165,7 +165,7 @@ guest拥有独立内部用户身份，只能操作自己的项目、任务和附
 | --- | --- | --- |
 | 400 / 422 | `public_key_invalid`、`pairing_parameters_invalid` 或 DTO 校验错误 | 修正字段或公钥编码，不自动生成新授权绕过错误。 |
 | 401 | `session_invalid`、`proof_invalid`、`management_key_invalid`、`pairing_invalid` | 区分失败步骤：会话到期申请新挑战，证明不可重放，错误密钥要求重新输入，失效分享材料要求重新邀请。重新换票仍失败时停止自动重试。 |
-| 403 | `management_required`、`box_guest_forbidden`、`box_origin_required`、`box_csrf_invalid`、`box_tls_required` | 核对身份、同源、CSRF 和传输条件；重复登录不能扩大权限。 |
+| 403 | `management_required`、`box_guest_forbidden`、`box_origin_required`、`box_csrf_invalid` | 核对身份、同源和CSRF；重复登录不能扩大权限。 |
 | 404 | `client_not_found` 或业务资源不存在 | 更新本地列表；不能以错误详情推断其他人的业务数据。 |
 | 409 | `request_conflict`、`public_key_already_registered`、`grant_request_already_completed` | 重试保持原候选请求参数；已登记或撤销公钥不可重复注册。分享签发响应丢失时用新 request_id 重新签发。 |
 | 410 | `box_approval_retired`、`box_primary_transfer_retired` | 移除旧审批与独占主设备转移；由用户明确选择新的自有设备授权流程。 |

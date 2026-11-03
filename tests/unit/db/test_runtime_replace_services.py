@@ -4,19 +4,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from octop.config import OctopConfig
-from octop.infra.agents.manager import AgentManager
-from octop.infra.cron.delivery import CronDeliveryService
-from octop.infra.cron.manager import CronManager
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.gateway.gateway import Gateway
-from octop.infra.proactive.scheduler import ProactiveCareScheduler
-from octop.infra.proactive.service import ProactiveCareService
-from octop.infra.server import AppRuntime
-from octop.infra.users.manager import UserManager
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.manager import AgentManager
+from inhere_box.infra.cron.delivery import CronDeliveryService
+from inhere_box.infra.cron.manager import CronManager
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.gateway.gateway import Gateway
+from inhere_box.infra.proactive.scheduler import ProactiveCareScheduler
+from inhere_box.infra.proactive.service import ProactiveCareService
+from inhere_box.infra.server import AppRuntime
+from inhere_box.infra.users.manager import UserManager
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def _services(tmp_path: Path, name: str):
@@ -24,7 +24,7 @@ def _services(tmp_path: Path, name: str):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    cfg = OctopConfig()
+    cfg = InhereBoxConfig()
     return build_shared_services(db=db, paths=paths, config=cfg), cfg, paths
 
 
@@ -75,7 +75,7 @@ def test_replace_services_retargets_user_and_provider_repos(tmp_path: Path) -> N
 
 def test_rebind_module_delegates_retarget_to_app_runtime() -> None:
     """db.rebind must not own runtime private-field surgery."""
-    src = Path(__file__).resolve().parents[3] / "src/octop/infra/db/rebind.py"
+    src = Path(__file__).resolve().parents[3] / "src/inhere_box/infra/db/rebind.py"
     text = src.read_text(encoding="utf-8")
     assert "replace_services" in text
     assert "_retarget_runtime" not in text

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from octop.infra.agents.experts.catalog import ExpertCatalog, default_library_root
+from inhere_box.infra.agents.experts.catalog import ExpertCatalog, default_library_root
 
 _ROOT = default_library_root() / "karpathy-knowledge-base"
 

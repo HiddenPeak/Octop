@@ -10,14 +10,14 @@ import pytest
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import END, START, StateGraph
 
-from octop.config import OctopConfig
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRow
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects.checkpoint_saver import TaskCheckpointSaver, checkpoint_fence
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRow
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects.checkpoint_saver import TaskCheckpointSaver, checkpoint_fence
+from inhere_box.infra.utils.paths import PathLayout
 
 
 class State(TypedDict):
@@ -56,7 +56,7 @@ def checkpoint_env(tmp_path):
             ),
         )
     turn = repos.project_task_turn_repo.claim("worker-one", 1_000)
-    services = SharedServices(PathLayout(tmp_path), OctopConfig(), repos)
+    services = SharedServices(PathLayout(tmp_path), InhereBoxConfig(), repos)
     try:
         yield services, turn, tmp_path / "native-checkpoints.db"
     finally:
@@ -106,7 +106,7 @@ async def test_old_graph_cannot_write_after_new_lease_and_new_graph_resumes_same
                 replace_worker, services, before.config["configurable"]["checkpoint_id"]
             )
             release.set()
-            with pytest.raises(OctopError) as rejected:
+            with pytest.raises(InhereBoxError) as rejected:
                 await asyncio.wait_for(pending, 3)
             assert rejected.value.code == ErrorCode.TASK_INTERRUPTED
             after = await delegate.aget_tuple(config)
@@ -115,9 +115,9 @@ async def test_old_graph_cannot_write_after_new_lease_and_new_graph_resumes_same
             assert after.pending_writes == before.pending_writes
 
             # Both checkpoint writes and intermediate node writes reject the old lease.
-            with pytest.raises(OctopError):
+            with pytest.raises(InhereBoxError):
                 await old_saver.aput_writes(before.config, [("count", 99)], "late-node")
-            with pytest.raises(OctopError):
+            with pytest.raises(InhereBoxError):
                 await old_saver.aput(before.config, before.checkpoint, before.metadata, {})
 
             saver = TaskCheckpointSaver(services, 1, replacement, delegate)
@@ -202,12 +202,12 @@ async def test_replacement_waits_for_admitted_checkpoint_write_to_drain(checkpoi
             if cancel:
                 # LangGraph's finally may try another checkpoint after cancellation;
                 # that write must be fenced once reclamation has changed the lease.
-                with pytest.raises((asyncio.CancelledError, OctopError)):
+                with pytest.raises((asyncio.CancelledError, InhereBoxError)):
                     await asyncio.wait_for(pending, 3)
             else:
                 # The graph may finish before reclamation or be fenced on its next write.
                 result = await asyncio.gather(pending, return_exceptions=True)
-                assert result[0] == {"count": 1} or isinstance(result[0], OctopError)
+                assert result[0] == {"count": 1} or isinstance(result[0], InhereBoxError)
             assert replaced.is_set()
             assert await delegate.aget_tuple(config) is not None
         finally:
@@ -234,7 +234,7 @@ async def test_checkpoint_fence_blocks_another_process_and_releases_on_crash(che
         import sys
         from pathlib import Path
         from types import SimpleNamespace
-        from octop.infra.projects.checkpoint_saver import checkpoint_fence
+        from inhere_box.infra.projects.checkpoint_saver import checkpoint_fence
 
         services = SimpleNamespace(paths=SimpleNamespace(root=Path(sys.argv[1])))
         turn = SimpleNamespace(task_id="task-one", turn_id="turn-one")

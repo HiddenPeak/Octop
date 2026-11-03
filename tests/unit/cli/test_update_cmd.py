@@ -1,4 +1,4 @@
-"""Tests for `octop update`."""
+"""Tests for `inhere-box update`."""
 
 from __future__ import annotations
 
@@ -7,12 +7,12 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from octop.cli.main import cli
-from octop.infra.setup import self_update
+from inhere_box.cli.main import cli
+from inhere_box.infra.setup import self_update
 
 
 def test_update_check_only_no_install(monkeypatch: pytest.MonkeyPatch) -> None:
-    import octop.cli.commands.update as update_cmd
+    import inhere_box.cli.commands.update as update_cmd
 
     monkeypatch.setattr(
         update_cmd,
@@ -38,7 +38,7 @@ def test_update_check_only_no_install(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_update_yes_runs_upgrade(monkeypatch: pytest.MonkeyPatch) -> None:
-    import octop.cli.commands.update as update_cmd
+    import inhere_box.cli.commands.update as update_cmd
 
     monkeypatch.setattr(
         update_cmd,
@@ -70,7 +70,7 @@ def test_update_yes_runs_upgrade(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_update_already_latest(monkeypatch: pytest.MonkeyPatch) -> None:
-    import octop.cli.commands.update as update_cmd
+    import inhere_box.cli.commands.update as update_cmd
 
     monkeypatch.setattr(
         update_cmd,
@@ -93,7 +93,7 @@ def test_build_upgrade_command_uses_managed_venv_python() -> None:
     assert "--python" in cmd
     assert python in cmd
     assert "--upgrade-package" in cmd
-    assert "octop" in cmd
+    assert "inhere-box" in cmd
     assert "https://mirror.example/simple" in cmd
     assert "--target" not in cmd
 
@@ -102,7 +102,7 @@ def test_build_upgrade_command_pins_version() -> None:
     python = "/home/user/.octop/venv/bin/python"
     cmd = self_update.build_upgrade_command("uv", python, version="0.9.33")
     assert cmd is not None
-    assert "octop==0.9.33" in cmd
+    assert "inhere-box==0.9.33" in cmd
     assert "--prerelease" not in cmd
 
 
@@ -111,7 +111,7 @@ def test_build_upgrade_command_green_packages_target(
 ) -> None:
     packages = tmp_path / "packages"
     packages.mkdir()
-    monkeypatch.setenv("OCTOP_GREEN_PACKAGES", str(packages))
+    monkeypatch.setenv("INHERE_BOX_GREEN_PACKAGES", str(packages))
     python = "/opt/octop/runtime/bin/python3"
     cmd = self_update.build_upgrade_command("uv", python)
     assert cmd is not None
@@ -127,22 +127,22 @@ def test_resolve_venv_python_green_uses_current_interpreter(
     venv_python = tmp_path / "venv" / "bin" / "python"
     venv_python.parent.mkdir(parents=True)
     venv_python.write_text("#!/bin/sh\n", encoding="utf-8")
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
-    monkeypatch.setenv("OCTOP_GREEN_PACKAGES", str(packages))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_GREEN_PACKAGES", str(packages))
     monkeypatch.setattr(self_update.sys, "executable", "/bundled/python3")
     monkeypatch.setattr(self_update.sys, "prefix", "/usr")
     monkeypatch.setattr(self_update.sys, "base_prefix", "/usr")
     assert self_update.resolve_venv_python() == "/bundled/python3"
 
 
-def test_resolve_venv_python_prefers_octop_home(
+def test_resolve_venv_python_prefers_inhere_box_home(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     venv_python = tmp_path / "venv" / "bin" / "python"
     venv_python.parent.mkdir(parents=True)
     venv_python.write_text("#!/bin/sh\n", encoding="utf-8")
 
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     monkeypatch.setattr(self_update.sys, "prefix", "/usr")
     monkeypatch.setattr(self_update.sys, "base_prefix", "/usr")
     monkeypatch.delenv("VIRTUAL_ENV", raising=False)
@@ -151,7 +151,7 @@ def test_resolve_venv_python_prefers_octop_home(
 
 
 def test_update_check_skips_prerelease_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    import octop.cli.commands.update as update_cmd
+    import inhere_box.cli.commands.update as update_cmd
 
     monkeypatch.setattr(
         update_cmd,
@@ -172,7 +172,7 @@ def test_update_check_skips_prerelease_by_default(monkeypatch: pytest.MonkeyPatc
 def test_update_allow_prerelease_check_shows_prerelease(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import octop.cli.commands.update as update_cmd
+    import inhere_box.cli.commands.update as update_cmd
 
     monkeypatch.setattr(
         update_cmd,
@@ -191,7 +191,7 @@ def test_update_allow_prerelease_check_shows_prerelease(
 def test_update_allow_prerelease_installs_prerelease(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import octop.cli.commands.update as update_cmd
+    import inhere_box.cli.commands.update as update_cmd
 
     monkeypatch.setattr(
         update_cmd,
@@ -222,7 +222,7 @@ def test_update_allow_prerelease_installs_prerelease(
 
 
 def test_update_editable_install_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
-    import octop.cli.commands.update as update_cmd
+    import inhere_box.cli.commands.update as update_cmd
 
     monkeypatch.setattr(
         update_cmd,

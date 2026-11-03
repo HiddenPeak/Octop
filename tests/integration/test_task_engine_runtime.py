@@ -10,14 +10,21 @@ from pathlib import Path
 import pytest
 from acp.schema import LoadSessionRequest, NewSessionRequest
 
-from octop.infra.connectors.service import ConnectorService
-from octop.infra.errors import OctopError
-from octop.infra.projects import branches, engine_catalog, interactions, runtime, service, tasks
-from octop.infra.projects.engines import runtime as engine_runtime
-from octop.infra.projects.engines.acp import ACPTaskError, SessionInfo
-from octop.infra.projects.expert_memory import ExpertMemory
-from octop.infra.projects.interaction_models import InteractionResponse
-from octop.infra.projects.models import ProjectFields
+from inhere_box.infra.connectors.service import ConnectorService
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.projects import (
+    branches,
+    engine_catalog,
+    interactions,
+    runtime,
+    service,
+    tasks,
+)
+from inhere_box.infra.projects.engines import runtime as engine_runtime
+from inhere_box.infra.projects.engines.acp import ACPTaskError, SessionInfo
+from inhere_box.infra.projects.expert_memory import ExpertMemory
+from inhere_box.infra.projects.interaction_models import InteractionResponse
+from inhere_box.infra.projects.models import ProjectFields
 from tests.unit.projects.test_execution_engines import ready
 from tests.unit.projects.test_expert_execution import services  # noqa: F401
 from tests.unit.projects.test_unified_ingress import message
@@ -172,28 +179,28 @@ async def test_switch_back_loads_native_session_and_sends_only_other_engine_delt
     assert task.status == "completed" and native.instances[0].closed
     first = native.instances[0]
     message(services)
-    octop_history = []
+    inhere_box_history = []
 
     async def octop(services, owner, turn, history):
-        octop_history.extend(history)
-        yield {"type": "token", "content": "octop-middle-answer"}
+        inhere_box_history.extend(history)
+        yield {"type": "token", "content": "inhere-box-middle-answer"}
 
     monkeypatch.setattr(runtime, "_run_turn", octop)
     task = switch(services, task, engine_catalog.EngineSelection())
-    task = await execute(services, followup(services, task, "octop-middle-request"))
-    assert "first-native-request" in json.dumps(octop_history)
-    assert "native answer 1" in json.dumps(octop_history)
+    task = await execute(services, followup(services, task, "inhere-box-middle-request"))
+    assert "first-native-request" in json.dumps(inhere_box_history)
+    assert "native answer 1" in json.dumps(inhere_box_history)
     task = switch(services, task, selection)
     task = await execute(services, followup(services, task, "back-to-native"))
     second = native.instances[1]
     text = second.prompts[0][0]["text"]
     assert second.requested_session == first.info.session_id and second.info.resumed
-    assert "octop-middle-request" in text and "octop-middle-answer" in text
+    assert "inhere-box-middle-request" in text and "inhere-box-middle-answer" in text
     assert "first-native-request" not in text and "native answer 1" not in text
     assert "Updates since this engine last worked" in text and "back-to-native" in text
     assert second.cwd == first.cwd
     assert task.status == "completed" and all(session.closed for session in native.instances)
-    assert [turn.execution_engine.engine_id for turn in task.turns] == ["acp", "octop", "acp"]
+    assert [turn.execution_engine.engine_id for turn in task.turns] == ["acp", "inhere-box", "acp"]
     assert first.info.session_id not in task.model_dump_json()
     row = services.project_task_repo.get_internal(task.task_id, 1)
     binding = next(iter(json.loads(row.execution_json)["sessions"].values()))
@@ -301,7 +308,9 @@ async def test_project_cwd_identity_and_expert_memory_scope_are_independent(
     assert "local-method/SKILL.md" in text
     assert skill.read_text() == "Local method"
     history = next(
-        server for server in native.instances[0].mcp_servers if server.name == "octop_task_history"
+        server
+        for server in native.instances[0].mcp_servers
+        if server.name == "inhere_box_task_history"
     )
     history_path = Path(history.args[-1])
     assert task.task_id in history_path.parts and task.turns[0].turn_id in history_path.parts
@@ -353,7 +362,7 @@ async def test_live_native_permissions_allow_once_then_require_new_decision_with
         assert waiting.wait_kind == "engine_approval" and not waiting.checkpoint_id
         assert not running.done() and not native.instances[0].closed
         assert tasks.detail(services, 1, task.task_id).status == "waiting_approval"
-        with pytest.raises(OctopError):
+        with pytest.raises(InhereBoxError):
             respond(services, task.task_id, turn.turn_id, first, "allow_once", owner=2)
         respond(services, task.task_id, turn.turn_id, first, "allow_once")
         waiting, second = await pending(services, turn.turn_id, 2)
@@ -393,7 +402,7 @@ async def test_cancel_during_native_permission_closes_session_and_worker_can_run
             await asyncio.gather(running, return_exceptions=True)
     assert tasks.detail(services, 1, task.task_id).status == "cancelled"
     assert native.instances[0].closed and native.instances[0].decisions == []
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         respond(services, task.task_id, turn.turn_id, item, "allow_once")
     native.permissions = False
     following = await execute(services, create(services, selection, "after-cancel"), worker)

@@ -9,15 +9,15 @@ from dataclasses import replace
 import pytest
 from tests.unit.projects.test_resume_receipts import services  # noqa: F401
 
-from octop.infra.db.repos.unified_sources import (
+from inhere_box.infra.db.repos.unified_sources import (
     CronOccurrenceRepo,
     UnifiedSourceInboxRepo,
     UnifiedSourceRouteRepo,
 )
-from octop.infra.projects import approval_policy, approval_runtime, interactions
-from octop.infra.projects.control import TaskControlMiddleware
-from octop.infra.projects.ingress import SourceEnvelope
-from octop.infra.projects.interaction_models import ApprovalPayload, InteractionResolution
+from inhere_box.infra.projects import approval_policy, approval_runtime, interactions
+from inhere_box.infra.projects.control import TaskControlMiddleware
+from inhere_box.infra.projects.ingress import SourceEnvelope
+from inhere_box.infra.projects.interaction_models import ApprovalPayload, InteractionResolution
 
 
 def accepted_cron(services, *, skip=True, authority_skip=None):

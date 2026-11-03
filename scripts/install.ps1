@@ -1,8 +1,8 @@
-# Octop Installer for Windows (PowerShell)
+# inhere-box Installer for Windows (PowerShell)
 # Usage: irm <url>/install.ps1 | iex
 #    or: .\install.ps1 [-Version X.Y.Z] [-FromSource] [-SourceDir DIR] [-Extras "browser"]
 #
-# Installs Octop into ~/.octop with a uv-managed Python environment.
+# Installs inhere-box into ~/.inhere-box with a uv-managed Python environment.
 
 & {
 param(
@@ -16,19 +16,23 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$OctopHome     = if ($env:OCTOP_HOME) { $env:OCTOP_HOME } else { Join-Path $HOME ".octop" }
-$OctopVenv     = Join-Path $OctopHome "venv"
-$OctopBin      = Join-Path $OctopHome "bin"
+if (-not $env:INHERE_BOX_HOME -and $env:OCTOP_HOME) { $env:INHERE_BOX_HOME = $env:OCTOP_HOME }
+$InhereBoxHome = if ($env:INHERE_BOX_HOME) { $env:INHERE_BOX_HOME } else { Join-Path $HOME ".inhere-box" }
+if (-not $env:INHERE_BOX_HOME -and -not (Test-Path $InhereBoxHome) -and (Test-Path (Join-Path $HOME ".octop"))) {
+    $InhereBoxHome = Join-Path $HOME ".octop"
+}
+$InhereBoxVenv     = Join-Path $InhereBoxHome "venv"
+$InhereBoxBin      = Join-Path $InhereBoxHome "bin"
 $PythonVersion = "3.12"
-$OctopRepo     = if ($env:OCTOP_REPO) { $env:OCTOP_REPO } else { "https://github.com/TencentCloud/Octop.git" }
+$InhereBoxRepo     = if ($env:INHERE_BOX_REPO) { $env:INHERE_BOX_REPO } else { "https://github.com/TencentCloud/Octop.git" }
 
-function Write-Info { param([string]$Message) Write-Host "[octop] " -ForegroundColor Green  -NoNewline; Write-Host $Message }
-function Write-Warn { param([string]$Message) Write-Host "[octop] " -ForegroundColor Yellow -NoNewline; Write-Host $Message }
-function Stop-WithError { param([string]$Message) Write-Host "[octop] ERROR: $Message" -ForegroundColor Red; exit 1 }
+function Write-Info { param([string]$Message) Write-Host "[inhere-box] " -ForegroundColor Green  -NoNewline; Write-Host $Message }
+function Write-Warn { param([string]$Message) Write-Host "[inhere-box] " -ForegroundColor Yellow -NoNewline; Write-Host $Message }
+function Stop-WithError { param([string]$Message) Write-Host "[inhere-box] ERROR: $Message" -ForegroundColor Red; exit 1 }
 
 if ($Help) {
     @"
-Octop Installer for Windows
+inhere-box Installer for Windows
 
 Usage: .\install.ps1 [OPTIONS]
 
@@ -45,13 +49,13 @@ to install it, or install later from the dashboard. If a system Chrome already
 exists, that download is skipped even with -Extras browser.
 
 Environment:
-  OCTOP_HOME            Installation directory (default: ~/.octop)
-  OCTOP_REPO            Git clone URL for -FromSource without -SourceDir
+  INHERE_BOX_HOME            Installation directory (default: ~/.inhere-box)
+  INHERE_BOX_REPO            Git clone URL for -FromSource without -SourceDir
 "@
     exit 0
 }
 
-Write-Host "[octop] Installing Octop into $OctopHome" -ForegroundColor Green
+Write-Host "[inhere-box] Installing inhere-box into $InhereBoxHome" -ForegroundColor Green
 
 $policy = Get-ExecutionPolicy
 if ($policy -eq "Restricted") {
@@ -139,21 +143,21 @@ function Ensure-Uv {
 
 Ensure-Uv
 
-if (Test-Path $OctopVenv) {
+if (Test-Path $InhereBoxVenv) {
     Write-Info "Existing environment found, upgrading..."
 } else {
     Write-Info "Creating Python $PythonVersion environment..."
 }
 
-uv venv $OctopVenv --python $PythonVersion --quiet --clear
+uv venv $InhereBoxVenv --python $PythonVersion --quiet --clear
 if ($LASTEXITCODE -ne 0) { Stop-WithError "Failed to create virtual environment" }
 
-$VenvPython = Join-Path $OctopVenv "Scripts\python.exe"
+$VenvPython = Join-Path $InhereBoxVenv "Scripts\python.exe"
 if (-not (Test-Path $VenvPython)) { Stop-WithError "Failed to create virtual environment" }
 $pyVersion = & $VenvPython --version 2>&1
 Write-Info "Python environment ready ($pyVersion)"
 
-# TEMP: mcp 2.x breaks langchain-mcp-adapters; pin until published octop pulls octop-harness>=0.9.18.
+# TEMP: mcp 2.x breaks langchain-mcp-adapters; pin until published inhere-box pulls octop-harness>=0.9.18.
 function Pin-McpCompat {
     Write-Info "Pinning mcp<2 (langchain-mcp-adapters compat; temporary)..."
     uv pip install "mcp>=1.27.1,<2" --python $VenvPython --quiet
@@ -164,7 +168,7 @@ function Pin-McpCompat {
 
 function Test-Install {
     Write-Info "Verifying installation..."
-    & $VenvPython -c "from octop.infra.agents.manager import AgentManager" 2>$null
+    & $VenvPython -c "from inhere_box.infra.agents.manager import AgentManager" 2>$null
     if ($LASTEXITCODE -ne 0) { Stop-WithError "Install verification failed: core import error" }
     Write-Info "Install verification passed"
 }
@@ -183,7 +187,7 @@ $script:ConsoleAvailable = $false
 
 function Prepare-Console {
     param([string]$RepoDir)
-    $consoleDest = Join-Path $RepoDir "src\octop\dashboard"
+    $consoleDest = Join-Path $RepoDir "src\inhere-box\dashboard"
     if (Test-Path (Join-Path $consoleDest "index.html")) {
         $script:ConsoleAvailable = $true
         return
@@ -212,7 +216,7 @@ function Prepare-Console {
     }
 }
 
-$VenvOctop = Join-Path $OctopVenv "Scripts\octop.exe"
+$VenvOctop = Join-Path $InhereBoxVenv "Scripts\inhere-box.exe"
 
 if ($FromSource) {
     if ($SourceDir) {
@@ -224,9 +228,9 @@ if ($FromSource) {
         if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
             Stop-WithError "git required for -FromSource. Install from https://git-scm.com/"
         }
-        $cloneDir = Join-Path $env:TEMP "octop-install-$(Get-Random)"
+        $cloneDir = Join-Path $env:TEMP "inhere-box-install-$(Get-Random)"
         try {
-            git clone --depth 1 $OctopRepo $cloneDir
+            git clone --depth 1 $InhereBoxRepo $cloneDir
             Prepare-Console $cloneDir
             uv pip install "${cloneDir}${ExtrasSuffix}" --python $VenvPython
         } finally {
@@ -235,8 +239,8 @@ if ($FromSource) {
     }
 } else {
     # PEP 508: extras must sit between name and version specifier
-    # (octop[browser]==x.y.z); octop==x.y.z[browser] is an invalid requirement.
-    $package = if ($Version) { "octop${ExtrasSuffix}==$Version" } else { "octop${ExtrasSuffix}" }
+    # (inhere-box[browser]==x.y.z); inhere-box==x.y.z[browser] is an invalid requirement.
+    $package = if ($Version) { "inhere-box${ExtrasSuffix}==$Version" } else { "inhere-box${ExtrasSuffix}" }
     Write-Info "Installing ${package} from PyPI..."
     $installArgs = @("--python", $VenvPython, "--quiet")
     if ($Version -match '(dev|a|b|rc)') { $installArgs += "--prerelease=explicit" }
@@ -246,11 +250,11 @@ if ($FromSource) {
 Pin-McpCompat
 Test-Install
 
-if (-not (Test-Path $VenvOctop)) { Stop-WithError "Installation failed: octop CLI not found in venv" }
-Write-Info "Octop installed successfully"
+if (-not (Test-Path $VenvOctop)) { Stop-WithError "Installation failed: inhere-box CLI not found in venv" }
+Write-Info "inhere-box installed successfully"
 
 if (-not $script:ConsoleAvailable) {
-    $check = & $VenvPython -c "import importlib.resources, octop; p=importlib.resources.files('octop')/'dashboard'/'index.html'; print('yes' if p.is_file() else 'no')" 2>&1
+    $check = & $VenvPython -c "import importlib.resources, inhere_box; p=importlib.resources.files('inhere_box')/'dashboard'/'index.html'; print('yes' if p.is_file() else 'no')" 2>&1
     if ($check -eq "yes") { $script:ConsoleAvailable = $true }
 }
 
@@ -304,36 +308,37 @@ if (-not $wantPlaywrightChromium) {
     }
 }
 
-New-Item -ItemType Directory -Path $OctopBin -Force | Out-Null
+New-Item -ItemType Directory -Path $InhereBoxBin -Force | Out-Null
 
-$wrapperPs1 = Join-Path $OctopBin "octop.ps1"
+$wrapperPs1 = Join-Path $InhereBoxBin "inhere-box.ps1"
 @'
 $ErrorActionPreference = "Stop"
-$OctopHome = if ($env:OCTOP_HOME) { $env:OCTOP_HOME } else { Join-Path $HOME ".octop" }
-$RealBin = Join-Path $OctopHome "venv\Scripts\octop.exe"
+$InhereBoxHome = if ($env:INHERE_BOX_HOME) { $env:INHERE_BOX_HOME } elseif ($env:OCTOP_HOME) { $env:OCTOP_HOME } else { (Split-Path $PSScriptRoot -Parent) }
+$RealBin = Join-Path $InhereBoxHome "venv\Scripts\inhere-box.exe"
 if (-not (Test-Path $RealBin)) {
-    Write-Error "Octop environment not found at $OctopHome\venv"
+    Write-Error "inhere-box environment not found at $InhereBoxHome\venv"
     exit 1
 }
 & $RealBin @args
 '@ | Set-Content -Path $wrapperPs1 -Encoding UTF8
 
-$cmdWrapper = Join-Path $OctopBin "octop.cmd"
+$cmdWrapper = Join-Path $InhereBoxBin "inhere-box.cmd"
 @'
 @echo off
-set "OCTOP_HOME=%OCTOP_HOME%"
-if "%OCTOP_HOME%"=="" set "OCTOP_HOME=%USERPROFILE%\.octop"
-set "REAL_BIN=%OCTOP_HOME%\venv\Scripts\octop.exe"
+set "INHERE_BOX_HOME=%INHERE_BOX_HOME%"
+if "%INHERE_BOX_HOME%"=="" set "INHERE_BOX_HOME=%OCTOP_HOME%"
+if "%INHERE_BOX_HOME%"=="" for %%I in ("%~dp0..") do set "INHERE_BOX_HOME=%%~fI"
+set "REAL_BIN=%INHERE_BOX_HOME%\venv\Scripts\inhere-box.exe"
 if not exist "%REAL_BIN%" (
-    echo Error: Octop environment not found at %OCTOP_HOME%\venv >&2
+    echo Error: inhere-box environment not found at %INHERE_BOX_HOME%\venv >&2
     exit /b 1
 )
 "%REAL_BIN%" %*
 '@ | Set-Content -Path $cmdWrapper -Encoding UTF8
 
-Write-Info "Wrappers created in $OctopBin"
+Write-Info "Wrappers created in $InhereBoxBin"
 
-$targetPath = $OctopBin
+$targetPath = $InhereBoxBin
 $registryPath = "HKCU:\Environment"
 $pathSavedForNewSessions = $false
 try {
@@ -356,9 +361,9 @@ if ($env:Path -notlike "*$targetPath*") {
 }
 
 Write-Host ""
-Write-Host "Octop installed successfully!" -ForegroundColor Green
+Write-Host "inhere-box installed successfully!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Install location:  $OctopHome"
+Write-Host "  Install location:  $InhereBoxHome"
 Write-Host "  Python:            $pyVersion"
 if ($script:ConsoleAvailable) {
     Write-Host "  Web UI:            available" -ForegroundColor Green
@@ -366,16 +371,16 @@ if ($script:ConsoleAvailable) {
     Write-Host "  Web UI:            not available" -ForegroundColor Yellow
 }
 Write-Host ""
-Write-Host "If 'octop' is not found in this session, run:"
+Write-Host "If 'inhere-box' is not found in this session, run:"
 Write-Host "  `$env:Path = `"$targetPath;`$env:Path`"" -ForegroundColor White
 if ($pathSavedForNewSessions) {
     Write-Host "(Saved to User PATH; new terminals pick it up automatically.)"
 }
 Write-Host ""
 Write-Host "Then run:"
-Write-Host "  octop init" -ForegroundColor White
-Write-Host "  octop run" -ForegroundColor White
-Write-Host "  octop service start" -ForegroundColor White
+Write-Host "  inhere-box init" -ForegroundColor White
+Write-Host "  inhere-box run" -ForegroundColor White
+Write-Host "  inhere-box service start" -ForegroundColor White
 Write-Host "  http://127.0.0.1:8088" -ForegroundColor White
 
 } @args

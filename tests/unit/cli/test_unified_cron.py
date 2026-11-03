@@ -9,18 +9,18 @@ from contextlib import nullcontext
 import pytest
 from click.testing import CliRunner
 
-from octop.cli.main import cli
-from octop.infra.cron.configuration import validate_task_selection
-from octop.infra.errors import OctopError
+from inhere_box.cli.main import cli
+from inhere_box.infra.cron.configuration import validate_task_selection
+from inhere_box.infra.errors import InhereBoxError
 from tests.unit.projects.test_expert_execution import services  # noqa: F401
 
 
 @pytest.fixture
 def local_cli(services, monkeypatch, tmp_path):
-    from octop.cli.support import db, offline_ops
+    from inhere_box.cli.support import db, offline_ops
 
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
-    monkeypatch.delenv("OCTOP_AGENT", raising=False)
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
+    monkeypatch.delenv("INHERE_BOX_AGENT", raising=False)
     monkeypatch.setattr(db, "open_cli_services", lambda _home=None: nullcontext(services))
     monkeypatch.setattr(offline_ops, "open_cli_services", lambda _home=None: nullcontext(services))
     return CliRunner()
@@ -140,7 +140,7 @@ def test_explicit_target_project_and_policy_are_validated(services, local_cli):
     assert result.exit_code == 0, result.output
     value = json.loads(result.output)
     assert value["target_task_id"] == "target" and value["project_id"] == "project"
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         validate_task_selection(
             services,
             2,
@@ -150,7 +150,7 @@ def test_explicit_target_project_and_policy_are_validated(services, local_cli):
             selected_expert_id=None,
         )
     for policy, target in (("task", None), ("per_job", "target")):
-        with pytest.raises(OctopError):
+        with pytest.raises(InhereBoxError):
             validate_task_selection(
                 services,
                 1,
@@ -161,7 +161,7 @@ def test_explicit_target_project_and_policy_are_validated(services, local_cli):
             )
     with services.db.transaction() as conn:
         conn.execute("UPDATE project_tasks SET internal_kind='resident' WHERE task_id='target'")
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         validate_task_selection(
             services,
             1,

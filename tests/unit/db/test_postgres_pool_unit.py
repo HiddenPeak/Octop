@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from octop.infra.db.pool import qmark_to_pyformat
+from inhere_box.infra.db.pool import qmark_to_pyformat
 
 
 def test_qmark_to_pyformat_replaces_placeholders():

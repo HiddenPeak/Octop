@@ -7,7 +7,7 @@ import asyncio
 import pytest
 from tests.unit.projects.test_unified_ingress import message, services, source  # noqa: F401
 
-from octop.infra.projects import ingress, tasks
+from inhere_box.infra.projects import ingress, tasks
 
 
 async def admitted(bundle, owner, receipt):

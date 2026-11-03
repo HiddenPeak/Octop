@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseOctopToolOutput } from "./parseToolOutput";
+import { parseInhereBoxToolOutput } from "./parseToolOutput";
 import { isPinnedToolUiMessage, partitionPinnedTools } from "./isPinnedToolUi";
 import type { ChatMessage } from "../../pages/Chat/hooks/useChat";
 import {
@@ -7,20 +7,20 @@ import {
   type AssistantTurnSplit,
 } from "../../pages/Chat/utils/messageContent";
 
-describe("parseOctopToolOutput object input", () => {
+describe("parseInhereBoxToolOutput object input", () => {
   it("accepts already-parsed envelope objects", () => {
-    const parsed = parseOctopToolOutput({
-      octop_ui: { renderer: "demo_card", version: 1 },
+    const parsed = parseInhereBoxToolOutput({
+      inhere_box_ui: { renderer: "demo_card", version: 1 },
       data: { title: "Hello", count: 1 },
       text: "Hello",
     });
-    expect(parsed.octopUi?.renderer).toBe("demo_card");
+    expect(parsed.inhereBoxUi?.renderer).toBe("demo_card");
     expect(parsed.data).toEqual({ title: "Hello", count: 1 });
   });
 });
 
 describe("isPinnedToolUiMessage", () => {
-  it("pins messages whose output has octop_ui", () => {
+  it("pins messages whose output has inhere_box_ui", () => {
     const msg = {
       id: "1",
       role: "assistant",
@@ -29,7 +29,7 @@ describe("isPinnedToolUiMessage", () => {
       toolData: {
         name: "demo_ui_card",
         output: JSON.stringify({
-          octop_ui: { renderer: "demo_card" },
+          inhere_box_ui: { renderer: "demo_card" },
           data: { title: "T", count: 1 },
         }),
       },
@@ -57,7 +57,7 @@ describe("isPinnedToolUiMessage", () => {
       toolData: {
         name: "get_hot_topics",
         output: JSON.stringify({
-          octop_ui: { renderer: "hot_topics_list" },
+          inhere_box_ui: { renderer: "hot_topics_list" },
           data: { source: "weibo", items: [], error: "403 Forbidden" },
         }),
       },
@@ -76,7 +76,7 @@ describe("partitionPinnedTools + process summary counts", () => {
       toolData: {
         name: "get_server_status",
         output: JSON.stringify({
-          octop_ui: { renderer: "server_status_card" },
+          inhere_box_ui: { renderer: "server_status_card" },
           data: { ok: true },
         }),
       },

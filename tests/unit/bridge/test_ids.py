@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.bridge.ids import (
+from inhere_box.infra.bridge.ids import (
     format_bridge_agent_id,
     is_bridge_agent_id,
     parse_bridge_agent_id,

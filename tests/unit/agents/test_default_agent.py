@@ -7,15 +7,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from octop.infra.agents.experts.catalog import ExpertCatalog, default_library_root
-from octop.infra.agents.experts.default_agent import (
+from inhere_box.infra.agents.experts.catalog import ExpertCatalog, default_library_root
+from inhere_box.infra.agents.experts.default_agent import (
     DEFAULT_EXPERT_ID,
     SETUP_DEFAULT_AGENT_ID,
     bootstrap_default_agent,
     default_home_local_backend,
 )
-from octop.infra.errors import OctopError
-from octop.infra.utils.host_dirs import host_fs_tree_root
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.utils.host_dirs import host_fs_tree_root
 
 
 @pytest.fixture(scope="module")
@@ -111,5 +111,5 @@ async def test_bootstrap_requires_catalog() -> None:
     registry = MagicMock()
     registry.get_row.return_value = None
     registry.list_agents.return_value = []
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await bootstrap_default_agent(registry, None, user_id=1, locale="zh")

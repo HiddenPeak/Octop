@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from octop.infra.skills.presentation import (
+from inhere_box.infra.skills.presentation import (
     apply_skill_presentation,
     localize_skill_summary,
 )

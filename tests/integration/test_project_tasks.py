@@ -8,9 +8,9 @@ from uuid import uuid4
 
 import pytest
 
-from octop.infra.projects import runtime
-from octop.infra.projects.content import TaskContent
-from octop.infra.projects.tasks import TaskMessage, now_ms, send
+from inhere_box.infra.projects import runtime
+from inhere_box.infra.projects.content import TaskContent
+from inhere_box.infra.projects.tasks import TaskMessage, now_ms, send
 from tests.support.auth import create_user, resolve_user_id
 
 
@@ -529,7 +529,7 @@ async def test_real_harness_reads_project_files_and_loads_selected_skills_mcp(
 async def test_model_selection_prefers_global_pin_then_existing_text_model(task_env):
     from dataclasses import replace
 
-    from octop.infra.projects.tasks import TaskExecutionOptions, _configuration
+    from inhere_box.infra.projects.tasks import TaskExecutionOptions, _configuration
 
     client, server, auth, calls = task_env
     services = server.services
@@ -556,7 +556,7 @@ async def test_model_selection_prefers_global_pin_then_existing_text_model(task_
 async def test_task_status_is_in_list_and_deltas_through_follow_up(
     task_env, monkeypatch, in_project, result_status
 ):
-    from octop.infra.projects import tasks
+    from inhere_box.infra.projects import tasks
 
     client, server, auth, _ = task_env
     worker, services = server.project_task_worker, server.services
@@ -654,7 +654,7 @@ async def test_task_status_is_in_list_and_deltas_through_follow_up(
 @pytest.mark.parametrize("scope", ["standalone", "project", "all"])
 @pytest.mark.parametrize("deleted", [False, True])
 async def test_task_sync_reads_legacy_execution_snapshot(env, scope, deleted):
-    from octop.infra.db.repos.project_tasks import ProjectTaskRow
+    from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
 
     client, server, auth = env
     services = server.services
@@ -730,7 +730,7 @@ async def test_task_sync_reads_legacy_execution_snapshot(env, scope, deleted):
         assert change["data"] is None
     else:
         assert change["data"]["engine"] == {
-            "engine_id": "octop",
+            "engine_id": "inhere-box",
             "connection_id": None,
             "model_id": None,
         }
@@ -776,7 +776,7 @@ async def test_task_status_delta_pagination_preserves_cutoff(task_env):
 
 
 async def test_task_cursor_pages_are_bounded_and_sync_promotes_unloaded_tasks(env):
-    from octop.infra.db.repos.project_tasks import ProjectTaskRow
+    from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
 
     client, server, auth = env
     owner = await resolve_user_id(client, auth, "admin")
@@ -849,8 +849,8 @@ async def test_task_cursor_pages_are_bounded_and_sync_promotes_unloaded_tasks(en
 
 
 async def test_task_cursor_scope_tamper_and_transaction_rollback(env):
-    from octop.infra.db.repos.project_tasks import ProjectTaskRow
-    from octop.infra.projects.cursors import cursor_codec
+    from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
+    from inhere_box.infra.projects.cursors import cursor_codec
 
     client, server, auth = env
     owner = await resolve_user_id(client, auth, "admin")
@@ -914,8 +914,8 @@ async def test_task_cursor_scope_tamper_and_transaction_rollback(env):
 
 
 async def test_task_list_sync_is_scoped_per_project_and_restore_epoch(env):
-    from octop.infra.agentcomputer.identity import get_or_create_identity
-    from octop.infra.db.repos.project_tasks import ProjectTaskRow
+    from inhere_box.infra.agentcomputer.identity import get_or_create_identity
+    from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
 
     client, server, auth = env
     owner = await resolve_user_id(client, auth, "admin")
@@ -965,8 +965,8 @@ async def test_task_list_sync_is_scoped_per_project_and_restore_epoch(env):
 
 
 async def test_conversation_history_pages_are_bounded_and_scoped(task_env, monkeypatch):
-    from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRow
-    from octop.infra.projects import tasks
+    from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRow
+    from inhere_box.infra.projects import tasks
 
     client, server, auth, _ = task_env
     await server.project_task_worker.close()
@@ -1166,8 +1166,8 @@ async def test_retry_preserves_failed_text_uses_current_configuration_and_is_ide
 
 
 async def test_task_sse_resumes_persisted_state_and_rejects_foreign_cursors(task_env, monkeypatch):
-    from octop.api.routers import projects as routes
-    from octop.infra.projects import tasks
+    from inhere_box.api.routers import projects as routes
+    from inhere_box.infra.projects import tasks
 
     client, server, auth, _ = task_env
     await server.project_task_worker.close()
@@ -1229,7 +1229,7 @@ async def test_task_sse_resumes_persisted_state_and_rejects_foreign_cursors(task
 
 
 async def test_task_rename_archive_restore_and_filtered_sync(task_env):
-    from octop.infra.projects import tasks
+    from inhere_box.infra.projects import tasks
 
     client, server, auth, _ = task_env
     created = (

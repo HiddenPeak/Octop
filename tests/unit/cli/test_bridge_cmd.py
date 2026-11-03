@@ -1,4 +1,4 @@
-"""Tests for the `octop bridge` group."""
+"""Tests for the `inhere-box bridge` group."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 from click.testing import CliRunner
 
-from octop.cli.main import cli
+from inhere_box.cli.main import cli
 
 
 def test_bridge_group_help_lists_management_commands() -> None:
@@ -37,11 +37,11 @@ def test_root_help_lists_bridge() -> None:
 
 
 def test_bridge_list_requires_user(monkeypatch: Any) -> None:
-    import octop.cli.commands.bridge as bridge_cmd
-    from octop.infra.errors import ErrorCode, OctopError
+    import inhere_box.cli.commands.bridge as bridge_cmd
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
     def _missing(*_a: Any, **_k: Any) -> int:
-        raise OctopError(
+        raise InhereBoxError(
             ErrorCode.NOT_FOUND,
             "user required (--user, CLI default_user, or agent with an owner)",
         )
@@ -65,8 +65,8 @@ def test_bridge_list_json(monkeypatch: Any) -> None:
         }
     ]
 
-    import octop.cli.commands.bridge as bridge_cmd
-    from octop.cli.support import embedded_ops as ops
+    import inhere_box.cli.commands.bridge as bridge_cmd
+    from inhere_box.cli.support import embedded_ops as ops
 
     monkeypatch.setattr(bridge_cmd, "resolve_cli_acting_user_id", lambda *_a, **_k: 7)
     monkeypatch.setattr(ops, "list_bridge_connections", lambda *_a, **_k: payload)
@@ -94,7 +94,7 @@ def test_bridge_probe_dispatches(monkeypatch: Any) -> None:
             "agents": [{"agent_id": "ag1", "name": "A", "kind": "expert", "state": "idle"}],
         }
 
-    from octop.cli.support import embedded_ops as ops
+    from inhere_box.cli.support import embedded_ops as ops
 
     monkeypatch.setattr(ops, "probe_bridge_peer", fake_probe)
     runner = CliRunner()
@@ -131,8 +131,8 @@ def test_bridge_create_and_delete_dispatch(monkeypatch: Any) -> None:
     def fake_delete(connection_id: str, uid: int, **_k: Any) -> None:
         created["deleted"] = (connection_id, uid)
 
-    import octop.cli.commands.bridge as bridge_cmd
-    from octop.cli.support import embedded_ops as ops
+    import inhere_box.cli.commands.bridge as bridge_cmd
+    from inhere_box.cli.support import embedded_ops as ops
 
     monkeypatch.setattr(bridge_cmd, "resolve_cli_acting_user_id", lambda *_a, **_k: 3)
     monkeypatch.setattr(ops, "create_bridge_connection", fake_create)
@@ -183,8 +183,8 @@ def test_bridge_patch_dispatches(monkeypatch: Any) -> None:
         captured.update(kwargs)
         return {"connection_id": connection_id, "display_name": kwargs["display_name"]}
 
-    import octop.cli.commands.bridge as bridge_cmd
-    from octop.cli.support import embedded_ops as ops
+    import inhere_box.cli.commands.bridge as bridge_cmd
+    from inhere_box.cli.support import embedded_ops as ops
 
     monkeypatch.setattr(bridge_cmd, "resolve_cli_acting_user_id", lambda *_a, **_k: 4)
     monkeypatch.setattr(ops, "patch_bridge_connection", fake_patch)
@@ -200,12 +200,14 @@ def test_bridge_patch_dispatches(monkeypatch: Any) -> None:
     assert captured["notes"] == "hi"
 
 
-def test_list_bridge_connections_reads_local_db(tmp_octop_home: Path, monkeypatch: Any) -> None:
-    from octop.cli.support.db import open_cli_services
-    from octop.cli.support.embedded_ops import list_bridge_connections
-    from octop.infra.db.repos.users import UserRepo
+def test_list_bridge_connections_reads_local_db(
+    tmp_inhere_box_home: Path, monkeypatch: Any
+) -> None:
+    from inhere_box.cli.support.db import open_cli_services
+    from inhere_box.cli.support.embedded_ops import list_bridge_connections
+    from inhere_box.infra.db.repos.users import UserRepo
 
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_octop_home))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_inhere_box_home))
     runner = CliRunner()
     result = runner.invoke(
         cli,
@@ -213,7 +215,7 @@ def test_list_bridge_connections_reads_local_db(tmp_octop_home: Path, monkeypatc
     )
     assert result.exit_code == 0, result.output
 
-    with open_cli_services(home=tmp_octop_home) as svc:
+    with open_cli_services(home=tmp_inhere_box_home) as svc:
         user = UserRepo(svc.db).get_by_username("alice")
         assert user is not None
         uid = int(user.id)
@@ -227,7 +229,7 @@ def test_list_bridge_connections_reads_local_db(tmp_octop_home: Path, monkeypatc
             status="disconnected",
         )
 
-    rows = list_bridge_connections(uid, home=tmp_octop_home)
+    rows = list_bridge_connections(uid, home=tmp_inhere_box_home)
     assert len(rows) == 1
     assert rows[0]["connection_id"] == "01BR1"
     assert rows[0]["display_name"] == "demo"
@@ -237,14 +239,14 @@ def test_list_bridge_connections_reads_local_db(tmp_octop_home: Path, monkeypatc
 
 
 def test_bridge_get_missing_fails(monkeypatch: Any) -> None:
-    import octop.cli.commands.bridge as bridge_cmd
-    from octop.cli.support import embedded_ops as ops
-    from octop.infra.errors import ErrorCode, OctopError
+    import inhere_box.cli.commands.bridge as bridge_cmd
+    from inhere_box.cli.support import embedded_ops as ops
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
     monkeypatch.setattr(bridge_cmd, "resolve_cli_acting_user_id", lambda *_a, **_k: 1)
 
     def _missing(*_a: Any, **_k: Any) -> dict[str, Any]:
-        raise OctopError(ErrorCode.BRIDGE_NOT_FOUND, "bridge connection not found")
+        raise InhereBoxError(ErrorCode.BRIDGE_NOT_FOUND, "bridge connection not found")
 
     monkeypatch.setattr(ops, "get_bridge_connection", _missing)
     runner = CliRunner()

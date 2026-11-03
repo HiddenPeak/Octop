@@ -7,12 +7,12 @@ import {
   type PublishedExpert,
 } from "../../../api/modules/publishedExperts";
 import { apiErrorMessage } from "../../../utils/apiError";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import PublishExpertDrawer from "./PublishExpertDrawer";
 import styles from "../index.module.less";
 
 interface PublishTemplateButtonProps {
-  agent: OctopAgent;
+  agent: InhereBoxAgent;
   published: PublishedExpert | null;
   onChanged: () => void;
   /** Optional class for the icon button (card vs table). */

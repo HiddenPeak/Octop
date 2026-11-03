@@ -8,7 +8,7 @@ import {
   type TeamRecord,
   type TeamTemplateFile,
 } from "../../../api/modules/teams";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import { useAgentFormResources } from "../../../hooks/useAgentFormResources";
 import { apiErrorMessage } from "../../../utils/apiError";
 import {
@@ -29,8 +29,8 @@ import styles from "../index.module.less";
 interface TeamDrawerProps {
   open: boolean;
   mode: "create" | "edit";
-  team?: OctopAgent | null;
-  experts: OctopAgent[];
+  team?: InhereBoxAgent | null;
+  experts: InhereBoxAgent[];
   onClose: () => void;
   onSaved: (team: TeamRecord) => void;
 }

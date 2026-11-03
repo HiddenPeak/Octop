@@ -9,7 +9,7 @@ import pytest
 from deepagents.backends.local_shell import LocalShellBackend
 from octop_harness.backends.workspace import BackendWorkspace
 
-from octop.infra.gateway.media.inbound_store import (
+from inhere_box.infra.gateway.media.inbound_store import (
     build_timestamped_inbound_name,
     display_name_from_stored,
     inbound_extension,
@@ -68,7 +68,7 @@ async def test_write_inbound_collision_adds_suffix() -> None:
             media_type="text/plain",
         )
         twin_name = first.path.rsplit("/", 1)[-1]
-        from octop.infra.gateway.media.inbound_store import _unique_inbound_path
+        from inhere_box.infra.gateway.media.inbound_store import _unique_inbound_path
 
         path = await _unique_inbound_path(workspace, twin_name)
         assert path.endswith("-2.txt")

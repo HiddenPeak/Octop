@@ -16,13 +16,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from tests.support.harness import build_harness_manager_mock
 
-from octop.config import OctopConfig
-from octop.infra.agents.manager import AgentCreateSpec, AgentManager
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.manager import AgentCreateSpec, AgentManager
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.utils.paths import PathLayout
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -30,9 +30,9 @@ from octop.infra.utils.paths import PathLayout
 
 
 def _make_services(tmp_path: Path):
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
-    services = build_shared_services(db=db, paths=PathLayout(tmp_path), config=OctopConfig())
+    services = build_shared_services(db=db, paths=PathLayout(tmp_path), config=InhereBoxConfig())
     services.provider_repo.create(
         name="test-openai",
         kind="openai",
@@ -68,7 +68,7 @@ def _patch_harness(monkeypatch) -> MagicMock:
         return fake_hm
 
     monkeypatch.setattr(
-        "octop.infra.agents.manager.HarnessAgentManager",
+        "inhere_box.infra.agents.manager.HarnessAgentManager",
         _constructor,
     )
     return fake_hm
@@ -153,7 +153,7 @@ async def test_boot_start_timeout_marks_failed_and_continues(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A hung start must not block boot(); later agents still come up."""
-    from octop.i18n.domains.agents import AGENT_START_TIMEOUT
+    from inhere_box.i18n.domains.agents import AGENT_START_TIMEOUT
 
     services = _make_services(tmp_path)
     _patch_harness(monkeypatch)
@@ -168,7 +168,7 @@ async def test_boot_start_timeout_marks_failed_and_continues(
         return await original(row)
 
     monkeypatch.setattr(registry, "_start_agent", maybe_hang)
-    monkeypatch.setattr("octop.infra.agents.manager._AGENT_BOOT_START_TIMEOUT", 0.05)
+    monkeypatch.setattr("inhere_box.infra.agents.manager._AGENT_BOOT_START_TIMEOUT", 0.05)
 
     await asyncio.wait_for(registry.boot(), timeout=2)
 
@@ -201,7 +201,7 @@ async def test_boot_start_timeout_keeps_registered_agent_running(
         await asyncio.Event().wait()
 
     monkeypatch.setattr(registry, "_start_agent", hang_after_register)
-    monkeypatch.setattr("octop.infra.agents.manager._AGENT_BOOT_START_TIMEOUT", 0.05)
+    monkeypatch.setattr("inhere_box.infra.agents.manager._AGENT_BOOT_START_TIMEOUT", 0.05)
 
     await asyncio.wait_for(registry.boot(), timeout=2)
 
@@ -387,7 +387,7 @@ async def test_create_duplicate_name_rejected(tmp_path: Path) -> None:
     user_id = services.repos.user_repo.create(username="alice", password_hash="h", role="admin")
 
     await registry.create(AgentCreateSpec(name="dup-bot", user_id=user_id))
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         await registry.create(AgentCreateSpec(name="dup-bot", user_id=user_id))
     assert exc_info.value.code is ErrorCode.AGENT_NAME_TAKEN
 
@@ -400,7 +400,7 @@ async def test_update_duplicate_name_rejected(tmp_path: Path) -> None:
 
     await registry.create(AgentCreateSpec(name="alpha", user_id=user_id))
     beta = await registry.create(AgentCreateSpec(name="beta", user_id=user_id))
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         await registry.update(beta.agent_id, name="alpha")
     assert exc_info.value.code is ErrorCode.AGENT_NAME_TAKEN
 
@@ -519,13 +519,13 @@ async def test_update_triggers_harness_reload(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_update_raises_for_unknown_id(tmp_path: Path) -> None:
-    """update() raises OctopError when the agent_id does not exist."""
-    from octop.infra.errors import OctopError  # noqa: PLC0415
+    """update() raises InhereBoxError when the agent_id does not exist."""
+    from inhere_box.infra.errors import InhereBoxError  # noqa: PLC0415
 
     services = _make_services(tmp_path)
     registry = _make_registry(services)
 
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await registry.update("nonexistent-ulid", name="x")
 
 
@@ -537,14 +537,14 @@ async def test_update_raises_for_unknown_id(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_get_agent_raises_for_unknown(tmp_path: Path) -> None:
     """get_agent() raises AGENT_NOT_FOUND when no agent row exists."""
-    from octop.infra.errors import ErrorCode, OctopError  # noqa: PLC0415
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError  # noqa: PLC0415
 
     services = _make_services(tmp_path)
     fake_hm = _make_fake_hm()
     fake_hm.get_agent.side_effect = KeyError("missing")
     registry = _make_registry(services, fake_hm=fake_hm)
 
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         registry.get_agent("no-such-id")
     assert exc_info.value.code is ErrorCode.AGENT_NOT_FOUND
 
@@ -552,7 +552,7 @@ async def test_get_agent_raises_for_unknown(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_get_agent_raises_not_running_for_stopped_row(tmp_path: Path) -> None:
     """Stopped agents report AGENT_NOT_RUNNING, not AGENT_NOT_FOUND."""
-    from octop.infra.errors import ErrorCode, OctopError  # noqa: PLC0415
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError  # noqa: PLC0415
 
     services = _make_services(tmp_path)
     fake_hm = _make_fake_hm()
@@ -563,7 +563,7 @@ async def test_get_agent_raises_not_running_for_stopped_row(tmp_path: Path) -> N
     row = await registry.create(AgentCreateSpec(name="paused"))
     await registry.stop(row.agent_id)
 
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         registry.get_agent(row.agent_id)
     assert exc_info.value.code is ErrorCode.AGENT_NOT_RUNNING
 
@@ -571,7 +571,7 @@ async def test_get_agent_raises_not_running_for_stopped_row(tmp_path: Path) -> N
 @pytest.mark.asyncio
 async def test_get_agent_raises_failed_for_failed_row(tmp_path: Path) -> None:
     """Failed agents report AGENT_FAILED instead of not-found."""
-    from octop.infra.errors import ErrorCode, OctopError  # noqa: PLC0415
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError  # noqa: PLC0415
 
     services = _make_services(tmp_path)
     fake_hm = _make_fake_hm()
@@ -582,7 +582,7 @@ async def test_get_agent_raises_failed_for_failed_row(tmp_path: Path) -> None:
     row = await registry.create(AgentCreateSpec(name="broken"))
     services.repos.agent_repo.set_state(row.agent_id, "failed", error="boom")
 
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         registry.get_agent(row.agent_id)
     assert exc_info.value.code is ErrorCode.AGENT_FAILED
 
@@ -635,7 +635,7 @@ async def test_list_subagent_summaries_delegates_to_harness(tmp_path: Path) -> N
 
 @pytest.mark.asyncio
 async def test_list_subagent_summaries_fills_color_from_frontmatter(tmp_path: Path) -> None:
-    """When harness omits color, Octop copies it from workspace frontmatter."""
+    """When harness omits color, inhere-box copies it from workspace frontmatter."""
     services = _make_services(tmp_path)
     fake_agent = MagicMock(name="HarnessAgent")
     fake_agent.list_subagent_summaries = AsyncMock(
@@ -813,7 +813,7 @@ async def test_list_agents_filters_by_user(tmp_path: Path) -> None:
 
 
 def test_ordinary_agent_lists_preserve_but_hide_private_stewards(tmp_path: Path) -> None:
-    from octop.infra.agents.resident_identity import reserve_resident_in_transaction
+    from inhere_box.infra.agents.resident_identity import reserve_resident_in_transaction
 
     services = _make_services(tmp_path)
     registry = _make_registry(services)
@@ -910,9 +910,9 @@ async def test_on_provider_changed_noop_when_factory_is_none_and_no_providers(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """on_provider_changed() is silent when factory is None and DB has no providers."""
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
-    services = build_shared_services(db=db, paths=PathLayout(tmp_path), config=OctopConfig())
+    services = build_shared_services(db=db, paths=PathLayout(tmp_path), config=InhereBoxConfig())
     fake_hm = _make_fake_hm()
     fake_hm._shared_factory = None
     fake_hm.shared_factory = None
@@ -939,7 +939,7 @@ async def test_on_provider_changed_bootstraps_factory_when_none(
     fake_provider_cfg = MagicMock()
     fake_provider_cfg.id = "test-openai"
     monkeypatch.setattr(
-        "octop.infra.agents.providers.store.ProviderStore.build_harness_configs",
+        "inhere_box.infra.agents.providers.store.ProviderStore.build_harness_configs",
         lambda self: [fake_provider_cfg],
     )
     reload_mock = AsyncMock()
@@ -969,7 +969,7 @@ async def test_on_provider_changed_reloads_agents_when_factory_bootstraps(
     fake_provider_cfg = MagicMock()
     fake_provider_cfg.id = "test-openai"
     monkeypatch.setattr(
-        "octop.infra.agents.providers.store.ProviderStore.build_harness_configs",
+        "inhere_box.infra.agents.providers.store.ProviderStore.build_harness_configs",
         lambda self: [fake_provider_cfg],
     )
     reload_mock = AsyncMock()
@@ -1020,7 +1020,7 @@ async def test_on_provider_changed_reloads_all_when_factory_ready(
     reload_mock = AsyncMock()
     monkeypatch.setattr(registry, "_reload_agents", reload_mock)
     monkeypatch.setattr(
-        "octop.infra.agents.providers.store.ProviderStore.build_harness_configs",
+        "inhere_box.infra.agents.providers.store.ProviderStore.build_harness_configs",
         lambda self: [],
     )
 
@@ -1042,7 +1042,7 @@ async def test_on_provider_changed_adds_new_provider(tmp_path: Path, monkeypatch
     fake_hm.remove_provider = MagicMock()
 
     monkeypatch.setattr(
-        "octop.infra.agents.manager.HarnessAgentConfig",
+        "inhere_box.infra.agents.manager.HarnessAgentConfig",
         MagicMock(return_value=MagicMock()),
     )
 
@@ -1059,7 +1059,7 @@ async def test_on_provider_changed_adds_new_provider(tmp_path: Path, monkeypatch
     fake_provider_cfg = MagicMock()
     fake_provider_cfg.id = "openai"
     monkeypatch.setattr(
-        "octop.infra.agents.providers.store.ProviderStore.build_harness_configs",
+        "inhere_box.infra.agents.providers.store.ProviderStore.build_harness_configs",
         lambda self: [fake_provider_cfg],
     )
 
@@ -1084,7 +1084,7 @@ async def test_on_provider_changed_removes_stale_provider(tmp_path: Path, monkey
 
     # No providers in DB → _build_provider_configs returns []
     monkeypatch.setattr(
-        "octop.infra.agents.providers.store.ProviderStore.build_harness_configs",
+        "inhere_box.infra.agents.providers.store.ProviderStore.build_harness_configs",
         lambda self: [],
     )
 
@@ -1152,7 +1152,7 @@ async def test_create_rolls_back_when_initializer_fails(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_create_with_template_writes_files(tmp_path: Path) -> None:
     """create() with template_name uploads expert files to the agent backend."""
-    from octop.infra.agents.experts.catalog import (  # noqa: PLC0415
+    from inhere_box.infra.agents.experts.catalog import (  # noqa: PLC0415
         Expert,
         ExpertCatalog,
         ExpertSummary,
@@ -1264,7 +1264,7 @@ async def test_create_with_template_no_catalog_does_not_crash(tmp_path: Path) ->
 @pytest.mark.asyncio
 async def test_create_with_unknown_template_does_not_crash(tmp_path: Path) -> None:
     """create() with a template_name not in catalog logs a warning and continues."""
-    from octop.infra.agents.experts.catalog import ExpertCatalog  # noqa: PLC0415
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog  # noqa: PLC0415
 
     services = _make_services(tmp_path)
     fake_catalog = MagicMock(spec=ExpertCatalog)

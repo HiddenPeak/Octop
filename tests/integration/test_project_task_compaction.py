@@ -12,8 +12,8 @@ import pytest
 from deepagents.middleware import summarization
 from langchain_core.messages import AIMessage, ToolMessage, messages_from_dict
 
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import compaction, runtime, tasks
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import compaction, runtime, tasks
 from tests.integration.test_project_task_artifacts import real_model as real_model
 from tests.integration.test_project_tasks import settled
 from tests.integration.test_project_tasks_ws import command, connected
@@ -454,7 +454,7 @@ async def test_repreparing_same_compaction_turn_replaces_partial_native_state(
         failed_save.setattr(
             services.project_task_turn_repo, "save_context_in_transaction", lambda *args: False
         )
-        with pytest.raises(OctopError) as interrupted:
+        with pytest.raises(InhereBoxError) as interrupted:
             _ = [event async for event in runtime.run_turn(services, owner, turn, history)]
     assert interrupted.value.code == ErrorCode.TASK_INTERRUPTED
     assert summary.await_count == 1

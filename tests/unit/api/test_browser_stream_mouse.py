@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from octop.api.routers.browser import stream as stream_mod
+from inhere_box.api.routers.browser import stream as stream_mod
 
 
 def _fake_sess() -> SimpleNamespace:

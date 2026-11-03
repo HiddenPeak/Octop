@@ -9,9 +9,9 @@ from unittest.mock import AsyncMock, Mock
 import httpx
 import pytest
 
-from octop.api.app import build_app
-from octop.infra.agents.acp_setup import ACPRunnerSetup, ACPSetupService, ACPSetupView
-from octop.infra.agents.acp_setup_jobs import ACPSetupJob, ACPSetupJobs
+from inhere_box.api.app import build_app
+from inhere_box.infra.agents.acp_setup import ACPRunnerSetup, ACPSetupService, ACPSetupView
+from inhere_box.infra.agents.acp_setup_jobs import ACPSetupJob, ACPSetupJobs
 from tests.support.auth import create_user
 
 
@@ -134,7 +134,7 @@ async def test_check_returns_explicit_auth_required_status(env, monkeypatch) -> 
         install_command=None,
         login_command="codex-acp cli login --device-auth",
         docs_url="https://github.com/agentclientprotocol/codex-acp",
-        message="请在运行 Octop 的服务账号下登录。",
+        message="请在运行 inhere-box 的服务账号下登录。",
         checked_at=1,
     )
     check = AsyncMock(return_value=result)

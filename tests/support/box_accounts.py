@@ -10,7 +10,7 @@ import httpx
 import jwt
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from octop.infra.server import OctopServer
+from inhere_box.infra.server import InhereBoxServer
 
 
 def _jwk(key: ec.EllipticCurvePrivateKey) -> dict[str, str]:
@@ -25,7 +25,7 @@ def _jwk(key: ec.EllipticCurvePrivateKey) -> dict[str, str]:
 
 def _proof(key: ec.EllipticCurvePrivateKey, challenge: dict[str, Any]) -> str:
     return jwt.encode(
-        challenge["payload"], key, algorithm="ES256", headers={"typ": "octop-box-proof+jwt"}
+        challenge["payload"], key, algorithm="ES256", headers={"typ": "inhere-box-proof+jwt"}
     )
 
 
@@ -87,7 +87,7 @@ async def _login(
     return {"Authorization": f"Bearer {body['access_token']}"}, body
 
 
-async def _management_key(server: OctopServer) -> str:
+async def _management_key(server: InhereBoxServer) -> str:
     cached = getattr(server, "_test_management_key", None)
     if cached is None:
         assert server.box_account_service is not None
@@ -97,20 +97,20 @@ async def _management_key(server: OctopServer) -> str:
     return cached
 
 
-async def _admin_login(client: httpx.AsyncClient, server: OctopServer) -> dict[str, str]:
+async def _admin_login(client: httpx.AsyncClient, server: InhereBoxServer) -> dict[str, str]:
     if client.base_url.host == "testserver":
         client.base_url = httpx.URL("http://localhost")
     headers = {"Origin": str(client.base_url).rstrip("/")}
     current = await client.get("/api/auth/browser/session", headers=headers)
     if current.status_code == 200:
-        headers["X-Octop-Box-CSRF"] = current.json()["csrf_token"]
+        headers["X-Inhere-Box-CSRF"] = current.json()["csrf_token"]
     response = await client.post(
         "/api/auth/browser/sessions",
         headers=headers,
         json={"management_key": await _management_key(server)},
     )
     assert response.status_code == 200, response.text
-    return {"Origin": headers["Origin"], "X-Octop-Box-CSRF": response.json()["csrf_token"]}
+    return {"Origin": headers["Origin"], "X-Inhere-Box-CSRF": response.json()["csrf_token"]}
 
 
 async def _primary_candidate(
@@ -137,7 +137,7 @@ async def _primary_candidate(
 
 
 async def _claim(
-    client: httpx.AsyncClient, server: OctopServer
+    client: httpx.AsyncClient, server: InhereBoxServer
 ) -> tuple[ec.EllipticCurvePrivateKey, str, dict[str, str]]:
     management_key = await _management_key(server)
     key = ec.generate_private_key(ec.SECP256R1())
@@ -149,7 +149,7 @@ async def _claim(
 
 def _legacy_account(service: Any) -> int:
     """Seed v61 credentials and trust exactly as preserved by migration 062."""
-    from octop.infra.auth.box_accounts.crypto import canonical
+    from inhere_box.infra.auth.box_accounts.crypto import canonical
 
     with service._services.db.transaction() as conn:
         owner_id = service._repo.create_owner(conn, 1)

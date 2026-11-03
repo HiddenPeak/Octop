@@ -7,14 +7,14 @@ from typing import Any
 
 import httpx
 
-from octop.infra.setup.password_file import WIZARD_FILE_NAME, read_password
+from inhere_box.infra.setup.password_file import WIZARD_FILE_NAME, read_password
 
 # Meets ``validate_password_policy`` (letter + digit, length ≥ 8).
 TEST_PASSWORD = "TestPass12"
 
 
 def _wizard_password_home(home: Path) -> Path:
-    """Resolve wizard password dir: file lives at ``~/octop-login.txt``, not under ``~/.octop/``."""
+    """Resolve wizard password dir: file lives at ``~/inhere-box-login.txt``, not under ``~/.inhere-box/``."""
     for cand in (home, home.parent, Path.home()):
         if (cand / WIZARD_FILE_NAME).exists():
             return cand
@@ -135,7 +135,7 @@ async def create_user(
     role: str = "user",
     permissions: list[str] | None = None,
 ) -> dict[str, str]:
-    from octop.infra.users.permissions import BASELINE_PERMISSIONS
+    from inhere_box.infra.users.permissions import BASELINE_PERMISSIONS
 
     body: dict[str, object] = {
         "username": username,

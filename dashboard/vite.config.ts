@@ -24,7 +24,7 @@ if (typeof globalThis.crypto === "undefined") {
  */
 function suppressViteDisconnectReload(): Plugin {
   return {
-    name: "octop-suppress-vite-disconnect-reload",
+    name: "inhere-box-suppress-vite-disconnect-reload",
     apply: "serve",
     enforce: "pre",
     transform(code, id) {
@@ -89,7 +89,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     build: {
-      outDir: path.resolve(__dirname, "../src/octop/dashboard"),
+      outDir: path.resolve(__dirname, "../src/inhere_box/dashboard"),
       emptyOutDir: true,
       chunkSizeWarningLimit: 1600,
       // Limit Rollup worker concurrency to prevent OOM on memory-constrained hosts.
@@ -185,8 +185,8 @@ export default defineConfig(({ mode }) => {
           "offline.html",
           "logo_vertical_dark.svg",
           "logo_vertical_white.svg",
-          "logo_horizontal_dark.png",
-          "logo_horizontal_white.png",
+          "inhere-box-wordmark-dark.svg",
+          "inhere-box-wordmark-white.svg",
           "pwa-192.png",
           "pwa-512.png",
           "apple-touch-icon.png",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from octop.infra.connectors.catalog import (
+from inhere_box.infra.connectors.catalog import (
     catalog_entry_to_dict,
     get_catalog_entry,
     list_catalog,

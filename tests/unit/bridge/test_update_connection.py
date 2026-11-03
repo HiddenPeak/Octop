@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from octop.infra.bridge.manager import BridgeManager
-from octop.infra.db.repos.bridge_connections import BridgeConnectionRow
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.bridge.manager import BridgeManager
+from inhere_box.infra.db.repos.bridge_connections import BridgeConnectionRow
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 def _row(**overrides: Any) -> BridgeConnectionRow:
@@ -54,7 +54,7 @@ async def test_update_meta_only_skips_reauth(monkeypatch: pytest.MonkeyPatch) ->
     mgr._repo.find_by_display_name = MagicMock(return_value=None)
     mgr._repo.update_settings = MagicMock(return_value=updated)
     login = AsyncMock()
-    monkeypatch.setattr("octop.infra.bridge.manager.login_peer", login)
+    monkeypatch.setattr("inhere_box.infra.bridge.manager.login_peer", login)
 
     out = await mgr.update_connection_meta(
         "cid1",
@@ -86,17 +86,17 @@ async def test_update_endpoint_reauths_and_reconnects(
     mgr.disconnect = AsyncMock()  # type: ignore[method-assign]
     mgr.connect = AsyncMock(return_value=after)  # type: ignore[method-assign]
     login = AsyncMock(return_value={"access_token": "tok", "expires_in": 3600})
-    monkeypatch.setattr("octop.infra.bridge.manager.login_peer", login)
+    monkeypatch.setattr("inhere_box.infra.bridge.manager.login_peer", login)
     monkeypatch.setattr(
-        "octop.infra.bridge.manager.normalize_peer_base_url",
+        "inhere_box.infra.bridge.manager.normalize_peer_base_url",
         lambda raw: raw.strip().rstrip("/"),
     )
     monkeypatch.setattr(
-        "octop.infra.bridge.manager.encrypt_payload",
+        "inhere_box.infra.bridge.manager.encrypt_payload",
         lambda _repo, payload: f"enc:{payload}".encode(),
     )
     monkeypatch.setattr(
-        "octop.infra.bridge.manager.decrypt_payload",
+        "inhere_box.infra.bridge.manager.decrypt_payload",
         lambda _repo, _blob: {"password": "old-secret"},
     )
 
@@ -131,8 +131,8 @@ async def test_update_peer_account_identity_preserves_username_case(
     mgr._repo.get.return_value = updated
     mgr.disconnect = AsyncMock()  # type: ignore[method-assign]
     login = AsyncMock(return_value={"access_token": "tok"})
-    monkeypatch.setattr("octop.infra.bridge.manager.login_peer", login)
-    monkeypatch.setattr("octop.infra.bridge.manager.encrypt_payload", lambda _s, _p: b"enc")
+    monkeypatch.setattr("inhere_box.infra.bridge.manager.login_peer", login)
+    monkeypatch.setattr("inhere_box.infra.bridge.manager.encrypt_payload", lambda _s, _p: b"enc")
 
     if allowed:
         result = await mgr.update_connection_meta(
@@ -144,7 +144,7 @@ async def test_update_peer_account_identity_preserves_username_case(
             base_url=row.peer_base_url, username="alice", password="secret"
         )
     else:
-        with pytest.raises(OctopError) as exc:
+        with pytest.raises(InhereBoxError) as exc:
             await mgr.update_connection_meta(
                 "cid1", owner_user_id=1, peer_username=username, password="secret"
             )
@@ -169,7 +169,7 @@ async def test_update_password_required_when_no_stored_secret() -> None:
     row = _row(credential_blob=None)
     mgr.get_owned = MagicMock(return_value=row)  # type: ignore[method-assign]
     mgr._repo.find_by_display_name = MagicMock(return_value=None)
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await mgr.update_connection_meta(
             "cid1",
             owner_user_id=1,
@@ -205,7 +205,7 @@ async def test_inbound_update_display_only() -> None:
 async def test_inbound_connect_rejected() -> None:
     mgr = _mgr()
     mgr.get_owned = MagicMock(return_value=_row(credential_blob=None))  # type: ignore[method-assign]
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await mgr.connect("cid1", owner_user_id=1)
     assert ei.value.code == ErrorCode.BRIDGE_INBOUND_PASSIVE
 
@@ -214,7 +214,7 @@ async def test_inbound_connect_rejected() -> None:
 async def test_inbound_auto_reconnect_rejected() -> None:
     mgr = _mgr()
     mgr.get_owned = MagicMock(return_value=_row(credential_blob=None))  # type: ignore[method-assign]
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await mgr.set_auto_reconnect("cid1", owner_user_id=1, enabled=True)
     assert ei.value.code == ErrorCode.BRIDGE_INBOUND_PASSIVE
 
@@ -230,7 +230,7 @@ async def test_delete_notifies_peer_before_disconnect(
     sess.send_json = AsyncMock()
     mgr._sessions["cid1"] = sess
     mgr.disconnect = AsyncMock()  # type: ignore[method-assign]
-    monkeypatch.setattr("octop.infra.bridge.manager.asyncio.sleep", AsyncMock())
+    monkeypatch.setattr("inhere_box.infra.bridge.manager.asyncio.sleep", AsyncMock())
     await mgr.delete_connection("cid1", owner_user_id=1)
     sess.send_json.assert_awaited_once_with({"type": "close", "reason": "deleted"})
     mgr.disconnect.assert_awaited_once_with("cid1")
@@ -239,7 +239,7 @@ async def test_delete_notifies_peer_before_disconnect(
 
 @pytest.mark.asyncio
 async def test_finalize_inbound_offline_keeps_row() -> None:
-    from octop.infra.bridge.transport import BridgeSession
+    from inhere_box.infra.bridge.transport import BridgeSession
 
     mgr = _mgr()
     mgr._repo.get = MagicMock(return_value=_row(credential_blob=None))
@@ -251,7 +251,7 @@ async def test_finalize_inbound_offline_keeps_row() -> None:
 
 @pytest.mark.asyncio
 async def test_finalize_inbound_deleted_drops_row() -> None:
-    from octop.infra.bridge.transport import BridgeSession
+    from inhere_box.infra.bridge.transport import BridgeSession
 
     mgr = _mgr()
     sess = BridgeSession(connection_id="cid1", send_text=AsyncMock())
@@ -262,7 +262,7 @@ async def test_finalize_inbound_deleted_drops_row() -> None:
 
 
 def test_inbound_default_display_name_uses_ip_and_keeps_local_edits() -> None:
-    from octop.infra.bridge.manager import inbound_default_display_name
+    from inhere_box.infra.bridge.manager import inbound_default_display_name
 
     assert (
         inbound_default_display_name(

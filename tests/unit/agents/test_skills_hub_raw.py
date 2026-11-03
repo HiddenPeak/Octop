@@ -9,8 +9,8 @@ from urllib.error import HTTPError
 
 import pytest
 
-from octop.infra.skills import skills_hub
-from octop.infra.skills.skills_hub import (
+from inhere_box.infra.skills import skills_hub
+from inhere_box.infra.skills.skills_hub import (
     is_supported_skill_url,
     resolve_bundle_from_url,
 )
@@ -40,7 +40,7 @@ def test_resolve_skills_sh_url_uses_raw_github_without_token(
         raise AssertionError(f"unexpected raw fetch: {url}")
 
     with patch(
-        "octop.infra.skills.skills_hub._http_text_get",
+        "inhere_box.infra.skills.skills_hub._http_text_get",
         side_effect=_fake_http_text_get,
     ):
         resolved = resolve_bundle_from_url(
@@ -70,7 +70,7 @@ def test_resolve_skills_sh_url_falls_back_to_second_branch(
         raise AssertionError(f"unexpected raw fetch: {url}")
 
     with patch(
-        "octop.infra.skills.skills_hub._http_text_get",
+        "inhere_box.infra.skills.skills_hub._http_text_get",
         side_effect=_fake_http_text_get,
     ):
         resolved = resolve_bundle_from_url(
@@ -98,8 +98,10 @@ def test_resolve_github_url_accepts_none_version(
         zf.writestr("skills-repo-main/skills/find-skills/SKILL.md", FIND_SKILLS_MD)
 
     with (
-        patch("octop.infra.skills.skills_hub._http_text_get", side_effect=_fake_http_text_get),
-        patch("octop.infra.skills.skills_hub._http_bytes_get", return_value=archive.getvalue()),
+        patch("inhere_box.infra.skills.skills_hub._http_text_get", side_effect=_fake_http_text_get),
+        patch(
+            "inhere_box.infra.skills.skills_hub._http_bytes_get", return_value=archive.getvalue()
+        ),
     ):
         resolved = resolve_bundle_from_url(
             bundle_url="https://github.com/example/skills-repo/tree/main/skills/find-skills",
@@ -130,8 +132,10 @@ def test_resolve_github_url_imports_all_files_from_skill_directory_without_token
         zf.writestr("skills-repo-main/skills/find-skills/meta/config.json", "{}")
 
     with (
-        patch("octop.infra.skills.skills_hub._http_text_get", side_effect=_fake_http_text_get),
-        patch("octop.infra.skills.skills_hub._http_bytes_get", return_value=archive.getvalue()),
+        patch("inhere_box.infra.skills.skills_hub._http_text_get", side_effect=_fake_http_text_get),
+        patch(
+            "inhere_box.infra.skills.skills_hub._http_bytes_get", return_value=archive.getvalue()
+        ),
     ):
         resolved = resolve_bundle_from_url(
             bundle_url="https://github.com/example/skills-repo/tree/main/skills/find-skills",
@@ -167,8 +171,10 @@ def test_resolve_github_url_with_slash_branch_uses_encoded_archive_ref(
         return archive.getvalue()
 
     with (
-        patch("octop.infra.skills.skills_hub._http_text_get", side_effect=_fake_http_text_get),
-        patch("octop.infra.skills.skills_hub._http_bytes_get", side_effect=_fake_http_bytes_get),
+        patch("inhere_box.infra.skills.skills_hub._http_text_get", side_effect=_fake_http_text_get),
+        patch(
+            "inhere_box.infra.skills.skills_hub._http_bytes_get", side_effect=_fake_http_bytes_get
+        ),
     ):
         resolved = resolve_bundle_from_url(
             bundle_url="https://github.com/example/skills-repo/tree/feature/x/skills/find-skills",
@@ -200,7 +206,7 @@ def test_custom_import_source_can_be_enabled_without_frontend_changes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv(
-        "OCTOP_SKILLS_IMPORT_URL_PREFIXES",
+        "INHERE_BOX_SKILLS_IMPORT_URL_PREFIXES",
         "https://market.example/skills/",
     )
 
@@ -213,7 +219,7 @@ def test_custom_json_source_resolves_through_generic_adapter(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv(
-        "OCTOP_SKILLS_IMPORT_URL_PREFIXES",
+        "INHERE_BOX_SKILLS_IMPORT_URL_PREFIXES",
         "https://market.example/skills/",
     )
     payload = {
@@ -223,7 +229,7 @@ def test_custom_json_source_resolves_through_generic_adapter(
     }
 
     with patch(
-        "octop.infra.skills.skills_hub._http_json_get",
+        "inhere_box.infra.skills.skills_hub._http_json_get",
         return_value=payload,
     ):
         resolved = resolve_bundle_from_url(

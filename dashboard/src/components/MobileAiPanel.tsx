@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { Button, Spin, Tooltip } from "antd";
 import { Bot, Send, Square, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { OctopAgent } from "../context/AgentContext";
+import type { InhereBoxAgent } from "../context/AgentContext";
 import AgentSelector from "./AgentSelector";
 import { useAgentThreadChat } from "../hooks/useAgentThreadChat";
 import MessageList from "../pages/Chat/components/MessageList";
@@ -10,7 +10,7 @@ import chatStyles from "../pages/Chat/index.module.less";
 import styles from "./BrowserAiPanel.module.less";
 
 export interface MobileAiPanelProps {
-  activeAgent: OctopAgent | null;
+  activeAgent: InhereBoxAgent | null;
   device: string | null;
   deviceName?: string | null;
   /** True while a Remote Phone stream session is open (agent may use the device). */

@@ -37,7 +37,7 @@ export interface SkillFormValues {
   labelEn?: string;
   summaryZh?: string;
   summaryEn?: string;
-  /** Surfaced as ``metadata.octop.emoji`` in SKILL.md. */
+  /** Surfaced as ``metadata.inhere_box.emoji`` in SKILL.md. */
   emoji: string;
   metadata: MetadataEntry[];
   body: string;
@@ -46,16 +46,16 @@ export interface SkillFormValues {
   path?: string;
 }
 
-export const OCTOP_EMOJI_META_KEY = "octop.emoji";
-const OCTOP_LABEL_ZH_META_KEY = "octop.label.zh";
-const OCTOP_LABEL_EN_META_KEY = "octop.label.en";
-const OCTOP_SUMMARY_ZH_META_KEY = "octop.summary.zh";
-const OCTOP_SUMMARY_EN_META_KEY = "octop.summary.en";
+export const INHERE_BOX_EMOJI_META_KEY = "inhere_box.emoji";
+const INHERE_BOX_LABEL_ZH_META_KEY = "inhere_box.label.zh";
+const INHERE_BOX_LABEL_EN_META_KEY = "inhere_box.label.en";
+const INHERE_BOX_SUMMARY_ZH_META_KEY = "inhere_box.summary.zh";
+const INHERE_BOX_SUMMARY_EN_META_KEY = "inhere_box.summary.en";
 const PRESENTATION_META_KEYS = new Set([
-  OCTOP_LABEL_ZH_META_KEY,
-  OCTOP_LABEL_EN_META_KEY,
-  OCTOP_SUMMARY_ZH_META_KEY,
-  OCTOP_SUMMARY_EN_META_KEY,
+  INHERE_BOX_LABEL_ZH_META_KEY,
+  INHERE_BOX_LABEL_EN_META_KEY,
+  INHERE_BOX_SUMMARY_ZH_META_KEY,
+  INHERE_BOX_SUMMARY_EN_META_KEY,
 ]);
 
 /**
@@ -119,7 +119,7 @@ function metadataToYamlLines(
   return lines;
 }
 
-/** Split ``octop.emoji`` out of flattened metadata for the dedicated picker. */
+/** Split ``inhere_box.emoji`` out of flattened metadata for the dedicated picker. */
 export function parseSkillEmojiAndMetadata(
   pairs: MetadataEntry[] | undefined,
   fallback = DEFAULT_SKILL_EMOJI,
@@ -127,7 +127,7 @@ export function parseSkillEmojiAndMetadata(
   let emoji = fallback;
   const metadata: MetadataEntry[] = [];
   for (const row of pairs ?? []) {
-    if (row.key.trim() === OCTOP_EMOJI_META_KEY) {
+    if (row.key.trim() === INHERE_BOX_EMOJI_META_KEY) {
       const value = row.value.trim();
       if (value) emoji = value;
       continue;
@@ -142,11 +142,11 @@ function withEmojiMetadata(
   emoji: string,
 ): MetadataEntry[] {
   const rest = (pairs ?? []).filter(
-    (row) => row.key.trim() !== OCTOP_EMOJI_META_KEY,
+    (row) => row.key.trim() !== INHERE_BOX_EMOJI_META_KEY,
   );
   const value = emoji.trim();
   if (!value) return rest;
-  return [{ key: OCTOP_EMOJI_META_KEY, value }, ...rest];
+  return [{ key: INHERE_BOX_EMOJI_META_KEY, value }, ...rest];
 }
 
 function withPresentationMetadata(
@@ -157,10 +157,10 @@ function withPresentationMetadata(
     (row) => !PRESENTATION_META_KEYS.has(row.key.trim()),
   );
   const presentation = [
-    [OCTOP_LABEL_ZH_META_KEY, values.labelZh],
-    [OCTOP_LABEL_EN_META_KEY, values.labelEn],
-    [OCTOP_SUMMARY_ZH_META_KEY, values.summaryZh],
-    [OCTOP_SUMMARY_EN_META_KEY, values.summaryEn],
+    [INHERE_BOX_LABEL_ZH_META_KEY, values.labelZh],
+    [INHERE_BOX_LABEL_EN_META_KEY, values.labelEn],
+    [INHERE_BOX_SUMMARY_ZH_META_KEY, values.summaryZh],
+    [INHERE_BOX_SUMMARY_EN_META_KEY, values.summaryEn],
   ]
     .filter((entry): entry is [string, string] => Boolean(entry[1]?.trim()))
     .map(([key, value]) => ({ key, value: value.trim() }));
@@ -254,10 +254,10 @@ function parseSkillFormFromDetail(detail: SkillDetail): SkillFormValues {
   return {
     name: displayName,
     description,
-    labelZh: presentationValue(OCTOP_LABEL_ZH_META_KEY),
-    labelEn: presentationValue(OCTOP_LABEL_EN_META_KEY),
-    summaryZh: presentationValue(OCTOP_SUMMARY_ZH_META_KEY),
-    summaryEn: presentationValue(OCTOP_SUMMARY_EN_META_KEY),
+    labelZh: presentationValue(INHERE_BOX_LABEL_ZH_META_KEY),
+    labelEn: presentationValue(INHERE_BOX_LABEL_EN_META_KEY),
+    summaryZh: presentationValue(INHERE_BOX_SUMMARY_ZH_META_KEY),
+    summaryEn: presentationValue(INHERE_BOX_SUMMARY_EN_META_KEY),
     emoji,
     metadata: metadata.filter(
       (entry) => !PRESENTATION_META_KEYS.has(entry.key),
@@ -280,7 +280,7 @@ function parseSkillFormFromDetail(detail: SkillDetail): SkillFormValues {
 type ViewTab = "preview" | "source";
 type EditorTab = "form" | "source";
 
-const FILE_TREE_COLLAPSED_KEY = "octop:skill-drawer-tree-collapsed";
+const FILE_TREE_COLLAPSED_KEY = "inhere-box:skill-drawer-tree-collapsed";
 
 interface SkillDrawerProps {
   open: boolean;

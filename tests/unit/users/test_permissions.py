@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from octop.infra.users.permissions import (
+from inhere_box.infra.users.permissions import (
     ALL_PERMISSION_KEYS,
     BASELINE_PERMISSIONS,
     PERMISSIONS,

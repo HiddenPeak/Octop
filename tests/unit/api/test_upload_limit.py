@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from octop.api.common.upload_limit import read_upload_capped
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.api.common.upload_limit import read_upload_capped
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 class _CountingReader:
@@ -33,7 +33,7 @@ async def test_read_upload_capped_returns_body_under_limit() -> None:
 @pytest.mark.asyncio
 async def test_read_upload_capped_stops_after_exceeding_chunk() -> None:
     reader = _CountingReader(b"x" * 50)
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         await read_upload_capped(reader, max_bytes=8, chunk_size=4)
     assert exc_info.value.code is ErrorCode.ATTACHMENT_TOO_LARGE
     assert reader.bytes_pulled <= 12
@@ -47,7 +47,7 @@ async def test_read_upload_capped_skips_read_when_declared_size_is_over() -> Non
         async def read(self, n: int = -1) -> bytes:
             raise AssertionError("must not read when declared size exceeds the limit")
 
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         await read_upload_capped(_Declared(), max_bytes=8)
     assert exc_info.value.code is ErrorCode.ATTACHMENT_TOO_LARGE
     assert exc_info.value.details["max_mb"] == 1
@@ -56,7 +56,7 @@ async def test_read_upload_capped_skips_read_when_declared_size_is_over() -> Non
 @pytest.mark.asyncio
 async def test_read_upload_capped_uses_caller_error_code() -> None:
     reader = _CountingReader(b"x" * 20)
-    with pytest.raises(OctopError) as exc_info:
+    with pytest.raises(InhereBoxError) as exc_info:
         await read_upload_capped(
             reader,
             max_bytes=4,
@@ -69,8 +69,11 @@ async def test_read_upload_capped_uses_caller_error_code() -> None:
 def test_text_document_pydantic_ceiling_follows_hard_cap() -> None:
     from annotated_types import MaxLen
 
-    from octop.api.routers.knowledge_bases import CreateTextDocumentBody, UpdateTextDocumentBody
-    from octop.config import MAX_MAX_UPLOAD_MB, upload_mb_to_bytes
+    from inhere_box.api.routers.knowledge_bases import (
+        CreateTextDocumentBody,
+        UpdateTextDocumentBody,
+    )
+    from inhere_box.config import MAX_MAX_UPLOAD_MB, upload_mb_to_bytes
 
     ceiling = upload_mb_to_bytes(MAX_MAX_UPLOAD_MB)
     for model in (CreateTextDocumentBody, UpdateTextDocumentBody):

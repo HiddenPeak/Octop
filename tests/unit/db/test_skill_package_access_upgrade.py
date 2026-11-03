@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.skill_packages import SkillPackageRepo
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.skill_packages import SkillPackageRepo
 
 
 @pytest.mark.parametrize("partial", [False, True])
@@ -44,7 +44,7 @@ def test_existing56_upgrade_preserves_packages_and_adds_bridge_identity(
 
 
 def test_sqlite_and_postgresql_access_ddl_have_equivalent_defaults():
-    root = Path(__file__).resolve().parents[3] / "src/octop/infra/db/migrations"
+    root = Path(__file__).resolve().parents[3] / "src/inhere_box/infra/db/migrations"
     sqlite = (root / "057_skill_package_access.sql").read_text()
     postgres = (root / "057_skill_package_access.pg.sql").read_text()
     assert sqlite == postgres

@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from octop.infra.connectors.gateway.adapters import qq_mail
+from inhere_box.infra.connectors.gateway.adapters import qq_mail
 
 _CREDS: dict[str, Any] = {
     "email": "user@example.com",
@@ -62,7 +62,7 @@ def test_search_emails_raw_utf8_headers_do_not_crash_json() -> None:
     fake = _fake_imap_with_messages({b"30": raw})
 
     with patch(
-        "octop.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
+        "inhere_box.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
         return_value=fake,
     ):
         result = qq_mail.call_tool(_CREDS, "search_emails", {})
@@ -86,7 +86,7 @@ def test_search_emails_ascii_headers_unchanged() -> None:
     fake = _fake_imap_with_messages({b"1": raw})
 
     with patch(
-        "octop.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
+        "inhere_box.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
         return_value=fake,
     ):
         result = qq_mail.call_tool(_CREDS, "search_emails", {})
@@ -107,7 +107,7 @@ def test_search_emails_mime_encoded_words_render_readable() -> None:
     fake = _fake_imap_with_messages({b"7": raw})
 
     with patch(
-        "octop.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
+        "inhere_box.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
         return_value=fake,
     ):
         result = qq_mail.call_tool(_CREDS, "search_emails", {})
@@ -135,7 +135,7 @@ def test_read_email_raw_utf8_headers_and_unknown_charset_body() -> None:
     fake = _fake_imap_with_messages({b"30": raw})
 
     with patch(
-        "octop.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
+        "inhere_box.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
         return_value=fake,
     ):
         result = qq_mail.call_tool(_CREDS, "read_email", {"uid": "30"})
@@ -158,7 +158,7 @@ def test_read_email_ascii_message_unchanged() -> None:
     fake = _fake_imap_with_messages({b"1": raw})
 
     with patch(
-        "octop.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
+        "inhere_box.infra.connectors.gateway.adapters.qq_mail.imaplib.IMAP4_SSL",
         return_value=fake,
     ):
         result = qq_mail.call_tool(_CREDS, "read_email", {"uid": "1"})

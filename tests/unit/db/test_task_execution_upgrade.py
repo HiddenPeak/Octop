@@ -6,8 +6,8 @@ import shutil
 
 import pytest
 
-from octop.infra.db import migrate
-from octop.infra.db.pool import SqlitePool
+from inhere_box.infra.db import migrate
+from inhere_box.infra.db.pool import SqlitePool
 
 
 @pytest.mark.parametrize("direct_sql", [False, True])
@@ -47,7 +47,7 @@ def test_v57_upgrade_keeps_task_identity_and_repairs_repeated_runs(
             conn.execute(
                 "UPDATE project_tasks SET execution_json=?",
                 (
-                    '{"engine":{"engine_id":"octop"},"sessions":{"key":{"session_id":"keep-session"}}}',
+                    '{"engine":{"engine_id":"inhere-box"},"sessions":{"key":{"session_id":"keep-session"}}}',
                 ),
             )
         migrate.run_migrations(db)

@@ -7,20 +7,20 @@ from types import SimpleNamespace
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.knowledge import KnowledgeRepo
-from octop.infra.db.repos.settings import SettingsRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.knowledge import service as service_module
-from octop.infra.knowledge.service import MAX_DOCS_PER_KB, KnowledgeService
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.knowledge import KnowledgeRepo
+from inhere_box.infra.db.repos.settings import SettingsRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.knowledge import service as service_module
+from inhere_box.infra.knowledge.service import MAX_DOCS_PER_KB, KnowledgeService
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
 def service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> KnowledgeService:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path / "home"))
-    pool = SqlitePool(tmp_path / "octop.db")
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path / "home"))
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     services = SimpleNamespace(
         knowledge_repo=KnowledgeRepo(pool),
@@ -112,7 +112,7 @@ def test_shared_reader_can_preview_document_text(service: KnowledgeService) -> N
 
 
 def test_create_base_enforces_owner_limit(service: KnowledgeService) -> None:
-    from octop.infra.knowledge.service import MAX_BASES_PER_OWNER
+    from inhere_box.infra.knowledge.service import MAX_BASES_PER_OWNER
 
     users = service._services.user_repo
     owner = users.create(username="owner", password_hash="h", role="user")
@@ -151,7 +151,7 @@ def test_delete_document_works_when_feature_disabled(service: KnowledgeService) 
         content=b"# hi",
     )
 
-    import octop.infra.knowledge.service as mod
+    import inhere_box.infra.knowledge.service as mod
 
     def deny(*_args: object, **_kwargs: object) -> None:
         raise RuntimeError("knowledge feature is disabled")

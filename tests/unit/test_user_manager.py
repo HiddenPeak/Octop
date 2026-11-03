@@ -7,16 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.users.identity import Role, User
-from octop.infra.users.invites import InviteService
-from octop.infra.users.manager import UserManager
-from octop.infra.users.password import hash_password
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.users.identity import Role, User
+from inhere_box.infra.users.invites import InviteService
+from inhere_box.infra.users.manager import UserManager
+from inhere_box.infra.users.password import hash_password
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def _insert_sso_provider(manager: UserManager, *, kind: str = "oidc") -> int:
@@ -34,7 +34,7 @@ async def manager(tmp_path: Path) -> UserManager:
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     return UserManager(services)
 
 
@@ -53,7 +53,7 @@ async def test_create_user_writes_db(manager: UserManager):
 
 async def test_duplicate_username_rejected(manager: UserManager):
     await manager.create(username="a", password="TestPass12", role=Role.USER)
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await manager.create(username="a", password="TestPass34", role=Role.USER)
     assert ei.value.code is ErrorCode.USERNAME_TAKEN
 
@@ -125,7 +125,7 @@ async def test_create_duplicate_email_rejected(manager: UserManager):
     await manager.create(
         username="a", password="TestPass12", role=Role.USER, email="dup@example.com"
     )
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await manager.create(
             username="b", password="TestPass34", role=Role.USER, email="DUP@example.com"
         )
@@ -157,7 +157,7 @@ async def test_authenticate_rejects_null_password_hash(manager: UserManager):
 async def test_change_password_rejects_null_password_hash(manager: UserManager):
     """Directory/SSO-provisioned accounts have no local password to change."""
     manager._services.user_repo.create(username="sso_user", password_hash=None, role="user")
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await manager.change_password("sso_user", "any", "NewPass12")
     assert ei.value.code is ErrorCode.PASSWORD_NOT_SET
     assert ei.value.status == 400
@@ -306,7 +306,7 @@ async def test_sso_disabled_user_is_rejected(manager: UserManager):
     )
     await manager.disable(user.username)
 
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await manager.resolve_or_create_sso_user(
             provider_id=provider_id,
             subject="sub-1",
@@ -331,7 +331,7 @@ async def test_bind_sso_identity_links_current_user_and_rejects_taken_identity(
         subject="union-bob",
         claims={"name": "Bob Feishu"},
     )
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await manager.bind_sso_identity(
             user_id=local.id,
             provider_id=provider_id,
@@ -403,7 +403,7 @@ async def test_unbind_sso_identity_requires_password(manager: UserManager):
         subject="sub-1",
         claims={"preferred_username": "ssoonly"},
     )
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await manager.unbind_sso_identity(user_id=user.id, kind="feishu")
     assert ei.value.code is ErrorCode.SSO_UNBIND_REQUIRES_PASSWORD
 
@@ -424,13 +424,13 @@ async def test_authenticate_locks_after_max_failures(manager: UserManager):
     max_attempts = manager._login_max_attempts
     for _ in range(max_attempts - 1):
         assert await manager.authenticate("a", "bad") is None
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await manager.authenticate("a", "bad")
     assert ei.value.code is ErrorCode.LOGIN_LOCKED
-    with pytest.raises(OctopError) as ei2:
+    with pytest.raises(InhereBoxError) as ei2:
         await manager.authenticate("a", "bad")
     assert ei2.value.code is ErrorCode.LOGIN_LOCKED
-    with pytest.raises(OctopError) as ei3:
+    with pytest.raises(InhereBoxError) as ei3:
         await manager.authenticate("a", "TestPass12")
     assert ei3.value.code is ErrorCode.LOGIN_LOCKED
 
@@ -440,9 +440,9 @@ async def test_reset_password_clears_lockout(manager: UserManager):
     max_attempts = manager._login_max_attempts
     for _ in range(max_attempts - 1):
         assert await manager.authenticate("a", "bad") is None
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await manager.authenticate("a", "bad")
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await manager.authenticate("a", "TestPass12")
     await manager.reset_password("a", "NewPass12")
     user = await manager.authenticate("a", "NewPass12")
@@ -470,27 +470,27 @@ async def test_change_password(manager: UserManager):
 
 async def test_change_password_wrong_old(manager: UserManager):
     await manager.create(username="a", password="OldPass12", role=Role.USER)
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await manager.change_password("a", "wrong", "NewPass12")
     assert ei.value.code is ErrorCode.AUTH_FAILED
 
 
 async def test_change_password_rejects_same_as_old(manager: UserManager):
     await manager.create(username="a", password="OldPass12", role=Role.USER)
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await manager.change_password("a", "OldPass12", "OldPass12")
     assert ei.value.code is ErrorCode.PASSWORD_SAME_AS_OLD
 
 
 async def test_change_password_rejects_weak_new(manager: UserManager):
     await manager.create(username="a", password="OldPass12", role=Role.USER)
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await manager.change_password("a", "OldPass12", "12345678")
     assert ei.value.code is ErrorCode.PASSWORD_TOO_WEAK
 
 
 async def test_create_rejects_weak_password(manager: UserManager):
-    with pytest.raises(OctopError) as ei:
+    with pytest.raises(InhereBoxError) as ei:
         await manager.create(username="a", password="pw", role=Role.USER)
     assert ei.value.code is ErrorCode.PASSWORD_TOO_WEAK
 
@@ -551,9 +551,9 @@ async def test_boot_loads_existing_users(tmp_path: Path):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     # Pre-populate via repo
-    from octop.infra.users.password import hash_password
+    from inhere_box.infra.users.password import hash_password
 
     services.user_repo.create(username="legacy", password_hash=hash_password("pw"), role="user")
     manager = UserManager(services)
@@ -609,8 +609,8 @@ async def test_boot_loads_users(tmp_path: Path):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
-    from octop.infra.users.password import hash_password
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
+    from inhere_box.infra.users.password import hash_password
 
     uid = services.user_repo.create(
         username="alice", password_hash=hash_password("pw"), role="user"

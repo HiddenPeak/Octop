@@ -7,8 +7,8 @@ from uuid import uuid4
 
 import pytest
 
-from octop.infra.connectors.service import ConnectorService
-from octop.infra.skills.skill_package_store import SkillPackageStore
+from inhere_box.infra.connectors.service import ConnectorService
+from inhere_box.infra.skills.skill_package_store import SkillPackageStore
 from tests.support.auth import create_user, resolve_user_id
 
 

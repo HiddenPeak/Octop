@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.providers import ProviderRepo, ProviderRow
-from octop.infra.db.repos.users import UserRepo
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.providers import ProviderRepo, ProviderRow
+from inhere_box.infra.db.repos.users import UserRepo
 
 
 @pytest.fixture
@@ -78,7 +78,7 @@ def test_delete(repo: ProviderRepo):
 
 
 def test_find_referencing_agent_ids_returns_agents_that_use_provider(db: SqlitePool, user_id: int):
-    from octop.infra.db.repos.agents import AgentRepo
+    from inhere_box.infra.db.repos.agents import AgentRepo
 
     repo = ProviderRepo(db)
     agent_repo = AgentRepo(db)
@@ -103,7 +103,7 @@ def test_find_referencing_agent_ids_returns_agents_that_use_provider(db: SqliteP
 
 
 def test_find_referencing_agent_ids_returns_empty_when_no_references(db: SqlitePool, user_id: int):
-    from octop.infra.db.repos.agents import AgentRepo
+    from inhere_box.infra.db.repos.agents import AgentRepo
 
     repo = ProviderRepo(db)
     agent_repo = AgentRepo(db)
@@ -123,7 +123,7 @@ def test_find_referencing_agent_ids_returns_empty_when_no_references(db: SqliteP
 def test_find_referencing_agent_ids_handles_multiple_providers_per_agent(
     db: SqlitePool, user_id: int
 ):
-    from octop.infra.db.repos.agents import AgentRepo
+    from inhere_box.infra.db.repos.agents import AgentRepo
 
     repo = ProviderRepo(db)
     agent_repo = AgentRepo(db)
@@ -142,7 +142,7 @@ def test_find_referencing_agent_ids_handles_multiple_providers_per_agent(
 
 
 def test_find_referencing_agent_ids_handles_null_config_json(db: SqlitePool, user_id: int):
-    from octop.infra.db.repos.agents import AgentRepo
+    from inhere_box.infra.db.repos.agents import AgentRepo
 
     repo = ProviderRepo(db)
     agent_repo = AgentRepo(db)

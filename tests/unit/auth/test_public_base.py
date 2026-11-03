@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from starlette.requests import Request
 
-from octop.api.common.public_base import resolve_public_base
-from octop.infra.auth.sso.public_base import build_redirect_uri
+from inhere_box.api.common.public_base import resolve_public_base
+from inhere_box.infra.auth.sso.public_base import build_redirect_uri
 
 
 def _request(*, scheme: str = "http", headers: list[tuple[bytes, bytes]] | None = None) -> Request:
@@ -25,28 +25,28 @@ def test_resolve_public_base_uses_forwarded_proxy_headers() -> None:
         headers=[
             (b"host", b"internal.example:8080"),
             (b"x-forwarded-proto", b"https"),
-            (b"x-forwarded-host", b"octop.example"),
+            (b"x-forwarded-host", b"inhere-box.example"),
         ]
     )
 
-    assert resolve_public_base(request) == "https://octop.example"
+    assert resolve_public_base(request) == "https://inhere-box.example"
 
 
 def test_resolve_public_base_uses_request_url_without_proxy_headers() -> None:
-    request = _request(scheme="https", headers=[(b"host", b"octop.example")])
+    request = _request(scheme="https", headers=[(b"host", b"inhere-box.example")])
 
-    assert resolve_public_base(request) == "https://octop.example"
+    assert resolve_public_base(request) == "https://inhere-box.example"
 
 
 def test_build_redirect_uri_uses_oidc_callback_path() -> None:
     assert (
-        build_redirect_uri("https://octop.example/")
-        == "https://octop.example/api/auth/oidc/callback"
+        build_redirect_uri("https://inhere-box.example/")
+        == "https://inhere-box.example/api/auth/oidc/callback"
     )
 
 
 def test_build_redirect_uri_accepts_oauth_callback_path() -> None:
     assert (
-        build_redirect_uri("https://octop.example", "/api/auth/oauth/callback")
-        == "https://octop.example/api/auth/oauth/callback"
+        build_redirect_uri("https://inhere-box.example", "/api/auth/oauth/callback")
+        == "https://inhere-box.example/api/auth/oauth/callback"
     )

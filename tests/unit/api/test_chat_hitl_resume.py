@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from octop.api.routers.chat.routes import iter_dashboard_hitl_resume_sse
-from octop.infra.gateway.hitl.coordinator import HitlChannelCoordinator
+from inhere_box.api.routers.chat.routes import iter_dashboard_hitl_resume_sse
+from inhere_box.infra.gateway.hitl.coordinator import HitlChannelCoordinator
 
 
 def _parse_sse_chunks(raw: str) -> list[dict[str, Any]]:

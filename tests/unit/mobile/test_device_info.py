@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.mobile.adb import parse_device_info_payload
+from inhere_box.infra.mobile.adb import parse_device_info_payload
 
 SAMPLE = """
 model=Pixel 6

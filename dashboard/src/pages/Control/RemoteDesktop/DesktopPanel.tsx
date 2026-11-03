@@ -70,11 +70,11 @@ import {
   type DesktopResolution,
 } from "../../../utils/desktopViewport";
 import { sendDesktopAction } from "./desktopShortcuts";
-import { OctopEmptyMascot } from "../../../components/EmptyState";
+import { InhereBoxEmptyMascot } from "../../../components/EmptyState";
 import styles from "./DesktopPanel.module.less";
 
-const RESOLUTION_STORAGE_KEY = "octop:remote-desktop:resolution";
-const FPS_STORAGE_KEY = "octop:remote-desktop:max-fps";
+const RESOLUTION_STORAGE_KEY = "inhere-box:remote-desktop:resolution";
+const FPS_STORAGE_KEY = "inhere-box:remote-desktop:max-fps";
 const DEFAULT_RESOLUTION: DesktopResolution = "1920x1080";
 const DEFAULT_MAX_FPS = 10;
 
@@ -448,7 +448,7 @@ export default function DesktopPanel({
         message.warning(
           t(
             "remoteDesktop.connectDisabledPerms",
-            "请先在系统设置中开启屏幕录制与辅助功能权限，然后重启 Octop",
+            "请先在系统设置中开启屏幕录制与辅助功能权限，然后重启 inhere-box",
           ),
         );
         return;
@@ -857,8 +857,8 @@ export default function DesktopPanel({
               }}
             >
               {t(
-                "common.askOctopHint",
-                "若安装失败，可复制下方错误信息发给 Octop 排查。",
+                "common.askInhereBoxHint",
+                "若安装失败，可复制下方错误信息发给 inhere-box 排查。",
               )}
             </div>
           </div>
@@ -996,9 +996,9 @@ export default function DesktopPanel({
   const pageTitle = t("nav.remoteDesktop", "远程桌面");
   const pageSubtitle = t(
     "pageShell.desktop.subtitle",
-    "查看并操控 Octop 主机操作系统桌面",
+    "查看并操控 inhere-box 主机操作系统桌面",
   );
-  const setupMascot = <OctopEmptyMascot />;
+  const setupMascot = <InhereBoxEmptyMascot />;
 
   if (user === null) {
     const loading = (
@@ -1062,7 +1062,7 @@ export default function DesktopPanel({
       : needsMacPermissions
       ? t(
           "remoteDesktop.connectDisabledPerms",
-          "请先在系统设置中开启屏幕录制与辅助功能权限，然后重启 Octop",
+          "请先在系统设置中开启屏幕录制与辅助功能权限，然后重启 inhere-box",
         )
       : t("remoteDesktop.connectDisabled"),
   };
@@ -1157,7 +1157,10 @@ export default function DesktopPanel({
                         "remoteDesktop.macPermissionsTitle",
                         "需要 macOS 系统权限",
                       )
-                    : t("remoteDesktop.subtitle", "控制 Octop 主机操作系统桌面")
+                    : t(
+                        "remoteDesktop.subtitle",
+                        "控制 inhere-box 主机操作系统桌面",
+                      )
                 }
                 description={
                   envReady
@@ -1210,7 +1213,7 @@ export default function DesktopPanel({
                         {
                           label: t(
                             "remoteDesktop.macPermStep3",
-                            "重启 Octop（octop run），再回到本页点击「重新检测」",
+                            "重启 inhere-box（inhere-box run），再回到本页点击「重新检测」",
                           ),
                         },
                       ]

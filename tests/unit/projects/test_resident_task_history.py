@@ -7,16 +7,16 @@ import json
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, message_to_dict
 
-from octop.config import OctopConfig
-from octop.infra.agents.resident_identity import ensure_resident_identity
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.history.projection import message_inputs
-from octop.infra.history.service import HistoryArchive
-from octop.infra.history.store import HistoryStore
-from octop.infra.projects import resident_tasks
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.resident_identity import ensure_resident_identity
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.history.projection import message_inputs
+from inhere_box.infra.history.service import HistoryArchive
+from inhere_box.infra.history.store import HistoryStore
+from inhere_box.infra.projects import resident_tasks
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ async def private_history(tmp_path):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     owner = services.user_repo.create(username="owner", password_hash="unused", role="user")
     binding = await ensure_resident_identity(services, owner)
     messages = []

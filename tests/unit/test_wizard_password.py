@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.setup.password_file import (
+from inhere_box.infra.setup.password_file import (
     WIZARD_FILE_NAME,
     boot_self_heal,
     ensure_password,
@@ -81,7 +81,7 @@ def test_boot_self_heal_no_op_when_users_exist_and_no_file(tmp_path: Path) -> No
 
 
 def test_resolve_password_path_prefers_primary(tmp_path: Path) -> None:
-    primary_home = tmp_path / "octop_home"
+    primary_home = tmp_path / "inhere_box_home"
     legacy_home = tmp_path / "legacy_user_home"
     primary_home.mkdir()
     legacy_home.mkdir()
@@ -95,7 +95,7 @@ def test_resolve_password_path_prefers_primary(tmp_path: Path) -> None:
 
 
 def test_resolve_password_path_falls_back_to_legacy(tmp_path: Path) -> None:
-    primary_home = tmp_path / "octop_home"
+    primary_home = tmp_path / "inhere_box_home"
     legacy_home = tmp_path / "legacy_user_home"
     legacy_home.mkdir()
     (legacy_home / WIZARD_FILE_NAME).write_text("legacy-pw\n", encoding="utf-8")
@@ -107,7 +107,7 @@ def test_resolve_password_path_falls_back_to_legacy(tmp_path: Path) -> None:
 
 
 def test_read_password_falls_back_to_legacy_home(tmp_path: Path) -> None:
-    primary_home = tmp_path / "octop_home"
+    primary_home = tmp_path / "inhere_box_home"
     legacy_home = tmp_path / "legacy_user_home"
     legacy_home.mkdir()
     (legacy_home / WIZARD_FILE_NAME).write_text("legacy-secret-123\n", encoding="utf-8")
@@ -116,7 +116,7 @@ def test_read_password_falls_back_to_legacy_home(tmp_path: Path) -> None:
 
 
 def test_ensure_password_migrates_legacy_secret(tmp_path: Path) -> None:
-    primary_home = tmp_path / "octop_home"
+    primary_home = tmp_path / "inhere_box_home"
     legacy_home = tmp_path / "legacy_user_home"
     legacy_home.mkdir()
     (legacy_home / WIZARD_FILE_NAME).write_text("legacy-secret-123\n", encoding="utf-8")
@@ -129,7 +129,7 @@ def test_ensure_password_migrates_legacy_secret(tmp_path: Path) -> None:
 
 
 def test_boot_self_heal_migrates_legacy_secret(tmp_path: Path) -> None:
-    primary_home = tmp_path / "octop_home"
+    primary_home = tmp_path / "inhere_box_home"
     legacy_home = tmp_path / "legacy_user_home"
     legacy_home.mkdir()
     (legacy_home / WIZARD_FILE_NAME).write_text("legacy-secret-456\n", encoding="utf-8")

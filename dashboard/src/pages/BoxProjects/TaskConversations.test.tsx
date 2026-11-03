@@ -3297,7 +3297,7 @@ it("历史回合使用各轮展示快照，恢复焦点和全局开关变化不�
       },
       reply: `第 ${sequence} 轮答复`,
       plan: {
-        source: "octop_planning" as const,
+        source: "inhere_box_planning" as const,
         plan_id: `plan_${sequence}`,
         title: `第 ${sequence} 轮计划`,
         revision: 1,
@@ -3451,8 +3451,8 @@ it("新任务接收独立账号推送，无任务正文和旧资源门禁也能�
   expect(api.get).not.toHaveBeenCalled();
 });
 
-const octopEngine = {
-  engine_id: "octop",
+const inhereBoxEngine = {
+  engine_id: "inhere-box",
   connection_id: null,
   model_id: null,
 } as const;
@@ -3494,8 +3494,8 @@ async function withEngineResources() {
     ...(await api.resources()),
     execution_engines: [
       {
-        engine: octopEngine,
-        label: "Octop",
+        engine: inhereBoxEngine,
+        label: "inhere-box",
         available: true,
         unavailable_reason: null,
         capabilities: nativeEngineCapabilities,
@@ -3526,7 +3526,7 @@ async function chooseEngine(label = "Codex") {
 }
 
 describe("independent Task execution engines", () => {
-  it("creates with independent expert and engine choices without Octop model routing in ACP options", async () => {
+  it("creates with independent expert and engine choices without inhere-box model routing in ACP options", async () => {
     await withEngineResources();
     mount("", null);
     await userEvent.click(
@@ -3580,7 +3580,7 @@ describe("independent Task execution engines", () => {
     await withEngineResources();
     const detail = {
       ...fixture,
-      engine: octopEngine,
+      engine: inhereBoxEngine,
       selected_expert_id: "expert_a",
       action_mode: "ask" as const,
       configuration_revision: 5,
@@ -3589,8 +3589,8 @@ describe("independent Task execution engines", () => {
           ...fixture.turns[0],
           expert_name: "Original expert",
           execution_engine: {
-            ...octopEngine,
-            label: "Original Octop engine",
+            ...inhereBoxEngine,
+            label: "Original inhere-box engine",
             capabilities: nativeEngineCapabilities,
           },
         },
@@ -3621,7 +3621,7 @@ describe("independent Task execution engines", () => {
     );
     expect(input).toHaveValue("Continue in the same workspace");
     expect(screen.getByText("Original expert")).toBeInTheDocument();
-    expect(screen.getByText("Original Octop engine")).toBeInTheDocument();
+    expect(screen.getByText("Original inhere-box engine")).toBeInTheDocument();
     await userEvent.click(
       screen.getByRole("button", { name: zh.projects.tasks.send }),
     );
@@ -3673,7 +3673,7 @@ describe("independent Task execution engines", () => {
     ).toBeEnabled();
   });
 
-  it("guides an Octop box without models to configure models or ACP", async () => {
+  it("guides an inhere-box box without models to configure models or ACP", async () => {
     const resources = await withEngineResources();
     resources.execution_engines[0].available = false;
     resources.execution_engines[0].unavailable_reason = "model_unavailable";
@@ -3690,7 +3690,7 @@ describe("independent Task execution engines", () => {
     ).toBeDisabled();
   });
 
-  it("preserves an unavailable selected engine instead of silently switching back to Octop", async () => {
+  it("preserves an unavailable selected engine instead of silently switching back to inhere-box", async () => {
     const resources = await withEngineResources();
     resources.execution_engines[1].available = false;
     resources.execution_engines[1].unavailable_reason = "auth_required";
@@ -3783,7 +3783,7 @@ it("rejects an ACP/client-directory draft without rewriting either project direc
   expect(projectFixture.client_directory).toBe("/client/before");
 });
 
-it("strips recovered Octop routing from an ACP send while keeping other draft overrides", async () => {
+it("strips recovered inhere-box routing from an ACP send while keeping other draft overrides", async () => {
   await withEngineResources();
   const options = {
     model_ref: "glm/glm",

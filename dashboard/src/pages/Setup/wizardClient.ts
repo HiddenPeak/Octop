@@ -42,10 +42,10 @@ export interface ProviderDraft {
   extras?: Record<string, unknown>;
 }
 
-const TOKEN_KEY = "octop:wizard-token";
-const SETUP_JWT_KEY = "octop:setup-jwt";
-const DRAFT_KEY = "octop:wizard-draft";
-const STEP_KEY = "octop:wizard-step";
+const TOKEN_KEY = "inhere-box:wizard-token";
+const SETUP_JWT_KEY = "inhere-box:setup-jwt";
+const DRAFT_KEY = "inhere-box:wizard-draft";
+const STEP_KEY = "inhere-box:wizard-step";
 
 export const STEP_PASSWORD = 0;
 export const STEP_DATABASE = 1;

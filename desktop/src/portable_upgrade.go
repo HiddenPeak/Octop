@@ -29,7 +29,7 @@ type desktopDatabaseConfig struct {
 
 func desktopSQLitePath(home string) (string, bool, error) {
 	driver := "sqlite"
-	sqlitePath := "octop.db"
+	sqlitePath := "inhere-box.db"
 	configPath := filepath.Join(home, "config.json")
 	if data, err := os.ReadFile(configPath); err == nil {
 		var config desktopDatabaseConfig
@@ -46,13 +46,13 @@ func desktopSQLitePath(home string) (string, bool, error) {
 		return "", false, fmt.Errorf("read database config: %w", err)
 	}
 
-	if os.Getenv("OCTOP_DATABASE_URL") != "" {
+	if envValue("INHERE_BOX_DATABASE_URL") != "" {
 		driver = "postgresql"
 	}
-	if value := strings.TrimSpace(os.Getenv("OCTOP_DATABASE_DRIVER")); value != "" {
+	if value := strings.TrimSpace(envValue("INHERE_BOX_DATABASE_DRIVER")); value != "" {
 		driver = strings.ToLower(value)
 	}
-	if value := os.Getenv("OCTOP_DATABASE_SQLITE_PATH"); value != "" {
+	if value := envValue("INHERE_BOX_DATABASE_SQLITE_PATH"); value != "" {
 		sqlitePath = value
 	}
 	if driver == "postgresql" {
@@ -63,6 +63,14 @@ func desktopSQLitePath(home string) (string, bool, error) {
 	}
 	if !filepath.IsAbs(sqlitePath) {
 		sqlitePath = filepath.Join(home, sqlitePath)
+	}
+	if filepath.Base(sqlitePath) == "inhere-box.db" {
+		legacy := filepath.Join(filepath.Dir(sqlitePath), "octop.db")
+		if _, err := os.Stat(sqlitePath); os.IsNotExist(err) {
+			if info, err := os.Stat(legacy); err == nil && !info.IsDir() {
+				sqlitePath = legacy
+			}
+		}
 	}
 	return filepath.Clean(sqlitePath), true, nil
 }
@@ -82,7 +90,7 @@ func safeVersion(value string) string {
 }
 
 func backupSQLiteBeforeUpgrade(root, currentVersion, nextVersion string) (string, error) {
-	home := octopHome()
+	home := inhereBoxHome()
 	source, isSQLite, err := desktopSQLitePath(home)
 	if err != nil || !isSQLite {
 		return "", err
@@ -98,7 +106,7 @@ func backupSQLiteBeforeUpgrade(root, currentVersion, nextVersion string) (string
 		return "", fmt.Errorf("create backup directory: %w", err)
 	}
 	name := fmt.Sprintf(
-		"octop-desktop-pre-upgrade-%s-to-%s-%s.db",
+		"inhere-box-desktop-pre-upgrade-%s-to-%s-%s.db",
 		safeVersion(currentVersion),
 		safeVersion(nextVersion),
 		time.Now().UTC().Format("20060102T150405.000000000Z"),

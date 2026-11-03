@@ -8,10 +8,12 @@ import {
 } from "../../api/modules/taskWorkbench";
 import type { TaskDetail } from "../../api/modules/projects";
 import type {
-  OctopPluginUIHost,
+  InhereBoxPluginUIHost,
   ToolRenderProps,
 } from "../../plugins/toolRenderers/types";
-const capture = vi.hoisted(() => ({ host: null as OctopPluginUIHost | null }));
+const capture = vi.hoisted(() => ({
+  host: null as InhereBoxPluginUIHost | null,
+}));
 vi.mock("../../api/modules/taskWorkbench", () => ({
   taskToolRequest: vi.fn().mockResolvedValue({ content: "file" }),
 }));
@@ -21,7 +23,7 @@ vi.mock("../../api/modules/plugins", () => ({
 vi.mock("../../plugins/toolRenderers/loader", () => ({
   loadScopedPluginToolUis: async (
     plugins: InstalledPlugin[],
-    createHost: (id: string) => OctopPluginUIHost,
+    createHost: (id: string) => InhereBoxPluginUIHost,
   ) => {
     for (const plugin of plugins) {
       const host = createHost(plugin.id);
@@ -74,7 +76,10 @@ const task = {
           tool_call_id: "call_a",
           tool_name: "demo",
           arguments: {},
-          output: { octop_ui: { renderer: "demo-card" }, data: { value: 1 } },
+          output: {
+            inhere_box_ui: { renderer: "demo-card" },
+            data: { value: 1 },
+          },
         },
       ],
     },

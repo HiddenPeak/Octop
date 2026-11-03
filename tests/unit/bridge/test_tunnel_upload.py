@@ -10,10 +10,10 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import FastAPI, File, UploadFile
 
-from octop.infra.bridge import transport
-from octop.infra.bridge.http_tunnel import execute_local_http
-from octop.infra.bridge.ids import rewrite_tunneled_json
-from octop.infra.bridge.transport import (
+from inhere_box.infra.bridge import transport
+from inhere_box.infra.bridge.http_tunnel import execute_local_http
+from inhere_box.infra.bridge.ids import rewrite_tunneled_json
+from inhere_box.infra.bridge.transport import (
     BODY_CHUNK_RAW_BYTES,
     FEATURE_BODY_CHUNKS,
     BridgeSession,
@@ -136,7 +136,7 @@ async def test_tunnel_timeout_releases_partial_response() -> None:
 
 
 def _multipart(filename: str, content: bytes) -> tuple[bytes, str]:
-    boundary = "----octop-bridge"
+    boundary = "----inhere-box-bridge"
     body = (
         (
             f"--{boundary}\r\n"
@@ -192,7 +192,7 @@ async def test_chunked_upload_body_is_reassembled() -> None:
     captured: dict[str, object] = {}
 
     async def on_request(payload: dict[str, object]) -> dict[str, object]:
-        from octop.infra.bridge.http_tunnel import decode_body_b64
+        from inhere_box.infra.bridge.http_tunnel import decode_body_b64
 
         captured["body"] = decode_body_b64(payload)
         captured["path"] = payload.get("path")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.setup.wizard_tokens import (
+from inhere_box.infra.setup.wizard_tokens import (
     RATE_LIMIT_BURST,
     RateLimited,
     WizardTokenStore,

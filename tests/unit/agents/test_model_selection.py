@@ -2,7 +2,7 @@
 
 import pytest
 
-from octop.infra.agents.providers.selection import rank_model_refs
+from inhere_box.infra.agents.providers.selection import rank_model_refs
 
 
 @pytest.mark.parametrize(

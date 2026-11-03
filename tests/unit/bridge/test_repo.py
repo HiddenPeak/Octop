@@ -4,16 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from octop.infra.db.migrate import _ensure_bridge_connections_schema, run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos._base import now_ts
-from octop.infra.db.repos.bridge_connections import BridgeConnectionRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.utils.ulid import new_ulid
+from inhere_box.infra.db.migrate import _ensure_bridge_connections_schema, run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos._base import now_ts
+from inhere_box.infra.db.repos.bridge_connections import BridgeConnectionRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.utils.ulid import new_ulid
 
 
 def test_bridge_connection_crud(tmp_path: Path) -> None:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     users = UserRepo(pool)
     uid = users.create(username="alice", password_hash="x", role="user")
@@ -51,7 +51,7 @@ def test_bridge_connection_crud(tmp_path: Path) -> None:
 
 
 def test_upsert_reverse_disables_auto_reconnect(tmp_path: Path) -> None:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     users = UserRepo(pool)
     uid = users.create(username="alice", password_hash="x", role="user")
@@ -80,7 +80,7 @@ def test_upsert_reverse_disables_auto_reconnect(tmp_path: Path) -> None:
 
 
 def test_ensure_bridge_dedupes_duplicate_display_names(tmp_path: Path) -> None:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     users = UserRepo(pool)
     uid = users.create(username="alice", password_hash="x", role="user")

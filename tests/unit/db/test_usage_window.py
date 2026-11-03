@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from octop.infra.db.repos.usage import resolve_usage_window
+from inhere_box.infra.db.repos.usage import resolve_usage_window
 
 TZ = "Asia/Shanghai"
 

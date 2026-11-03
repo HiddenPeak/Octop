@@ -60,7 +60,7 @@ def test_resolve_peer_matches_at_name(tmp_path: Path) -> None:
     assert entry.agent_id == "agent-b"
 
 
-def test_resolve_peer_matches_octop_display_name(tmp_path: Path) -> None:
+def test_resolve_peer_matches_inhere_box_display_name(tmp_path: Path) -> None:
     mock_agent = MagicMock()
     mock_agent.init_workspace.return_value = MagicMock()
     mock_agent.call = AsyncMock(return_value={"messages": [{"role": "assistant", "content": "ok"}]})

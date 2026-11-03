@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from octop.api.bridge_peer import prepare_peer_dashboard_turn
-from octop.api.routers.chat.models import UserTurnWsFrame
-from octop.infra.bridge.manager import _bridge_turn_ws_payload
-from octop.infra.bridge.peer_turn import USER_TURN_WS_KEYS, PeerTurnRejected
+from inhere_box.api.bridge_peer import prepare_peer_dashboard_turn
+from inhere_box.api.routers.chat.models import UserTurnWsFrame
+from inhere_box.infra.bridge.manager import _bridge_turn_ws_payload
+from inhere_box.infra.bridge.peer_turn import USER_TURN_WS_KEYS, PeerTurnRejected
 
 
 def test_bridge_turn_ws_payload_keeps_composer_fields() -> None:

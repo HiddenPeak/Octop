@@ -11,9 +11,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from octop.infra.projects import narration
-from octop.infra.projects.content import TaskContent
-from octop.infra.projects.progress import TaskPlan, TaskPlanStep
+from inhere_box.infra.projects import narration
+from inhere_box.infra.projects.content import TaskContent
+from inhere_box.infra.projects.progress import TaskPlan, TaskPlanStep
 
 
 def snapshot(key="opening", **facts):
@@ -297,7 +297,7 @@ def test_progress_facts_preserve_completed_ui_step_and_actual_writes_without_reu
     content = TaskContent("turn-context")
     content.update_plan(
         TaskPlan(
-            source="octop_planning",
+            source="inhere_box_planning",
             plan_id="plan",
             revision=2,
             active_step_id="tests",

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.agents.settings.tool_catalog import (
+from inhere_box.infra.agents.settings.tool_catalog import (
     BUILTIN_TOOL_CATALOG,
     CRITICAL_TOOLS,
     builtin_tool_available,
@@ -11,7 +11,7 @@ from octop.infra.agents.settings.tool_catalog import (
     plugin_tools_disabled_names,
     tools_disabled_set,
 )
-from octop.infra.agents.teams.service import HOST_TOOLS_ALLOWED, HOST_TOOLS_DISABLED
+from inhere_box.infra.agents.teams.service import HOST_TOOLS_ALLOWED, HOST_TOOLS_DISABLED
 
 
 def test_team_host_tools_are_dispatch_only() -> None:

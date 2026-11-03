@@ -18,18 +18,18 @@ import pytest
 from langgraph.prebuilt.tool_node import ToolCallRequest
 from pydantic import ValidationError
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import RepoBundle
-from octop.infra.errors import OctopError
-from octop.infra.projects import artifacts, runtime, tasks
-from octop.infra.projects import execution as execution_module
-from octop.infra.projects.artifact_models import (
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import RepoBundle
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.projects import artifacts, runtime, tasks
+from inhere_box.infra.projects import execution as execution_module
+from inhere_box.infra.projects.artifact_models import (
     CreateArtifactArgs,
     PublishWorkspaceArchiveArgs,
     PublishWorkspaceFileArgs,
 )
-from octop.infra.projects.execution import TaskExecution
+from inhere_box.infra.projects.execution import TaskExecution
 from tests.integration.test_project_task_planning import (
     latest_plan,
     planning_models,
@@ -94,7 +94,7 @@ async def test_real_tools_stream_and_restore_immutable_attachments(
 ):
     from langchain_core.messages import AIMessage, ToolMessage
 
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     client, server, auth = env_with_provider
     monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 0.01)
@@ -593,7 +593,7 @@ async def test_call_idempotency_survives_source_deletion_and_turn_completion(pub
     original = await publisher.publish("same-call", args)
     (root / "result.pdf").unlink()
     assert await publisher.publish("same-call", args) == original
-    with pytest.raises(OctopError) as conflict:
+    with pytest.raises(InhereBoxError) as conflict:
         await publisher.publish("same-call", PublishWorkspaceFileArgs(path="other.pdf"))
     assert conflict.value.code == "TASK_ARTIFACT_CONFLICT"
     await client.post(
@@ -603,7 +603,7 @@ async def test_call_idempotency_survives_source_deletion_and_turn_completion(pub
     )
     await settled(client, auth, task["task_id"])
     assert await publisher.publish("same-call", args) == original
-    with pytest.raises(OctopError) as closed:
+    with pytest.raises(InhereBoxError) as closed:
         await publisher.create("new-call", CreateArtifactArgs(name="late.txt", content="late"))
     assert closed.value.code == "TASK_ARTIFACT_CLOSED"
     owner = await resolve_user_id(client, auth, "admin")
@@ -702,7 +702,7 @@ async def test_business_category_preserves_legacy_request_hash_and_replay(
         )
     (root / "legacy.md").unlink()
     assert await operation("legacy-call", omitted) == original
-    with pytest.raises(OctopError) as conflict:
+    with pytest.raises(InhereBoxError) as conflict:
         await operation(
             "legacy-call",
             args_model.model_validate(
@@ -734,7 +734,7 @@ async def test_archive_publishes_only_explicit_files_and_replays_without_sources
         assert archive.read("app/app.js") == b"const notes = [];"
     (root / "app" / "app.js").unlink()
     assert await publisher.archive("zip-call", arguments) == artifact
-    with pytest.raises(OctopError) as conflict:
+    with pytest.raises(InhereBoxError) as conflict:
         await publisher.archive(
             "zip-call", PublishWorkspaceArchiveArgs(paths=["unrelated-secret.txt"], name="app.zip")
         )
@@ -801,7 +801,7 @@ async def test_archive_rejects_directories_missing_files_and_uncompressed_size_l
         ("directory", "TASK_ARTIFACT_INVALID"),
         ("missing.txt", "TASK_ARTIFACT_UNAVAILABLE"),
     ]:
-        with pytest.raises(OctopError) as rejected:
+        with pytest.raises(InhereBoxError) as rejected:
             await publisher.archive(
                 source, PublishWorkspaceArchiveArgs(paths=[source], name="app.zip")
             )
@@ -809,7 +809,7 @@ async def test_archive_rejects_directories_missing_files_and_uncompressed_size_l
     (root / "one.txt").write_bytes(b"123")
     (root / "two.txt").write_bytes(b"456")
     monkeypatch.setattr(artifacts, "MAX_TURN_BYTES", 5)
-    with pytest.raises(OctopError) as limited:
+    with pytest.raises(InhereBoxError) as limited:
         await publisher.archive(
             "too-large", PublishWorkspaceArchiveArgs(paths=["one.txt", "two.txt"], name="app.zip")
         )
@@ -842,7 +842,8 @@ async def test_concurrent_publications_share_persistent_turn_quota(publisher_env
     )
     assert (
         sum(
-            isinstance(item, OctopError) and item.code == "TASK_ARTIFACT_LIMIT" for item in outcomes
+            isinstance(item, InhereBoxError) and item.code == "TASK_ARTIFACT_LIMIT"
+            for item in outcomes
         )
         == 1
     )
@@ -859,15 +860,15 @@ async def test_byte_limits_and_post_cancel_publication_are_checked_atomically(
     client, _, auth, publisher, root, task = publisher_env
     monkeypatch.setattr(artifacts, "MAX_ARTIFACT_BYTES", 10)
     monkeypatch.setattr(artifacts, "MAX_TURN_BYTES", 15)
-    with pytest.raises(OctopError) as large:
+    with pytest.raises(InhereBoxError) as large:
         await publisher.create("large", CreateArtifactArgs(name="large.txt", content="x" * 11))
     assert large.value.code == "TASK_ARTIFACT_LIMIT"
     (root / "large.pdf").write_bytes(b"x" * 11)
-    with pytest.raises(OctopError) as file_large:
+    with pytest.raises(InhereBoxError) as file_large:
         await publisher.publish("large-file", PublishWorkspaceFileArgs(path="large.pdf"))
     assert file_large.value.code == "TASK_ARTIFACT_LIMIT"
     await publisher.create("small-1", CreateArtifactArgs(name="1.txt", content="x" * 8))
-    with pytest.raises(OctopError) as total:
+    with pytest.raises(InhereBoxError) as total:
         await publisher.create("small-2", CreateArtifactArgs(name="2.txt", content="x" * 8))
     assert total.value.code == "TASK_ARTIFACT_LIMIT"
     await client.post(
@@ -875,7 +876,7 @@ async def test_byte_limits_and_post_cancel_publication_are_checked_atomically(
         headers=auth,
         json={"turn_id": publisher.turn.turn_id},
     )
-    with pytest.raises(OctopError) as cancelled:
+    with pytest.raises(InhereBoxError) as cancelled:
         await publisher.create("after-cancel", CreateArtifactArgs(name="late.txt", content="x"))
     assert cancelled.value.code == "TASK_ARTIFACT_CLOSED"
 
@@ -890,13 +891,13 @@ async def test_symlinks_and_directories_cannot_be_published(publisher_env, tmp_p
     (root / "linked-dir").symlink_to(external, target_is_directory=True)
     (root / "directory").mkdir()
     for path in ["link.txt", "linked-dir/secret.txt", "directory"]:
-        with pytest.raises(OctopError) as exc:
+        with pytest.raises(InhereBoxError) as exc:
             await publisher.publish(path, PublishWorkspaceFileArgs(path=path))
         assert exc.value.code == "TASK_ARTIFACT_INVALID"
 
 
 async def test_snapshots_survive_database_backup_and_repeated_migrations(publisher_env, tmp_path):
-    from octop.infra.backup.snapshot import snapshot_sqlite_file
+    from inhere_box.infra.backup.snapshot import snapshot_sqlite_file
 
     _, server, _, publisher, _, task = publisher_env
     artifact = await publisher.create(

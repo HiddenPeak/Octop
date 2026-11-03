@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from starlette.websockets import WebSocketState
 
-from octop.api.routers.mobile import stream as mobile_stream
+from inhere_box.api.routers.mobile import stream as mobile_stream
 
 
 class _FakeWS:

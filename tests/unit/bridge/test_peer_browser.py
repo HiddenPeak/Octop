@@ -9,11 +9,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from octop.infra.bridge.manager import BridgeManager
-from octop.infra.bridge.transport import BridgeSession
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.users import UserRepo
+from inhere_box.infra.bridge.manager import BridgeManager
+from inhere_box.infra.bridge.transport import BridgeSession
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.users import UserRepo
 
 
 @pytest.mark.asyncio
@@ -21,7 +21,7 @@ from octop.infra.db.repos.users import UserRepo
 async def test_new_browser_request_checks_current_owner_status(
     tmp_path: Path, disabled: bool
 ) -> None:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     users = UserRepo(pool)
     owner_id = users.create(username="owner", password_hash="x", role="admin")

@@ -5,11 +5,11 @@
 version: "3"
 
 info:
-  companyName: "Octop"
-  productName: "Octop"
-  productIdentifier: "com.tencent.octop"
-  description: "Octop desktop shell"
-  copyright: "(c) 2026, Octop"
+  companyName: "inhere-box"
+  productName: "inhere-box"
+  productIdentifier: "com.inhere.box"
+  description: "inhere-box desktop shell"
+  copyright: "(c) 2026, inhere-box"
   comments: "Wails v3 + green portable"
   version: "0.9.26"
 

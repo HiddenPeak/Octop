@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.tools import BaseTool, StructuredTool
 
-from octop.infra.connectors.mcp_tool_cache import (
+from inhere_box.infra.connectors.mcp_tool_cache import (
     fingerprint_mcp_spec,
     wrap_tools_for_shared_use,
 )
@@ -76,7 +76,7 @@ async def test_wrap_tools_serialize_ainvoke() -> None:
 
 @pytest.mark.asyncio
 async def test_get_or_load_caches_and_reuses() -> None:
-    from octop.infra.agents.manager import AgentManager
+    from inhere_box.infra.agents.manager import AgentManager
 
     mgr = object.__new__(AgentManager)
     mgr._mcp_tool_cache = {}
@@ -105,7 +105,7 @@ async def test_get_or_load_caches_and_reuses() -> None:
 
 @pytest.mark.asyncio
 async def test_get_or_load_misses_on_fingerprint_change() -> None:
-    from octop.infra.agents.manager import AgentManager
+    from inhere_box.infra.agents.manager import AgentManager
 
     mgr = object.__new__(AgentManager)
     mgr._mcp_tool_cache = {}
@@ -140,7 +140,7 @@ async def test_get_or_load_misses_on_fingerprint_change() -> None:
 
 @pytest.mark.asyncio
 async def test_prepare_chat_mcp_injects_custom_from_cache() -> None:
-    from octop.infra.agents.manager import AgentManager
+    from inhere_box.infra.agents.manager import AgentManager
 
     mgr = object.__new__(AgentManager)
     mgr._mcp_tool_cache = {}
@@ -203,8 +203,8 @@ async def test_prepare_chat_mcp_attaches_gateway_tools_without_reload() -> None:
     agent (and the checkpointer pool an in-flight turn still writes to) and
     holds ``AgentManager._lock`` across workspace I/O.
     """
-    from octop.infra.agents.manager import AgentManager
-    from octop.infra.connectors.builder import mcp_server_name
+    from inhere_box.infra.agents.manager import AgentManager
+    from inhere_box.infra.connectors.builder import mcp_server_name
 
     instance_id = "01TESTGATEWAYINSTANCE0001"
     server = mcp_server_name("qq-mail", instance_id)

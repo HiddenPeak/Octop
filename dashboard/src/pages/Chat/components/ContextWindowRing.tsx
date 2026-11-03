@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Popover, Spin, Drawer } from "antd";
 import {
-  octopThreadsApi,
+  inhereBoxThreadsApi,
   type ContextUsageBreakdown,
   type ContextUsageSegmentKey,
-} from "../../../api/modules/octopThreads";
+} from "../../../api/modules/inhereBoxThreads";
 import { isPendingThread } from "../hooks/useSessions";
 import { contextUsedPercent } from "../hooks/useChatContextWindow";
 import styles from "../index.module.less";
@@ -97,7 +97,7 @@ export default function ContextWindowRing({
           (cached.data.segments?.length ?? 0) > 0 &&
           cached.data.used_tokens > 0;
         const hint = hintUsedRef.current;
-        const data = await octopThreadsApi.contextUsage(agentId, threadId, {
+        const data = await inhereBoxThreadsApi.contextUsage(agentId, threadId, {
           maxTokens: max,
           inputTokens: !haveSegments && hint > 0 ? hint : undefined,
           mcpServers: selectedConnectors,

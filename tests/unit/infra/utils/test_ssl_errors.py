@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.utils.ssl_errors import looks_like_ssl_error
+from inhere_box.infra.utils.ssl_errors import looks_like_ssl_error
 
 
 def test_looks_like_ssl_error_record_layer() -> None:

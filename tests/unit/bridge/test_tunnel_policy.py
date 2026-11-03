@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.bridge.tunnel_policy import is_task_tunnel_path_allowed, is_tunnel_path_allowed
+from inhere_box.infra.bridge.tunnel_policy import (
+    is_task_tunnel_path_allowed,
+    is_tunnel_path_allowed,
+)
 
 
 def test_allows_agent_list_get() -> None:
@@ -107,8 +110,8 @@ def test_denies_paths_that_change_during_url_processing(path: str) -> None:
 async def test_path_traversal_cannot_dispatch_to_management_route() -> None:
     from fastapi import FastAPI
 
-    from octop.infra.bridge.http_tunnel import execute_local_http
-    from octop.infra.errors import ErrorCode, OctopError
+    from inhere_box.infra.bridge.http_tunnel import execute_local_http
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
     app = FastAPI()
     installed: list[bool] = []
@@ -118,7 +121,7 @@ async def test_path_traversal_cannot_dispatch_to_management_route() -> None:
         installed.append(True)
         return {"installed": True}
 
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         await execute_local_http(
             app=app,
             method="POST",

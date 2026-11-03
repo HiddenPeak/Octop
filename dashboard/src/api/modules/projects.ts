@@ -152,7 +152,7 @@ export interface TaskApprovalCapabilities {
   execution_profile: "host_process";
 }
 export interface EngineSelection {
-  engine_id: "octop" | "acp";
+  engine_id: "inhere-box" | "acp";
   connection_id: string | null;
   model_id: string | null;
 }
@@ -237,7 +237,7 @@ export interface TaskPlanStep {
   removed_at?: string | null;
 }
 export interface TaskPlan {
-  source: "octop_planning" | "harness_todos";
+  source: "inhere_box_planning" | "harness_todos";
   revision: number;
   plan_id?: string | null;
   title?: string;

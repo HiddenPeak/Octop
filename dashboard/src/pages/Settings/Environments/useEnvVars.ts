@@ -16,8 +16,8 @@ export function useEnvVars() {
         setEnvVars(
           data.filter(
             ({ key }) =>
-              key !== "OCTOP_TASK_ACTION_TIMELINE_ENABLED" &&
-              key !== "OCTOP_TASK_STEP_PANEL_ENABLED",
+              key !== "INHERE_BOX_TASK_ACTION_TIMELINE_ENABLED" &&
+              key !== "INHERE_BOX_TASK_STEP_PANEL_ENABLED",
           ),
         );
       }

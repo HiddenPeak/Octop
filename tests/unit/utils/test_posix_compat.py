@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from octop.infra.utils import posix_compat
+from inhere_box.infra.utils import posix_compat
 
 posix_only = pytest.mark.skipif(os.name != "posix", reason="POSIX only")
 

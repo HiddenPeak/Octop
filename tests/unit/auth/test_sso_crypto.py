@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from octop.infra.auth.sso.crypto import decrypt_secret, encrypt_secret
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.secrets import SecretRepo
+from inhere_box.infra.auth.sso.crypto import decrypt_secret, encrypt_secret
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.secrets import SecretRepo
 
 
 def test_sso_secret_round_trip_uses_its_own_fernet_key(tmp_path: Path) -> None:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     secret_repo = SecretRepo(db)
 

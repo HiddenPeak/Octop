@@ -13,7 +13,7 @@ from octop_browser.record.models import RecordingManifest, StepsDocument
 from octop_browser.record.settings import RecordReplaySettings
 from octop_browser.record.store import RecordingStore
 
-from octop.infra.projects import workbench, workbench_browser
+from inhere_box.infra.projects import workbench, workbench_browser
 from tests.integration.test_project_tasks import settled, task_env  # noqa: F401
 from tests.support.auth import resolve_user_id
 

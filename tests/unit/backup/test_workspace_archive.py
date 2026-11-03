@@ -13,7 +13,7 @@ from deepagents.backends.local_shell import LocalShellBackend
 from octop_harness.backends import resolve_backend
 from octop_harness.backends.workspace import BackendWorkspace
 
-from octop.infra.backup.workspace_archive import export_workspace_zip, import_workspace_zip
+from inhere_box.infra.backup.workspace_archive import export_workspace_zip, import_workspace_zip
 
 
 @pytest.mark.asyncio
@@ -240,11 +240,11 @@ async def test_export_mountless_includes_hidden_via_aglob(tmp_path: Path) -> Non
 
 
 @pytest.mark.asyncio
-async def test_import_skips_octop_builtin_skills(tmp_path: Path) -> None:
-    """An archive must not plant entries under the Octop-owned ``_builtin_skills`` root.
+async def test_import_skips_inhere_box_builtin_skills(tmp_path: Path) -> None:
+    """An archive must not plant entries under the inhere-box-owned ``_builtin_skills`` root.
 
     ``DELETE`` / ``move`` refuse that prefix, so a planted skill directory would be
-    something the user cannot remove through the API, while ``sync_octop_builtin_skills``
+    something the user cannot remove through the API, while ``sync_inhere_box_builtin_skills``
     only prunes the names it retired itself.
     """
     ws = tmp_path / "ws"

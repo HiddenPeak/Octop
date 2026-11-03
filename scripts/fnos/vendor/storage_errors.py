@@ -1,6 +1,6 @@
 """Vendored from octop-harness until PyPI ships ``backends.storage_errors``.
 
-Native FPK CI copies this file into site-packages so ``octop.launch`` can import.
+Native FPK CI copies this file into site-packages so ``inhere_box.launch`` can import.
 """
 
 from __future__ import annotations

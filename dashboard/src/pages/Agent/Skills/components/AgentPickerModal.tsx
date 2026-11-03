@@ -2,13 +2,13 @@
 import { Modal, List, Avatar, Empty } from "antd";
 import { useTranslation } from "react-i18next";
 import { useAgent } from "../../../../context/AgentContext";
-import type { OctopAgent } from "../../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../../context/AgentContext";
 import { ownedSoloExperts } from "../../../../utils/sharedExpert";
 
 interface AgentPickerModalProps {
   open: boolean;
   onClose: () => void;
-  onPick: (agent: OctopAgent) => void;
+  onPick: (agent: InhereBoxAgent) => void;
 }
 
 export default function AgentPickerModal({

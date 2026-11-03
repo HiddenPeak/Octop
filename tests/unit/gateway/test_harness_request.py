@@ -10,7 +10,7 @@ from octop_gateway.models import (
     TextContent,
 )
 
-from octop.infra.gateway.process.harness_request import build_content_from_message
+from inhere_box.infra.gateway.process.harness_request import build_content_from_message
 
 
 @pytest.mark.asyncio

@@ -11,7 +11,7 @@ import pytest
 from langgraph.checkpoint.base import empty_checkpoint
 from octop_memory import Memory
 
-from octop.infra.agents.memory.sqlite_restore import backup_path, list_backups, restore_sqlite
+from inhere_box.infra.agents.memory.sqlite_restore import backup_path, list_backups, restore_sqlite
 
 
 def create_store(path: Path, namespace: str = "agent_a") -> None:
@@ -79,7 +79,7 @@ def test_corrupt_and_foreign_backups_do_not_modify_current_store(tmp_path):
 
 
 def test_restore_flushes_safety_backup_with_writable_handle(tmp_path, monkeypatch):
-    from octop.infra.agents.memory import sqlite_restore
+    from inhere_box.infra.agents.memory import sqlite_restore
 
     path = tmp_path / "memory.sqlite"
     create_store(path)
@@ -102,7 +102,7 @@ def test_restore_flushes_safety_backup_with_writable_handle(tmp_path, monkeypatc
 
 
 def test_validation_failure_after_restore_rolls_back_current_state(tmp_path, monkeypatch):
-    from octop.infra.agents.memory import sqlite_restore
+    from inhere_box.infra.agents.memory import sqlite_restore
 
     path = tmp_path / "memory.sqlite"
     create_store(path)
@@ -131,7 +131,7 @@ def test_validation_failure_after_restore_rolls_back_current_state(tmp_path, mon
 
 
 def test_safety_backup_failure_never_overwrites_target(tmp_path, monkeypatch):
-    from octop.infra.agents.memory import sqlite_restore
+    from inhere_box.infra.agents.memory import sqlite_restore
 
     path = tmp_path / "memory.sqlite"
     create_store(path)
@@ -147,7 +147,7 @@ def test_safety_backup_failure_never_overwrites_target(tmp_path, monkeypatch):
 
 
 def test_delete_backup_permission_failure_keeps_file(tmp_path, monkeypatch):
-    from octop.infra.agents.memory.sqlite_restore import delete_backup
+    from inhere_box.infra.agents.memory.sqlite_restore import delete_backup
 
     path = tmp_path / "memory.sqlite"
     backup = path.with_name(path.name + ".before-slim." + "a" * 32 + ".bak")

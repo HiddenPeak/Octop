@@ -1,11 +1,11 @@
 # =============================================================================
-# Octop — Remote Phone (mobile) compose overlay for local / DinD testing
+# inhere-box — Remote Phone (mobile) compose overlay for local / DinD testing
 #
 # Usage (from repo root):
 #   # once: download platform-tools next to the repo
 #   mkdir -p .tools && cd /tmp && curl -fsSL -o pt.zip \
 #     https://dl.google.com/android/repository/platform-tools-latest-linux.zip \
-#     && unzip -qo pt.zip -d /workspace/Octop/.tools
+#     && unzip -qo pt.zip -d /workspace/inhere-box/.tools
 #
 #   docker compose -f docker/docker-compose.mobile.yml up -d --build
 #
@@ -19,12 +19,12 @@
 # =============================================================================
 
 services:
-  octop:
+  inhere-box:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: octop:latest
-    container_name: octop
+    image: inhere-box:latest
+    container_name: inhere-box
     restart: unless-stopped
     ulimits:
       nofile:
@@ -33,19 +33,19 @@ services:
     privileged: true
     network_mode: host
     volumes:
-      - ${OCTOP_DATA:-~/.octop}:/data/.octop
+      - ${INHERE_BOX_DATA:-~/.inhere-box}:/data/.octop
       - /var/run/docker.sock:/var/run/docker.sock
       - /dev/binderfs:/dev/binderfs
-      - ${OCTOP_PLATFORM_TOOLS:-../.tools/platform-tools}:/opt/android-sdk/platform-tools:ro
+      - ${INHERE_BOX_PLATFORM_TOOLS:-../.tools/platform-tools}:/opt/android-sdk/platform-tools:ro
     environment:
       - HOME=/data
-      - OCTOP_BIND_HOST=0.0.0.0
-      - OCTOP_PORT=${OCTOP_PORT:-8088}
-      - OCTOP_LOG_LEVEL=${OCTOP_LOG_LEVEL:-info}
-      - OCTOP_DEFAULT_PASSWORD=${OCTOP_DEFAULT_PASSWORD:-}
-      - OCTOP_ADMIN_USERNAME=${OCTOP_ADMIN_USERNAME:-admin}
-      - OCTOP_MOBILE_ADB_HOST=${OCTOP_MOBILE_ADB_HOST:-127.0.0.1:5555}
-      - OCTOP_MOBILE_CONTAINER=${OCTOP_MOBILE_CONTAINER:-octop-mobile-android}
-      - OCTOP_ENABLE_MOBILE=${OCTOP_ENABLE_MOBILE:-1}
+      - INHERE_BOX_BIND_HOST=0.0.0.0
+      - INHERE_BOX_PORT=${INHERE_BOX_PORT:-8088}
+      - INHERE_BOX_LOG_LEVEL=${INHERE_BOX_LOG_LEVEL:-info}
+      - INHERE_BOX_DEFAULT_PASSWORD=${INHERE_BOX_DEFAULT_PASSWORD:-}
+      - INHERE_BOX_ADMIN_USERNAME=${INHERE_BOX_ADMIN_USERNAME:-admin}
+      - INHERE_BOX_MOBILE_ADB_HOST=${INHERE_BOX_MOBILE_ADB_HOST:-127.0.0.1:5555}
+      - INHERE_BOX_MOBILE_CONTAINER=${INHERE_BOX_MOBILE_CONTAINER:-inhere-box-mobile-android}
+      - INHERE_BOX_ENABLE_MOBILE=${INHERE_BOX_ENABLE_MOBILE:-1}
       - ANDROID_HOME=/opt/android-sdk
       - ANDROID_SDK_ROOT=/opt/android-sdk

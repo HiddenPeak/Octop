@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import type { OctopCronRow } from "../../../api/types";
+import type { InhereBoxCronRow } from "../../../api/types";
 import { useCronJobs } from "./useCronJobs";
 import { buildDefaultFormValues } from "./components/constants";
 
@@ -11,7 +11,7 @@ vi.mock("@/utils/antdMessage", () => ({
   message: { success: vi.fn(), error: vi.fn() },
 }));
 
-const legacy: OctopCronRow = {
+const legacy: InhereBoxCronRow = {
   id: "schedule-legacy",
   name: "Legacy schedule",
   agent_id: "expert-1",

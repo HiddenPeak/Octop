@@ -9,25 +9,25 @@ from dataclasses import asdict, replace
 import pytest
 from pydantic import ValidationError
 
-from octop.config import OctopConfig
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_artifacts import ProjectTaskArtifactRow
-from octop.infra.db.repos.project_task_attachments import ProjectTaskAttachmentRow
-from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRow
-from octop.infra.db.repos.project_tasks import ProjectTaskRow
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import branches, runtime, tasks
-from octop.infra.projects.branches import TaskFork
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_artifacts import ProjectTaskArtifactRow
+from inhere_box.infra.db.repos.project_task_attachments import ProjectTaskAttachmentRow
+from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRow
+from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import branches, runtime, tasks
+from inhere_box.infra.projects.branches import TaskFork
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
 def services(tmp_path):
     db = SqlitePool(tmp_path / "branches.db")
     run_migrations(db)
-    result = SharedServices(PathLayout(tmp_path), OctopConfig(), RepoBundle.from_pool(db))
+    result = SharedServices(PathLayout(tmp_path), InhereBoxConfig(), RepoBundle.from_pool(db))
     result.secret_repo.get_or_create("jwt", lambda: b"branch-test-secret")
     with db.transaction() as conn:
         conn.execute("INSERT INTO users(id,username,role,created_at) VALUES(1,'owner','user',1)")
@@ -287,7 +287,7 @@ def test_idempotency_returns_same_branch_after_source_changes(services):
     with services.db.read_snapshot() as conn:
         assert conn.execute("SELECT COUNT(*) FROM project_tasks").fetchone()[0] == before
         assert conn.execute("SELECT COUNT(*) FROM project_task_attachments").fetchone()[0] == files
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         branches.create(
             services, 1, "source", body.model_copy(update={"prompt": "Different intent"})
         )
@@ -439,7 +439,7 @@ def test_invalid_branch_is_atomic_and_never_drops_missing_files(services, failur
                 "project_task_branches",
             )
         }
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         branches.create(services, owner, "source", TaskFork.model_validate(body))
     with services.db.read_snapshot() as conn:
         assert {
@@ -452,7 +452,7 @@ def test_forked_history_can_continue_and_source_remains_unchanged(services, monk
     created = branches.create(services, 1, "source", TaskFork(request_id="continue-fork"))
     monkeypatch.setattr(tasks, "_configuration", lambda *args, **kwargs: ("{}", "provider/model"))
     monkeypatch.setattr(
-        "octop.infra.agents.providers.store.ProviderStore.is_model_ref_multimodal",
+        "inhere_box.infra.agents.providers.store.ProviderStore.is_model_ref_multimodal",
         lambda *_args: True,
     )
     result = tasks.send(
@@ -604,7 +604,7 @@ def test_operation_contract_rejects_ambiguous_edits_and_regeneration():
 
 
 def test_box_guest_cannot_fork_with_an_otherwise_shared_expert(services):
-    from octop.infra.projects.expert_profiles import expert_configuration
+    from inhere_box.infra.projects.expert_profiles import expert_configuration
 
     services.agent_repo.set_shared("foreign-expert", True)
     expert, _ = expert_configuration(services, 1, "foreign-expert")
@@ -612,7 +612,7 @@ def test_box_guest_cannot_fork_with_an_otherwise_shared_expert(services):
     box_services = replace(services, config=replace(services.config, account_mode="box_local"))
     before = services.project_task_turn_repo.list("source")
 
-    with pytest.raises(OctopError) as denied:
+    with pytest.raises(InhereBoxError) as denied:
         branches.create(
             box_services,
             1,

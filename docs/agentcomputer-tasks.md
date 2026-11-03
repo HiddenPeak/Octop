@@ -36,7 +36,7 @@ TaskCreateReceipt 使用独立 operation=task.create，保存 box/command/projec
 
 ```http
 GET /api/agentcomputer/v1/tasks/{taskID}
-Authorization: Bearer <Octop 用户登录令牌>
+Authorization: Bearer <inhere-box 用户登录令牌>
 ```
 
 TaskView 返回 taskID、projectID、sessionID、完整 title、taskRevision、preparationState、executionReady=false。当前状态与原收据分开；未知和跨 owner 统一 404，管理员普通查询也不绕过归属。无效 UUID 返回 scoped 422，损坏绑定返回安全 503/taskInvalid，不回显内部路径或凭据。

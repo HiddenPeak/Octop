@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 from deepagents.backends.protocol import BackendProtocol, ReadResult
 
-from octop.infra.backend.compat import adapt_backend_protocol, is_adapted_backend
+from inhere_box.infra.backend.compat import adapt_backend_protocol, is_adapted_backend
 
 
 class _LegacyRemote:
@@ -224,7 +224,7 @@ async def test_adapt_download_uses_worker() -> None:
 
 
 def test_adapt_s3_list_falls_back_to_v1(monkeypatch: pytest.MonkeyPatch) -> None:
-    import octop.infra.backend.compat as compat
+    import inhere_box.infra.backend.compat as compat
 
     class _S3:
         ls = BackendProtocol.ls
@@ -250,7 +250,7 @@ def test_adapt_s3_list_falls_back_to_v1(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_adapt_run_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
-    import octop.infra.backend.compat as compat
+    import inhere_box.infra.backend.compat as compat
 
     class _Hung(_LegacyRemote):
         async def als_info(self, path: str) -> list[dict[str, object]]:

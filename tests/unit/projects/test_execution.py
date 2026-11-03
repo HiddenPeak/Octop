@@ -17,9 +17,9 @@ from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.types import Command
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from octop.i18n import tr
-from octop.infra.projects import execution
-from octop.infra.projects.execution import STEP_METADATA, TaskExecution, strip_step_metadata
+from inhere_box.i18n import tr
+from inhere_box.infra.projects import execution
+from inhere_box.infra.projects.execution import STEP_METADATA, TaskExecution, strip_step_metadata
 
 
 class Planning:

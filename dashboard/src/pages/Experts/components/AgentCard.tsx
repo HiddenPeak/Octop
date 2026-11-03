@@ -26,7 +26,7 @@ import MbtiCatalogDrawer from "./MbtiCatalogDrawer";
 import ToolCatalogDrawer from "./ToolCatalogDrawer";
 import PluginCatalogDrawer from "./PluginCatalogDrawer";
 import { request } from "../../../api/request";
-import type { OctopAgent } from "../../../context/AgentContext";
+import type { InhereBoxAgent } from "../../../context/AgentContext";
 import { useAgent } from "../../../context/AgentContext";
 import MbtiPersonaTag from "../../../components/MbtiPersonaTag";
 import { ExpertIcon } from "./iconForName";
@@ -62,7 +62,7 @@ function getStateMeta(state: string) {
 const TRANSIENT = new Set(["starting", "stopping"]);
 
 export interface AgentCardProps {
-  agent: OctopAgent;
+  agent: InhereBoxAgent;
   iconName?: string | null;
   iconUrl?: string | null;
   accentColor?: string | null;

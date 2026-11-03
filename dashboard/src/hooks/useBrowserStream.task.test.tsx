@@ -6,7 +6,7 @@ vi.mock("../api/modules/taskWorkbench", () => ({
   taskWorkbenchApi: {
     browserStreamUrl: vi.fn(
       () =>
-        "wss://octop.test/api/project-tasks/task_a/browser-stream/ws?expected_scope_revision=scope-3",
+        "wss://inhere_box.test/api/project-tasks/task_a/browser-stream/ws?expected_scope_revision=scope-3",
     ),
   },
 }));

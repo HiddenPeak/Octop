@@ -1,6 +1,6 @@
 import { Button } from "antd";
 import { useTranslation } from "react-i18next";
-import type { HistoryMigrationStatus } from "../../../api/modules/octopThreads";
+import type { HistoryMigrationStatus } from "../../../api/modules/inhereBoxThreads";
 import styles from "./HistoryMigrationBanner.module.less";
 
 interface HistoryMigrationBannerProps {

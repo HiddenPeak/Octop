@@ -1,19 +1,19 @@
 # 给 AgentComputer 的 Task 交互接入说明
 
-交付日期：2026 年 10 月 16 日。**本次只修改 Octop，AgentComputer 仓库没有改动。** 参考的是 `/Users/fangyuan/Desktop/code/AgentComputer/`，不是 AgentComputer2。服务端契约与现有网页实现已就绪，本文用于客户端后续接线。
+交付日期：2026 年 10 月 16 日。**本次只修改 inhere-box，AgentComputer 仓库没有改动。** 参考的是 `/Users/fangyuan/Desktop/code/AgentComputer/`，不是 AgentComputer2。服务端契约与现有网页实现已就绪，本文用于客户端后续接线。
 
 2026 年 10 月 17 日新增的计划、公开进展和动作链路，按[APP 专项接入指南](agentcomputer-task-planning-and-progress.md)升级 DTO、合并、缓存和界面；这部分同样尚未修改 APP。
 
-任务协议现为 **v3**，已提供账号全局三档模式、Octop 远端独立 Reviewer 和客户端命令审查接口。模式范围、当前运行证据与验收边界见[审批模式与 Reviewer](project-task-approval-modes.md)。AgentComputer 已接入账号全局模式同步；本机增强模式同意、Reviewer 适配与派发门禁继续遵守本文的独立授权边界。
+任务协议现为 **v3**，已提供账号全局三档模式、inhere-box 远端独立 Reviewer 和客户端命令审查接口。模式范围、当前运行证据与验收边界见[审批模式与 Reviewer](project-task-approval-modes.md)。AgentComputer 已接入账号全局模式同步；本机增强模式同意、Reviewer 适配与派发门禁继续遵守本文的独立授权边界。
 
 ## 必须一起升级的部分
 
-Octop `/api/project-tasks/ws` 发送 `ready.protocol_version=3`。旧客户端应提示升级，不能把未知等待状态当作完成；不提供隐式旧协议兼容，不恢复 AgentComputer 专用接口或 Bridge。
+inhere-box `/api/project-tasks/ws` 发送 `ready.protocol_version=3`。旧客户端应提示升级，不能把未知等待状态当作完成；不提供隐式旧协议兼容，不恢复 AgentComputer 专用接口或 Bridge。
 
 1. 扩展 TaskStatus：保留 queued/running/completed/failed/cancelled，增加 waiting_approval、waiting_answer、waiting_client_tool、paused。所有等待状态仍是活动任务。
-2. TaskSummary / TaskDetail 增加 approval_policy；TaskTurn 增加 approval_policy_at_start、interactions、interaction_revision、pause_requested。详情、历史、订阅事件和写入回执共用结构；数据来自 Octop，不启动客户端本地 Runtime 模拟远端等待。
+2. TaskSummary / TaskDetail 增加 approval_policy；TaskTurn 增加 approval_policy_at_start、interactions、interaction_revision、pause_requested。详情、历史、订阅事件和写入回执共用结构；数据来自 inhere-box，不启动客户端本地 Runtime 模拟远端等待。
 3. 在共享 Socket 中增加 task.approval.set、tool.review，以及 task.interaction.respond、task.pause、task.resume。只有唯一接收循环，命令回执与订阅事件可交错；tool.review 不阻塞接收循环等待模型返回。
-4. 复用原审批 Dock、问题卡与任务列表。根据来源把服务端交互发给 Octop，把本机命令审批发给现有 OctopClientToolRunner。
+4. 复用原审批 Dock、问题卡与任务列表。根据来源把服务端交互发给 inhere-box，把本机命令审批发给现有 InhereBoxClientToolRunner。
 
 完整结构见 [JSON Schema](project-task-websocket.schema.json)，规则见 [交互协议](project-task-interactions.md)。建议从实际 Schema 生成/核对 Swift DTO，而不是复制本文的省略字段。
 
@@ -23,19 +23,19 @@ Octop `/api/project-tasks/ws` 发送 `ready.protocol_version=3`。旧客户端�
 
 | 位置 | 接线内容 |
 | --- | --- |
-| OctopTaskDetail / OctopTaskProjection | 新状态、Task 模式、动作模式快照、reviewing 交互、审查回执与暂停意图；保留同一 turn 的多段内容。 |
-| OctopTaskSocket | v3 检查、新命令、稳定请求体、回执匹配和 tool.call 更新。 |
-| OctopTaskSessionService | 模式更新、远端回答/审批及暂停/继续；不直接改本地全局模式 Store。 |
-| OctopWorkspaceDataSource | 服务端请求与本机执行 journal 各自投影，正文更新不能覆盖待办。 |
+| InhereBoxTaskDetail / InhereBoxTaskProjection | 新状态、Task 模式、动作模式快照、reviewing 交互、审查回执与暂停意图；保留同一 turn 的多段内容。 |
+| InhereBoxTaskSocket | v3 检查、新命令、稳定请求体、回执匹配和 tool.call 更新。 |
+| InhereBoxTaskSessionService | 模式更新、远端回答/审批及暂停/继续；不直接改本地全局模式 Store。 |
+| InhereBoxWorkspaceDataSource | 服务端请求与本机执行 journal 各自投影，正文更新不能覆盖待办。 |
 | ConversationRunController | 待答/待批/暂停状态与提交中状态；确认后收卡，失败可重试。 |
-| OctopClientToolRunner / 现有加密 journal | 本机模式同意、原调用动作/上下文摘要、远端 Reviewer 适配、授权来源和派发前在线复验。 |
+| InhereBoxClientToolRunner / 现有加密 journal | 本机模式同意、原调用动作/上下文摘要、远端 Reviewer 适配、授权来源和派发前在线复验。 |
 | 现有 Dock、问题卡、任务列表 | 复用现有入口，展示执行位置与精确动作。 |
 
 `interaction_id` 是不透明字符串，不能强行转为 UUID。UI 需要 UUID 时建立稳定映射，键至少包含账号、实例、task、turn、来源和服务端请求身份。
 
 ## 当前账号全局的三档模式
 
-`approval_policy` 为 `{mode,revision,updated_at}`，模式值沿用 `ask_for_approval`、`approve_for_me`、`full_access`。Octop 账号策略是全部项目及已有、运行和未来 Task 的唯一权威；所有入口共享已确认状态。保留本地 Runtime 的 `AgentPermissionModeStore` 原设备级语义，不把设备偏好或本机同意当成远端账号策略。
+`approval_policy` 为 `{mode,revision,updated_at}`，模式值沿用 `ask_for_approval`、`approve_for_me`、`full_access`。inhere-box 账号策略是全部项目及已有、运行和未来 Task 的唯一权威；所有入口共享已确认状态。保留本地 Runtime 的 `AgentPermissionModeStore` 原设备级语义，不把设备偏好或本机同意当成远端账号策略。
 
 新账号默认请求批准；新 Task 继承账号当前策略，创建请求不再携带 `approval_mode`，旧字段由服务端忽略。无任务时用 `GET/PUT /api/project-tasks/approval-policy`；PUT 接受 `{request_id,expected_revision,mode}` 并返回策略对象。共享 Socket 独立观察 `approval.policy`，首次轮询和全局变化均推送，不依赖任务订阅。任一已有 Task 入口也可切换相同账号全局模式：
 
@@ -52,13 +52,13 @@ Octop `/api/project-tasks/ws` 发送 `ready.protocol_version=3`。旧客户端�
 
 任务资源 `approval` 返回 `allowed_modes`、`reviewer_ready`、`execution_profile:"host_process"`。`allowed_modes` 固定包含请求批准、帮我审批和完全访问，三种模式始终可选，无需管理员开放。`reviewer_ready` 仅供状态展示，未就绪不限制选择帮我审批；实际审查不可用时转人工。管理员在 `/api/admin/security/task-approvals` 仅设置强制人工工具，该设置仍优先，普通用户选择模式不能改变它。
 
-模式只影响后续尚未固定的动作；原人工卡、正在审查和已经创建但未领取的本机调用仍保持原快照。网页已提供服务端完全访问范围确认：命令在 Octop 宿主进程执行，工作目录不是系统沙盒。AgentComputer 需分别说明服务端范围与电脑范围，不能把一次服务端确认当作本机同意，也不能仅显示“两端都已生效”。
+模式只影响后续尚未固定的动作；原人工卡、正在审查和已经创建但未领取的本机调用仍保持原快照。网页已提供服务端完全访问范围确认：命令在 inhere-box 宿主进程执行，工作目录不是系统沙盒。AgentComputer 需分别说明服务端范围与电脑范围，不能把一次服务端确认当作本机同意，也不能仅显示“两端都已生效”。
 
 ## 服务端审批
 
 从 `TaskTurn.interactions` 取 `kind=approval,status=pending` 的项。展示 `payload.execution_host`、tool_name、arguments、reason；按钮由 allowed_decisions 决定，只允许 allow_once/deny。payload 的 approval_mode / approval_revision 是该动作固定快照，不随当前任务改档更新。
 
-`status=reviewing` 只显示“AI 正在审批”，不显示人工批准按钮或待批徽标。自动允许/拒绝保存 `resolution.source=auto_reviewer`，完全访问允许为 `full_access_mode`，相同原动作已拒绝为 `previous_denial`；使用紧凑折叠详情。需要用户、超时或异常时原 interaction 转 pending，按 `review.reason_code` 显示原因后复用原人工卡。来源由 Octop 写入，客户端不能通过回应命令伪造自动来源。
+`status=reviewing` 只显示“AI 正在审批”，不显示人工批准按钮或待批徽标。自动允许/拒绝保存 `resolution.source=auto_reviewer`，完全访问允许为 `full_access_mode`，相同原动作已拒绝为 `previous_denial`；使用紧凑折叠详情。需要用户、超时或异常时原 interaction 转 pending，按 `review.reason_code` 显示原因后复用原人工卡。来源由 inhere-box 写入，客户端不能通过回应命令伪造自动来源。
 
 ```json
 {
@@ -75,7 +75,7 @@ Octop `/api/project-tasks/ws` 发送 `ready.protocol_version=3`。旧客户端�
 }
 ```
 
-拒绝只改 decision。关闭审批界面绝不能发送允许。十分钟未处理由 Octop 过期拒绝，客户端不自行裁决超时，也不通过切模式放行原人工卡。不接项目始终允许或 allow_project；远端三档模式使用 Octop 的任务接口。
+拒绝只改 decision。关闭审批界面绝不能发送允许。十分钟未处理由 inhere-box 过期拒绝，客户端不自行裁决超时，也不通过切模式放行原人工卡。不接项目始终允许或 allow_project；远端三档模式使用 inhere-box 的任务接口。
 
 收到 `tool.call` 的本机决定继续由本机执行器处理，不发送到服务端 interaction 入口。领取、模式或 Reviewer 允许均不等于本机授权，具体步骤如下。
 
@@ -122,7 +122,7 @@ tool.review 先核对 owner、client_id、原 task/turn/call、claim_token、固
 
 同一轮同 client_id、工具名和完整 JSON 参数已有 Reviewer 拒绝时，换 call_id、改本机目录或切 full 都不能再创建动作或发起审查，服务端返回 TASK_CLIENT_TOOL_CLOSED 并保守终止本轮；不同 argv 的新提案可以重新审查。本机用户拒绝仍由本机 journal 保留并阻止原样再试，不能依赖服务端替代本机拒绝记录。
 
-Reviewer 在 Octop 运行，使用本轮模型的独立无工具上下文，无需在 Mac 再配置模型密钥。期限 45 秒，异常、配额不足、无效输出和未知结果转 requires_user；原 call 十分钟期限不延长。本机元数据和 argv 会发送给 Octop 及审查模型，应明确告知用户；不补传文件内容、环境变量或凭据。服务端只按文本审查工作目录，不读取本机路径。
+Reviewer 在 inhere-box 运行，使用本轮模型的独立无工具上下文，无需在 Mac 再配置模型密钥。期限 45 秒，异常、配额不足、无效输出和未知结果转 requires_user；原 call 十分钟期限不延长。本机元数据和 argv 会发送给 inhere-box 及审查模型，应明确告知用户；不补传文件内容、环境变量或凭据。服务端只按文本审查工作目录，不读取本机路径。
 
 本机处理结果：
 
@@ -186,4 +186,4 @@ REST 可用于相同操作，均 Bearer 鉴权并返回 TaskDetail：
 
 ## 验证范围
 
-2026-10-19 账号全局修复已在现有 8088 服务及主工程 `mainDerivedData` App 中核对：两个已有会话和 New Task 原菜单均读取 `approve_for_me`、revision 6；未在运行账号切档或派发工具，并保留其他客户端期间写入的选择。客户端 63 个独立用例、80 次运行及核心 62 项通过，macOS/iOS 构建成功；网页 82 项、TypeScript 检查及构建通过。服务重启前完成 schema 44 一致备份，升级至 45 后原 20 张 Task/ac 表逐原列 count+SHA-256 一致；全局 revision 6 后除 `project_tasks` 预期摘要变化外，其余 19 张原表哈希仍一致。备份与核对结果位于 `/private/tmp/octop-before-global-policy-live-20261019/`，详见[审批模式文档的验收证据](project-task-approval-modes.md#验证与客户端验收)。完整门禁未重复运行，UI 自动化按约定禁用；本轮人工核对只证明全局状态同步，不代替新增真实工具派发、供应商审查或权限边界专项实测。本轮全局修复按用户要求纳入本次本地提交，未推送。
+2026-10-19 账号全局修复已在现有 8088 服务及主工程 `mainDerivedData` App 中核对：两个已有会话和 New Task 原菜单均读取 `approve_for_me`、revision 6；未在运行账号切档或派发工具，并保留其他客户端期间写入的选择。客户端 63 个独立用例、80 次运行及核心 62 项通过，macOS/iOS 构建成功；网页 82 项、TypeScript 检查及构建通过。服务重启前完成 schema 44 一致备份，升级至 45 后原 20 张 Task/ac 表逐原列 count+SHA-256 一致；全局 revision 6 后除 `project_tasks` 预期摘要变化外，其余 19 张原表哈希仍一致。备份与核对结果位于 `/private/tmp/inhere-box-before-global-policy-live-20261019/`，详见[审批模式文档的验收证据](project-task-approval-modes.md#验证与客户端验收)。完整门禁未重复运行，UI 自动化按约定禁用；本轮人工核对只证明全局状态同步，不代替新增真实工具派发、供应商审查或权限边界专项实测。本轮全局修复按用户要求纳入本次本地提交，未推送。

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.bridge.manager import _absolute_peer_url, _probe_agent_summary
+from inhere_box.infra.bridge.manager import _absolute_peer_url, _probe_agent_summary
 
 
 def test_absolute_peer_url_joins_relative_icon() -> None:
@@ -90,8 +90,8 @@ def test_probe_agent_summary_prefers_agent_id_over_int_id() -> None:
 async def test_probe_owned_uses_stored_password(monkeypatch: pytest.MonkeyPatch) -> None:
     from unittest.mock import AsyncMock, MagicMock
 
-    from octop.infra.bridge.manager import BridgeManager
-    from octop.infra.db.repos.bridge_connections import BridgeConnectionRow
+    from inhere_box.infra.bridge.manager import BridgeManager
+    from inhere_box.infra.db.repos.bridge_connections import BridgeConnectionRow
 
     row = BridgeConnectionRow(
         pk=1,
@@ -120,7 +120,7 @@ async def test_probe_owned_uses_stored_password(monkeypatch: pytest.MonkeyPatch)
     )
     mgr.get_owned = MagicMock(return_value=row)  # type: ignore[method-assign]
     monkeypatch.setattr(
-        "octop.infra.bridge.manager.decrypt_payload",
+        "inhere_box.infra.bridge.manager.decrypt_payload",
         lambda _secrets, _blob: {"password": "stored-secret"},
     )
     probe = AsyncMock(return_value={"agent_count": 0, "agents": []})
@@ -140,8 +140,8 @@ async def test_probe_owned_uses_stored_password(monkeypatch: pytest.MonkeyPatch)
 async def test_probe_owned_prefers_typed_password(monkeypatch: pytest.MonkeyPatch) -> None:
     from unittest.mock import AsyncMock, MagicMock
 
-    from octop.infra.bridge.manager import BridgeManager
-    from octop.infra.db.repos.bridge_connections import BridgeConnectionRow
+    from inhere_box.infra.bridge.manager import BridgeManager
+    from inhere_box.infra.db.repos.bridge_connections import BridgeConnectionRow
 
     row = BridgeConnectionRow(
         pk=1,
@@ -170,7 +170,7 @@ async def test_probe_owned_prefers_typed_password(monkeypatch: pytest.MonkeyPatc
     )
     mgr.get_owned = MagicMock(return_value=row)  # type: ignore[method-assign]
     decrypt = MagicMock()
-    monkeypatch.setattr("octop.infra.bridge.manager.decrypt_payload", decrypt)
+    monkeypatch.setattr("inhere_box.infra.bridge.manager.decrypt_payload", decrypt)
     probe = AsyncMock(return_value={"agent_count": 0, "agents": []})
     mgr.probe_peer = probe  # type: ignore[method-assign]
     await mgr.probe_owned_connection(

@@ -7,8 +7,8 @@ import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 from pydantic import ValidationError
 
-from octop.i18n import tr
-from octop.infra.projects.progress import (
+from inhere_box.i18n import tr
+from inhere_box.infra.projects.progress import (
     NOTIFY_USER,
     PLAN_CONTENT_LIMIT,
     PLAN_STEP_LIMIT,

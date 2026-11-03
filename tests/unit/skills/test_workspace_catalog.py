@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.skills.workspace_catalog import list_workspace_skill_summaries
+from inhere_box.infra.skills.workspace_catalog import list_workspace_skill_summaries
 
 
 @pytest.mark.skipif(os.name != "posix", reason="symlink semantics are POSIX-specific")

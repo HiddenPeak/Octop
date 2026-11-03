@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager, suppress
 from typing import Any
 from urllib.parse import urlencode
 
-from octop.api.routers.chat import trajectory as trajectory_mod
+from inhere_box.api.routers.chat import trajectory as trajectory_mod
 
 
 def _url(agent_id: str, thread_id: str, suffix: str = "") -> str:
@@ -287,7 +287,7 @@ async def test_live_sse_emits_event_after_subscribe(env_alice_bob_agent: Any) ->
     assert service is not None
 
     async with _open_asgi_sse(
-        client._octop_app,  # type: ignore[attr-defined]
+        client._inhere_box_app,  # type: ignore[attr-defined]
         _url(agent_id, thread_id, "/stream"),
         alice_auth,
     ) as response:
@@ -326,7 +326,7 @@ async def test_live_sse_honors_after_seq(env_alice_bob_agent: Any) -> None:
     first_seq = int(events[0]["seq"])
 
     async with _open_asgi_sse(
-        client._octop_app,  # type: ignore[attr-defined]
+        client._inhere_box_app,  # type: ignore[attr-defined]
         _url(agent_id, thread_id, "/stream"),
         alice_auth,
         params={"after_seq": first_seq},
@@ -379,7 +379,7 @@ async def test_sse_catchup_refreshes_same_seq_tool_after_history(
     )
 
     async with _open_asgi_sse(
-        client._octop_app,  # type: ignore[attr-defined]
+        client._inhere_box_app,  # type: ignore[attr-defined]
         _url(agent_id, thread_id, "/stream"),
         alice_auth,
         params={"after_seq": tool_seq},
@@ -408,7 +408,7 @@ async def test_live_sse_delivers_same_seq_tool_upsert(env_alice_bob_agent: Any) 
     assert service is not None
 
     async with _open_asgi_sse(
-        client._octop_app,  # type: ignore[attr-defined]
+        client._inhere_box_app,  # type: ignore[attr-defined]
         _url(agent_id, thread_id, "/stream"),
         alice_auth,
     ) as response:
@@ -466,7 +466,7 @@ async def test_live_sse_emits_heartbeat(env_alice_bob_agent: Any, monkeypatch: A
     thread_id = await _create_thread(client, alice_auth, agent_id)
 
     async with _open_asgi_sse(
-        client._octop_app,  # type: ignore[attr-defined]
+        client._inhere_box_app,  # type: ignore[attr-defined]
         _url(agent_id, thread_id, "/stream"),
         alice_auth,
     ) as response:
@@ -524,7 +524,7 @@ async def test_live_sse_unsubscribes_on_cancel(env_alice_bob_agent: Any) -> None
     bus = service._bus  # noqa: SLF001
 
     async with _open_asgi_sse(
-        client._octop_app,  # type: ignore[attr-defined]
+        client._inhere_box_app,  # type: ignore[attr-defined]
         _url(agent_id, thread_id, "/stream"),
         alice_auth,
     ) as response:

@@ -3,7 +3,7 @@
 import asyncio
 from datetime import UTC, datetime
 
-from octop.infra.projects import runtime, tasks
+from inhere_box.infra.projects import runtime, tasks
 from tests.integration.test_project_tasks import settled
 
 

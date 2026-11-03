@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from octop.infra.skills import skillhub_market
+from inhere_box.infra.skills import skillhub_market
 
 
 def _zip_bytes(files: dict[str, str]) -> bytes:
@@ -28,7 +28,7 @@ def _has_cjk(text: str) -> bool:
 
 
 def test_skillhub_manifest_welcome_summarizes_capability() -> None:
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubSkillset,
         _expert_manifest,
     )
@@ -53,7 +53,7 @@ def test_skillhub_manifest_welcome_summarizes_capability() -> None:
 
 
 def test_skillhub_portrait_prefers_upstream_icon_url() -> None:
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubSkillset,
         _expert_manifest,
         skillhub_portrait_url,
@@ -86,7 +86,7 @@ def test_skillhub_portrait_prefers_upstream_icon_url() -> None:
 
 
 def test_skillhub_manifest_welcome_keeps_chinese_when_summary_is_english() -> None:
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubSkillset,
         _expert_manifest,
     )
@@ -110,7 +110,7 @@ def test_skillhub_manifest_welcome_keeps_chinese_when_summary_is_english() -> No
     assert manifest["welcome_message"]["zh"] == "提供专业、可落地的专家工作流支持"
     assert manifest["welcome_message"]["en"] == "Practical tarot draws with classic spreads"
 
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubSkillset,
         _expert_manifest,
     )
@@ -137,7 +137,7 @@ def test_skillhub_manifest_welcome_keeps_chinese_when_summary_is_english() -> No
 
 
 def test_skillhub_manifest_generates_workflow_quick_prompts() -> None:
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubSkillset,
         _expert_manifest,
     )
@@ -195,7 +195,7 @@ def test_skillhub_manifest_generates_workflow_quick_prompts() -> None:
 
 
 def test_skillhub_manifest_keeps_up_to_six_workflow_quick_prompts() -> None:
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubSkillset,
         _expert_manifest,
     )
@@ -219,7 +219,7 @@ def test_skillhub_manifest_keeps_up_to_six_workflow_quick_prompts() -> None:
 
 
 def test_skillhub_manifest_defaults_task_examples_without_workflow() -> None:
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubSkillset,
         _expert_manifest,
     )
@@ -244,7 +244,7 @@ def test_skillhub_manifest_defaults_task_examples_without_workflow() -> None:
 
 
 def test_skillhub_manifest_generates_workflow_task_examples() -> None:
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubSkillset,
         _expert_manifest,
     )
@@ -282,7 +282,7 @@ def test_skillhub_manifest_generates_workflow_task_examples() -> None:
 
 
 def test_skillhub_manifest_keeps_up_to_six_task_examples() -> None:
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubSkillset,
         _expert_manifest,
     )
@@ -306,7 +306,7 @@ def test_skillhub_manifest_keeps_up_to_six_task_examples() -> None:
 
 
 def test_skillhub_api_dict_includes_task_examples_with_content() -> None:
-    from octop.infra.agents.experts.skillhub_market import SkillHubSkillset
+    from inhere_box.infra.agents.experts.skillhub_market import SkillHubSkillset
 
     item = SkillHubSkillset(
         slug="demo",
@@ -325,7 +325,7 @@ def test_skillhub_api_dict_includes_task_examples_with_content() -> None:
 
 
 def test_browse_skillsets_filters_by_scene(monkeypatch) -> None:
-    from octop.infra.agents.experts import skillhub_market
+    from inhere_box.infra.agents.experts import skillhub_market
 
     monkeypatch.setattr(
         skillhub_market,
@@ -356,7 +356,7 @@ def test_browse_skillsets_filters_by_scene(monkeypatch) -> None:
 
 
 def test_fetch_skillset_uses_detail_endpoint(monkeypatch) -> None:
-    from octop.infra.agents.experts import skillhub_market
+    from inhere_box.infra.agents.experts import skillhub_market
 
     calls: list[str] = []
 
@@ -379,7 +379,7 @@ def test_fetch_skillset_uses_detail_endpoint(monkeypatch) -> None:
 
 
 def test_fetch_skillsets_uses_skillhub_pagination(monkeypatch) -> None:
-    from octop.infra.agents.experts import skillhub_market
+    from inhere_box.infra.agents.experts import skillhub_market
 
     calls: list[str] = []
 
@@ -412,7 +412,7 @@ def test_fetch_skillsets_uses_skillhub_pagination(monkeypatch) -> None:
 
 
 def test_skillhub_manifest_skill_slugs_are_deduped() -> None:
-    from octop.infra.agents.experts.skillhub_market import _manifest_skill_slugs
+    from inhere_box.infra.agents.experts.skillhub_market import _manifest_skill_slugs
 
     manifest = {
         "skillSets": [
@@ -425,7 +425,7 @@ def test_skillhub_manifest_skill_slugs_are_deduped() -> None:
 
 
 def test_parse_skillset_package_prefers_matching_skillsets_prompt() -> None:
-    from octop.infra.agents.experts.skillhub_market import _parse_skillset_package
+    from inhere_box.infra.agents.experts.skillhub_market import _parse_skillset_package
 
     manifest = {"skillSets": [{"slug": "target", "skillSlugs": ["alpha"]}]}
     package = _zip_bytes(
@@ -448,7 +448,7 @@ def test_parse_skillset_package_prefers_matching_skillsets_prompt() -> None:
 
 
 def test_extract_zip_repairs_invalid_utf8_skill_md(tmp_path: Path) -> None:
-    from octop.infra.agents.experts.skillhub_market import _extract_zip
+    from inhere_box.infra.agents.experts.skillhub_market import _extract_zip
 
     corrupted = "---\nname: humanizer\n---\n每句 ".encode() + b"\xe2j$" + "15 字\n".encode()
     buf = io.BytesIO()
@@ -463,7 +463,7 @@ def test_extract_zip_repairs_invalid_utf8_skill_md(tmp_path: Path) -> None:
 
 
 def test_extract_zip_rejects_unrepairable_skill_md(tmp_path: Path) -> None:
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubMarketError,
         SkillHubMarketErrorKind,
         _extract_zip,
@@ -479,7 +479,7 @@ def test_extract_zip_rejects_unrepairable_skill_md(tmp_path: Path) -> None:
 
 
 def test_parse_skillset_package_uses_identify_for_single_skillset() -> None:
-    from octop.infra.agents.experts.skillhub_market import _parse_skillset_package
+    from inhere_box.infra.agents.experts.skillhub_market import _parse_skillset_package
 
     manifest = {"skillSlugs": ["alpha"]}
     package = _zip_bytes(
@@ -499,7 +499,7 @@ def test_parse_skillset_package_uses_identify_for_single_skillset() -> None:
 
 
 def test_skillhub_dedupes_repeated_frontmatter() -> None:
-    from octop.infra.agents.experts.skillhub_market import _dedupe_frontmatter
+    from inhere_box.infra.agents.experts.skillhub_market import _dedupe_frontmatter
 
     text = "---\ntitle: Demo\n---\n---\ntitle: Demo\n---\n# Body\n"
 
@@ -507,7 +507,7 @@ def test_skillhub_dedupes_repeated_frontmatter() -> None:
 
 
 def test_skillset_from_raw_tolerates_bad_skill_count() -> None:
-    from octop.infra.agents.experts.skillhub_market import _skillset_from_raw
+    from inhere_box.infra.agents.experts.skillhub_market import _skillset_from_raw
 
     item = _skillset_from_raw(
         {
@@ -527,7 +527,7 @@ def test_validate_zip_rejects_path_traversal() -> None:
 
     import pytest
 
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubMarketError,
         SkillHubMarketErrorKind,
         _validate_zip,
@@ -550,7 +550,7 @@ def test_validate_zip_rejects_too_many_entries(monkeypatch) -> None:
 
     import pytest
 
-    from octop.infra.agents.experts import skillhub_market
+    from inhere_box.infra.agents.experts import skillhub_market
 
     monkeypatch.setattr(skillhub_market, "_MAX_ZIP_ENTRIES", 2)
     buf = io.BytesIO()
@@ -567,7 +567,7 @@ def test_validate_zip_rejects_too_many_entries(monkeypatch) -> None:
 
 
 def test_fetch_all_skillsets_serves_stale_on_refresh_failure(monkeypatch) -> None:
-    from octop.infra.agents.experts import skillhub_market
+    from inhere_box.infra.agents.experts import skillhub_market
 
     cached = [
         skillhub_market.SkillHubSkillset(slug="cached", display_name="Cached"),
@@ -589,12 +589,12 @@ def test_fetch_all_skillsets_serves_stale_on_refresh_failure(monkeypatch) -> Non
 
 
 def test_map_skillhub_error_hides_upstream_details() -> None:
-    from octop.api.routers.experts import _map_skillhub_error
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.api.routers.experts import _map_skillhub_error
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubMarketError,
         SkillHubMarketErrorKind,
     )
-    from octop.infra.errors import ErrorCode
+    from inhere_box.infra.errors import ErrorCode
 
     err = SkillHubMarketError(
         "SkillHub request failed: https://secret.example/path",
@@ -610,7 +610,7 @@ def test_map_skillhub_error_hides_upstream_details() -> None:
 def test_http_get_ssl_urlerror_raises_ssl_kind(monkeypatch) -> None:
     from urllib.error import URLError
 
-    from octop.infra.agents.experts import skillhub_market
+    from inhere_box.infra.agents.experts import skillhub_market
 
     def boom(*_args: object, **_kwargs: object) -> object:
         raise URLError("[SSL: RECORD_LAYER_FAILURE] record layer failure")
@@ -623,12 +623,12 @@ def test_http_get_ssl_urlerror_raises_ssl_kind(monkeypatch) -> None:
 
 
 def test_map_skillhub_ssl_error() -> None:
-    from octop.api.routers.experts import _map_skillhub_error
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.api.routers.experts import _map_skillhub_error
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubMarketError,
         SkillHubMarketErrorKind,
     )
-    from octop.infra.errors import ErrorCode
+    from inhere_box.infra.errors import ErrorCode
 
     mapped = _map_skillhub_error(
         SkillHubMarketError("ssl broken", kind=SkillHubMarketErrorKind.SSL_ERROR)
@@ -638,12 +638,12 @@ def test_map_skillhub_ssl_error() -> None:
 
 
 def test_map_skillhub_not_found() -> None:
-    from octop.api.routers.experts import _map_skillhub_error
-    from octop.infra.agents.experts.skillhub_market import (
+    from inhere_box.api.routers.experts import _map_skillhub_error
+    from inhere_box.infra.agents.experts.skillhub_market import (
         SkillHubMarketError,
         SkillHubMarketErrorKind,
     )
-    from octop.infra.errors import ErrorCode
+    from inhere_box.infra.errors import ErrorCode
 
     mapped = _map_skillhub_error(
         SkillHubMarketError("missing", kind=SkillHubMarketErrorKind.NOT_FOUND)

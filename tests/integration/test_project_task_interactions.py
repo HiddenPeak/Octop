@@ -14,9 +14,9 @@ from langchain_core.tools import StructuredTool
 from octop_harness import HarnessAgent
 from octop_harness.llm.factory import ChatModelFactory
 
-from octop.i18n import tr
-from octop.infra.agents.security.policy_store import SecuritySettingsStore
-from octop.infra.projects import interactions, runtime
+from inhere_box.i18n import tr
+from inhere_box.infra.agents.security.policy_store import SecuritySettingsStore
+from inhere_box.infra.projects import interactions, runtime
 from tests.integration.test_project_task_checkpoints import parked
 from tests.integration.test_project_tasks import settled
 from tests.integration.test_project_tasks_ws import command, connected

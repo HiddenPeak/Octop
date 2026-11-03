@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.gateway.process.stream_project import enrich_tool_stream_chunk
+from inhere_box.infra.gateway.process.stream_project import enrich_tool_stream_chunk
 
 
 def test_enrich_tool_stream_chunk_adds_display_name():
@@ -20,7 +20,7 @@ def test_enrich_tool_stream_chunk_ignores_non_tool():
 def test_tool_start_event_carries_localized_hint():
     from octop_gateway.models import MessageEvent
 
-    from octop.i18n import channel_tool_hint_start
+    from inhere_box.i18n import channel_tool_hint_start
 
     label = "读取文件"
     event = MessageEvent.tool_start(

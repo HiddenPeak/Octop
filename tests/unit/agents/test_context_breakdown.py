@@ -1,4 +1,4 @@
-"""Tests for Octop context-usage adapter over octop-harness."""
+"""Tests for inhere-box context-usage adapter over octop-harness."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from octop.infra.agents.threads.context_breakdown import (
+from inhere_box.infra.agents.threads.context_breakdown import (
     SEGMENT_KEYS,
     compute_context_breakdown,
 )

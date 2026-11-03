@@ -1,6 +1,6 @@
 """End-to-end smoke for the orca memory router using TestClient.
 
-Bypasses OctopServer / DB / auth — we override the FastAPI deps used
+Bypasses InhereBoxServer / DB / auth — we override the FastAPI deps used
 by the router (``current_user``, ``get_server``, ``require_agent_row``)
 with stubs that point straight at the real ZYWZTD sqlite. Useful for
 hand-checking the wire shape before the dashboard frontend is wired.
@@ -14,12 +14,12 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from octop.api.deps import current_user, get_server
-from octop.api.routers import memory
+from inhere_box.api.deps import current_user, get_server
+from inhere_box.api.routers import memory
 
 
 class _StubPaths:
-    """Stub of ``OctopServer.services.paths`` with ensure_agent_workspace."""
+    """Stub of ``InhereBoxServer.services.paths`` with ensure_agent_workspace."""
 
     def __init__(self, root: Path) -> None:
         self._root = root
@@ -39,20 +39,20 @@ class _StubServer:
 
 
 def _build_app() -> FastAPI:
-    octop_home = Path.home() / ".octop"
-    server = _StubServer(_StubServices(_StubPaths(octop_home / "agents")))
+    inhere_box_home = Path.home() / ".octop"
+    server = _StubServer(_StubServices(_StubPaths(inhere_box_home / "agents")))
 
     app = FastAPI()
     app.include_router(memory.router, prefix="/api")
 
-    # OctopError → JSON envelope (production app does this in app.py).
+    # InhereBoxError → JSON envelope (production app does this in app.py).
     from fastapi.responses import JSONResponse
     from starlette.requests import Request
 
-    from octop.infra.errors import OctopError
+    from inhere_box.infra.errors import InhereBoxError
 
-    @app.exception_handler(OctopError)
-    async def _octop_error_handler(_req: Request, exc: OctopError):
+    @app.exception_handler(InhereBoxError)
+    async def _inhere_box_error_handler(_req: Request, exc: InhereBoxError):
         return JSONResponse(status_code=exc.status, content=exc.to_envelope())
 
     # Override the router's auth + server deps with no-op stubs.
@@ -61,7 +61,7 @@ def _build_app() -> FastAPI:
 
     # Patch require_agent_row to a permissive no-op (the router calls
     # this through call_memory_rpc).
-    import octop.api.common.memory_client as memory_client
+    import inhere_box.api.common.memory_client as memory_client
 
     memory_client.require_agent_row = (  # type: ignore[assignment]
         lambda agent_id, **_: type("Row", (), {"agent_id": agent_id})()

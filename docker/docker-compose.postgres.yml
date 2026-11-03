@@ -1,19 +1,19 @@
 # =============================================================================
-# Local PostgreSQL (+ pgvector) for Octop dual-backend development / tests
+# Local PostgreSQL (+ pgvector) for inhere-box dual-backend development / tests
 #
 # From repo root:
 #   docker compose -f docker/docker-compose.postgres.yml up -d
 #   docker compose -f docker/docker-compose.postgres.yml down
 #
 # Connection (default):
-#   postgresql://octop:octop@127.0.0.1:5432/octop
+#   postgresql://inhere-box:inhere-box@127.0.0.1:5432/inhere-box
 #
-# For pytest / Octop:
-#   export OCTOP_TEST_DATABASE_URL='postgresql://octop:octop@127.0.0.1:5432/octop'
-#   export OCTOP_DATABASE_URL='postgresql://octop:octop@127.0.0.1:5432/octop'
+# For pytest / inhere-box:
+#   export INHERE_BOX_TEST_DATABASE_URL='postgresql://inhere-box:inhere-box@127.0.0.1:5432/inhere-box'
+#   export INHERE_BOX_DATABASE_URL='postgresql://inhere-box:inhere-box@127.0.0.1:5432/inhere-box'
 #
 # Init layers (ADR 002):
-#   - Control-plane schema → Octop migrate (NNN_*.pg.sql), not this compose
+#   - Control-plane schema → inhere-box migrate (NNN_*.pg.sql), not this compose
 #   - CREATE EXTENSION vector → postgres/init-vector.sql (initdb.d only)
 #   - Agent memory tables → octop-memory at runtime
 # =============================================================================
@@ -21,16 +21,16 @@
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: octop-postgres
+    container_name: inhere-box-postgres
     restart: unless-stopped
     ports:
-      - "${OCTOP_PG_PORT:-5432}:5432"
+      - "${INHERE_BOX_PG_PORT:-5432}:5432"
     environment:
-      POSTGRES_USER: ${OCTOP_PG_USER:-octop}
-      POSTGRES_PASSWORD: ${OCTOP_PG_PASSWORD:-octop}
-      POSTGRES_DB: ${OCTOP_PG_DB:-octop}
+      POSTGRES_USER: ${INHERE_BOX_PG_USER:-inhere-box}
+      POSTGRES_PASSWORD: ${INHERE_BOX_PG_PASSWORD:-inhere-box}
+      POSTGRES_DB: ${INHERE_BOX_PG_DB:-inhere-box}
     volumes:
-      - octop_pgdata:/var/lib/postgresql/data
+      - inhere_box_pgdata:/var/lib/postgresql/data
       - ./postgres/init-vector.sql:/docker-entrypoint-initdb.d/01-vector.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -39,4 +39,4 @@ services:
       retries: 10
 
 volumes:
-  octop_pgdata:
+  inhere_box_pgdata:

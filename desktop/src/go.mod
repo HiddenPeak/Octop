@@ -1,4 +1,4 @@
-module octop.desktop
+module inhere-box.desktop
 
 go 1.25.0
 

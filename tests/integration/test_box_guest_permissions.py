@@ -2,7 +2,7 @@
 
 from uuid import uuid4
 
-from octop.infra.projects import runtime
+from inhere_box.infra.projects import runtime
 from tests.integration.test_box_account_connections import (
     _command,
     _connect,

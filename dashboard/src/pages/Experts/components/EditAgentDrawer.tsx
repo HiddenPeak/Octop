@@ -26,8 +26,8 @@ import { skillPackagesApi } from "../../../api/modules/skillPackages";
 import { apiErrorMessage, isNotFoundApiError } from "../../../utils/apiError";
 import { isAgentChatReady } from "../../../utils/agentError";
 import { useAgentFormResources } from "../../../hooks/useAgentFormResources";
-import { octopAgentsApi } from "../../../api/modules/octopAgents";
-import { useAgent, type OctopAgent } from "../../../context/AgentContext";
+import { inhereBoxAgentsApi } from "../../../api/modules/inhereBoxAgents";
+import { useAgent, type InhereBoxAgent } from "../../../context/AgentContext";
 import {
   CONVERSATION_MODES,
   parseConversationMode,
@@ -139,11 +139,11 @@ interface EditFormValues {
 
 interface EditAgentDrawerProps {
   open: boolean;
-  agent: OctopAgent | null;
+  agent: InhereBoxAgent | null;
   onClose: () => void;
   onSaved: (
     updated: Pick<
-      OctopAgent,
+      InhereBoxAgent,
       | "agent_id"
       | "name"
       | "description"
@@ -156,7 +156,7 @@ interface EditAgentDrawerProps {
 }
 
 interface EditAgentDrawerBodyProps {
-  agent: OctopAgent;
+  agent: InhereBoxAgent;
   onClose: () => void;
   onSaved: EditAgentDrawerProps["onSaved"];
   onSaveReady: (save: () => Promise<void>) => void;
@@ -670,7 +670,7 @@ function EditAgentDrawerBody({
                     void (async () => {
                       setAvatarBusy(true);
                       try {
-                        const result = await octopAgentsApi.uploadAvatar(
+                        const result = await inhereBoxAgentsApi.uploadAvatar(
                           agent.agent_id,
                           file,
                         );
@@ -694,7 +694,7 @@ function EditAgentDrawerBody({
                     void (async () => {
                       setAvatarBusy(true);
                       try {
-                        await octopAgentsApi.deleteAvatar(agent.agent_id);
+                        await inhereBoxAgentsApi.deleteAvatar(agent.agent_id);
                         setIconUrl(null);
                         await refresh({ silent: true });
                       } catch (err) {

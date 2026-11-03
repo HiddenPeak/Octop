@@ -14,7 +14,7 @@ from octop_harness.plugins import (
     load_plugin_dir,
 )
 
-from octop.infra.agents.plugins.plugin_tool_names import (
+from inhere_box.infra.agents.plugins.plugin_tool_names import (
     sanitize_plugin_tool_name,
     sanitize_plugin_tool_names,
 )
@@ -51,8 +51,8 @@ def test_build_plugin_tools_respects_enabled_flag() -> None:
 
 
 def test_expand_plugin_tools_default_on_without_agent_config() -> None:
-    """Octop default-on expansion makes tools bind without an agent opt-in."""
-    from octop.infra.agents.plugins.plugin_tool_defaults import expand_plugin_tools_default_on
+    """inhere-box default-on expansion makes tools bind without an agent opt-in."""
+    from inhere_box.infra.agents.plugins.plugin_tool_defaults import expand_plugin_tools_default_on
 
     load_plugin_dir(_FIXTURE, install_deps=False)
     expanded = expand_plugin_tools_default_on(

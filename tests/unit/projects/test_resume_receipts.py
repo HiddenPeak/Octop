@@ -8,17 +8,17 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_tool_calls import ProjectTaskToolCallRow
-from octop.infra.db.repos.user_task_approval_policies import UserTaskApprovalPolicyRow
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import approval_runtime, checkpoints, client_tools, interactions
-from octop.infra.projects.client_tool_models import ClientToolResult
-from octop.infra.projects.interaction_models import ApprovalPayload, InteractionResolution
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_tool_calls import ProjectTaskToolCallRow
+from inhere_box.infra.db.repos.user_task_approval_policies import UserTaskApprovalPolicyRow
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import approval_runtime, checkpoints, client_tools, interactions
+from inhere_box.infra.projects.client_tool_models import ClientToolResult
+from inhere_box.infra.projects.interaction_models import ApprovalPayload, InteractionResolution
+from inhere_box.infra.utils.paths import PathLayout
 
 TOKEN = "original-claim-token-001"
 
@@ -49,7 +49,7 @@ def services(tmp_path, monkeypatch):
             ),
         )
     try:
-        yield SharedServices(PathLayout(tmp_path), OctopConfig(), RepoBundle.from_pool(db))
+        yield SharedServices(PathLayout(tmp_path), InhereBoxConfig(), RepoBundle.from_pool(db))
     finally:
         db.close()
 
@@ -211,12 +211,12 @@ def test_interrupted_claim_retains_receipt_authority_without_dispatch(services, 
         )
     call = get_call(services)
     assert call.status == "claimed" and not call.dispatch_allowed
-    with pytest.raises(OctopError) as rejected:
+    with pytest.raises(InhereBoxError) as rejected:
         submit_result(services, token="a-different-claim-token")
     assert rejected.value.code == ErrorCode.FORBIDDEN
     assert submit_result(services).status == "completed"
     assert submit_result(services).status == "completed"
-    with pytest.raises(OctopError) as conflict:
+    with pytest.raises(InhereBoxError) as conflict:
         submit_result(services, output="changed result")
     assert conflict.value.code == ErrorCode.TASK_CLIENT_TOOL_RESULT_CONFLICT
 
@@ -228,7 +228,7 @@ def test_interrupted_unclaimed_action_cannot_be_newly_claimed(services):
             "UPDATE project_task_turns SET wait_kind='interrupted',worker_id='',checkpoint_id=''"
         )
     assert not get_call(services).dispatch_allowed
-    with pytest.raises(OctopError) as rejected:
+    with pytest.raises(InhereBoxError) as rejected:
         client_tools.claim_call(
             services, 1, "mac_one_001", "task_one", "turn_one", "call_one", "new_claim"
         )
@@ -240,7 +240,7 @@ def test_expired_claim_can_only_reconcile_its_original_result(services):
     call = get_call(services)
     assert call.status == "claimed" and not call.dispatch_allowed
     assert call.error_code == "TASK_CLIENT_TOOL_TIMEOUT"
-    with pytest.raises(OctopError) as rejected:
+    with pytest.raises(InhereBoxError) as rejected:
         client_tools.claim_call(
             services, 1, "mac_one_001", "task_one", "turn_one", "call_one", "another_claim"
         )
@@ -260,7 +260,7 @@ def test_terminal_turn_rejects_a_new_result_from_an_old_claim(services, status):
     client_call(services)
     with services.db.transaction() as conn:
         conn.execute("UPDATE project_task_turns SET status=?", (status,))
-    with pytest.raises(OctopError) as rejected:
+    with pytest.raises(InhereBoxError) as rejected:
         submit_result(services)
     assert rejected.value.code == ErrorCode.TASK_CLIENT_TOOL_CLOSED
 
@@ -286,14 +286,14 @@ def test_checkpoint_reports_an_expired_claim_for_recovery(services):
                 ),
             ),
         )
-    with pytest.raises(OctopError) as interrupted:
+    with pytest.raises(InhereBoxError) as interrupted:
         checkpoints.resume_decisions(services, 1, turn)
     assert interrupted.value.code == ErrorCode.TASK_CLIENT_TOOL_TIMEOUT
     assert get_call(services).status == "claimed"
 
 
 def test_older_turn_payloads_default_to_no_recovery(services):
-    from octop.infra.projects.tasks import TaskTurn, turn_view
+    from inhere_box.infra.projects.tasks import TaskTurn, turn_view
 
     payload = turn_view(services.project_task_turn_repo.get("turn_one")).model_dump(
         exclude={"recovery"}
@@ -308,7 +308,7 @@ def interrupt_client_wait(services, calls, *, mode="wait"):
         "needs_reconciliation": True,
         "phase": "client_tool",
         "reason_code": "TASK_CLIENT_TOOL_TIMEOUT",
-        "cause_type": "OctopError",
+        "cause_type": "InhereBoxError",
         "diagnostic_id": "diag_original",
     }
     with services.db.transaction() as conn:

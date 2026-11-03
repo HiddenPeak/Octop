@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.users.identity import Role, User
+from inhere_box.infra.users.identity import Role, User
 
 
 def test_role_values():

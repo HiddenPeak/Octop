@@ -7,16 +7,16 @@ import json
 
 import httpx
 
-from octop.config import OctopConfig, TlsConfig
-from octop.infra.connectors.builder import (
+from inhere_box.config import InhereBoxConfig, TlsConfig
+from inhere_box.infra.connectors.builder import (
     _redact_mcp_configs_for_log,
     build_http_mcp_spec,
     internal_mcp_url,
 )
-from octop.infra.connectors.catalog import get_catalog_entry
+from inhere_box.infra.connectors.catalog import get_catalog_entry
 
 
-def _qcc_spec(config: OctopConfig) -> dict[str, object]:
+def _qcc_spec(config: InhereBoxConfig) -> dict[str, object]:
     entry = get_catalog_entry("qcc")
     assert entry is not None
     return build_http_mcp_spec(
@@ -29,19 +29,19 @@ def _qcc_spec(config: OctopConfig) -> dict[str, object]:
 
 def test_internal_mcp_url_uses_http_when_tls_is_off() -> None:
     url = internal_mcp_url(
-        config=OctopConfig(),
+        config=InhereBoxConfig(),
         gateway_kind="qcc",
         instance_id="qcc-test",
         internal_token="tok",
     )
     assert url.startswith("http://127.0.0.1:8088/api/internal/mcp/qcc/qcc-test?")
-    spec = _qcc_spec(OctopConfig())
+    spec = _qcc_spec(InhereBoxConfig())
     assert str(spec["url"]).startswith("http://")
     assert "httpx_client_factory" not in spec
 
 
 def test_internal_mcp_url_uses_https_when_tls_is_enabled() -> None:
-    config = OctopConfig(
+    config = InhereBoxConfig(
         bind_host="0.0.0.0",
         port=443,
         tls=TlsConfig(enabled=True, cert_file="ssl/fullchain.pem", key_file="ssl/privkey.pem"),
@@ -63,7 +63,7 @@ def test_internal_mcp_url_uses_https_when_tls_is_enabled() -> None:
 
 
 def test_internal_mcp_url_stays_http_when_tls_enabled_without_certs() -> None:
-    config = OctopConfig(tls=TlsConfig(enabled=True))
+    config = InhereBoxConfig(tls=TlsConfig(enabled=True))
     url = internal_mcp_url(
         config=config,
         gateway_kind="qcc",
@@ -74,7 +74,7 @@ def test_internal_mcp_url_stays_http_when_tls_enabled_without_certs() -> None:
 
 
 def test_tls_internal_mcp_spec_is_json_loggable() -> None:
-    config = OctopConfig(
+    config = InhereBoxConfig(
         tls=TlsConfig(enabled=True, cert_file="ssl/fullchain.pem", key_file="ssl/privkey.pem"),
     )
     spec = _qcc_spec(config)

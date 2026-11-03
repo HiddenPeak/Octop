@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.gateway.media.backend_files import (
+from inhere_box.infra.gateway.media.backend_files import (
     normalize_workspace_download_path,
     normalize_workspace_media_path,
     workspace_download_url,

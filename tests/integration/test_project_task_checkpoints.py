@@ -14,9 +14,9 @@ from octop_harness import HarnessAgent
 from octop_harness.llm.factory import ChatModelFactory
 from octop_harness.llm.session_header import current_session_id
 
-from octop.infra.errors import OctopError
-from octop.infra.projects import runtime
-from octop.infra.projects.checkpoints import resume_decisions
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.projects import runtime
+from inhere_box.infra.projects.checkpoints import resume_decisions
 from tests.integration.test_project_task_client_tools import (
     claim,
     result,
@@ -28,7 +28,7 @@ from tests.integration.test_project_tasks_ws import command, connected, until
 
 @pytest.fixture
 async def native_wait_env(env_with_provider, monkeypatch):
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 0.01)
     generations = []
@@ -299,7 +299,7 @@ async def test_stale_worker_cannot_consume_wait_after_lease_changes(native_wait_
                 (turn.turn_id,),
             )
         owner = server.services.project_task_repo.runtime_owner(turn.task_id)
-        with pytest.raises(OctopError) as error:
+        with pytest.raises(InhereBoxError) as error:
             await asyncio.to_thread(resume_decisions, server.services, owner, turn)
         assert str(error.value.code) == "TASK_INTERRUPTED"
         assert len(generations) == 1

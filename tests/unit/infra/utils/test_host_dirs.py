@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.utils.host_dirs import (
+from inhere_box.infra.utils.host_dirs import (
     assert_safe_host_path,
     host_browse_roots,
     host_home_dir,
@@ -26,7 +26,7 @@ posix_only = pytest.mark.skipif(os.name != "posix", reason="POSIX-only path sema
 
 
 def test_host_browse_roots_posix_is_single_slash(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("octop.infra.utils.host_dirs.os.name", "posix")
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.os.name", "posix")
     assert host_browse_roots() == ["/"]
 
 
@@ -36,7 +36,9 @@ def _fake_ready_drives(monkeypatch: pytest.MonkeyPatch, present: list[str]) -> N
     Patching ``os.path.isdir`` globally would break pytest's own path handling
     while the test is active, so stub the seam instead.
     """
-    monkeypatch.setattr("octop.infra.utils.host_dirs._ready_drive_roots", lambda: list(present))
+    monkeypatch.setattr(
+        "inhere_box.infra.utils.host_dirs._ready_drive_roots", lambda: list(present)
+    )
 
 
 def test_host_browse_roots_windows_enumerates_drives_independent_of_home(
@@ -50,9 +52,11 @@ def test_host_browse_roots_windows_enumerates_drives_independent_of_home(
     """
     home = tmp_path / "profile_on_c"
     home.mkdir()
-    monkeypatch.setattr("octop.infra.utils.host_dirs._ready_drive_roots", lambda: ["C:/", "D:/"])
-    monkeypatch.setattr("octop.infra.utils.host_dirs.os.name", "nt")
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: home)
+    monkeypatch.setattr(
+        "inhere_box.infra.utils.host_dirs._ready_drive_roots", lambda: ["C:/", "D:/"]
+    )
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.os.name", "nt")
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: home)
 
     assert host_browse_roots() == ["C:/", "D:/"]
 
@@ -64,8 +68,8 @@ def test_host_browse_roots_windows_falls_back_when_no_drive_ready(
     home = tmp_path / "profile"
     home.mkdir()
     _fake_ready_drives(monkeypatch, [])
-    monkeypatch.setattr("octop.infra.utils.host_dirs.os.name", "nt")
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: home)
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.os.name", "nt")
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: home)
 
     roots = host_browse_roots()
 
@@ -75,17 +79,17 @@ def test_host_browse_roots_windows_falls_back_when_no_drive_ready(
 
 def test_host_jail_enforced_is_false_off_linux(monkeypatch: pytest.MonkeyPatch) -> None:
     """Windows/macOS have no OS-level jail, so the UI must not claim one."""
-    monkeypatch.setattr("octop.infra.utils.host_dirs.os.name", "nt")
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.os.name", "nt")
     assert host_jail_enforced() is False
 
 
 def test_host_jail_enforced_follows_bwrap_availability(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("octop.infra.utils.host_dirs.os.name", "posix")
-    monkeypatch.setattr("octop.infra.utils.host_dirs._bwrap_on_path", lambda: False)
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.os.name", "posix")
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs._bwrap_on_path", lambda: False)
     assert host_jail_enforced() is False
-    monkeypatch.setattr("octop.infra.utils.host_dirs._bwrap_on_path", lambda: True)
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs._bwrap_on_path", lambda: True)
     assert host_jail_enforced() is True
 
 
@@ -141,10 +145,10 @@ def test_assert_safe_host_path_rejects_private_etc_symlink() -> None:
 def test_assert_safe_host_path_rejects_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Deny /root only when it is not the process home (non-root Octop).
+    # Deny /root only when it is not the process home (non-root inhere-box).
     home = tmp_path / "os_home"
     home.mkdir()
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: home)
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: home)
     with pytest.raises(ValueError, match="not allowed"):
         assert_safe_host_path("/root")
 
@@ -153,11 +157,11 @@ def test_assert_safe_host_path_rejects_root(
 def test_assert_safe_host_path_allows_root_when_home(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Octop running as uid 0 uses /root as home; default root_dir must probe OK."""
+    """inhere-box running as uid 0 uses /root as home; default root_dir must probe OK."""
     root_home = Path("/root")
     if not root_home.is_dir():
         pytest.skip("/root not available")
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: root_home)
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: root_home)
     assert assert_safe_host_path("/root") == root_home.resolve()
     nested = root_home / ".octop"
     # Nested path under home is allowed even if the parent is denylisted for others.
@@ -172,7 +176,7 @@ def test_list_host_subdirs_includes_root_home_when_denied_prefix(
     root_home = Path("/root")
     if not root_home.is_dir() or not os.access(root_home, os.R_OK | os.X_OK):
         pytest.skip("/root not readable")
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: root_home)
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: root_home)
 
     entries = list_host_subdirs("/")
     paths = {item["path"] for item in entries}
@@ -185,7 +189,7 @@ def test_list_host_subdirs_hides_root_when_not_home(
 ) -> None:
     home = tmp_path / "os_home"
     home.mkdir()
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: home)
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: home)
 
     entries = list_host_subdirs("/")
     paths = {item["path"] for item in entries}
@@ -261,7 +265,7 @@ def test_is_within_host_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     nested.mkdir()
     outside = tmp_path / "other"
     outside.mkdir()
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: home)
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: home)
 
     assert is_within_host_home(home.resolve())
     assert is_within_host_home(nested.resolve())
@@ -278,7 +282,7 @@ def test_assert_safe_host_path_restrict_to_home(
     nested.mkdir()
     outside = tmp_path / "other"
     outside.mkdir()
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: home)
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: home)
 
     assert assert_safe_host_path(str(nested), restrict_to_home=True) == nested.resolve()
     with pytest.raises(ValueError, match="path outside home"):
@@ -294,7 +298,7 @@ def test_probe_host_root_dir_rejects_outside_home_when_restricted(
     home.mkdir()
     outside = tmp_path / "other"
     outside.mkdir()
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: home)
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: home)
 
     result = probe_host_root_dir(str(outside), restrict_to_home=True)
     assert result["ok"] is False
@@ -321,29 +325,29 @@ def test_assert_safe_host_path_restrict_to_root(tmp_path: Path) -> None:
 def test_host_fs_tree_root_admin_posix(monkeypatch: pytest.MonkeyPatch) -> None:
     if os.name != "posix":
         pytest.skip("POSIX tree root")
-    home = Path("/tmp/octop-home-probe")
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path.home", lambda: home)
-    from octop.infra.utils.host_dirs import host_fs_tree_root
+    home = Path("/tmp/inhere-box-home-probe")
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path.home", lambda: home)
+    from inhere_box.infra.utils.host_dirs import host_fs_tree_root
 
     assert host_fs_tree_root() == "/"
 
 
 def test_running_in_container_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    from octop.infra.utils.host_dirs import running_in_container
+    from inhere_box.infra.utils.host_dirs import running_in_container
 
-    monkeypatch.setenv("OCTOP_IN_CONTAINER", "1")
+    monkeypatch.setenv("INHERE_BOX_IN_CONTAINER", "1")
     assert running_in_container() is True
-    monkeypatch.setenv("OCTOP_IN_CONTAINER", "0")
+    monkeypatch.setenv("INHERE_BOX_IN_CONTAINER", "0")
     assert running_in_container() is False
-    monkeypatch.setenv("OCTOP_IN_CONTAINER", "false")
+    monkeypatch.setenv("INHERE_BOX_IN_CONTAINER", "false")
     assert running_in_container() is False
 
 
 @posix_only
 def test_running_in_container_detects_dockerenv(monkeypatch: pytest.MonkeyPatch) -> None:
-    from octop.infra.utils.host_dirs import running_in_container
+    from inhere_box.infra.utils.host_dirs import running_in_container
 
-    monkeypatch.delenv("OCTOP_IN_CONTAINER", raising=False)
+    monkeypatch.delenv("INHERE_BOX_IN_CONTAINER", raising=False)
 
     class _FakePath:
         def __init__(self, path: object) -> None:
@@ -352,7 +356,7 @@ def test_running_in_container_detects_dockerenv(monkeypatch: pytest.MonkeyPatch)
         def is_file(self) -> bool:
             return self._path == "/.dockerenv"
 
-    monkeypatch.setattr("octop.infra.utils.host_dirs.Path", _FakePath)
+    monkeypatch.setattr("inhere_box.infra.utils.host_dirs.Path", _FakePath)
     assert running_in_container() is True
 
 

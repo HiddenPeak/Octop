@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { BuiltinOctopUiFallback } from "./builtin/BuiltinOctopUiFallback";
+import { BuiltinInhereBoxUiFallback } from "./builtin/BuiltinInhereBoxUiFallback";
 import type { ToolRenderProps } from "./types";
 
 interface State {
@@ -32,7 +32,7 @@ export class ToolUiErrorBoundary extends Component<
 
   render(): ReactNode {
     if (this.state.error) {
-      return <BuiltinOctopUiFallback {...this.props.propsForFallback} />;
+      return <BuiltinInhereBoxUiFallback {...this.props.propsForFallback} />;
     }
     return this.props.children;
   }

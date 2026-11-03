@@ -6,9 +6,9 @@ import json
 
 import pytest
 
-from octop.infra.auth.box_context import box_request_auth
-from octop.infra.projects import client_tools, runtime
-from octop.infra.projects.client_tool_models import ClientToolDefinition
+from inhere_box.infra.auth.box_context import box_request_auth
+from inhere_box.infra.projects import client_tools, runtime
+from inhere_box.infra.projects.client_tool_models import ClientToolDefinition
 from tests.integration.test_box_account_connections import (
     _command,
     _connect,
@@ -29,7 +29,7 @@ async def test_box_tool_worker_survives_logout_and_requires_the_original_device(
     monkeypatch,
     other_is_owner,
 ):
-    from octop.api.routers import project_tasks_ws
+    from inhere_box.api.routers import project_tasks_ws
 
     client, _server, key, client_id, auth = connected_box
     await seed_openai_provider(client, auth)

@@ -1,6 +1,6 @@
 """Live tests for expert template file copy via :class:`AgentManager`.
 
-Uses bundled templates under ``src/octop/infra/agents/experts/library/`` (exported
+Uses bundled templates under ``src/inhere_box/infra/agents/experts/library/`` (exported
 expert packs). Requires ``.env`` with ``OPENAI_*`` for agent boot.
 
 Run::
@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.agents.experts.catalog import Expert, ExpertCatalog, default_library_root
-from octop.infra.agents.manager import AgentCreateSpec
-from octop.infra.agents.workspace.dir import DEFAULT_SYSTEM_FILES_PATH
+from inhere_box.infra.agents.experts.catalog import Expert, ExpertCatalog, default_library_root
+from inhere_box.infra.agents.manager import AgentCreateSpec
+from inhere_box.infra.agents.workspace.dir import DEFAULT_SYSTEM_FILES_PATH
 
 pytestmark = pytest.mark.live
 

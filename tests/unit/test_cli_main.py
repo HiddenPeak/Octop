@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from click.testing import CliRunner
 
-from octop.cli.main import cli
+from inhere_box.cli.main import cli
 
 
 def test_root_help_lists_groups() -> None:
@@ -79,7 +79,7 @@ def test_root_help_lists_global_options() -> None:
 
 def test_channel_list_uses_root_agent_fallback(monkeypatch) -> None:
     """``--agent`` is no longer required on subcommands; the root option
-    (or OCTOP_AGENT env) supplies a fallback when not given inline."""
+    (or INHERE_BOX_AGENT env) supplies a fallback when not given inline."""
     captured: dict[str, str] = {}
 
     def _fake_resolve(*a, **k) -> int:
@@ -89,8 +89,8 @@ def test_channel_list_uses_root_agent_fallback(monkeypatch) -> None:
         captured["agent_id"] = agent_id
         return []
 
-    import octop.cli.commands.channel as channel_cmd
-    from octop.cli.support import offline_ops as offline_mod
+    import inhere_box.cli.commands.channel as channel_cmd
+    from inhere_box.cli.support import offline_ops as offline_mod
 
     monkeypatch.setattr(channel_cmd, "resolve_cli_acting_user_id", _fake_resolve)
     monkeypatch.setattr(offline_mod, "list_channels_offline", _fake_list)
@@ -126,8 +126,8 @@ def test_channel_list_json_emits_dump(monkeypatch) -> None:
     def _fake_list(agent_id, *, home=None):
         return payload
 
-    import octop.cli.commands.channel as channel_cmd
-    from octop.cli.support import offline_ops as offline_mod
+    import inhere_box.cli.commands.channel as channel_cmd
+    from inhere_box.cli.support import offline_ops as offline_mod
 
     monkeypatch.setattr(channel_cmd, "resolve_cli_acting_user_id", _fake_resolve)
     monkeypatch.setattr(offline_mod, "list_channels_offline", _fake_list)
@@ -152,7 +152,7 @@ def test_user_list_json_emits_dump(monkeypatch) -> None:
     def _fake_list(*, home=None):
         return payload
 
-    from octop.cli.support import offline_ops as offline_mod
+    from inhere_box.cli.support import offline_ops as offline_mod
 
     monkeypatch.setattr(offline_mod, "list_users_offline", _fake_list)
 
@@ -165,22 +165,22 @@ def test_user_list_json_emits_dump(monkeypatch) -> None:
 
 
 def test_root_help_does_not_import_subcommand_modules() -> None:
-    """`octop --help` must not import individual command modules eagerly."""
+    """`inhere-box --help` must not import individual command modules eagerly."""
     import importlib
     import sys
 
     for mod in list(sys.modules):
-        if mod.startswith("octop.cli.commands."):
+        if mod.startswith("inhere_box.cli.commands."):
             del sys.modules[mod]
     importlib.invalidate_caches()
     # Force re-import of main itself so the lazy group is fresh.
-    if "octop.cli.main" in sys.modules:
-        del sys.modules["octop.cli.main"]
-    from octop.cli.main import cli as fresh_cli
+    if "inhere_box.cli.main" in sys.modules:
+        del sys.modules["inhere_box.cli.main"]
+    from inhere_box.cli.main import cli as fresh_cli
 
     runner = CliRunner()
     result = runner.invoke(fresh_cli, ["--help"])
     assert result.exit_code == 0
 
-    leaked = [m for m in sys.modules if m.startswith("octop.cli.commands.")]
+    leaked = [m for m in sys.modules if m.startswith("inhere_box.cli.commands.")]
     assert leaked == [], f"Lazy loader leaked imports: {leaked}"

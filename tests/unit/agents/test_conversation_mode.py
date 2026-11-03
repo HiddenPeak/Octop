@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.agents.conversation_mode import (
+from inhere_box.infra.agents.conversation_mode import (
     HOST_READ_TOOLS,
     execute_user_message,
     is_plan_execute_utterance,

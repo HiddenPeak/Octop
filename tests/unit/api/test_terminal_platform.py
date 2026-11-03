@@ -6,7 +6,7 @@ import os
 import shutil
 from unittest.mock import patch
 
-from octop.api.routers.terminal import (
+from inhere_box.api.routers.terminal import (
     _ZSH_WEB_TERMINAL_RC,
     _zsh_web_zdotdir,
     terminal_supported,
@@ -22,7 +22,7 @@ def test_terminal_supported_on_posix() -> None:
 
 
 def test_terminal_unsupported_on_windows() -> None:
-    with patch("octop.api.routers.terminal.os.name", "nt"):
+    with patch("inhere_box.api.routers.terminal.os.name", "nt"):
         supported, reason = terminal_supported()
     assert supported is False
     assert "Windows" in reason

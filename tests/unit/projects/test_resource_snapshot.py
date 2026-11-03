@@ -9,11 +9,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import capabilities, resource_snapshot, service
-from octop.infra.projects.models import ProjectFields, ProjectResources, SkillBinding
-from octop.infra.projects.resource_snapshot import SnapshotError, load_snapshot, save_snapshot
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import capabilities, resource_snapshot, service
+from inhere_box.infra.projects.models import ProjectFields, ProjectResources, SkillBinding
+from inhere_box.infra.projects.resource_snapshot import SnapshotError, load_snapshot, save_snapshot
 
 
 def configuration(**changes):
@@ -117,7 +117,7 @@ def test_interrupted_atomic_publication_preserves_the_previous_complete_snapshot
 
 
 def test_cached_skills_skip_missing_installations_but_still_validate_live_mcp(monkeypatch):
-    services = SimpleNamespace(config=OctopConfig(account_mode="server"))
+    services = SimpleNamespace(config=InhereBoxConfig(account_mode="server"))
     available = ProjectResources(
         skills=[], mcp_servers=[], plugins=[], subagents=[], directory_roots=[]
     )
@@ -126,11 +126,11 @@ def test_cached_skills_skip_missing_installations_but_still_validate_live_mcp(mo
         name="project", skills=[SkillBinding(package_id="removed", slug="notes")]
     )
     assert service._validate(services, 1, fields, cached_skills=True) is None
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         service._validate(services, 1, fields)
     assert error.value.code == ErrorCode.PROJECT_RESOURCE_INVALID
     fields.mcp_servers = ["missing"]
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         service._validate(services, 1, fields, cached_skills=True)
     assert error.value.code == ErrorCode.PROJECT_RESOURCE_INVALID
 
@@ -151,7 +151,7 @@ def test_cached_validation_does_not_even_read_the_installation_store(tmp_path, m
         connector_repo=None,
         secret_repo=None,
         settings_repo=None,
-        config=OctopConfig(account_mode="server"),
+        config=InhereBoxConfig(account_mode="server"),
     )
     fields = ProjectFields(
         name="project", skills=[SkillBinding(package_id="removed", slug="notes")]

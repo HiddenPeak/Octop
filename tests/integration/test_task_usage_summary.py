@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from octop.infra.db.repos.model_calls import ModelCallRow, ModelCallSource, ModelCallStatus
+from inhere_box.infra.db.repos.model_calls import ModelCallRow, ModelCallSource, ModelCallStatus
 from tests.support.auth import create_user, resolve_user_id
 
 _WHEN = int(datetime(2026, 10, 10, tzinfo=UTC).timestamp() * 1000)

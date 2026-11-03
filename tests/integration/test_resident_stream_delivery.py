@@ -9,7 +9,7 @@ from uuid import uuid4
 
 import pytest
 
-from octop.api.routers import project_tasks_ws
+from inhere_box.api.routers import project_tasks_ws
 from tests.integration.test_project_tasks_ws import command, connected, until
 from tests.integration.test_resident_conversations import _base, _binding, _turn
 from tests.support.auth import create_user

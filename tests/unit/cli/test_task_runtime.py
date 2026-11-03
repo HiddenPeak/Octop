@@ -10,11 +10,11 @@ from types import SimpleNamespace
 import pytest
 from click.testing import CliRunner
 
-from octop.cli.main import cli
-from octop.cli.repl.task_runtime import CliChatSession
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.projects import cli_sessions, ingress, interactions, source_routes, tasks
-from octop.infra.projects.interaction_models import QuestionPayload
+from inhere_box.cli.main import cli
+from inhere_box.cli.repl.task_runtime import CliChatSession
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.projects import cli_sessions, ingress, interactions, source_routes, tasks
+from inhere_box.infra.projects.interaction_models import QuestionPayload
 from tests.unit.projects.test_conversation_migrations import source  # noqa: F401
 from tests.unit.projects.test_expert_execution import services  # noqa: F401
 from tests.unit.projects.test_unified_ingress import message
@@ -68,7 +68,7 @@ async def test_cli_general_multiturn_and_request_replay(services, terminal_obser
     assert second.turn_id == replay.turn_id != first.turn_id
     task = tasks.detail(services, 1, first.task_id)
     assert task.selected_expert_id is None and len(task.turns) == 2
-    with pytest.raises(OctopError) as caught:
+    with pytest.raises(InhereBoxError) as caught:
         await send(session, "again", "event-two", no_expert=True)
     assert caught.value.code == ErrorCode.TASK_REQUEST_CONFLICT
     session.close()
@@ -100,7 +100,7 @@ async def test_explicit_task_binding_is_owned_and_does_not_clone(services, termi
         task_id=first.task_id,
     )
     assert result.task_id == first.task_id
-    with pytest.raises(OctopError) as caught:
+    with pytest.raises(InhereBoxError) as caught:
         await send(CliChatSession(runtime(services), user_id=2), task_id=first.task_id)
     assert caught.value.code == ErrorCode.NOT_FOUND
 
@@ -129,7 +129,7 @@ async def test_answer_uses_exact_interaction_and_replay_skips_new_pending_lookup
 
     monkeypatch.setattr(ingress, "observe", observe)
     session = CliChatSession(runtime(services), user_id=1)
-    with pytest.raises(OctopError) as caught:
+    with pytest.raises(InhereBoxError) as caught:
         await send(session, "/approve " + interaction.interaction_id, "wrong-kind")
     assert caught.value.code == ErrorCode.TASK_CONTROL_INVALID
     text = "/answer " + interaction.interaction_id + " SQLite"
@@ -145,9 +145,9 @@ async def test_answer_uses_exact_interaction_and_replay_skips_new_pending_lookup
 async def test_cli_crud_is_task_based_without_starting_runtime(
     services, terminal_observer, monkeypatch, tmp_path
 ):
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     first = await send(CliChatSession(runtime(services), user_id=1))
-    from octop.cli.support import db
+    from inhere_box.cli.support import db
 
     monkeypatch.setattr(db, "open_cli_services", lambda: nullcontext(services))
     runner = CliRunner()
@@ -177,8 +177,8 @@ def test_create_requires_first_message_and_supports_task_options():
 
 
 def test_send_failed_task_returns_nonzero_with_machine_readable_receipt(monkeypatch):
-    from octop.cli.repl import runtime as public_runtime
-    from octop.cli.repl.turn import ChatTurnResult
+    from inhere_box.cli.repl import runtime as public_runtime
+    from inhere_box.cli.repl.turn import ChatTurnResult
 
     async def failed(*_args, **_kwargs):
         return ChatTurnResult(task_id="failed-task", turn_id="failed-turn", status="failed")
@@ -191,8 +191,8 @@ def test_send_failed_task_returns_nonzero_with_machine_readable_receipt(monkeypa
 
 
 async def test_old_thread_continues_migrated_task_without_old_writes(source, monkeypatch):
-    from octop.infra.history.trajectory.types import TrajectoryEvent
-    from octop.infra.projects import branches, input_attachments
+    from inhere_box.infra.history.trajectory.types import TrajectoryEvent
+    from inhere_box.infra.projects import branches, input_attachments
 
     services, _workspace, _messages = source
     message(services)
@@ -277,11 +277,11 @@ async def test_cli_cancel_is_explicit_and_session_close_keeps_accepted_work(serv
 
 
 def test_repl_reuses_task_and_request_id_only_for_first_turn(services, monkeypatch, tmp_path):
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     message(services)
     import prompt_toolkit
 
-    from octop.cli.repl import embedded_session, task_runtime
+    from inhere_box.cli.repl import embedded_session, task_runtime
 
     @asynccontextmanager
     async def embedded():
@@ -324,10 +324,10 @@ def test_repl_reuses_task_and_request_id_only_for_first_turn(services, monkeypat
 
 
 async def test_task_embedded_runtime_never_starts_global_server(services, monkeypatch):
-    from octop.cli.repl import embedded_session
-    from octop.cli.support import db
-    from octop.infra.projects import conversation_migrations
-    from octop.infra.projects import runtime as task_workers
+    from inhere_box.cli.repl import embedded_session
+    from inhere_box.cli.support import db
+    from inhere_box.infra.projects import conversation_migrations
+    from inhere_box.infra.projects import runtime as task_workers
 
     lifecycle = []
 
@@ -349,7 +349,7 @@ async def test_task_embedded_runtime_never_starts_global_server(services, monkey
         raise AssertionError("chats must not start the full server")
 
     monkeypatch.setattr(db, "open_cli_services", lambda: nullcontext(services))
-    monkeypatch.setattr(embedded_session.OctopServer, "start", forbidden)
+    monkeypatch.setattr(embedded_session.InhereBoxServer, "start", forbidden)
     monkeypatch.setattr(task_workers, "ProjectTaskWorker", Worker)
     monkeypatch.setattr(ingress, "TaskIngressWorker", Worker)
     monkeypatch.setattr(conversation_migrations, "ConversationMigrationWorker", Migration)

@@ -7,15 +7,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.sessions import SessionRepo
-from octop.infra.db.repos.threads import ThreadRepo
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.gateway.slash import BufferSink, SlashCommand, build_default_dispatcher
-from octop.infra.gateway.slash.ctx import SlashCtx
-from octop.infra.gateway.threads import ThreadRegistry
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.sessions import SessionRepo
+from inhere_box.infra.db.repos.threads import ThreadRepo
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.gateway.slash import BufferSink, SlashCommand, build_default_dispatcher
+from inhere_box.infra.gateway.slash.ctx import SlashCtx
+from inhere_box.infra.gateway.threads import ThreadRegistry
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ def ctx(tmp_path: Path):
     manager.get_row.return_value = agent_row
     manager.get_thread_model.return_value = None
     manager.harness_manager = None
-    from octop.infra.utils.paths import PathLayout
+    from inhere_box.infra.utils.paths import PathLayout
 
     paths = PathLayout(tmp_path)
     paths.ensure_root()
@@ -48,7 +48,7 @@ def ctx(tmp_path: Path):
             user_repo=UserRepo(db),
             agent_manager=manager,
             paths=paths,
-            octop_version="0.1.0",
+            inhere_box_version="0.1.0",
             server_started_at=1_700_000_000,
         ),
         manager,

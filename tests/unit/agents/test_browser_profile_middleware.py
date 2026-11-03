@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 from langgraph.prebuilt.tool_node import ToolCallRequest
 
-from octop.infra.agents.middleware import browser_profile
+from inhere_box.infra.agents.middleware import browser_profile
 
 
 def _request(name: str, args: dict[str, object]) -> ToolCallRequest:
@@ -59,7 +59,7 @@ async def test_browser_profile_blocks_when_user_missing(monkeypatch) -> None:
 
     handler.assert_not_awaited()
     assert getattr(result, "status", None) == "error"
-    assert "no Octop user id" in str(result.content)
+    assert "no inhere-box user id" in str(result.content)
 
 
 @pytest.mark.asyncio

@@ -119,7 +119,7 @@ beforeEach(() => {
   currentJob = { ...initialJob };
   api.getGlobalRunners.mockImplementation(async () => ({ runners }));
   api.getSetup.mockImplementation(async () => ({
-    host: "service@octop-box",
+    host: "service@inhere-box-box",
     runners: { [setup.runner]: setup },
     active_jobs: activeJobs,
   }));
@@ -279,7 +279,7 @@ describe("one-step Codex connection", () => {
       );
       await act(async () => {
         finishSetup({
-          host: "service@octop-box",
+          host: "service@inhere-box-box",
           runners: { codex: committedSetup },
           active_jobs: {},
         });

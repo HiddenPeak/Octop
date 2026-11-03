@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from octop.infra.backend.postgres_spec import (
+from inhere_box.infra.backend.postgres_spec import (
     normalize_postgres_spec,
     parse_postgres_conninfo,
     split_host_port,
 )
-from octop.infra.db.repos.backends import BackendRow
+from inhere_box.infra.db.repos.backends import BackendRow
 
 
 def test_split_host_port() -> None:
@@ -50,7 +50,7 @@ def test_normalize_postgres_spec_drops_uri_and_unknown_keys() -> None:
 def test_mapped_spec_is_accepted_by_postgres_config() -> None:
     from deepagents_backends import PostgresConfig
 
-    from octop.infra.backend.adapter import row_to_backend_spec
+    from inhere_box.infra.backend.adapter import row_to_backend_spec
 
     row = BackendRow(
         id=1,
@@ -77,7 +77,7 @@ def test_mapped_spec_is_accepted_by_postgres_config() -> None:
 
 
 def test_row_discrete_fields_override_uri() -> None:
-    from octop.infra.backend.postgres_spec import row_to_postgres_spec
+    from inhere_box.infra.backend.postgres_spec import row_to_postgres_spec
 
     row = BackendRow(
         id=1,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from octop.infra.utils.download_links import DownloadLinkStore
+from inhere_box.infra.utils.download_links import DownloadLinkStore
 
 
 def test_download_link_serves_bytes_until_it_expires() -> None:

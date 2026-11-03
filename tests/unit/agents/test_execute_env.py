@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from octop.infra.agents.workspace.execute_env import inject_agent_execute_env
-from octop.infra.db.repos.agents import AgentRow
-from octop.infra.utils.env_file import save_env_file
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.agents.workspace.execute_env import inject_agent_execute_env
+from inhere_box.infra.db.repos.agents import AgentRow
+from inhere_box.infra.utils.env_file import save_env_file
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def _row(agent_id: str = "a1") -> AgentRow:
@@ -29,8 +29,10 @@ def _row(agent_id: str = "a1") -> AgentRow:
     )
 
 
-def test_inject_local_shell_uses_octop_auth_for_new_layout(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+def test_inject_local_shell_uses_inhere_box_auth_for_new_layout(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     paths = PathLayout(tmp_path)
     paths.ensure_root()
     save_env_file(paths.root / "env", {"GLOBAL_KEY": "global"})
@@ -46,18 +48,18 @@ def test_inject_local_shell_uses_octop_auth_for_new_layout(tmp_path: Path, monke
         cfg={"system_files_path": ".octop"},
     )
     env = spec["env"]
-    assert env["OCTOP_AGENT_ID"] == "agent-1"
+    assert env["INHERE_BOX_AGENT_ID"] == "agent-1"
     assert (ws / ".octop" / "auth").is_dir()
     assert env["OCTOP_AUTH_DIR"] == str(ws / ".octop" / "auth")
-    assert env["OCTOP_HOME"] == str(paths.root)
-    assert env["OCTOP_SKILLS_DIR"] == str(ws / ".octop" / "skills")
+    assert env["INHERE_BOX_HOME"] == str(paths.root)
+    assert env["INHERE_BOX_SKILLS_DIR"] == str(ws / ".octop" / "skills")
     assert "GLOBAL_KEY" not in env
     assert "AGENT_KEY" not in env
     assert spec["inherit_env"] is True
 
 
-def test_inject_legacy_layout_keeps_root_octop_auth(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+def test_inject_legacy_layout_keeps_root_inhere_box_auth(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     paths = PathLayout(tmp_path)
     paths.ensure_root()
     ws = paths.ensure_agent_workspace("agent-legacy")
@@ -74,7 +76,7 @@ def test_inject_legacy_layout_keeps_root_octop_auth(tmp_path: Path, monkeypatch)
 
 
 def test_inject_keeps_legacy_auth_when_tokens_already_there(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     paths = PathLayout(tmp_path)
     paths.ensure_root()
     ws = paths.ensure_agent_workspace("agent-mig")
@@ -93,7 +95,7 @@ def test_inject_keeps_legacy_auth_when_tokens_already_there(tmp_path: Path, monk
 
 
 def test_inject_composite_default_local_shell(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     paths = PathLayout(tmp_path)
     paths.ensure_root()
     ws = paths.ensure_agent_workspace("agent-c")
@@ -109,13 +111,13 @@ def test_inject_composite_default_local_shell(tmp_path: Path, monkeypatch) -> No
         workspace_dir=ws,
         cfg={"system_files_path": ".octop"},
     )
-    assert spec["default"]["env"]["OCTOP_AGENT_ID"] == "agent-c"
+    assert spec["default"]["env"]["INHERE_BOX_AGENT_ID"] == "agent-c"
     assert spec["default"]["env"]["OCTOP_AUTH_DIR"] == str(ws / ".octop" / "auth")
     assert spec["default"]["inherit_env"] is True
 
 
 def test_inject_scoped_root_uses_agent_facing_auth_paths(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     paths = PathLayout(tmp_path)
     paths.ensure_root()
     root = tmp_path / "scoped"
@@ -142,11 +144,11 @@ def test_inject_scoped_root_uses_agent_facing_auth_paths(tmp_path: Path, monkeyp
     env = spec["env"]
     assert (ws / ".octop" / "auth").is_dir()
     assert env["OCTOP_AUTH_DIR"] == "/.octop/workspaces/agent-s/.octop/auth"
-    assert env["OCTOP_SKILLS_DIR"] == "/.octop/workspaces/agent-s/.octop/skills"
+    assert env["INHERE_BOX_SKILLS_DIR"] == "/.octop/workspaces/agent-s/.octop/skills"
 
 
 def test_inject_docker_only_sets_platform_defaults(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
     paths = PathLayout(tmp_path)
     paths.ensure_root()
     save_env_file(paths.root / "env", {"GLOBAL_KEY": "global"})
@@ -160,6 +162,6 @@ def test_inject_docker_only_sets_platform_defaults(tmp_path: Path, monkeypatch) 
         cfg={"system_files_path": ".octop"},
     )
     env = spec["env"]
-    assert env["OCTOP_AGENT_ID"] == "agent-2"
+    assert env["INHERE_BOX_AGENT_ID"] == "agent-2"
     assert env["OCTOP_AUTH_DIR"] == str(ws / ".octop" / "auth")
     assert "GLOBAL_KEY" not in env

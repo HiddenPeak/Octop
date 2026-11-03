@@ -259,7 +259,7 @@ export default function MigrateMemory({ agentId }: Props) {
         <Paragraph>
           {t(
             "memory.migrate.exportDesc",
-            "将当前 Octop 的全部记忆打包为 .hmpkg 文件并下载到本地。你可以在其他宿主（openclaw / hermes）上导入此文件继续使用。",
+            "将当前 inhere-box 的全部记忆打包为 .hmpkg 文件并下载到本地。你可以在其他宿主（openclaw / hermes）上导入此文件继续使用。",
           )}
         </Paragraph>
         {error ? <Alert type="error" message={error} showIcon /> : null}
@@ -350,7 +350,7 @@ export default function MigrateMemory({ agentId }: Props) {
                   options={[
                     { value: "openclaw", label: "openclaw" },
                     { value: "hermes", label: "hermes" },
-                    { value: "agent", label: "octop（本机）" },
+                    { value: "agent", label: "inhere-box（本机）" },
                   ]}
                 />
               </Form.Item>
@@ -503,7 +503,7 @@ export default function MigrateMemory({ agentId }: Props) {
               <Paragraph>
                 {t(
                   "memory.migrate.doctorDesc",
-                  "对当前 Octop 的记忆库执行健康检查，验证 schema、索引、外键完整性等。",
+                  "对当前 inhere-box 的记忆库执行健康检查，验证 schema、索引、外键完整性等。",
                 )}
               </Paragraph>
               <Form layout="vertical">

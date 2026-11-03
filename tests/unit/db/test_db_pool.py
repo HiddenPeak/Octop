@@ -11,19 +11,19 @@ from typing import Any
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
 
 
 @pytest.fixture
 def db(tmp_path: Path) -> SqlitePool:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     return pool
 
 
 def test_db_pool_creates_file(tmp_path: Path):
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     SqlitePool(db_path)
     assert db_path.exists()
 
@@ -32,7 +32,7 @@ def test_db_pool_creates_file(tmp_path: Path):
 def test_external_import_upgrade_preserves_existing_tasks(tmp_path, monkeypatch, direct_sql):
     import shutil
 
-    from octop.infra.db import migrate
+    from inhere_box.infra.db import migrate
 
     old_migrations = tmp_path / "v49-migrations"
     old_migrations.mkdir()
@@ -189,7 +189,7 @@ def test_pool_close_is_idempotent_and_closed_operations_raise_programming_error(
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX-only mode bits")
 def test_db_pool_file_is_0600(tmp_path: Path):
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     SqlitePool(db_path)
     mode = db_path.stat().st_mode & 0o777
     assert mode == 0o600
@@ -248,7 +248,7 @@ def test_v20_database_receives_independent_tables_without_changing_existing_sche
 ) -> None:
     import shutil
 
-    from octop.infra.db import migrate
+    from inhere_box.infra.db import migrate
 
     old_migrations = tmp_path / "v20-migrations"
     old_migrations.mkdir()
@@ -406,7 +406,7 @@ def test_retired_agentcomputer_schema_and_data_are_preserved(
 ) -> None:
     import shutil
 
-    from octop.infra.db import migrate
+    from inhere_box.infra.db import migrate
 
     old_migrations = tmp_path / "v20-migrations"
     old_migrations.mkdir()
@@ -482,7 +482,7 @@ def test_high_watermark_repairs_missing_independent_tables(tmp_path: Path, monke
     """A skipped watermark still materializes only the independent project/task tables."""
     import shutil
 
-    from octop.infra.db import migrate
+    from inhere_box.infra.db import migrate
 
     old_migrations = tmp_path / "v20-migrations"
     old_migrations.mkdir()
@@ -582,13 +582,13 @@ def test_run_migrations_idempotent(db: SqlitePool):
 
 def test_repair_legacy_schema_ensures_columns(tmp_path: Path) -> None:
     """DBs missing columns must be repaired on boot even if schema version is ahead."""
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     with pool.connect() as conn:
         conn.executescript(
             (
                 Path(__file__).resolve().parents[3]
-                / "src/octop/infra/db/migrations/001_initial.sql"
+                / "src/inhere_box/infra/db/migrations/001_initial.sql"
             ).read_text()
         )
         # Simulate a schema version ahead of what the columns reflect
@@ -602,13 +602,13 @@ def test_repair_legacy_schema_ensures_columns(tmp_path: Path) -> None:
 
 def test_migration_002_idempotent_when_column_already_present(tmp_path: Path) -> None:
     """Partial upgrade: mcp_servers exists but version still 1 must not fail."""
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     with pool.connect() as conn:
         conn.executescript(
             (
                 Path(__file__).resolve().parents[3]
-                / "src/octop/infra/db/migrations/001_initial.sql"
+                / "src/inhere_box/infra/db/migrations/001_initial.sql"
             ).read_text()
         )
         conn.execute("ALTER TABLE cron_jobs ADD COLUMN mcp_servers TEXT NOT NULL DEFAULT '[]'")
@@ -626,10 +626,10 @@ def test_migration_002_idempotent_when_column_already_present(tmp_path: Path) ->
 
 def test_migration_005_preserves_populated_users_and_constraints(tmp_path: Path) -> None:
     """A populated v4 DB keeps users and their foreign-key references at v5."""
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     initial_migration = (
-        Path(__file__).resolve().parents[3] / "src/octop/infra/db/migrations/001_initial.sql"
+        Path(__file__).resolve().parents[3] / "src/inhere_box/infra/db/migrations/001_initial.sql"
     )
     with pool.connect() as conn:
         conn.executescript(initial_migration.read_text())
@@ -720,7 +720,7 @@ def test_migration_005_preserves_populated_users_and_constraints(tmp_path: Path)
               id, enabled, display_name, issuer, client_id, scopes, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (1, 1, "SSO", "https://issuer.example", "octop-client", "openid", 30, 30),
+            (1, 1, "SSO", "https://issuer.example", "inhere-box-client", "openid", 30, 30),
         )
         conn.execute(
             """
@@ -741,13 +741,13 @@ def test_migration_005_preserves_populated_users_and_constraints(tmp_path: Path)
 
 def test_stuck_version_6_without_permissions_column_is_repaired(tmp_path: Path) -> None:
     """Pre-squash version clamp can leave schema at 6 without users.permissions."""
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     with pool.connect() as conn:
         conn.executescript(
             (
                 Path(__file__).resolve().parents[3]
-                / "src/octop/infra/db/migrations/001_initial.sql"
+                / "src/inhere_box/infra/db/migrations/001_initial.sql"
             ).read_text()
         )
         conn.execute("UPDATE _schema_version SET version = 6")
@@ -761,13 +761,13 @@ def test_stuck_version_6_without_permissions_column_is_repaired(tmp_path: Path) 
 
 def test_schema_v10_without_projection_tables_is_repaired(tmp_path: Path) -> None:
     """DBs that bumped to v10 via a colliding 010 file still get projection tables."""
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     with pool.connect() as conn:
         conn.executescript(
             (
                 Path(__file__).resolve().parents[3]
-                / "src/octop/infra/db/migrations/001_initial.sql"
+                / "src/inhere_box/infra/db/migrations/001_initial.sql"
             ).read_text()
         )
         conn.execute("UPDATE _schema_version SET version = 10")
@@ -794,13 +794,13 @@ def test_ahead_of_max_schema_version_clamps_to_max(tmp_path: Path) -> None:
     When the recorded version equals an older max (here 8) and a newer migration
     (9) exists, ``run_migrations`` applies the gap instead of clamping.
     """
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     with pool.connect() as conn:
         conn.executescript(
             (
                 Path(__file__).resolve().parents[3]
-                / "src/octop/infra/db/migrations/001_initial.sql"
+                / "src/inhere_box/infra/db/migrations/001_initial.sql"
             ).read_text()
         )
         conn.execute("UPDATE _schema_version SET version = 8")
@@ -823,12 +823,12 @@ def test_ahead_of_max_schema_version_clamps_to_max(tmp_path: Path) -> None:
 
 def test_current_watermark_repairs_pre_v13_connectors_schema(tmp_path: Path) -> None:
     """A folded v13 schema change is repaired even when migration 013 is skipped."""
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     with pool.connect() as conn:
         conn.executescript(
             (
                 Path(__file__).resolve().parents[3]
-                / "src/octop/infra/db/migrations/001_initial.sql"
+                / "src/inhere_box/infra/db/migrations/001_initial.sql"
             ).read_text()
         )
         conn.execute("UPDATE _schema_version SET version = 13")
@@ -875,13 +875,13 @@ def test_pre_squash_schema_version_clamped_and_knowledge_tables_filled(
     tmp_path: Path,
 ) -> None:
     """Develop DBs that applied split 005–009 must clamp to consolidated v5."""
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     with pool.connect() as conn:
         conn.executescript(
             (
                 Path(__file__).resolve().parents[3]
-                / "src/octop/infra/db/migrations/001_initial.sql"
+                / "src/inhere_box/infra/db/migrations/001_initial.sql"
             ).read_text()
         )
         # Simulate a develop DB whose recorded version is ahead of the
@@ -929,7 +929,7 @@ def test_transaction_rolls_back_on_exception(db: SqlitePool):
 
 def test_v7_sql_files_declare_identity_rebuild() -> None:
     """The numbered v7 pair must contain the table rebuild, not only ADD COLUMN."""
-    root = Path(__file__).resolve().parents[3] / "src/octop/infra/db/migrations"
+    root = Path(__file__).resolve().parents[3] / "src/inhere_box/infra/db/migrations"
     sqlite_sql = (root / "007_resource_identity_and_profile.sql").read_text(encoding="utf-8")
     pg_sql = (root / "007_resource_identity_and_profile.pg.sql").read_text(encoding="utf-8")
     for sql in (sqlite_sql, pg_sql):
@@ -951,9 +951,9 @@ def test_v7_sql_files_declare_identity_rebuild() -> None:
 
 def test_v7_sqlite_sql_upgrades_legacy_text_pks(tmp_path: Path) -> None:
     """A clean v6-shaped DB can execute 007.sql without going through Python helpers."""
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
-    migrations = Path(__file__).resolve().parents[3] / "src/octop/infra/db/migrations"
+    migrations = Path(__file__).resolve().parents[3] / "src/inhere_box/infra/db/migrations"
     with pool.connect() as conn:
         conn.executescript((migrations / "001_initial.sql").read_text(encoding="utf-8"))
         conn.executescript(
@@ -1073,7 +1073,7 @@ def test_v7_sqlite_sql_upgrades_legacy_text_pks(tmp_path: Path) -> None:
 
 
 def test_v14_to_v15_adds_sso_provider_kind_without_rebuilding(tmp_path: Path) -> None:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     with pool.connect() as conn:
         conn.execute("DROP INDEX IF EXISTS idx_sso_providers_kind")
@@ -1127,12 +1127,12 @@ def test_transaction_takes_the_write_lock_up_front(db: SqlitePool, tmp_path: Pat
     """A competing writer must not be able to commit in the middle of our transaction.
 
     With a deferred ``BEGIN`` the write lock is only taken at the first write, so a second
-    connection (``octop run --workers N``, or a CLI run against a running server) commits in
+    connection (``inhere-box run --workers N``, or a CLI run against a running server) commits in
     between; our own write is then rejected with SQLITE_BUSY_SNAPSHOT, which the 5s busy
     timeout cannot wait out.
     """
     _scratch(db)
-    competitor = _competitor(tmp_path / "octop.db", timeout_ms=100)
+    competitor = _competitor(tmp_path / "inhere-box.db", timeout_ms=100)
     try:
         with db.transaction() as conn:
             conn.execute("SELECT COUNT(*) FROM scratch")  # read first: the trap
@@ -1147,7 +1147,7 @@ def test_transaction_completes_while_a_competing_writer_waits(
 ) -> None:
     """A read-then-write transaction must survive a competing writer instead of aborting."""
     _scratch(db)
-    competitor = _competitor(tmp_path / "octop.db", timeout_ms=5000)
+    competitor = _competitor(tmp_path / "inhere-box.db", timeout_ms=5000)
     failures: list[Exception] = []
 
     def compete() -> None:
@@ -1179,7 +1179,7 @@ def test_project_client_directory_upgrade_preserves_existing_project(
 ):
     import shutil
 
-    from octop.infra.db import migrate
+    from inhere_box.infra.db import migrate
 
     old_migrations = tmp_path / "v28-migrations"
     old_migrations.mkdir()
@@ -1229,7 +1229,7 @@ def test_task_list_sync_upgrade_preserves_existing_conversations(
 ):
     import shutil
 
-    from octop.infra.db import migrate
+    from inhere_box.infra.db import migrate
 
     old_migrations = tmp_path / f"v{previous_schema}-migrations"
     old_migrations.mkdir()
@@ -1323,7 +1323,7 @@ def test_task_list_sync_upgrade_preserves_existing_conversations(
 def test_v35_title_upgrade_preserves_existing_titles(tmp_path, monkeypatch, direct_sql):
     import shutil
 
-    from octop.infra.db import migrate
+    from inhere_box.infra.db import migrate
 
     old_migrations = tmp_path / "v35-migrations"
     old_migrations.mkdir()
@@ -1383,7 +1383,7 @@ def test_v35_title_upgrade_preserves_existing_titles(tmp_path, monkeypatch, dire
 def test_v37_title_retry_upgrade_preserves_job_counters(tmp_path, monkeypatch, direct_sql):
     import shutil
 
-    from octop.infra.db import migrate
+    from inhere_box.infra.db import migrate
 
     old_migrations = tmp_path / "v37-migrations"
     old_migrations.mkdir()
@@ -1463,7 +1463,7 @@ def test_recorded_v39_repairs_reasoning_column_and_preserves_existing_turn(db):
 
 
 def test_recorded_v40_adds_content_columns_without_rewriting_turns(db):
-    from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRepo
+    from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRepo
 
     with db.transaction() as conn:
         owner = conn.execute(
@@ -1493,7 +1493,7 @@ def test_recorded_v40_adds_content_columns_without_rewriting_turns(db):
 def test_project_archive_upgrade_preserves_projects_and_task_archive_state(tmp_path, monkeypatch):
     import shutil
 
-    from octop.infra.db import migrate
+    from inhere_box.infra.db import migrate
 
     old_migrations = tmp_path / "v39-projects"
     old_migrations.mkdir()
@@ -1711,7 +1711,7 @@ def test_artifact_business_category_upgrade_preserves_historical_snapshot(
 ):
     import shutil
 
-    from octop.infra.db import migrate
+    from inhere_box.infra.db import migrate
 
     old_migrations = tmp_path / "v47-migrations"
     old_migrations.mkdir()
@@ -1786,8 +1786,8 @@ def test_v48_suffix_category_backfill_preserves_snapshots_ids_and_sequence(
 ):
     import shutil
 
-    from octop.infra.db import migrate
-    from octop.infra.utils.artifact_kinds import ARTIFACT_KIND_RULES
+    from inhere_box.infra.db import migrate
+    from inhere_box.infra.utils.artifact_kinds import ARTIFACT_KIND_RULES
 
     old_migrations = tmp_path / "v48-migrations"
     old_migrations.mkdir()

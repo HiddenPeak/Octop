@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.agents import AgentRepo
-from octop.infra.db.repos.cron import CronJobRepo, CronJobRow
-from octop.infra.db.repos.users import UserRepo
-from octop.infra.gateway.threads import ThreadRegistry
-from octop.infra.utils.ulid import new_ulid
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.agents import AgentRepo
+from inhere_box.infra.db.repos.cron import CronJobRepo, CronJobRow
+from inhere_box.infra.db.repos.users import UserRepo
+from inhere_box.infra.gateway.threads import ThreadRegistry
+from inhere_box.infra.utils.ulid import new_ulid
 
 
 @pytest.fixture

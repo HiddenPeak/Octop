@@ -13,23 +13,23 @@ from fastapi import Response
 from octop_harness.compaction import CompactResult
 from octop_harness.context_usage import ContextUsage
 
-from octop.config import OctopConfig
-from octop.infra.agents.experts.catalog import ExpertCatalog
-from octop.infra.agents.resident_context import compact_context, context_usage
-from octop.infra.agents.resident_conversation import ResidentConversationRuntime
-from octop.infra.agents.resident_identity import resident_execution_allowed
-from octop.infra.agents.resident_profiles import (
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.agents.experts.catalog import ExpertCatalog
+from inhere_box.infra.agents.resident_context import compact_context, context_usage
+from inhere_box.infra.agents.resident_conversation import ResidentConversationRuntime
+from inhere_box.infra.agents.resident_identity import resident_execution_allowed
+from inhere_box.infra.agents.resident_profiles import (
     ResidentProfileArchive,
     ResidentProfileCreate,
     archive_profile,
     create_profile,
     get_profile,
 )
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.utils.paths import PathLayout
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ async def context_env(tmp_path):
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     services.user_repo.create(username="owner", password_hash="x", role="user")
     services.user_repo.create(username="other", password_hash="x", role="user")
     root = tmp_path / "experts"
@@ -106,7 +106,7 @@ async def test_context_usage_reads_only_owned_thread_and_returns_typed_counts(co
     }
     assert usage.source == "model_request"
     agent.acompact_conversation.assert_not_called()
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         await context_usage(runtime, 2, profile.agent_id, profile.thread_id)
     assert error.value.code == ErrorCode.NOT_FOUND
     agent.aget_context_usage.assert_awaited_once_with(profile.thread_id, max_tokens=4096)
@@ -148,7 +148,7 @@ async def test_compaction_refuses_queued_turn_and_archived_instance(context_env)
     turn, _ = services.resident_request_repo.create(
         1, profile.thread_id, "send", "turn", "Hello", 1800000000000
     )
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         await compact_context(runtime, 1, profile.agent_id, profile.thread_id)
     assert error.value.code == ErrorCode.AGENT_BUSY
     services.resident_request_repo.cancel(
@@ -160,7 +160,7 @@ async def test_compaction_refuses_queued_turn_and_archived_instance(context_env)
         profile.profile_id,
         ResidentProfileArchive(expected_revision=profile.revision, archived=True),
     )
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         await compact_context(runtime, 1, profile.agent_id, profile.thread_id)
     assert error.value.code == ErrorCode.RESIDENT_PROFILE_ARCHIVED
     agent.acompact_conversation.assert_not_called()
@@ -188,7 +188,7 @@ async def test_disconnect_and_repeated_cancel_drain_compaction_before_unlock(con
         request.cancel()
         await asyncio.sleep(0)
         assert not request.done() and not settled.is_set()
-        with pytest.raises(OctopError) as error:
+        with pytest.raises(InhereBoxError) as error:
             async with runtime.thread_scope(profile.thread_id, require_idle=True):
                 pytest.fail("Checkpoint lock was released while the operation was pending")
         assert error.value.code == ErrorCode.AGENT_BUSY
@@ -205,7 +205,7 @@ async def test_disconnect_and_repeated_cancel_drain_compaction_before_unlock(con
 async def test_compaction_reports_unusable_model_without_invoking_summary(context_env):
     _, runtime, profile, agent = context_env
     runtime.registry.providers.is_model_ref_usable.return_value = False
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         await compact_context(runtime, 1, profile.agent_id, profile.thread_id)
     assert error.value.code == ErrorCode.RESIDENT_MODEL_UNAVAILABLE
     agent.acompact_conversation.assert_not_called()
@@ -215,7 +215,7 @@ async def test_compaction_reports_unusable_model_without_invoking_summary(contex
 async def test_archive_disconnect_drains_transaction_before_releasing_thread_lock(
     context_env, monkeypatch
 ):
-    from octop.api.routers import resident_profiles as router
+    from inhere_box.api.routers import resident_profiles as router
 
     services, runtime, profile, _ = context_env
     entered, release = threading.Event(), threading.Event()
@@ -246,7 +246,7 @@ async def test_archive_disconnect_drains_transaction_before_releasing_thread_loc
         request.cancel()
         await asyncio.sleep(0)
         assert not request.done()
-        with pytest.raises(OctopError):
+        with pytest.raises(InhereBoxError):
             async with runtime.thread_scope(profile.thread_id, require_idle=True):
                 pytest.fail("Archive transaction still owns the thread lock")
     finally:

@@ -9,11 +9,11 @@ from uuid import uuid4
 
 import pytest
 
-from octop.infra.db.repos.project_task_artifacts import ProjectTaskArtifactRow
-from octop.infra.db.repos.project_tasks import ProjectTaskRow
-from octop.infra.projects.artifact_library_models import ArtifactLibraryQuery
-from octop.infra.projects.cursors import cursor_codec
-from octop.infra.utils.artifact_kinds import artifact_business_category
+from inhere_box.infra.db.repos.project_task_artifacts import ProjectTaskArtifactRow
+from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
+from inhere_box.infra.projects.artifact_library_models import ArtifactLibraryQuery
+from inhere_box.infra.projects.cursors import cursor_codec
+from inhere_box.infra.utils.artifact_kinds import artifact_business_category
 from tests.support.auth import create_user, resolve_user_id
 
 BASE = "/api/project-tasks/artifacts"
@@ -468,7 +468,7 @@ async def test_archived_snapshot_download_and_task_deletion(library_env):
 
 async def test_library_routes_have_readable_openapi_models(env):
     client, _, _ = env
-    schema = client._octop_app.openapi()
+    schema = client._inhere_box_app.openapi()
     for path in (BASE, f"{BASE}/{{artifact_id}}"):
         route = schema["paths"][path]["get"]
         assert route["summary"] and route["description"]

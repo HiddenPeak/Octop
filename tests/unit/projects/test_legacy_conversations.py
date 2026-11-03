@@ -14,20 +14,20 @@ from langchain_core.messages import (
     message_to_dict,
 )
 
-from octop.config import OctopConfig
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.gateway.hitl.store import HitlPendingStore
-from octop.infra.gateway.process.message_keys import INBOUND_ATTACHMENTS_KEY
-from octop.infra.history.projection import message_inputs
-from octop.infra.history.service import HistoryArchive
-from octop.infra.history.store import HistoryStore
-from octop.infra.projects import legacy_conversations, runtime, tasks
-from octop.infra.projects.expert_profiles import _workspace
-from octop.infra.projects.legacy_conversation_models import LegacyConversationCreate
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.gateway.hitl.store import HitlPendingStore
+from inhere_box.infra.gateway.process.message_keys import INBOUND_ATTACHMENTS_KEY
+from inhere_box.infra.history.projection import message_inputs
+from inhere_box.infra.history.service import HistoryArchive
+from inhere_box.infra.history.store import HistoryStore
+from inhere_box.infra.projects import legacy_conversations, runtime, tasks
+from inhere_box.infra.projects.expert_profiles import _workspace
+from inhere_box.infra.projects.legacy_conversation_models import LegacyConversationCreate
+from inhere_box.infra.utils.paths import PathLayout
 
 
 class Registry:
@@ -68,7 +68,7 @@ class Registry:
 def source(tmp_path):
     db = SqlitePool(tmp_path / "legacy.db")
     run_migrations(db)
-    services = SharedServices(PathLayout(tmp_path), OctopConfig(), RepoBundle.from_pool(db))
+    services = SharedServices(PathLayout(tmp_path), InhereBoxConfig(), RepoBundle.from_pool(db))
     services.secret_repo.get_or_create("jwt", lambda: b"legacy-test-secret")
     with db.transaction() as conn:
         conn.execute("INSERT INTO users(id,username,role,created_at) VALUES(1,'owner','user',1)")
@@ -191,7 +191,7 @@ async def test_shared_source_requires_owned_thread_and_preserves_member_speakers
         item for item in detail.turns[-1].legacy_attachments if item.name == "private.md"
     )
     assert not private.available and private.download_url is None
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await intake(source, body(request_id="other-source-request"), owner=2)
 
 
@@ -289,7 +289,7 @@ async def test_idempotent_replay_never_reloads_or_resumes_source(source):
     assert registry.reads == reads
     with services.db.read_snapshot() as conn:
         assert conn.execute("SELECT COUNT(*) FROM project_tasks").fetchone()[0] == 1
-    with pytest.raises(OctopError) as failure:
+    with pytest.raises(InhereBoxError) as failure:
         await intake(source, body(selected_expert_id=None))
     assert failure.value.code == ErrorCode.TASK_REQUEST_CONFLICT
 
@@ -360,7 +360,7 @@ async def test_ineligible_source_never_creates_a_task(source, mutation):
         )
     elif mutation == "unanswered_user":
         registry.messages.append(HumanMessage(content="Not answered yet"))
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await intake(source, request, owner=owner)
     assert registry.reserved is False
     with services.db.read_snapshot() as conn:
@@ -387,7 +387,7 @@ async def test_unfinished_archive_turn_is_rejected(source):
     )
     archive.begin("expert", "thread")
     try:
-        with pytest.raises(OctopError) as failure:
+        with pytest.raises(InhereBoxError) as failure:
             await intake(source, archive=archive)
         assert failure.value.code == ErrorCode.TASK_BUSY
         assert not registry.reserved

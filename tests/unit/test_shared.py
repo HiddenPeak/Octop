@@ -4,16 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from octop.config import OctopConfig
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.sso import SsoRepo
-from octop.infra.db.services import SharedServices, build_shared_services
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.sso import SsoRepo
+from inhere_box.infra.db.services import SharedServices, build_shared_services
+from inhere_box.infra.utils.paths import PathLayout
 
 
 def test_build_shared_services(tmp_path: Path):
-    cfg = OctopConfig()
+    cfg = InhereBoxConfig()
     paths = PathLayout(tmp_path / ".octop")
     paths.ensure_root()
     db = SqlitePool(paths.db)

@@ -12,11 +12,11 @@ from langchain_core.tools import StructuredTool
 from langgraph.config import var_child_runnable_config
 from pydantic import Field
 
-from octop.infra.knowledge.hint import (
+from inhere_box.infra.knowledge.hint import (
     KnowledgeSearchHintMiddleware,
     catalog_for_selected_bases,
 )
-from octop.infra.knowledge.tools import format_search_knowledge_description
+from inhere_box.infra.knowledge.tools import format_search_knowledge_description
 
 
 @contextmanager

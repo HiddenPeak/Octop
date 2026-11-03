@@ -23,7 +23,7 @@ def _write_manifest(expert_dir: Path, *, extra: dict | None = None) -> None:
 
 
 def test_expert_discovers_seed_paths(tmp_path: Path) -> None:
-    from octop.infra.agents.experts.catalog import ExpertCatalog
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog
 
     expert_dir = tmp_path / "my-expert"
     expert_dir.mkdir()
@@ -44,7 +44,7 @@ def test_expert_discovers_seed_paths(tmp_path: Path) -> None:
 
 
 def test_resolve_expert_icon_url_uses_scene_for_skillhub() -> None:
-    from octop.infra.agents.experts.catalog import resolve_expert_icon_url
+    from inhere_box.infra.agents.experts.catalog import resolve_expert_icon_url
 
     assert (
         resolve_expert_icon_url(
@@ -73,7 +73,7 @@ def test_resolve_expert_icon_url_uses_scene_for_skillhub() -> None:
 
 
 def test_bundled_avatar_ids_discovered_from_public_dir() -> None:
-    from octop.infra.agents.experts.catalog import (
+    from inhere_box.infra.agents.experts.catalog import (
         _BUNDLED_AVATAR_IDS,
         bundled_avatars_dir,
         discover_bundled_avatar_ids,
@@ -90,7 +90,7 @@ def test_bundled_avatar_ids_discovered_from_public_dir() -> None:
 
 
 def test_skillhub_market_manifest_gets_scene_icon_url(tmp_path: Path) -> None:
-    from octop.infra.agents.experts.catalog import ExpertCatalog
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog
 
     market_root = tmp_path / "market"
     expert_dir = market_root / "skillhub-skillset-healthcare-nursing-plan"
@@ -114,7 +114,7 @@ def test_skillhub_market_manifest_gets_scene_icon_url(tmp_path: Path) -> None:
 
 
 def test_expert_catalog_reads_extra_roots(tmp_path: Path) -> None:
-    from octop.infra.agents.experts.catalog import ExpertCatalog
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog
 
     bundled_root = tmp_path / "bundled"
     market_root = tmp_path / "market"
@@ -144,7 +144,7 @@ def test_expert_catalog_reads_extra_roots(tmp_path: Path) -> None:
 
 
 def test_expert_lazy_read_file_contents(tmp_path: Path) -> None:
-    from octop.infra.agents.experts.catalog import ExpertCatalog
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog
 
     expert_dir = tmp_path / "my-expert"
     expert_dir.mkdir()
@@ -165,7 +165,7 @@ def test_expert_lazy_read_file_contents(tmp_path: Path) -> None:
 
 
 def test_preview_file_paths_limits_dashboard_preview(tmp_path: Path) -> None:
-    from octop.infra.agents.experts.catalog import ExpertCatalog, preview_file_paths
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog, preview_file_paths
 
     expert_dir = tmp_path / "my-expert"
     expert_dir.mkdir()
@@ -200,7 +200,7 @@ def test_preview_file_paths_limits_dashboard_preview(tmp_path: Path) -> None:
 
 
 def test_preview_paths_skip_manifest_json_in_prompt_files(tmp_path: Path) -> None:
-    from octop.infra.agents.experts.catalog import preview_paths_from_inventory
+    from inhere_box.infra.agents.experts.catalog import preview_paths_from_inventory
 
     paths = preview_paths_from_inventory(
         ["SOUL.md", "manifest.json"],
@@ -210,7 +210,7 @@ def test_preview_paths_skip_manifest_json_in_prompt_files(tmp_path: Path) -> Non
 
 
 def test_expert_prompt_files_metadata_only(tmp_path: Path) -> None:
-    from octop.infra.agents.experts.catalog import ExpertCatalog
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog
 
     expert_dir = tmp_path / "my-expert"
     expert_dir.mkdir()
@@ -235,7 +235,7 @@ def test_expert_prompt_files_metadata_only(tmp_path: Path) -> None:
 
 
 def test_bundled_default_expert_only_has_agents_md() -> None:
-    from octop.infra.agents.experts.catalog import ExpertCatalog, default_library_root
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog, default_library_root
 
     catalog = ExpertCatalog(default_library_root())
     catalog.refresh()
@@ -248,7 +248,7 @@ def test_bundled_default_expert_only_has_agents_md() -> None:
 
 
 def test_bundled_office_automation_discovers_skills() -> None:
-    from octop.infra.agents.experts.catalog import ExpertCatalog, default_library_root
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog, default_library_root
 
     catalog = ExpertCatalog(default_library_root())
     catalog.refresh()
@@ -267,7 +267,7 @@ def test_bundled_office_automation_discovers_skills() -> None:
 
 
 def test_expert_quick_prompts_from_manifest(tmp_path: Path) -> None:
-    from octop.infra.agents.experts.catalog import ExpertCatalog
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog
 
     expert_dir = tmp_path / "my-expert"
     expert_dir.mkdir()
@@ -299,7 +299,7 @@ def test_expert_quick_prompts_from_manifest(tmp_path: Path) -> None:
 
 
 def test_expert_task_examples_from_manifest(tmp_path: Path) -> None:
-    from octop.infra.agents.experts.catalog import ExpertCatalog
+    from inhere_box.infra.agents.experts.catalog import ExpertCatalog
 
     expert_dir = tmp_path / "my-expert"
     expert_dir.mkdir()
@@ -337,7 +337,7 @@ class _MemWorkspace:
 
 @pytest.mark.asyncio
 async def test_apply_workspace_quick_prompts_merges_and_filters() -> None:
-    from octop.infra.agents.experts.catalog import (
+    from inhere_box.infra.agents.experts.catalog import (
         WORKSPACE_MANIFEST_PATH,
         apply_workspace_quick_prompts,
     )
@@ -366,13 +366,13 @@ async def test_apply_workspace_quick_prompts_merges_and_filters() -> None:
 
 @pytest.mark.asyncio
 async def test_apply_workspace_quick_prompts_refuses_invalid_json() -> None:
-    from octop.infra.agents.experts.catalog import (
+    from inhere_box.infra.agents.experts.catalog import (
         WORKSPACE_MANIFEST_PATH,
         apply_workspace_quick_prompts,
     )
-    from octop.infra.errors import ErrorCode, OctopError
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
     workspace = _MemWorkspace({WORKSPACE_MANIFEST_PATH: "{not-json"})
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         await apply_workspace_quick_prompts(workspace, [])
     assert exc.value.code is ErrorCode.SLASH_BAD_ARGS

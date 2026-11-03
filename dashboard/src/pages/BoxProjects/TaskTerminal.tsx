@@ -18,7 +18,7 @@ import { apiErrorMessage } from "../../utils/apiError";
 export default function TaskTerminal({ scope }: { scope: TaskWorkbenchScope }) {
   const { taskWorkbenchApi, hostID } = useTaskHost();
   const { t } = useTranslation();
-  const storageKey = `octop:task-terminal:${hostID ?? "local"}:${
+  const storageKey = `inhere-box:task-terminal:${hostID ?? "local"}:${
     scope.task_id
   }:${scope.scope_revision}`;
   const [sessionID, setSessionID] = useState(

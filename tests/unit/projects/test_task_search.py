@@ -4,7 +4,7 @@ import unicodedata
 
 import pytest
 
-from octop.infra.projects.task_search import _contains, _fold
+from inhere_box.infra.projects.task_search import _contains, _fold
 
 
 @pytest.mark.parametrize(

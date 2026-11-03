@@ -7,8 +7,8 @@ import shutil
 
 import pytest
 
-from octop.infra.db import migrate
-from octop.infra.db.pool import SqlitePool
+from inhere_box.infra.db import migrate
+from inhere_box.infra.db.pool import SqlitePool
 
 
 @pytest.mark.parametrize("watermark", [51, 52])

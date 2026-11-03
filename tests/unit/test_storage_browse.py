@@ -9,12 +9,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from octop.infra.backend.browse import (
+from inhere_box.infra.backend.browse import (
     dispose_all_browse_sessions,
     list_storage_backend_tree,
 )
-from octop.infra.backend.probe import row_for_probe
-from octop.infra.db.repos.backends import BackendRow
+from inhere_box.infra.backend.probe import row_for_probe
+from inhere_box.infra.db.repos.backends import BackendRow
 
 
 @pytest.fixture(autouse=True)
@@ -50,7 +50,7 @@ def _filesystem_row(root: Path) -> BackendRow:
 
 
 def test_filesystem_row_keeps_windows_root_dir() -> None:
-    from octop.infra.backend.adapter import row_to_backend_spec
+    from inhere_box.infra.backend.adapter import row_to_backend_spec
 
     win_root = r"C:\Users\runneradmin\AppData\Local\Temp\data"
     spec = row_to_backend_spec(
@@ -106,7 +106,7 @@ async def test_list_storage_backend_tree_docker_lists_and_closes(
         ),
     )
     monkeypatch.setattr(
-        "octop.infra.backend.browse.resolve_storage_backend",
+        "inhere_box.infra.backend.browse.resolve_storage_backend",
         lambda _row: fake_backend,
     )
 
@@ -115,7 +115,7 @@ async def test_list_storage_backend_tree_docker_lists_and_closes(
     assert entries[0]["path"] == "SOUL.md"
     assert entries[1]["is_dir"] is True
     fake_backend.close.assert_not_called()
-    from octop.infra.backend.browse import release_browse_session
+    from inhere_box.infra.backend.browse import release_browse_session
 
     await release_browse_session(1)
     fake_backend.close.assert_called_once_with()
@@ -127,7 +127,7 @@ async def test_list_storage_backend_tree_maps_runtime_errors(
 ) -> None:
     """Docker/image failures become ValueError (API 400), not uncaught 500."""
     monkeypatch.setattr(
-        "octop.infra.backend.browse.resolve_backend",
+        "inhere_box.infra.backend.browse.resolve_backend",
         lambda *_a, **_k: (_ for _ in ()).throw(
             RuntimeError(
                 "Docker image 'python:3.12-slim' is not available; "
@@ -143,7 +143,7 @@ async def test_list_storage_backend_tree_maps_runtime_errors(
 async def test_list_storage_backend_tree_classifies_object_store_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from octop.infra.backend.browse import StorageBrowseError
+    from inhere_box.infra.backend.browse import StorageBrowseError
 
     fake_backend = MagicMock()
     fake_backend.als = AsyncMock(
@@ -156,7 +156,7 @@ async def test_list_storage_backend_tree_classifies_object_store_error(
         ),
     )
     monkeypatch.setattr(
-        "octop.infra.backend.browse.resolve_storage_backend",
+        "inhere_box.infra.backend.browse.resolve_storage_backend",
         lambda _row: fake_backend,
     )
     with pytest.raises(StorageBrowseError) as excinfo:
@@ -189,7 +189,7 @@ async def test_list_storage_backend_tree_returns_entries(
         ),
     )
     monkeypatch.setattr(
-        "octop.infra.backend.browse.resolve_storage_backend",
+        "inhere_box.infra.backend.browse.resolve_storage_backend",
         lambda _row: fake_backend,
     )
 
@@ -198,7 +198,7 @@ async def test_list_storage_backend_tree_returns_entries(
     assert entries[0]["path"] == "a.txt"
     assert entries[1]["is_dir"] is True
     fake_backend.close.assert_not_called()
-    from octop.infra.backend.browse import release_browse_session
+    from inhere_box.infra.backend.browse import release_browse_session
 
     await release_browse_session(row.id)
     fake_backend.close.assert_called_once_with()
@@ -218,7 +218,7 @@ async def test_list_storage_backend_tree_uses_als_info(
         ],
     )
     monkeypatch.setattr(
-        "octop.infra.backend.browse.resolve_storage_backend",
+        "inhere_box.infra.backend.browse.resolve_storage_backend",
         lambda _row: fake_backend,
     )
 
@@ -229,7 +229,7 @@ async def test_list_storage_backend_tree_uses_als_info(
 
 @pytest.mark.asyncio
 async def test_download_storage_backend_file_reads_bytes(tmp_path: Path) -> None:
-    from octop.infra.backend.browse import (
+    from inhere_box.infra.backend.browse import (
         download_storage_backend_file,
         read_storage_backend_text,
     )
@@ -248,7 +248,7 @@ async def test_download_storage_backend_file_reads_bytes(tmp_path: Path) -> None
 
 @pytest.mark.asyncio
 async def test_read_storage_backend_text_rejects_binary(tmp_path: Path) -> None:
-    from octop.infra.backend.browse import StorageBrowseError, read_storage_backend_text
+    from inhere_box.infra.backend.browse import StorageBrowseError, read_storage_backend_text
 
     root = tmp_path / "data"
     root.mkdir()
@@ -261,7 +261,7 @@ async def test_read_storage_backend_text_rejects_binary(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_download_storage_backend_file_missing(tmp_path: Path) -> None:
-    from octop.infra.backend.browse import download_storage_backend_file
+    from inhere_box.infra.backend.browse import download_storage_backend_file
 
     root = tmp_path / "data"
     root.mkdir()
@@ -272,7 +272,7 @@ async def test_download_storage_backend_file_missing(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_download_storage_backend_rejects_parent_escape() -> None:
-    from octop.infra.backend.browse import download_storage_backend_file
+    from inhere_box.infra.backend.browse import download_storage_backend_file
 
     row = _row(kind="filesystem", config_json='{"root_dir": "/tmp"}')
     with pytest.raises(ValueError, match="invalid path"):
@@ -283,7 +283,7 @@ async def test_download_storage_backend_rejects_parent_escape() -> None:
 async def test_download_storage_backend_reuses_backend_until_release(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from octop.infra.backend.browse import (
+    from inhere_box.infra.backend.browse import (
         download_storage_backend_file,
         release_browse_session,
     )
@@ -294,7 +294,7 @@ async def test_download_storage_backend_reuses_backend_until_release(
         return_value=[MagicMock(error=None, content=b"abc", path="/a.txt")]
     )
     resolve = MagicMock(return_value=fake_backend)
-    monkeypatch.setattr("octop.infra.backend.browse.resolve_storage_backend", resolve)
+    monkeypatch.setattr("inhere_box.infra.backend.browse.resolve_storage_backend", resolve)
     row = _row(kind="s3", bucket="b")
     assert await download_storage_backend_file(row, "/a.txt") == b"abc"
     assert await download_storage_backend_file(row, "/a.txt") == b"abc"
@@ -306,7 +306,7 @@ async def test_download_storage_backend_reuses_backend_until_release(
 
 @pytest.mark.asyncio
 async def test_download_preview_rejects_oversize(monkeypatch: pytest.MonkeyPatch) -> None:
-    from octop.infra.backend.browse import (
+    from inhere_box.infra.backend.browse import (
         PREVIEW_BYTE_LIMIT,
         StorageBrowseError,
         download_storage_backend_file,
@@ -320,7 +320,7 @@ async def test_download_preview_rejects_oversize(monkeypatch: pytest.MonkeyPatch
         ]
     )
     monkeypatch.setattr(
-        "octop.infra.backend.browse.resolve_storage_backend",
+        "inhere_box.infra.backend.browse.resolve_storage_backend",
         lambda _row: fake_backend,
     )
     with pytest.raises(StorageBrowseError) as excinfo:
@@ -331,7 +331,7 @@ async def test_download_preview_rejects_oversize(monkeypatch: pytest.MonkeyPatch
 def test_resolve_storage_backend_removes_temp_dir_on_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from octop.infra.backend.browse import resolve_storage_backend
+    from inhere_box.infra.backend.browse import resolve_storage_backend
 
     created: list[str] = []
     real_mkdtemp = tempfile.mkdtemp
@@ -341,9 +341,9 @@ def test_resolve_storage_backend_removes_temp_dir_on_failure(
         created.append(path)
         return path
 
-    monkeypatch.setattr("octop.infra.backend.browse.tempfile.mkdtemp", fake_mkdtemp)
+    monkeypatch.setattr("inhere_box.infra.backend.browse.tempfile.mkdtemp", fake_mkdtemp)
     monkeypatch.setattr(
-        "octop.infra.backend.browse.resolve_backend",
+        "inhere_box.infra.backend.browse.resolve_backend",
         lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("boom")),
     )
     with pytest.raises(ValueError, match="boom"):

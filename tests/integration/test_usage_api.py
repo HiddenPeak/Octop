@@ -479,7 +479,7 @@ async def test_window_presets_today_yesterday_rolling(env: Any) -> None:
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
-    from octop.infra.db.repos.usage import resolve_usage_window
+    from inhere_box.infra.db.repos.usage import resolve_usage_window
 
     c, srv, admin_auth, _alice_auth, ctx = env
     repo = srv.services.usage_repo
@@ -539,7 +539,9 @@ async def test_window_presets_today_yesterday_rolling(env: Any) -> None:
 
 
 def test_extract_usage_from_chunk_direct() -> None:
-    from octop.api.routers.chat.turn import extract_usage_from_chunk as _extract_usage_from_chunk
+    from inhere_box.api.routers.chat.turn import (
+        extract_usage_from_chunk as _extract_usage_from_chunk,
+    )
 
     chunk = {"usage": {"input_tokens": 7, "output_tokens": 3}}
     usage = _extract_usage_from_chunk(chunk)
@@ -551,7 +553,9 @@ def test_extract_usage_from_chunk_direct() -> None:
 
 
 def test_extract_usage_from_state_snapshot_dict_message() -> None:
-    from octop.api.routers.chat.turn import extract_usage_from_chunk as _extract_usage_from_chunk
+    from inhere_box.api.routers.chat.turn import (
+        extract_usage_from_chunk as _extract_usage_from_chunk,
+    )
 
     chunk = {
         "type": "state_snapshot",
@@ -583,7 +587,7 @@ def test_extract_usage_from_state_snapshot_dict_message() -> None:
 
 
 def test_usage_tracker_accumulates_calls_and_replaces_duplicate_call() -> None:
-    from octop.infra.gateway.process.usage_record import UsageTracker
+    from inhere_box.infra.gateway.process.usage_record import UsageTracker
 
     tracker = UsageTracker()
     tracker.observe(
@@ -641,7 +645,7 @@ def test_usage_tracker_accumulates_calls_and_replaces_duplicate_call() -> None:
 
 
 def test_usage_tracker_explicit_events_supersede_legacy_snapshots() -> None:
-    from octop.infra.gateway.process.usage_record import UsageTracker
+    from inhere_box.infra.gateway.process.usage_record import UsageTracker
 
     tracker = UsageTracker()
     snapshot = {
@@ -672,7 +676,9 @@ def test_usage_tracker_explicit_events_supersede_legacy_snapshots() -> None:
 
 
 def test_extract_usage_from_state_snapshot_sums_turn_calls() -> None:
-    from octop.api.routers.chat.turn import extract_usage_from_chunk as _extract_usage_from_chunk
+    from inhere_box.api.routers.chat.turn import (
+        extract_usage_from_chunk as _extract_usage_from_chunk,
+    )
 
     chunk = {
         "type": "state_snapshot",
@@ -699,7 +705,9 @@ def test_extract_usage_from_state_snapshot_sums_turn_calls() -> None:
 
 
 def test_extract_usage_returns_none_when_absent() -> None:
-    from octop.api.routers.chat.turn import extract_usage_from_chunk as _extract_usage_from_chunk
+    from inhere_box.api.routers.chat.turn import (
+        extract_usage_from_chunk as _extract_usage_from_chunk,
+    )
 
     assert _extract_usage_from_chunk({"type": "token", "content": "hi"}) is None
     assert _extract_usage_from_chunk({"type": "state_snapshot", "data": {}}) is None
@@ -1062,7 +1070,7 @@ async def test_usage_day_buckets_preserve_day_across_dst_change(env: Any) -> Non
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
-    from octop.infra.db.repos.usage import resolve_usage_window
+    from inhere_box.infra.db.repos.usage import resolve_usage_window
 
     _c, srv, _admin_auth, _alice_auth, ctx = env
     owner = ctx["alice_id"]
@@ -1295,7 +1303,7 @@ async def test_summary_marks_unknown_breakdowns_per_scope_and_bucket(env: Any) -
     }
 
     # The response model must preserve metadata and describe it in generated docs.
-    openapi = c._octop_app.openapi()
+    openapi = c._inhere_box_app.openapi()
     definitions = openapi["components"]["schemas"]
     for path in ("/api/usage/summary", "/api/admin/usage/summary"):
         operation = openapi["paths"][path]["get"]

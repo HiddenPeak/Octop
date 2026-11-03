@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from octop.api.routers.skills import (
+import yaml
+
+from inhere_box.api.routers.skills import (
     _summary_dict,
     _valid_skillhub_icon_url,
 )
-from octop.infra.skills.install import with_skillhub_presentation_metadata
+from inhere_box.infra.skills.install import with_skillhub_presentation_metadata
 
 
-def test_summary_prefers_octop_display_metadata_and_supports_openclaw_emoji() -> None:
+def test_summary_prefers_inhere_box_display_metadata_and_supports_openclaw_emoji() -> None:
     summary = _summary_dict(
         "stable-slug",
         {
@@ -69,3 +71,25 @@ def test_skillhub_icon_url_allows_only_http_urls() -> None:
     assert _valid_skillhub_icon_url("http://cdn.example.com/icon.png")
     assert not _valid_skillhub_icon_url("javascript:alert(1)")
     assert not _valid_skillhub_icon_url("/relative/icon.png")
+
+
+def test_install_merges_legacy_metadata_and_writes_only_the_new_namespace() -> None:
+    original = """---
+name: existing-skill
+metadata:
+  octop:
+    extra: preserve
+    emoji: old
+  inhere_box:
+    emoji: current
+---
+Original body
+"""
+    rendered = with_skillhub_presentation_metadata(
+        original, display_name="Current name", icon_url=""
+    )
+    metadata = yaml.safe_load(rendered.split("---")[1])["metadata"]
+    assert "octop" not in metadata
+    assert metadata["inhere_box"]["extra"] == "preserve"
+    assert metadata["inhere_box"]["emoji"] == "current"
+    assert rendered.endswith("Original body\n")

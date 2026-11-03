@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib.util
 from typing import Any
 
-from octop.infra.agents.plugins.bundled import default_bundled_plugins_root
+from inhere_box.infra.agents.plugins.bundled import default_bundled_plugins_root
 
 
 def _load_hot_topics():

@@ -11,15 +11,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.cron.delivery import CronDeliveryService
-from octop.infra.cron.manager import CronManager
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.gateway.threads import ThreadRegistry
-from octop.infra.utils.paths import PathLayout
-from octop.infra.utils.ulid import new_ulid
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.cron.delivery import CronDeliveryService
+from inhere_box.infra.cron.manager import CronManager
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.gateway.threads import ThreadRegistry
+from inhere_box.infra.utils.paths import PathLayout
+from inhere_box.infra.utils.ulid import new_ulid
 
 
 def _cron_session_key(agent_id: str, cron_id: str) -> str:
@@ -37,9 +37,9 @@ def _cron_session_key(agent_id: str, cron_id: str) -> str:
 
 
 def _make_services(tmp_path: Path):
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
-    return build_shared_services(db=db, paths=PathLayout(tmp_path), config=OctopConfig())
+    return build_shared_services(db=db, paths=PathLayout(tmp_path), config=InhereBoxConfig())
 
 
 def _make_agent(
@@ -212,7 +212,7 @@ async def test_reload_from_db_clears_user_jobs_then_reschedules(tmp_path: Path) 
     stale = MagicMock()
     stale.id = "stale-cron"
     system = MagicMock()
-    system.id = "octop_tls_auto_renew"
+    system.id = "inhere_box_tls_auto_renew"
     mgr._system_job_ids.add(system.id)
     mgr._scheduler.get_jobs = MagicMock(return_value=[stale, system])
 
@@ -355,14 +355,14 @@ async def test_create_writes_audit_entry(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_create_rejects_invalid_trigger(tmp_path: Path) -> None:
-    """create() raises OctopError for a malformed trigger spec."""
-    from octop.infra.errors import OctopError  # noqa: PLC0415
+    """create() raises InhereBoxError for a malformed trigger spec."""
+    from inhere_box.infra.errors import InhereBoxError  # noqa: PLC0415
 
     services = _make_services(tmp_path)
     mgr = _make_manager(services)
     _aid, uid = _make_agent(services)
 
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await mgr.create(
             cron_id=_cron_id(),
             agent_id="whatever",
@@ -659,18 +659,18 @@ def test_mail_watch_counts_as_attached_schedule(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_update_raises_for_unknown_id(tmp_path: Path) -> None:
-    from octop.infra.errors import OctopError  # noqa: PLC0415
+    from inhere_box.infra.errors import InhereBoxError  # noqa: PLC0415
 
     services = _make_services(tmp_path)
     mgr = _make_manager(services)
 
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await mgr.update("no-such-id", prompt="x")
 
 
 @pytest.mark.asyncio
 async def test_update_rejects_invalid_trigger(tmp_path: Path) -> None:
-    from octop.infra.errors import OctopError  # noqa: PLC0415
+    from inhere_box.infra.errors import InhereBoxError  # noqa: PLC0415
 
     services = _make_services(tmp_path)
     aid, uid = _make_agent(services)
@@ -678,7 +678,7 @@ async def test_update_rejects_invalid_trigger(tmp_path: Path) -> None:
     cid = _cron_id()
     await mgr.create(cron_id=cid, agent_id=aid, user_id=uid, trigger="interval:10", prompt="p")
 
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await mgr.update(cid, trigger="bad::spec")
 
 
@@ -737,12 +737,12 @@ async def test_delete_writes_audit_entry(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_run_now_raises_for_unknown(tmp_path: Path) -> None:
-    from octop.infra.errors import OctopError  # noqa: PLC0415
+    from inhere_box.infra.errors import InhereBoxError  # noqa: PLC0415
 
     services = _make_services(tmp_path)
     mgr = _make_manager(services)
 
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await mgr.run_now("no-such-id")
 
 
@@ -762,7 +762,7 @@ async def test_run_now_fires_job(tmp_path: Path) -> None:
         prompt="run",
     )
 
-    with patch("octop.infra.cron.manager.asyncio.ensure_future") as mock_ef:
+    with patch("inhere_box.infra.cron.manager.asyncio.ensure_future") as mock_ef:
         await mgr.run_now(cid)
         mock_ef.assert_called_once()
         coro = mock_ef.call_args[0][0]
@@ -825,10 +825,10 @@ async def test_schedule_replaces_existing_job(tmp_path: Path) -> None:
 async def test_mail_trigger_validates_owner_delivers_context_and_can_be_disabled(
     tmp_path, monkeypatch
 ):
-    from octop.infra.connectors.crypto import encrypt_credentials
-    from octop.infra.cron import manager as cron_manager
-    from octop.infra.cron.trigger import AgentlyMailTrigger, build_trigger
-    from octop.infra.errors import OctopError
+    from inhere_box.infra.connectors.crypto import encrypt_credentials
+    from inhere_box.infra.cron import manager as cron_manager
+    from inhere_box.infra.cron.trigger import AgentlyMailTrigger, build_trigger
+    from inhere_box.infra.errors import InhereBoxError
 
     monkeypatch.setattr(
         cron_manager,
@@ -859,7 +859,7 @@ async def test_mail_trigger_validates_owner_delivers_context_and_can_be_disabled
     cid = _cron_id()
     trigger = f"agently:{source_id}"
     assert isinstance(build_trigger(trigger), AgentlyMailTrigger)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await mgr.create(
             cron_id=cid, agent_id=aid, user_id=stranger, trigger=trigger, prompt="Read new mail"
         )
@@ -891,9 +891,9 @@ async def test_mail_trigger_validates_owner_delivers_context_and_can_be_disabled
 
 @pytest.mark.asyncio
 async def test_mail_trigger_rejects_unauthorized_mailbox(tmp_path, monkeypatch):
-    from octop.infra.connectors.crypto import encrypt_credentials
-    from octop.infra.cron import manager as cron_manager
-    from octop.infra.errors import ErrorCode, OctopError
+    from inhere_box.infra.connectors.crypto import encrypt_credentials
+    from inhere_box.infra.cron import manager as cron_manager
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
     monkeypatch.setattr(
         cron_manager,
@@ -915,7 +915,7 @@ async def test_mail_trigger_rejects_unauthorized_mailbox(tmp_path, monkeypatch):
         blob=encrypt_credentials(services.secret_repo, {"cli_config_key": "mail"}),
     )
     mgr = _make_manager(services)
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         await mgr.create(
             cron_id=_cron_id(),
             agent_id=aid,
@@ -929,8 +929,8 @@ async def test_mail_trigger_rejects_unauthorized_mailbox(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_sync_mail_watch_does_not_restart_other_mailboxes(tmp_path, monkeypatch):
-    from octop.infra.connectors.crypto import encrypt_credentials
-    from octop.infra.cron import manager as cron_manager
+    from inhere_box.infra.connectors.crypto import encrypt_credentials
+    from inhere_box.infra.cron import manager as cron_manager
 
     monkeypatch.setattr(
         cron_manager,
@@ -985,9 +985,9 @@ async def test_sync_mail_watch_does_not_restart_other_mailboxes(tmp_path, monkey
 
 
 def test_system_job_rejects_agently_trigger(tmp_path):
-    from octop.infra.errors import ErrorCode, OctopError
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
     mgr = _make_manager(_make_services(tmp_path))
-    with pytest.raises(OctopError) as exc:
+    with pytest.raises(InhereBoxError) as exc:
         mgr.schedule_system_job("sys", trigger="agently:mailbox", func=lambda: None)
     assert exc.value.code == ErrorCode.CRON_TRIGGER_INVALID

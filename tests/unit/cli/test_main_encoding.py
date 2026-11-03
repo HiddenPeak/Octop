@@ -1,6 +1,6 @@
 """CLI stdio encoding guard — emoji output must not crash on legacy code pages.
 
-Reported on Chinese Windows (GBK / cp936): ``octop init`` bootstraps the
+Reported on Chinese Windows (GBK / cp936): ``inhere-box init`` bootstraps the
 database and then raises ``UnicodeEncodeError`` while printing its ``✅``
 success message, because piped/redirected stdout is encoded with the ANSI
 code page. The CLI entry point now re-encodes stdout/stderr to UTF-8.
@@ -14,7 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from octop.cli.main import _ensure_utf8_stdio
+from inhere_box.cli.main import _ensure_utf8_stdio
 
 
 def test_ensure_utf8_stdio_reconfigures_gbk_streams() -> None:
@@ -24,7 +24,7 @@ def test_ensure_utf8_stdio_reconfigures_gbk_streams() -> None:
     assert out.encoding.lower() == "utf-8"
     assert err.encoding.lower() == "utf-8"
     # U+2705 (✅) is not representable in GBK; must encode without raising.
-    out.write("\u2705 Octop bootstrapped")
+    out.write("\u2705 inhere-box bootstrapped")
     out.flush()
 
 
@@ -35,19 +35,19 @@ def test_ensure_utf8_stdio_leaves_utf8_streams_alone() -> None:
 
 
 def test_init_completes_with_gbk_stdout(tmp_path: Path) -> None:
-    """``octop init`` still bootstraps when stdout is forced to GBK. The crash
+    """``inhere-box init`` still bootstraps when stdout is forced to GBK. The crash
     previously happened at the final success message, after the DB and admin
     user were already created."""
-    home = tmp_path / "octop-home"
+    home = tmp_path / "inhere-box-home"
     env = dict(os.environ)
-    env["OCTOP_HOME"] = str(home)
+    env["INHERE_BOX_HOME"] = str(home)
     env["PYTHONIOENCODING"] = "gbk"
     env.pop("PYTHONUTF8", None)
     proc = subprocess.run(
         [
             sys.executable,
             "-m",
-            "octop.cli.main",
+            "inhere_box.cli.main",
             "init",
             "--yes",
             "--admin-username",
@@ -63,4 +63,4 @@ def test_init_completes_with_gbk_stdout(tmp_path: Path) -> None:
     assert proc.returncode == 0, proc.stdout.decode("utf-8", "replace") + proc.stderr.decode(
         "utf-8", "replace"
     )
-    assert (home / "octop.db").is_file()
+    assert (home / "inhere-box.db").is_file()

@@ -9,8 +9,8 @@ from uuid import uuid4
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from octop.infra.projects import runtime
-from octop.infra.projects.expert_profiles import _workspace
+from inhere_box.infra.projects import runtime
+from inhere_box.infra.projects.expert_profiles import _workspace
 from tests.support.auth import resolve_user_id
 from tests.support.fakes import FakeHarnessAgent
 
@@ -432,8 +432,8 @@ async def test_expert_auto_model_inherits_available_default(unified_env):
 
 
 async def test_branch_does_not_admit_work_when_worker_is_unavailable(unified_env, monkeypatch):
-    from octop.api.routers import projects
-    from octop.infra.errors import ErrorCode, OctopError
+    from inhere_box.api.routers import projects
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
     client, server, auth, owner, calls = unified_env
     response = await client.post(
@@ -445,7 +445,7 @@ async def test_branch_does_not_admit_work_when_worker_is_unavailable(unified_env
     before = (await client.get("/api/project-tasks?scope=all", headers=auth)).json()["items"]
 
     def unavailable(server):
-        raise OctopError.localized(ErrorCode.CONTROL_PLANE_BUSY)
+        raise InhereBoxError.localized(ErrorCode.CONTROL_PLANE_BUSY)
 
     monkeypatch.setattr(projects, "_task_worker", unavailable)
     forked = await client.post(

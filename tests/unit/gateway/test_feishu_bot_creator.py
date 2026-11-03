@@ -8,8 +8,8 @@ from typing import Any
 import pytest
 from lark_oapi.scene.registration.errors import AppAccessDeniedError, RegisterAppError
 
-from octop.infra.gateway.bot_creators import feishu_bot_creator as creator
-from octop.infra.gateway.bot_creators.feishu_runner import extract_feishu_credentials
+from inhere_box.infra.gateway.bot_creators import feishu_bot_creator as creator
+from inhere_box.infra.gateway.bot_creators.feishu_runner import extract_feishu_credentials
 
 
 def test_extract_feishu_credentials_from_url_payload() -> None:

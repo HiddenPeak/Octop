@@ -16,8 +16,8 @@ import pytest
 from httpcore._backends.auto import AutoBackend
 from httpcore._backends.base import AsyncNetworkStream
 
-from octop.infra.utils import ssrf_guard
-from octop.infra.utils.ssrf_guard import (
+from inhere_box.infra.utils import ssrf_guard
+from inhere_box.infra.utils.ssrf_guard import (
     UnsafeOutboundUrl,
     host_allowed_for_issuer,
     is_private_or_local_host,

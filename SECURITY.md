@@ -18,11 +18,11 @@ We aim to acknowledge reports within **3 business days** and provide a fix timel
 
 ## Scope
 
-Octop is a self-hosted control plane. Operators are responsible for:
+inhere-box is a self-hosted control plane. Operators are responsible for:
 
-- Securing the host and network exposure of `octop run`
+- Securing the host and network exposure of `inhere-box run`
 - Rotating JWT secrets and admin credentials
-- Reviewing tool guard rules under `~/.octop/security/tool_guard/`
+- Reviewing tool guard rules under `~/.inhere-box/security/tool_guard/`
 - Protecting LLM API keys and IM channel credentials
 
 See [docs/configuration.md](docs/configuration.md) for deployment hardening guidance.

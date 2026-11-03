@@ -11,13 +11,13 @@ import httpx
 import pytest
 from fastapi import Depends, FastAPI
 
-from octop.api.deps import ACCESS_TOKEN_RESPONSE_HEADER, current_user, sign_token
-from octop.api.middleware.jwt_auth import install
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.secrets import SecretRepo
-from octop.infra.server import OctopServer
-from octop.infra.users.identity import User
+from inhere_box.api.deps import ACCESS_TOKEN_RESPONSE_HEADER, current_user, sign_token
+from inhere_box.api.middleware.jwt_auth import install
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.secrets import SecretRepo
+from inhere_box.infra.server import InhereBoxServer
+from inhere_box.infra.users.identity import User
 
 
 @pytest.mark.asyncio
@@ -30,7 +30,7 @@ async def test_jwt_database_contention_allows_event_loop_progress(
     secrets = SecretRepo(pool)
     secret = secrets.get_or_create("jwt", lambda: b"jwt-contention-test-secret" * 2)
     user = User(id=7, username="owner", role="user", display_name=None)
-    server = OctopServer(home=tmp_path)
+    server = InhereBoxServer(home=tmp_path)
     server.services = SimpleNamespace(
         secret_repo=secrets,
         config=SimpleNamespace(access_token_ttl_seconds=3600),
@@ -72,7 +72,7 @@ async def test_jwt_database_contention_allows_event_loop_progress(
         await asyncio.wait_for(locked.wait(), timeout=10)
 
     app = FastAPI()
-    app.state.octop_server = server
+    app.state.inhere_box_server = server
     if phase != "dependency":
         install(app, server)
 

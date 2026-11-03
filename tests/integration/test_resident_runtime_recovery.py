@@ -8,13 +8,13 @@ from dataclasses import replace
 
 import pytest
 
-from octop.infra.agents.resident_conversation import (
+from inhere_box.infra.agents.resident_conversation import (
     ResidentConversationRuntime,
     now_ms,
     turn_view,
 )
-from octop.infra.agents.resident_worker_lock import ResidentWorkerLock
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.infra.agents.resident_worker_lock import ResidentWorkerLock
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 from tests.support.harness import patch_resident_stream
 
 
@@ -40,7 +40,7 @@ async def _wait_status(client, auth, base, request_id, expected):
 async def test_shutdown_holds_process_ownership_until_followup_admission_settles(
     env_with_provider, monkeypatch
 ):
-    from octop.infra.agents import resident_followups
+    from inhere_box.infra.agents import resident_followups
 
     _, server, _, _, _ = await _setup(env_with_provider)
     runtime = server.app_runtime.resident_conversations
@@ -288,7 +288,7 @@ async def test_runtime_rejects_a_second_writer_until_the_owner_has_stopped(env_w
     runtime = server.app_runtime.resident_conversations
     contender = ResidentConversationRuntime(server.services, runtime.registry, runtime.gateway)
     try:
-        with pytest.raises(OctopError) as error:
+        with pytest.raises(InhereBoxError) as error:
             await contender.start()
         assert error.value.code == ErrorCode.RESIDENT_WORKER_CONFLICT
         assert contender._loop_task is None

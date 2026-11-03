@@ -65,7 +65,7 @@ function ActivityScope({
     () => ({ agent_id: inputScope.agent_id, thread_id: inputScope.thread_id }),
     [inputScope.agent_id, inputScope.thread_id],
   );
-  const key = `octop:resident-followup:v1:${user?.id}:${scope.agent_id}:${scope.thread_id}`;
+  const key = `inhere-box:resident-followup:v1:${user?.id}:${scope.agent_id}:${scope.thread_id}`;
   const [tab, setTab] = useState<Tab>("delegations");
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);

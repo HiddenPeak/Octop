@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.skill_packages import SkillPackageRepo
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.skill_packages import SkillPackageRepo
 
-_MIGRATIONS = Path(__file__).resolve().parents[3] / "src/octop/infra/db/migrations"
+_MIGRATIONS = Path(__file__).resolve().parents[3] / "src/inhere_box/infra/db/migrations"
 
 _LEGACY_SKILL_PACKAGES_WITHOUT_ICONS = """
 CREATE TABLE skill_packages (
@@ -27,7 +27,7 @@ CREATE TABLE skill_packages (
 
 
 def test_skill_package_icons_and_get_by_name(tmp_path: Path) -> None:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     repo = SkillPackageRepo(pool)
     row = repo.create(
@@ -45,7 +45,7 @@ def test_skill_package_icons_and_get_by_name(tmp_path: Path) -> None:
 
 
 def test_skill_package_duplicate_name_raises_integrity_error(tmp_path: Path) -> None:
-    pool = SqlitePool(tmp_path / "octop.db")
+    pool = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(pool)
     repo = SkillPackageRepo(pool)
     repo.create(id="pkg1", name="Alpha", description="d", created_by="1")
@@ -55,7 +55,7 @@ def test_skill_package_duplicate_name_raises_integrity_error(tmp_path: Path) -> 
 
 def test_repair_legacy_schema_ensures_name_unique_index(tmp_path: Path) -> None:
     """Repair path must backfill the name unique index when table exists at version 2."""
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     with pool.connect() as conn:
         conn.executescript((_MIGRATIONS / "001_initial.sql").read_text())
@@ -74,7 +74,7 @@ def test_repair_legacy_schema_ensures_name_unique_index(tmp_path: Path) -> None:
 
 def test_migration_002_idempotent_when_icon_columns_already_present(tmp_path: Path) -> None:
     """Partial upgrade: icon columns exist but version still 1 must not fail."""
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     with pool.connect() as conn:
         conn.executescript((_MIGRATIONS / "001_initial.sql").read_text())
@@ -100,7 +100,7 @@ def test_migration_002_idempotent_when_icon_columns_already_present(tmp_path: Pa
 
 def test_repair_legacy_schema_adds_icon_columns_at_version_2(tmp_path: Path) -> None:
     """Repair path must backfill icon columns when table exists without them."""
-    db_path = tmp_path / "octop.db"
+    db_path = tmp_path / "inhere-box.db"
     pool = SqlitePool(db_path)
     with pool.connect() as conn:
         conn.executescript((_MIGRATIONS / "001_initial.sql").read_text())

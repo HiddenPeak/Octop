@@ -85,7 +85,7 @@ jobs:
             git diff --name-only origin/main "${saved_develop}" > /tmp/diff_files.txt || true
             git checkout -B "${sync_branch}" origin/main
 
-            grep -v -E '^(pyproject\.toml|src/octop/__init__.py|CHANGELOG\.md|uv\.lock)$' \
+            grep -v -E '^(pyproject\.toml|src/inhere_box/__init__.py|CHANGELOG\.md|uv\.lock)$' \
               /tmp/diff_files.txt > /tmp/feature_files.txt || true
 
             if [ -s /tmp/feature_files.txt ]; then

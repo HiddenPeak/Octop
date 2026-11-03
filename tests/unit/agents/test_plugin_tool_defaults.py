@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from octop.infra.agents.plugins.plugin_tool_defaults import (
+from inhere_box.infra.agents.plugins.plugin_tool_defaults import (
     agent_plugin_enabled,
     expand_plugin_tools_default_on,
     merge_plugins_enabled_settings,

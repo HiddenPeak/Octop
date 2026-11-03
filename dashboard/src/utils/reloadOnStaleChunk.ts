@@ -3,7 +3,7 @@
  * sessionStorage guards against infinite reload loops.
  */
 
-const RELOAD_FLAG_KEY = "octop:chunk-reload";
+const RELOAD_FLAG_KEY = "inhere-box:chunk-reload";
 
 // A stale hashed chunk can also surface as a MIME rejection: the SPA fallback
 // answers the deleted `/assets/*.js` with `index.html`, and the browser refuses
@@ -81,7 +81,7 @@ export function tryReloadOnStaleChunk(error: unknown): boolean {
   }
 
   reloadScheduled = true;
-  console.warn("[Octop] Stale chunk detected; reloading once.", error);
+  console.warn("[inhere-box] Stale chunk detected; reloading once.", error);
   void bustServiceWorkerAndReload();
   return true;
 }

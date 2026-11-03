@@ -9,23 +9,23 @@ from urllib.parse import parse_qs, urlencode
 import httpx
 import pytest
 
-from octop.infra.bridge.task_streams import TaskStreamRelay
-from octop.infra.bridge.tasks import RemoteTasks
-from octop.infra.bridge.transport import BridgeSession
-from octop.infra.errors import ErrorCode, OctopError
-from tests.support.app import octop_client
+from inhere_box.infra.bridge.task_streams import TaskStreamRelay
+from inhere_box.infra.bridge.tasks import RemoteTasks
+from inhere_box.infra.bridge.transport import BridgeSession
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from tests.support.app import inhere_box_client
 from tests.support.auth import auth_header, bootstrap_admin, resolve_user_id
 from tests.support.http import ws_connect, ws_token
 
 
 async def test_remote_approval_policy_http_updates_only_peer_and_preserves_retries(env, tmp_path):
-    from octop.infra.db.repos.project_tasks import ProjectTaskRow
-    from octop.infra.projects.tasks import now_ms
+    from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
+    from inhere_box.infra.projects.tasks import now_ms
 
     client, server, auth = env
     owner = await resolve_user_id(client, auth, "admin")
     peer_home = tmp_path / "peer"
-    async with octop_client(peer_home) as (peer_client, peer_server):
+    async with inhere_box_client(peer_home) as (peer_client, peer_server):
         await bootstrap_admin(peer_client, peer_home, username="peer-owner")
         peer_auth = await auth_header(peer_client, username="peer-owner")
         peer_owner = await resolve_user_id(peer_client, peer_auth, "peer-owner")
@@ -174,7 +174,7 @@ async def test_remote_proxy_pins_peer_identity_caches_only_headers_and_scrubs_au
             return httpx.Response(
                 self.product_status,
                 headers={
-                    "x-octop-access-token": "peer-credential",
+                    "x-inhere-box-access-token": "peer-credential",
                     "set-cookie": "peer-cookie",
                     "content-security-policy": "default-src 'none'; sandbox",
                     "x-content-type-options": "nosniff",
@@ -203,7 +203,9 @@ async def test_remote_proxy_pins_peer_identity_caches_only_headers_and_scrubs_au
         b"",
     )
     assert response.status_code == 200
-    assert "x-octop-access-token" not in response.headers and "set-cookie" not in response.headers
+    assert (
+        "x-inhere-box-access-token" not in response.headers and "set-cookie" not in response.headers
+    )
     assert response.headers["content-security-policy"] == "default-src 'none'; sandbox"
     assert response.headers["x-content-type-options"] == "nosniff"
     assert "peer-secret" not in response.text
@@ -223,20 +225,20 @@ async def test_remote_proxy_pins_peer_identity_caches_only_headers_and_scrubs_au
     )
     assert file.content == b'{\n "url":"/api/unchanged"\n}\n'
     manager.product_status = 401
-    with pytest.raises(OctopError) as peer_auth:
+    with pytest.raises(InhereBoxError) as peer_auth:
         await remote.proxy(
             owner, row.connection_id, "GET", "/api/project-tasks/task_same", "", {}, b""
         )
     assert peer_auth.value.status == 403
     manager.product_status = 200
     manager.account = "another-account"
-    with pytest.raises(OctopError) as peer_changed:
+    with pytest.raises(InhereBoxError) as peer_changed:
         await remote.proxy(owner, row.connection_id, "POST", "/api/project-tasks", "", {}, b"{}")
     assert peer_changed.value.status == 403
     assert manager.seen[-1]["path"] == "/api/project-tasks/capabilities"
 
 
-async def test_legacy_peer_accepts_default_octop_but_never_executes_new_engine_commands(env):
+async def test_legacy_peer_accepts_default_inhere_box_but_never_executes_new_engine_commands(env):
     client, server, auth = env
     owner = await resolve_user_id(client, auth, "admin")
     row = server.services.bridge_connection_repo.create(
@@ -279,7 +281,7 @@ async def test_legacy_peer_accepts_default_octop_but_never_executes_new_engine_c
             {
                 "request_id": "legacy-create",
                 "prompt": "work",
-                "engine": {"engine_id": "octop", "connection_id": None, "model_id": None},
+                "engine": {"engine_id": "inhere-box", "connection_id": None, "model_id": None},
             },
         ),
         (
@@ -295,7 +297,7 @@ async def test_legacy_peer_accepts_default_octop_but_never_executes_new_engine_c
         (
             "PATCH",
             "/api/project-tasks/task_one",
-            {"expected_revision": 1, "title": "Changed", "engine": {"engine_id": "octop"}},
+            {"expected_revision": 1, "title": "Changed", "engine": {"engine_id": "inhere-box"}},
         ),
     ):
         response = await remote.proxy(
@@ -315,7 +317,7 @@ async def test_legacy_peer_accepts_default_octop_but_never_executes_new_engine_c
             {
                 "expected_revision": 1,
                 "expected_configuration_revision": 1,
-                "engine": {"engine_id": "octop"},
+                "engine": {"engine_id": "inhere-box"},
             },
         ),
         (
@@ -324,7 +326,7 @@ async def test_legacy_peer_accepts_default_octop_but_never_executes_new_engine_c
             {"engine_id": "acp", "connection_id": "codex"},
         ),
     ):
-        with pytest.raises(OctopError) as error:
+        with pytest.raises(InhereBoxError) as error:
             await remote.proxy(
                 owner, row.connection_id, method, path, "", {}, json.dumps(payload).encode()
             )
@@ -333,8 +335,8 @@ async def test_legacy_peer_accepts_default_octop_but_never_executes_new_engine_c
 
 
 async def test_internal_task_is_hidden_from_all_public_task_surfaces(env_with_provider):
-    from octop.infra.db.repos.project_tasks import ProjectTaskRow
-    from octop.infra.projects.tasks import now_ms
+    from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
+    from inhere_box.infra.projects.tasks import now_ms
 
     client, server, auth = env_with_provider
     owner = await resolve_user_id(client, auth, "admin")
@@ -379,7 +381,7 @@ async def test_remote_ws_malformed_authentication_closes_with_policy_code(env, f
 
     client, _server, _auth = env
     async with ws_connect(
-        client._octop_app, "/api/bridge/connections/missing/project-tasks/ws"
+        client._inhere_box_app, "/api/bridge/connections/missing/project-tasks/ws"
     ) as ws:
         await ws.send_json(frame)
         with pytest.raises(WebSocketDisconnect) as closed:
@@ -390,7 +392,7 @@ async def test_remote_ws_malformed_authentication_closes_with_policy_code(env, f
 async def test_remote_proxy_methods_have_distinct_openapi_operations(env, monkeypatch):
     from dataclasses import replace
 
-    from octop.api.app import build_app
+    from inhere_box.api.app import build_app
 
     _original_client, server, auth = env
     monkeypatch.setattr(
@@ -521,7 +523,7 @@ async def test_remote_ws_authenticates_locally_and_filters_before_bridge(
     path = f"/api/bridge/connections/{connection_id}" + peer_path.removeprefix("/api")
     try:
         async with ws_connect(
-            client._octop_app, path + "?" + urlencode(query), headers=headers
+            client._inhere_box_app, path + "?" + urlencode(query), headers=headers
         ) as ws:
             if authentication == "first_frame":
                 await ws.send_json({"type": "authenticate", "token": local_token})

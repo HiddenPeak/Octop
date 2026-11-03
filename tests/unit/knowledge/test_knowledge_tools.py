@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langgraph.config import var_child_runnable_config
 
-from octop.infra.knowledge.tools import build_knowledge_tools
+from inhere_box.infra.knowledge.tools import build_knowledge_tools
 
 
 @contextmanager
@@ -62,7 +62,7 @@ async def test_search_knowledge_returns_retrieved_context() -> None:
             knowledge_base_ids=["kb-1"],
             locale="zh",
         ),
-        patch("octop.infra.knowledge.tools.retrieve_context", retrieved),
+        patch("inhere_box.infra.knowledge.tools.retrieve_context", retrieved),
     ):
         out = await tool.ainvoke({"query": "refund rules", "k": 3})
 
@@ -88,7 +88,7 @@ async def test_search_knowledge_empty_hits_message() -> None:
     with (
         _configurable(user="1", knowledge_base_ids=["kb-1"]),
         patch(
-            "octop.infra.knowledge.tools.retrieve_context",
+            "inhere_box.infra.knowledge.tools.retrieve_context",
             AsyncMock(return_value=""),
         ),
     ):

@@ -1,4 +1,4 @@
-"""Bind address resolution for `octop run`: CLI flag > env > config.json."""
+"""Bind address resolution for `inhere-box run`: CLI flag > env > config.json."""
 
 from __future__ import annotations
 
@@ -9,15 +9,15 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from octop.cli.commands.run import _save_configfile_overrides, resolve_bind, run
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.cli.commands.run import _save_configfile_overrides, resolve_bind, run
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 
 @pytest.fixture
-def octop_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("OCTOP_HOME", str(tmp_path))
-    monkeypatch.delenv("OCTOP_PORT", raising=False)
-    monkeypatch.delenv("OCTOP_BIND_HOST", raising=False)
+def inhere_box_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv("INHERE_BOX_HOME", str(tmp_path))
+    monkeypatch.delenv("INHERE_BOX_PORT", raising=False)
+    monkeypatch.delenv("INHERE_BOX_BIND_HOST", raising=False)
     return tmp_path
 
 
@@ -25,55 +25,57 @@ def _write_config(home: Path, **data: object) -> None:
     (home / "config.json").write_text(json.dumps(data), encoding="utf-8")
 
 
-def test_no_config_no_env(octop_home: Path) -> None:
+def test_no_config_no_env(inhere_box_home: Path) -> None:
     assert resolve_bind(None, None) == (None, None)
 
 
-def test_config_file_values(octop_home: Path) -> None:
-    _write_config(octop_home, bind_host="127.0.0.1", port=8088)
+def test_config_file_values(inhere_box_home: Path) -> None:
+    _write_config(inhere_box_home, bind_host="127.0.0.1", port=8088)
     assert resolve_bind(None, None) == ("127.0.0.1", 8088)
 
 
-def test_env_overrides_config_file(octop_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    _write_config(octop_home, bind_host="127.0.0.1", port=8088)
-    monkeypatch.setenv("OCTOP_PORT", "9001")
-    monkeypatch.setenv("OCTOP_BIND_HOST", "0.0.0.0")
+def test_env_overrides_config_file(inhere_box_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_config(inhere_box_home, bind_host="127.0.0.1", port=8088)
+    monkeypatch.setenv("INHERE_BOX_PORT", "9001")
+    monkeypatch.setenv("INHERE_BOX_BIND_HOST", "0.0.0.0")
     assert resolve_bind(None, None) == ("0.0.0.0", 9001)
 
 
-def test_cli_flags_win_over_env_and_file(octop_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    _write_config(octop_home, bind_host="127.0.0.1", port=8088)
-    monkeypatch.setenv("OCTOP_PORT", "9001")
+def test_cli_flags_win_over_env_and_file(
+    inhere_box_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_config(inhere_box_home, bind_host="127.0.0.1", port=8088)
+    monkeypatch.setenv("INHERE_BOX_PORT", "9001")
     assert resolve_bind("10.0.0.1", 7777) == ("10.0.0.1", 7777)
 
 
 def test_invalid_env_port_falls_back_to_file(
-    octop_home: Path, monkeypatch: pytest.MonkeyPatch
+    inhere_box_home: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _write_config(octop_home, port=8088)
-    monkeypatch.setenv("OCTOP_PORT", "not-a-number")
+    _write_config(inhere_box_home, port=8088)
+    monkeypatch.setenv("INHERE_BOX_PORT", "not-a-number")
     assert resolve_bind(None, None) == (None, 8088)
 
 
 @pytest.mark.parametrize("value", ["70000", "-1"])
 def test_out_of_range_env_port_falls_back_to_file(
-    octop_home: Path, monkeypatch: pytest.MonkeyPatch, value: str
+    inhere_box_home: Path, monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
-    _write_config(octop_home, port=8088)
-    monkeypatch.setenv("OCTOP_PORT", value)
+    _write_config(inhere_box_home, port=8088)
+    monkeypatch.setenv("INHERE_BOX_PORT", value)
     assert resolve_bind(None, None) == (None, 8088)
 
 
 def test_zero_env_port_still_requests_an_os_assigned_port(
-    octop_home: Path, monkeypatch: pytest.MonkeyPatch
+    inhere_box_home: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _write_config(octop_home, port=8088)
-    monkeypatch.setenv("OCTOP_PORT", "0")
+    _write_config(inhere_box_home, port=8088)
+    monkeypatch.setenv("INHERE_BOX_PORT", "0")
     assert resolve_bind(None, None) == (None, 0)
 
 
-def test_legacy_host_key(octop_home: Path) -> None:
-    _write_config(octop_home, host="192.168.1.10", port=1234)
+def test_legacy_host_key(inhere_box_home: Path) -> None:
+    _write_config(inhere_box_home, host="192.168.1.10", port=1234)
     assert resolve_bind(None, None) == ("192.168.1.10", 1234)
 
 
@@ -87,27 +89,27 @@ def _corrupt(text: str) -> str:
     return stripped[:-1].rstrip() + ",}"
 
 
-def test_corrupt_config_raises_instead_of_silently_using_defaults(octop_home: Path) -> None:
-    (octop_home / "config.json").write_text('{"bind_host": "0.0.0.0",}', encoding="utf-8")
-    with pytest.raises(OctopError) as excinfo:
+def test_corrupt_config_raises_instead_of_silently_using_defaults(inhere_box_home: Path) -> None:
+    (inhere_box_home / "config.json").write_text('{"bind_host": "0.0.0.0",}', encoding="utf-8")
+    with pytest.raises(InhereBoxError) as excinfo:
         resolve_bind(None, None)
     assert excinfo.value.code is ErrorCode.CONFIG_FILE_CORRUPT
 
 
-def test_save_overrides_on_corrupt_config_preserves_bytes(octop_home: Path) -> None:
-    cfg = octop_home / "config.json"
+def test_save_overrides_on_corrupt_config_preserves_bytes(inhere_box_home: Path) -> None:
+    cfg = inhere_box_home / "config.json"
     corrupt = _corrupt(
         json.dumps({"bind_host": "0.0.0.0", "database": {"driver": "postgresql"}}, indent=2)
     )
     cfg.write_text(corrupt, encoding="utf-8")
-    with pytest.raises(OctopError) as excinfo:
+    with pytest.raises(InhereBoxError) as excinfo:
         _save_configfile_overrides(None, 8088)
     assert excinfo.value.code is ErrorCode.CONFIG_FILE_CORRUPT
     assert cfg.read_text(encoding="utf-8") == corrupt
 
 
-def test_save_overrides_merges_without_dropping_keys(octop_home: Path) -> None:
-    cfg = octop_home / "config.json"
+def test_save_overrides_merges_without_dropping_keys(inhere_box_home: Path) -> None:
+    cfg = inhere_box_home / "config.json"
     cfg.write_text(
         json.dumps(
             {
@@ -126,9 +128,9 @@ def test_save_overrides_merges_without_dropping_keys(octop_home: Path) -> None:
     assert data["log_level"] == "debug"
 
 
-def test_run_cli_on_corrupt_config_refuses_and_preserves_file(octop_home: Path) -> None:
-    """POC regression: ``octop run --port`` used to wipe config.json to one key."""
-    cfg = octop_home / "config.json"
+def test_run_cli_on_corrupt_config_refuses_and_preserves_file(inhere_box_home: Path) -> None:
+    """POC regression: ``inhere-box run --port`` used to wipe config.json to one key."""
+    cfg = inhere_box_home / "config.json"
     cfg.write_text(
         json.dumps(
             {
@@ -142,7 +144,7 @@ def test_run_cli_on_corrupt_config_refuses_and_preserves_file(octop_home: Path) 
     corrupt = _corrupt(cfg.read_text(encoding="utf-8"))
     cfg.write_text(corrupt, encoding="utf-8")
 
-    with patch("octop.cli.commands.run._run_uvicorn") as mocked:
+    with patch("inhere_box.cli.commands.run._run_uvicorn") as mocked:
         result = CliRunner().invoke(run, ["--port", "8088"])
 
     assert result.exit_code != 0

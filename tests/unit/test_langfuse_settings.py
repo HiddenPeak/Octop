@@ -9,17 +9,20 @@ from unittest import mock
 
 import pytest
 
-from octop.infra.agents.settings.langfuse import LangfuseSettingsStore, verify_langfuse_credentials
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.secrets import SecretRepo
-from octop.infra.db.repos.settings import SettingsRepo
-from octop.infra.errors import OctopError
+from inhere_box.infra.agents.settings.langfuse import (
+    LangfuseSettingsStore,
+    verify_langfuse_credentials,
+)
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.secrets import SecretRepo
+from inhere_box.infra.db.repos.settings import SettingsRepo
+from inhere_box.infra.errors import InhereBoxError
 
 
 @pytest.fixture
 def store(tmp_path: Path) -> LangfuseSettingsStore:
-    db = SqlitePool(tmp_path / "octop.db")
+    db = SqlitePool(tmp_path / "inhere-box.db")
     run_migrations(db)
     return LangfuseSettingsStore(settings_repo=SettingsRepo(db), secret_repo=SecretRepo(db))
 
@@ -46,7 +49,7 @@ def test_langfuse_settings_roundtrip(store: LangfuseSettingsStore) -> None:
 
 
 def test_langfuse_requires_secret_when_enabling(store: LangfuseSettingsStore) -> None:
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         store.save(enabled=True, public_key="pk", host="http://x")
 
 

@@ -63,14 +63,14 @@ export type CronJobSpecOutputLegacy = Record<string, unknown>;
 export type CronJobViewLegacy = Record<string, unknown>;
 
 // ---------------------------------------------------------------------------
-// Octop-native flat cron row — returned by /api/cron endpoints
+// inhere-box-native flat cron row — returned by /api/cron endpoints
 // ---------------------------------------------------------------------------
 
 /**
- * Wire-shape returned by octop's owner-scoped cron endpoints.
+ * Wire-shape returned by inhere-box's owner-scoped cron endpoints.
  * Matches the Python ``_row_to_dict`` serializer in ``api/routers/cron.py``.
  */
-export interface OctopCronRow {
+export interface InhereBoxCronRow {
   id: string;
   name: string;
   agent_id: string | null;
@@ -99,7 +99,7 @@ export type CronConversationPolicy =
   | "task";
 
 /** Body sent to POST /api/cron */
-export interface OctopCronCreateBody {
+export interface InhereBoxCronCreateBody {
   name?: string | null;
   trigger: string;
   prompt: string;
@@ -117,7 +117,7 @@ export interface OctopCronCreateBody {
 }
 
 /** Body sent to PATCH /api/cron/:cron_id */
-export interface OctopCronPatchBody {
+export interface InhereBoxCronPatchBody {
   name?: string | null;
   trigger?: string;
   prompt?: string;

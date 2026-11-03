@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from octop.infra.utils.utf8_text import (
+from inhere_box.infra.utils.utf8_text import (
     InvalidSkillManifestEncodingError,
     coerce_utf8_text_bytes,
     looks_like_text_path,

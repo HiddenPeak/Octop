@@ -6,18 +6,18 @@ from pathlib import Path
 
 import httpx
 import pytest
-from tests.support.app import ensure_control_plane_bound, write_octop_config
+from tests.support.app import ensure_control_plane_bound, write_inhere_box_config
 from tests.support.auth import bearer, bootstrap_admin, login
 
-from octop.api.app import build_app
-from octop.api.deps import (
+from inhere_box.api.app import build_app
+from inhere_box.api.deps import (
     ACCESS_TOKEN_RESPONSE_HEADER,
     decode_token,
     is_jwt_exempt_path,
     maybe_sliding_renew_token,
     sign_token,
 )
-from octop.infra.server import OctopServer
+from inhere_box.infra.server import InhereBoxServer
 
 
 def test_exempt_paths() -> None:
@@ -49,7 +49,7 @@ def test_exempt_paths() -> None:
 
 @pytest.fixture
 async def client(tmp_path: Path):
-    srv = OctopServer(home=tmp_path)
+    srv = InhereBoxServer(home=tmp_path)
     await srv.start()
     await ensure_control_plane_bound(srv)
     app = build_app(srv)
@@ -76,8 +76,8 @@ async def test_middleware_allows_login_without_token(client) -> None:
 
 
 async def test_middleware_allows_api_docs_without_token(tmp_path: Path) -> None:
-    write_octop_config(tmp_path, enable_api_docs=True)
-    srv = OctopServer(home=tmp_path)
+    write_inhere_box_config(tmp_path, enable_api_docs=True)
+    srv = InhereBoxServer(home=tmp_path)
     await srv.start()
     await ensure_control_plane_bound(srv)
     app = build_app(srv)

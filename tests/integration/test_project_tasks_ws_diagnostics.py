@@ -11,11 +11,11 @@ from uuid import UUID
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
-from octop.api.routers import project_tasks_ws
-from octop.infra.errors import ErrorCode, OctopError
+from inhere_box.api.routers import project_tasks_ws
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
 from tests.support.http import ws_connect, ws_token
 
-_LOG_NAME = "octop.api.common.task_websocket_logging"
+_LOG_NAME = "inhere_box.api.common.task_websocket_logging"
 _PREFIX = "project_task_ws "
 _CLIENT_ID = "B986F9AD-BBBC-4A7B-BB8D-9AB8F3319A07"
 _SECRET = "private-diagnostic-sentinel"
@@ -88,7 +88,7 @@ async def test_diagnostics_correlate_header_auth_and_peer_disconnect(env, diagno
     client, _, auth = env
     proxy_request_id = "cb165a583db94fe7a8266446ac664303"
     accepted = []
-    app = capture_accept(client._octop_app, accepted)
+    app = capture_accept(client._inhere_box_app, accepted)
     async with ws_connect(
         app,
         "/api/project-tasks/ws?token=query-private-sentinel",
@@ -130,7 +130,7 @@ async def test_diagnostics_correlate_header_auth_and_peer_disconnect(env, diagno
     assert closed["close_code"] == 1000 and closed["close_source"] == "peer"
     assert closed["command_count"] == 1 and closed["subscription_count"] == 0
     headers = dict(accepted[0]["headers"])
-    assert headers[b"x-octop-connection-id"].decode() == server_id
+    assert headers[b"x-inhere-box-connection-id"].decode() == server_id
     assert headers[b"x-agentcomputer-connection-id"].decode() == _CLIENT_ID
     assert_private(caplog, ws_token(auth), "query-private-sentinel", "diagnostic-ping")
 
@@ -147,7 +147,7 @@ async def test_diagnostics_drop_untrusted_connection_and_request_ids(
     if client_id is not None:
         headers["X-AgentComputer-Connection-ID"] = client_id
     async with ws_connect(
-        capture_accept(client._octop_app, accepted), "/api/project-tasks/ws", headers=headers
+        capture_accept(client._inhere_box_app, accepted), "/api/project-tasks/ws", headers=headers
     ) as ws:
         assert (await ws.receive_json())["type"] == "ready"
     records = diagnostics()
@@ -160,7 +160,7 @@ async def test_diagnostics_drop_untrusted_connection_and_request_ids(
     assert {record["request_id"] for record in records} == {None}
     response_headers = dict(accepted[0]["headers"])
     assert b"x-agentcomputer-connection-id" not in response_headers
-    assert response_headers[b"x-octop-connection-id"].decode() == server_id
+    assert response_headers[b"x-inhere-box-connection-id"].decode() == server_id
     assert_private(caplog, _SECRET, ws_token(auth))
 
 
@@ -168,7 +168,7 @@ async def test_reconnect_uses_new_server_id_with_same_client_id(env, diagnostics
     client, _, auth = env
     for _ in range(2):
         async with ws_connect(
-            client._octop_app,
+            client._inhere_box_app,
             "/api/project-tasks/ws",
             headers={**auth, "X-AgentComputer-Connection-ID": _CLIENT_ID},
         ) as ws:
@@ -186,7 +186,7 @@ async def test_reconnect_uses_new_server_id_with_same_client_id(env, diagnostics
 async def test_service_not_ready_records_503_and_1013_after_accept(env, monkeypatch, diagnostics):
     client, server, _ = env
     monkeypatch.setattr(server, "services", None)
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws") as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws") as ws:
         await assert_failure(ws, 503, "SETUP_REQUIRED", 1013)
     records = diagnostics()
     assert event(records, "error")["status"] == 503
@@ -209,10 +209,10 @@ async def test_authentication_failure_classifies_auth_and_service_errors(
     client, _, auth = env
 
     def fail(*_args, **_kwargs):
-        raise OctopError(code, _SECRET, status=status, details={"token": _SECRET})
+        raise InhereBoxError(code, _SECRET, status=status, details={"token": _SECRET})
 
     monkeypatch.setattr(project_tasks_ws, "resolve_user_from_token", fail)
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws", headers=auth) as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws", headers=auth) as ws:
         await assert_failure(ws, status, code.value, close_code)
     records = diagnostics()
     assert event(records, "authentication_failed")["status"] == status
@@ -224,7 +224,7 @@ async def test_authentication_failure_classifies_auth_and_service_errors(
 
 async def test_invalid_authentication_frame_never_logs_token_or_frame(env, diagnostics, caplog):
     client, _, _ = env
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws") as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws") as ws:
         await ws.send_json({"type": "authenticate", "token": _SECRET, "prompt": _SECRET})
         await assert_failure(ws, 401, "AUTH_FAILED", 4401)
     assert event(diagnostics(), "authentication_failed")["error_code"] == "AUTH_FAILED"
@@ -238,10 +238,10 @@ async def test_push_service_failure_records_503_without_claiming_login_expired(
     monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 0.01)
 
     def fail(*_args, **_kwargs):
-        raise OctopError(ErrorCode.CONTROL_PLANE_BUSY, _SECRET, status=503)
+        raise InhereBoxError(ErrorCode.CONTROL_PLANE_BUSY, _SECRET, status=503)
 
     monkeypatch.setattr(project_tasks_ws.approval_policy, "current", fail)
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws", headers=auth) as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws", headers=auth) as ws:
         assert (await ws.receive_json())["type"] == "ready"
         await assert_failure(ws, 503, "CONTROL_PLANE_BUSY", 1013)
     records = diagnostics()
@@ -257,10 +257,10 @@ async def test_command_error_keeps_connection_and_omits_command_content(
     client, _, auth = env_with_provider
 
     def fail(*_args, **_kwargs):
-        raise OctopError(ErrorCode.INTERNAL_ERROR, _SECRET, status=503)
+        raise InhereBoxError(ErrorCode.INTERNAL_ERROR, _SECRET, status=503)
 
     monkeypatch.setattr(project_tasks_ws.tasks, "send", fail)
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws", headers=auth) as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws", headers=auth) as ws:
         assert (await ws.receive_json())["type"] == "ready"
         await ws.send_json(
             {
@@ -290,7 +290,7 @@ async def test_unexpected_failure_records_type_without_exception_text(
         raise RuntimeError(_SECRET)
 
     monkeypatch.setattr(project_tasks_ws.tasks, "send", fail)
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws", headers=auth) as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws", headers=auth) as ws:
         assert (await ws.receive_json())["type"] == "ready"
         await ws.send_json(
             {
@@ -324,10 +324,10 @@ async def test_subscription_error_omits_task_identity_and_keeps_connection(
         calls += 1
         if calls == 1:
             return []
-        raise OctopError(ErrorCode.NOT_FOUND, _SECRET)
+        raise InhereBoxError(ErrorCode.NOT_FOUND, _SECRET)
 
     monkeypatch.setattr(project_tasks_ws.tasks, "updates", updates)
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws", headers=auth) as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws", headers=auth) as ws:
         assert (await ws.receive_json())["type"] == "ready"
         await ws.send_json({"type": "task.subscribe", "id": _SECRET, "task_id": _SECRET})
         assert (await next_frame(ws, "result"))["id"] == _SECRET
@@ -344,7 +344,7 @@ async def test_subscription_error_omits_task_identity_and_keeps_connection(
 
 async def test_invalid_command_type_and_payload_are_not_retained(env, diagnostics, caplog):
     client, _, auth = env
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws", headers=auth) as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws", headers=auth) as ws:
         assert (await ws.receive_json())["type"] == "ready"
         await ws.send_json({"type": _SECRET, "id": _SECRET, "prompt": _SECRET})
         assert (await next_frame(ws, "error"))["error"]["code"] == "TASK_FRAME_INVALID"
@@ -356,7 +356,7 @@ async def test_invalid_command_type_and_payload_are_not_retained(env, diagnostic
 
 
 async def test_session_renewal_is_recorded_without_old_or_new_token(env, diagnostics, caplog):
-    from octop.api.deps import resolve_user_from_token, sign_token
+    from inhere_box.api.deps import resolve_user_from_token, sign_token
 
     client, server, auth = env
     user = resolve_user_from_token(server, ws_token(auth))
@@ -365,7 +365,7 @@ async def test_session_renewal_is_recorded_without_old_or_new_token(env, diagnos
     short_token = sign_token(
         secret, sub=user.id, uname=user.username, role=user.role, ttl_seconds=30
     )
-    async with ws_connect(client._octop_app, "/api/project-tasks/ws") as ws:
+    async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws") as ws:
         await ws.send_json({"type": "authenticate", "token": short_token})
         assert (await ws.receive_json())["type"] == "ready"
         await ws.send_json({"type": "ping", "id": "renew-command"})

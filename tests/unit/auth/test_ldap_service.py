@@ -6,26 +6,26 @@ from pathlib import Path
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.auth.ldap.client import LdapIdentity
-from octop.infra.auth.ldap.service import LdapAuthService
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.services import build_shared_services
-from octop.infra.errors import ErrorCode, OctopError
-from octop.infra.users.identity import User
-from octop.infra.users.manager import UserManager
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.auth.ldap.client import LdapIdentity
+from inhere_box.infra.auth.ldap.service import LdapAuthService
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.services import build_shared_services
+from inhere_box.infra.errors import ErrorCode, InhereBoxError
+from inhere_box.infra.users.identity import User
+from inhere_box.infra.users.manager import UserManager
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
 def service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     paths = PathLayout(tmp_path / ".octop")
-    monkeypatch.setenv("OCTOP_HOME", str(paths.root))
+    monkeypatch.setenv("INHERE_BOX_HOME", str(paths.root))
     paths.ensure_root()
     db = SqlitePool(paths.db)
     run_migrations(db)
-    services = build_shared_services(db=db, paths=paths, config=OctopConfig())
+    services = build_shared_services(db=db, paths=paths, config=InhereBoxConfig())
     service = LdapAuthService(services, UserManager(services))
     service.put_config(
         {
@@ -113,7 +113,7 @@ async def test_ldap_disabled_user_does_not_receive_resident(service: LdapAuthSer
     )
     services.user_repo.set_disabled(user_id, True)
 
-    with pytest.raises(OctopError) as error:
+    with pytest.raises(InhereBoxError) as error:
         await service.resolve_user(_identity())
     assert error.value.code == ErrorCode.USER_DISABLED
     assert services.resident_conversation_repo.get(user_id) is None

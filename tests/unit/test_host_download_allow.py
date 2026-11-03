@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from octop.infra.gateway.media.backend_files import (
+from inhere_box.infra.gateway.media.backend_files import (
     file_url_to_abs_path,
     is_allowed_host_download_abs_path,
     is_host_absolute_path,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from octop.infra.knowledge.default_open import (
+from inhere_box.infra.knowledge.default_open import (
     merge_knowledge_base_ids,
     stamp_turn_knowledge_config,
 )

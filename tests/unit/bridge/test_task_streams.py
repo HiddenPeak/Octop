@@ -9,9 +9,9 @@ from urllib.parse import parse_qs
 
 import pytest
 
-from octop.infra.bridge.task_streams import TaskStreamRelay
-from octop.infra.bridge.transport import BridgeSession
-from octop.infra.bridge.tunnel_policy import is_task_tunnel_path_allowed
+from inhere_box.infra.bridge.task_streams import TaskStreamRelay
+from inhere_box.infra.bridge.transport import BridgeSession
+from inhere_box.infra.bridge.tunnel_policy import is_task_tunnel_path_allowed
 
 
 @pytest.mark.parametrize(
@@ -176,13 +176,13 @@ async def test_task_socket_relay_routes_to_peer_asgi_and_strips_session_token(pa
     ],
 )
 def test_main_stream_excludes_private_resident_and_generic_auth(kind, allowed):
-    from octop.infra.bridge.task_streams import allows_task_stream_frame
+    from inhere_box.infra.bridge.task_streams import allows_task_stream_frame
 
     assert allows_task_stream_frame("/api/project-tasks/ws", {"type": kind}) is allowed
 
 
 async def test_revoked_owner_token_during_open_closes_stream_and_cleans_client():
-    from octop.infra.errors import ErrorCode, OctopError
+    from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
     sent = []
     session = SimpleNamespace(send_json=None)
@@ -193,7 +193,7 @@ async def test_revoked_owner_token_during_open_closes_stream_and_cleans_client()
     session.send_json = send
 
     async def revoked(cid):
-        raise OctopError.localized(ErrorCode.AUTH_FAILED)
+        raise InhereBoxError.localized(ErrorCode.AUTH_FAILED)
 
     manager = SimpleNamespace(require_session=lambda cid: session, _owner_access_token=revoked)
     relay = TaskStreamRelay(manager)
@@ -210,8 +210,8 @@ async def test_revoked_owner_token_during_open_closes_stream_and_cleans_client()
 async def test_large_task_tunnel_response_returns_bounded_error(monkeypatch):
     from fastapi import FastAPI, Response
 
-    from octop.infra.bridge import http_tunnel
-    from octop.infra.bridge.http_tunnel import decode_body_b64, execute_local_http
+    from inhere_box.infra.bridge import http_tunnel
+    from inhere_box.infra.bridge.http_tunnel import decode_body_b64, execute_local_http
 
     app = FastAPI()
 

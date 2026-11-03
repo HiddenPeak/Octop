@@ -5,12 +5,12 @@ from __future__ import annotations
 import pytest
 from tests.support.ldap_fake import FakeLdapDirectory, FakeLdapGroup, fake_user
 
-from octop.infra.auth.ldap.client import (
+from inhere_box.infra.auth.ldap.client import (
     _SEARCH_SIZE_LIMIT,
     LdapClient,
     LdapUnavailable,
 )
-from octop.infra.auth.ldap.config import LdapConfig
+from inhere_box.infra.auth.ldap.config import LdapConfig
 
 BASE_DN = "dc=example,dc=org"
 SERVICE_DN = f"uid=svc-octop,cn=users,{BASE_DN}"

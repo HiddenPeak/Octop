@@ -1,7 +1,7 @@
 services:
-  octop:
-    image: ghcr.io/tencentcloud/octop:1.0.2b5
-    container_name: octop
+  inhere-box:
+    image: ghcr.io/tencentcloud/inhere-box:1.0.2b5
+    container_name: inhere-box
     restart: unless-stopped
     ulimits:
       nofile:
@@ -19,10 +19,10 @@ services:
       - "${TRIM_DATA_SHARE_PATHS}/fnos-admin.env:/data/fnos-admin.env:ro"
     environment:
       - HOME=/data
-      - OCTOP_HOME=/data/.octop
-      - OCTOP_BIND_HOST=0.0.0.0
-      - OCTOP_PORT=${OCTOP_PORT:-8088}
-      - OCTOP_LOG_LEVEL=${OCTOP_LOG_LEVEL:-info}
+      - INHERE_BOX_HOME=/data/.octop
+      - INHERE_BOX_BIND_HOST=0.0.0.0
+      - INHERE_BOX_PORT=${INHERE_BOX_PORT:-8088}
+      - INHERE_BOX_LOG_LEVEL=${INHERE_BOX_LOG_LEVEL:-info}
     healthcheck:
       test:
         [

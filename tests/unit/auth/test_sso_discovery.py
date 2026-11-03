@@ -5,7 +5,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from octop.infra.auth.sso.discovery import DiscoveryCache, fetch_discovery
+from inhere_box.infra.auth.sso.discovery import DiscoveryCache, fetch_discovery
 
 
 def test_fetch_discovery_requests_openid_configuration() -> None:

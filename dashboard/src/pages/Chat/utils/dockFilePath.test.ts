@@ -225,7 +225,7 @@ describe("dockFilePath", () => {
     const tree = buildDockPathTree([
       "dashboard/src/pages/Chat/hooks/useChatDockPanel.ts",
       "dashboard/src/pages/Chat/hooks/chatStore.ts",
-      "src/octop/api.md",
+      "src/inhere_box/api.md",
       "tests/unit/gateway/ws.py",
     ]);
     expect(tree).toEqual([
@@ -249,13 +249,13 @@ describe("dockFilePath", () => {
         ],
       },
       {
-        name: "src / octop",
-        path: "src/octop",
+        name: "src / inhere_box",
+        path: "src/inhere_box",
         isDir: true,
         children: [
           {
             name: "api.md",
-            path: "src/octop/api.md",
+            path: "src/inhere_box/api.md",
             isDir: false,
             children: [],
           },

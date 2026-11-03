@@ -36,7 +36,7 @@ def test_extract_winsize_helper_packs_in_correct_order() -> None:
     """
     import struct
 
-    from octop.api.routers.terminal import _set_winsize  # noqa: F401  (existence)
+    from inhere_box.api.routers.terminal import _set_winsize  # noqa: F401  (existence)
 
     # We can't ioctl on an arbitrary fd, but we can inspect the struct
     # convention the function uses.
@@ -50,7 +50,7 @@ def test_detect_shell_returns_existing_path() -> None:
     """``_detect_shell`` must return a path that exists on the current OS."""
     import os
 
-    from octop.api.routers.terminal import _detect_shell
+    from inhere_box.api.routers.terminal import _detect_shell
 
     shell = _detect_shell()
     if os.name == "nt":
@@ -60,6 +60,6 @@ def test_detect_shell_returns_existing_path() -> None:
 
 
 def test_read_nonblock_returns_empty_for_none_fd() -> None:
-    from octop.api.routers.terminal import _read_nonblock
+    from inhere_box.api.routers.terminal import _read_nonblock
 
     assert _read_nonblock(None) == b""

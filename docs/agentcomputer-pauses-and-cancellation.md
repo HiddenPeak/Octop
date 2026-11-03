@@ -1,6 +1,6 @@
 # AgentComputer 持久暂停与精确 Run 取消（第九轮）
 
-这一轮新增 `025_agentcomputer_pauses.sql` 与对应 PostgreSQL 迁移，保存审批、提问和取消请求。它们是受信内部运行边界；当前安装没有生产 Run 执行入口、Run 专属停止句柄或客户端写入端点。`adapterVersion=0.9.0`、`capabilityRevision=9` 继续如实声明 `approvals`、`questions`、`cancellation` 不可用，`supportedPermissionModes=[]`。现有 Octop 普通聊天与专家入口不由这些记录驱动。
+这一轮新增 `025_agentcomputer_pauses.sql` 与对应 PostgreSQL 迁移，保存审批、提问和取消请求。它们是受信内部运行边界；当前安装没有生产 Run 执行入口、Run 专属停止句柄或客户端写入端点。`adapterVersion=0.9.0`、`capabilityRevision=9` 继续如实声明 `approvals`、`questions`、`cancellation` 不可用，`supportedPermissionModes=[]`。现有 inhere-box 普通聊天与专家入口不由这些记录驱动。
 
 ## 固定暂停事实
 

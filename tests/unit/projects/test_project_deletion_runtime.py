@@ -8,16 +8,16 @@ from threading import Event as ThreadEvent
 
 import pytest
 
-from octop.config import OctopConfig
-from octop.infra.db.migrate import run_migrations
-from octop.infra.db.pool import SqlitePool
-from octop.infra.db.repos.project_task_tool_calls import ProjectTaskToolCallRow
-from octop.infra.db.repos.project_task_turns import ProjectTaskTurnRow
-from octop.infra.db.repos.project_tasks import ProjectTaskRow
-from octop.infra.db.services import RepoBundle, SharedServices
-from octop.infra.errors import OctopError
-from octop.infra.projects import runtime, tasks
-from octop.infra.utils.paths import PathLayout
+from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.db.migrate import run_migrations
+from inhere_box.infra.db.pool import SqlitePool
+from inhere_box.infra.db.repos.project_task_tool_calls import ProjectTaskToolCallRow
+from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRow
+from inhere_box.infra.db.repos.project_tasks import ProjectTaskRow
+from inhere_box.infra.db.services import RepoBundle, SharedServices
+from inhere_box.infra.errors import InhereBoxError
+from inhere_box.infra.projects import runtime, tasks
+from inhere_box.infra.utils.paths import PathLayout
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def services(tmp_path):
     with db.transaction() as conn:
         conn.execute("INSERT INTO users(id,username,role,created_at) VALUES(1,'owner','user',1)")
         conn.execute("INSERT INTO users(id,username,role,created_at) VALUES(2,'other','user',1)")
-    bundle = SharedServices(PathLayout(tmp_path), OctopConfig(), RepoBundle.from_pool(db))
+    bundle = SharedServices(PathLayout(tmp_path), InhereBoxConfig(), RepoBundle.from_pool(db))
     bundle.secret_repo.get_or_create("jwt", lambda: b"deletion-test-only-signing-key")
     try:
         yield bundle
@@ -331,7 +331,7 @@ async def test_foreign_worker_lease_requires_real_finalization(services):
 async def test_queued_turn_stops_and_foreign_owner_cannot_cancel(services):
     turn = queued(services, "queued")
     worker = runtime.ProjectTaskWorker(services)
-    with pytest.raises(OctopError):
+    with pytest.raises(InhereBoxError):
         await worker.stop_for_deletion(2, [turn.task_id])
     assert not services.project_task_turn_repo.get(turn.turn_id).cancel_requested
     assert await worker.stop_for_deletion(1, [turn.task_id]) is True

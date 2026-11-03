@@ -15,10 +15,10 @@ from tests.unit.cron.test_cron_manager import _make_gateway
 from tests.unit.projects.test_unified_entrypoint_runtime import real_factory
 from tests.unit.projects.test_unified_ingress import message, services  # noqa: F401
 
-from octop.infra.cron.delivery import CronDeliveryCommand, CronDeliveryService
-from octop.infra.cron.manager import CronManager
-from octop.infra.db.repos.unified_sources import UnifiedSourceRouteRepo
-from octop.infra.projects import ingress, runtime, source_routes
+from inhere_box.infra.cron.delivery import CronDeliveryCommand, CronDeliveryService
+from inhere_box.infra.cron.manager import CronManager
+from inhere_box.infra.db.repos.unified_sources import UnifiedSourceRouteRepo
+from inhere_box.infra.projects import ingress, runtime, source_routes
 
 
 def _projects(services):
@@ -147,7 +147,7 @@ async def test_existing_unscoped_task_is_reused_only_for_its_project(  # noqa: F
 async def test_expert_change_applies_next_turn_and_keeps_snapshot(  # noqa: F811
     services, monkeypatch, policy
 ):
-    from octop.infra.projects.title import TaskTitleAgent, TitleResult
+    from inhere_box.infra.projects.title import TaskTitleAgent, TitleResult
 
     monkeypatch.setattr(TaskTitleAgent, "generate", AsyncMock(return_value=TitleResult()))
     message(services)
@@ -270,7 +270,7 @@ async def test_clearing_project_from_legacy_continue_target_keeps_project_isolat
             user_id=1,
             agent_id="expert-one",
             channel_type="dashboard",
-            channel_id="octop-dashboard",
+            channel_id="inhere-box-dashboard",
             channel_subject_id="1",
             channel_metadata={},
         )
