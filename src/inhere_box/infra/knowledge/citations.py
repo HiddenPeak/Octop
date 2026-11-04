@@ -40,13 +40,9 @@ def citations_from_ranked(ranked: Sequence[tuple[Any, Any, Any]]) -> list[Knowle
     return out
 
 
+_CITATIONS_PREFIX_RE = re.compile(r"<!--(?:inhere-box|octop)-kb-citations:")
 _CITATIONS_MARKER_RE = re.compile(
-    r"\n*\s*"
-    + re.escape(CITATIONS_MARKER_PREFIX)
-    + r"\[.*?\]"
-    + re.escape(CITATIONS_MARKER_SUFFIX)
-    + r"\s*$",
-    re.DOTALL,
+    r"<!--(?:inhere-box|octop)-kb-citations:(\[.*\])-->\s*", re.DOTALL
 )
 
 
@@ -60,7 +56,20 @@ def append_citations_marker(text: str, citations: Sequence[KnowledgeCitation]) -
 
 
 def strip_citations_marker(text: str) -> str:
-    """Remove the dashboard citation marker from tool output (for model context)."""
-    if not text or CITATIONS_MARKER_PREFIX not in text:
-        return text
-    return _CITATIONS_MARKER_RE.sub("", text).rstrip()
+    """Read both marker names without changing persisted messages or invalid prose."""
+    while text:
+        for prefix in reversed(list(_CITATIONS_PREFIX_RE.finditer(text))):
+            marker = _CITATIONS_MARKER_RE.fullmatch(text, prefix.start())
+            if marker is None:
+                continue
+            try:
+                payload = json.loads(marker[1])
+            except ValueError:
+                continue
+            if not isinstance(payload, list):
+                continue
+            text = text[: marker.start()].rstrip()
+            break
+        else:
+            break
+    return text

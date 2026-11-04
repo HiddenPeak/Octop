@@ -200,7 +200,7 @@ def test_pg_backup_roundtrip(tmp_path: Path) -> None:
         username = f"pg_bak_{uuid.uuid4().hex[:8]}"
         repo.create(username=username, password_hash="x", role="user")
 
-        layout = PathLayout(tmp_path / ".octop")
+        layout = PathLayout(tmp_path / ".inhere-box")
         layout.root.mkdir(parents=True, exist_ok=True)
         layout.config.write_text('{"port": 8088}', encoding="utf-8")
 

@@ -187,7 +187,7 @@ $script:ConsoleAvailable = $false
 
 function Prepare-Console {
     param([string]$RepoDir)
-    $consoleDest = Join-Path $RepoDir "src\inhere-box\dashboard"
+    $consoleDest = Join-Path $RepoDir "src\inhere_box\dashboard"
     if (Test-Path (Join-Path $consoleDest "index.html")) {
         $script:ConsoleAvailable = $true
         return

@@ -26,7 +26,7 @@
 docker compose -f docker/docker-compose.yml up -d --build
 ```
 
-访问 `http://localhost:8088`。设置 `INHERE_BOX_DEFAULT_PASSWORD` 可创建初始管理员（须 ≥8 位且同时包含字母和数字）。未设置或密码未通过策略时，打开设置向导；一次性向导口令保存在 `/data/.octop/inhere-box-login.txt`。初始凭据或向导说明写入 `/data/.octop/credential.txt`。
+访问 `http://localhost:8088`。设置 `INHERE_BOX_DEFAULT_PASSWORD` 可创建初始管理员（须 ≥8 位且同时包含字母和数字）。未设置或密码未通过策略时，打开设置向导；一次性向导口令保存在 `/data/.inhere-box/inhere-box-login.txt`。初始凭据或向导说明写入 `/data/.inhere-box/credential.txt`。
 
 Compose 将 `nofile` 设为 65535，以支持多个专家、流连接及连接器子进程。使用 `docker run` 时添加 `--ulimit nofile=65535:65535`。
 
@@ -37,7 +37,7 @@ bash docker/docker_build.sh
 docker run -d \
   --name inhere-box \
   -p 8088:8088 \
-  -v inhere-box-data:/data/.octop \
+  -v inhere-box-data:/data/.inhere-box \
   -e HOME=/data \
   inhere-box:latest
 ```
@@ -60,7 +60,7 @@ bash docker/docker_build.sh
 |------|--------|------|
 | `HOME` | `/data` | 必须为 `/data`，数据目录映射到 `~/.inhere-box` |
 | `INHERE_BOX_PORT` | `8088` | HTTP 服务端口 |
-| `INHERE_BOX_DEFAULT_PASSWORD` | _(未设置)_ | 首次管理员密码（≥8 位，字母+数字）。未设置时自动生成随机密码并写入 `credential.txt` |
+| `INHERE_BOX_DEFAULT_PASSWORD` | _(未设置)_ | 首次管理员密码（≥8 位，字母+数字）。未设置或不符合策略时进入设置向导 |
 | `INHERE_BOX_ADMIN_USERNAME` | `admin` | 首次管理员用户名 |
 | `INHERE_BOX_DATABASE_URL` | — | PostgreSQL DSN（或其他 `INHERE_BOX_DATABASE_*`，见 [configuration.md](../docs/configuration.md)） |
 | `INHERE_BOX_DATABASE_DRIVER` | — | 通过环境变量覆盖时：`sqlite` \| `postgresql` |
@@ -79,9 +79,11 @@ inhere-box 与模型服务部署在同一台盒子上时，在「设置 → 模�
 
 ### 数据持久化
 
-- Compose 默认将宿主机 `~/.inhere-box` 挂载到容器 `/data/.octop`
+- Compose 默认将宿主机 `~/.inhere-box` 挂载到容器 `/data/.inhere-box`
 - `docker run` 示例使用命名卷 `inhere-box-data`
-- 首次启动会自动执行 `inhere-box init`，凭据写入容器内 `/data/.octop/credential.txt`。未设置 `INHERE_BOX_DEFAULT_PASSWORD` 时自动生成随机密码；指定的密码被应用密码策略拒绝时自动回退为随机密码（首次初始化绝不因弱默认密码而失败）。
+- 首次启动仅在 `INHERE_BOX_DEFAULT_PASSWORD` 符合密码策略时创建管理员；否则进入设置向导。凭据或向导说明写入 `/data/.inhere-box/credential.txt`。
+
+升级已有安装前先停止旧容器。若要在容器内迁移同级 `.octop` 和 `.inhere-box`，应把两者的宿主父级目录挂到 `/data`；入口会先迁移旧根目录，再初始化或启动服务。原来单独挂载到 `/data/.octop` 的目录是容器挂载点，不能在容器内重命名，需改挂父级，或在宿主离线迁移后把新根目录挂到 `/data/.inhere-box`。新旧根目录同时存在时会明确报错，不会覆盖。显式配置的 `INHERE_BOX_HOME=.../.octop`（含旧前缀 `OCTOP_HOME`）会在迁移时转换为同级 `.inhere-box`；升级后应把部署配置保存为新路径。
 
 ### 健康检查
 

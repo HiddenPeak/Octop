@@ -33,7 +33,7 @@ services:
     privileged: true
     network_mode: host
     volumes:
-      - ${INHERE_BOX_DATA:-~/.inhere-box}:/data/.octop
+      - ${INHERE_BOX_DATA:-~/.inhere-box}:/data/.inhere-box
       - /var/run/docker.sock:/var/run/docker.sock
       - /dev/binderfs:/dev/binderfs
       - ${INHERE_BOX_PLATFORM_TOOLS:-../.tools/platform-tools}:/opt/android-sdk/platform-tools:ro

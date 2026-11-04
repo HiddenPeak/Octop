@@ -94,12 +94,16 @@ async def run_foreground(
     daemon_bootstrap: DaemonBootstrap | None = None,
 ) -> None:
     """Boot the domain server, serve the HTTP API, then shut down cleanly."""
+    from inhere_box.infra.setup.branding_migration import require_installation_migrated
+
+    paths = PathLayout.from_env()
+    require_installation_migrated(paths.root)
     from inhere_box.api.app import build_app
     from inhere_box.infra.setup.tls.http_companion import build_http_companion_app
     from inhere_box.infra.setup.tls.listeners import build_listen_plan
     from inhere_box.infra.setup.tls.store import resolve_tls_paths
 
-    guard = daemon_bootstrap or DaemonBootstrap(PathLayout.from_env().agentcomputer_identity.parent)
+    guard = daemon_bootstrap or DaemonBootstrap(paths.agentcomputer_identity.parent)
     srv = InhereBoxServer(daemon_bootstrap=guard)
     bwrap_task: asyncio.Task[None] | None = None
     memory_control = None

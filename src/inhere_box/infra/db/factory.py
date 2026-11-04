@@ -11,10 +11,16 @@ from inhere_box.infra.utils.paths import PathLayout
 
 def resolve_sqlite_db_path(config: InhereBoxConfig, paths: PathLayout) -> Path:
     """Return the SQLite file path that ``open_database`` would use for sqlite."""
+    from inhere_box.infra.setup.branding_migration import require_installation_migrated
+
     db_cfg = config.database
-    if config.database_in_file or database_env_configured():
-        return db_cfg.resolve_sqlite_path(paths.root)
-    return paths.db
+    database = (
+        db_cfg.resolve_sqlite_path(paths.root)
+        if config.database_in_file or database_env_configured()
+        else paths.db
+    )
+    require_installation_migrated(paths.root, database)
+    return database
 
 
 def should_defer_control_plane_db(config: InhereBoxConfig, paths: PathLayout) -> bool:
@@ -24,6 +30,9 @@ def should_defer_control_plane_db(config: InhereBoxConfig, paths: PathLayout) ->
     ``INHERE_BOX_DATABASE_*`` / PostgreSQL configuration. Password verification and
     early wizard steps then run without a pool.
     """
+    from inhere_box.infra.setup.branding_migration import require_installation_migrated
+
+    require_installation_migrated(paths.root)
     if config.account_mode == "box_local" or config.database.is_postgresql:
         return False
     if database_env_configured():
@@ -35,8 +44,11 @@ def open_database(config: InhereBoxConfig, paths: PathLayout) -> DatabasePool:
     """Return a DB pool for the configured driver.
 
     When ``config.json`` has no ``database`` section and no ``INHERE_BOX_DATABASE_*``
-    env overrides are set, falls back to ``paths.db`` (legacy layout).
+    env overrides are set, uses the installation's canonical database file.
     """
+    from inhere_box.infra.setup.branding_migration import require_installation_migrated
+
+    require_installation_migrated(paths.root)
     db_cfg = config.database
     if db_cfg.is_postgresql:
         return PostgresPool(db_cfg.postgresql_conninfo())

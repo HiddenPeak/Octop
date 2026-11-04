@@ -11,8 +11,32 @@ export type KnowledgeCitation = {
   path?: string;
 };
 
+const CITATIONS_PREFIX_RE = /<!--(?:inhere-box|octop)-kb-citations:/g;
 const CITATIONS_MARKER_RE =
-  /\n*\s*<!--inhere-box-kb-citations:(\[[\s\S]*?\])-->\s*$/;
+  /^<!--(inhere-box|octop)-kb-citations:(\[[\s\S]*\])-->\s*$/;
+
+function trailingMarker(text: string): {
+  start: number;
+  current: boolean;
+  payload: unknown[];
+} | null {
+  // Work from the last prefix, but allow marker-like text inside JSON strings.
+  const prefixes = Array.from(text.matchAll(CITATIONS_PREFIX_RE));
+  for (const prefix of prefixes.reverse()) {
+    const start = prefix.index!;
+    const match = text.slice(start).match(CITATIONS_MARKER_RE);
+    if (!match) continue;
+    try {
+      const payload: unknown = JSON.parse(match[2]);
+      if (Array.isArray(payload)) {
+        return { start, current: match[1] === "inhere-box", payload };
+      }
+    } catch {
+      // Invalid/embedded comments are ordinary text, not citation metadata.
+    }
+  }
+  return null;
+}
 
 function asCitation(raw: unknown): KnowledgeCitation | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
@@ -36,16 +60,21 @@ export function parseKnowledgeCitations(rawOutput: string | undefined): {
 } {
   const raw = rawOutput ?? "";
   if (!raw) return { text: "", citations: [] };
-  const match = raw.match(CITATIONS_MARKER_RE);
-  if (!match) return { text: raw, citations: [] };
-  const text = raw.slice(0, match.index).replace(/\s+$/, "");
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(match[1] ?? "[]");
-  } catch {
-    return { text: raw, citations: [] };
+  let text = raw;
+  let parsed: unknown[] | undefined;
+  let current = false;
+  for (
+    let marker = trailingMarker(text);
+    marker;
+    marker = trailingMarker(text)
+  ) {
+    if (parsed === undefined || (marker.current && !current)) {
+      parsed = marker.payload;
+      current = marker.current;
+    }
+    text = text.slice(0, marker.start).replace(/\s+$/, "");
   }
-  if (!Array.isArray(parsed)) return { text, citations: [] };
+  if (parsed === undefined) return { text: raw, citations: [] };
   const citations: KnowledgeCitation[] = [];
   const seen = new Set<string>();
   for (const item of parsed) {

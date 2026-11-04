@@ -61,11 +61,7 @@ class DatabaseConfig:
     def resolve_sqlite_path(self, inhere_box_root: Path) -> Path:
         """Absolute path to the SQLite file (relative paths are under ``inhere_box_root``)."""
         p = Path(self.sqlite_path)
-        resolved = p if p.is_absolute() else inhere_box_root / p
-        legacy = resolved.with_name("octop.db")
-        if self.sqlite_path == "inhere-box.db" and not resolved.exists() and legacy.is_file():
-            return legacy
-        return resolved
+        return p if p.is_absolute() else inhere_box_root / p
 
     def postgresql_conninfo(self) -> str:
         """Return a libpq/psycopg conninfo URL for PostgreSQL."""

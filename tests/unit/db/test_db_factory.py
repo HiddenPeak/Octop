@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -13,7 +15,7 @@ from inhere_box.infra.utils.paths import PathLayout
 
 
 def test_legacy_config_without_database_uses_paths_db(tmp_path: Path):
-    root = tmp_path / ".octop"
+    root = tmp_path / ".inhere-box"
     root.mkdir()
     (root / "config.json").write_text(json.dumps({"port": 9000}))
     paths = PathLayout(root)
@@ -24,7 +26,7 @@ def test_legacy_config_without_database_uses_paths_db(tmp_path: Path):
 
 
 def test_should_defer_when_sqlite_file_missing(tmp_path: Path):
-    root = tmp_path / ".octop"
+    root = tmp_path / ".inhere-box"
     root.mkdir()
     (root / "config.json").write_text(json.dumps({"port": 8088}))
     paths = PathLayout(root)
@@ -33,7 +35,7 @@ def test_should_defer_when_sqlite_file_missing(tmp_path: Path):
 
 
 def test_should_not_defer_when_sqlite_exists(tmp_path: Path):
-    root = tmp_path / ".octop"
+    root = tmp_path / ".inhere-box"
     root.mkdir()
     (root / "config.json").write_text(json.dumps({"port": 8088}))
     (root / "inhere-box.db").write_bytes(b"")
@@ -42,8 +44,56 @@ def test_should_not_defer_when_sqlite_exists(tmp_path: Path):
     assert should_defer_control_plane_db(cfg, paths) is False
 
 
+def test_legacy_database_blocks_open_and_first_run_until_migrated(tmp_path: Path):
+    from inhere_box.infra.setup.branding_migration import (
+        BrandingMigrationError,
+        migrate_installation,
+    )
+
+    root = tmp_path / "installation"
+    root.mkdir()
+    (root / "config.json").write_text(json.dumps({"port": 8088}))
+    legacy = root / "octop.db"
+    with closing(sqlite3.connect(legacy)) as connection:
+        connection.execute("CREATE TABLE records (value TEXT)")
+        connection.execute("INSERT INTO records VALUES ('preserved task')")
+        connection.commit()
+    paths = PathLayout(root)
+    config = load_config(paths.config)
+
+    with pytest.raises(BrandingMigrationError):
+        open_database(config, paths)
+    with pytest.raises(BrandingMigrationError):
+        should_defer_control_plane_db(config, paths)
+    assert not paths.db.exists()
+
+    migrate_installation(root, apply=True)
+    pool = open_database(config, paths)
+    try:
+        with pool.connect() as connection:
+            assert connection.execute("SELECT value FROM records").fetchone()[0] == "preserved task"
+    finally:
+        pool.close()
+    assert not legacy.exists()
+    assert paths.db.exists()
+
+
+def test_configured_legacy_database_path_requires_migration(tmp_path: Path):
+    from inhere_box.infra.setup.branding_migration import BrandingMigrationError
+
+    paths = PathLayout(tmp_path)
+    paths.config.write_text(
+        json.dumps({"database": {"driver": "sqlite", "sqlite_path": "octop.db"}})
+    )
+    config = load_config(paths.config)
+    with pytest.raises(BrandingMigrationError):
+        open_database(config, paths)
+    assert not (tmp_path / "octop.db").exists()
+    assert not paths.db.exists()
+
+
 def test_should_not_defer_when_database_env_set(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    root = tmp_path / ".octop"
+    root = tmp_path / ".inhere-box"
     root.mkdir()
     (root / "config.json").write_text(json.dumps({"port": 8088}))
     monkeypatch.setenv("INHERE_BOX_DATABASE_SQLITE_PATH", str(root / "env.db"))
@@ -53,7 +103,7 @@ def test_should_not_defer_when_database_env_set(tmp_path: Path, monkeypatch: pyt
 
 
 def test_should_not_defer_postgresql(tmp_path: Path):
-    root = tmp_path / ".octop"
+    root = tmp_path / ".inhere-box"
     root.mkdir()
     (root / "config.json").write_text(
         json.dumps(
@@ -77,7 +127,7 @@ def test_sqlite_probe_does_not_create_missing_file(tmp_path: Path):
     from inhere_box.config import DatabaseConfig
     from inhere_box.infra.db.probe import probe_database
 
-    root = tmp_path / ".octop"
+    root = tmp_path / ".inhere-box"
     root.mkdir()
     paths = PathLayout(root)
     target = root / "data" / "fresh.db"
@@ -91,7 +141,7 @@ def test_sqlite_probe_does_not_create_missing_file(tmp_path: Path):
 
 
 def test_config_with_database_section_uses_sqlite_path(tmp_path: Path):
-    root = tmp_path / ".octop"
+    root = tmp_path / ".inhere-box"
     root.mkdir()
     (root / "config.json").write_text(
         json.dumps({"database": {"driver": "sqlite", "sqlite_path": "data/app.db"}})
@@ -104,7 +154,7 @@ def test_config_with_database_section_uses_sqlite_path(tmp_path: Path):
 
 
 def test_env_sqlite_path_without_database_section(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    root = tmp_path / ".octop"
+    root = tmp_path / ".inhere-box"
     root.mkdir()
     (root / "config.json").write_text(json.dumps({"port": 8088}))
     monkeypatch.setenv("INHERE_BOX_DATABASE_SQLITE_PATH", "/tmp/custom-inhere-box.db")
@@ -132,7 +182,7 @@ def test_postgresql_returns_postgres_pool(tmp_path: Path, monkeypatch: pytest.Mo
 
     monkeypatch.setattr(factory_mod, "PostgresPool", FakePool)
 
-    root = tmp_path / ".octop"
+    root = tmp_path / ".inhere-box"
     root.mkdir()
     (root / "config.json").write_text(
         json.dumps(

@@ -6,7 +6,7 @@ $RepoRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $RepoRoot
 
 $DashboardDir = Join-Path $RepoRoot "dashboard"
-$DashboardDest = Join-Path $RepoRoot "src\inhere-box\dashboard"
+$DashboardDest = Join-Path $RepoRoot "src\inhere_box\dashboard"
 
 Write-Host "[wheel_build] Building dashboard frontend..."
 Push-Location $DashboardDir

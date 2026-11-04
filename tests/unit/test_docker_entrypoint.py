@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -109,7 +112,7 @@ def test_entrypoint_rejects_passwords_that_miss_policy(password: str) -> None:
 @posix_only
 def test_seed_wizard_password_writes_volume_and_home_link(tmp_path: Path) -> None:
     home = tmp_path / "data"
-    inhere_box_home = home / ".octop"
+    inhere_box_home = home / ".inhere-box"
     home.mkdir()
     script = _source_helpers() + "\ninhere_box_seed_wizard_password\ninhere_box_write_setup_hint\n"
     result = _bash(
@@ -148,7 +151,7 @@ def _run_first_boot(
     args: str = "true",
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     home = tmp_path / "data"
-    inhere_box_home = home / ".octop"
+    inhere_box_home = home / ".inhere-box"
     home.mkdir(exist_ok=True)
     stub = (
         run_init
@@ -166,6 +169,8 @@ inhere_box_run_init() {
         "PORT": "8088",
         "INHERE_BOX_ADMIN_USERNAME": "admin",
         "INHERE_BOX_DEFAULT_PASSWORD": "" if password is None else password,
+        "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ.get("PATH", ""),
+        "PYTHONPATH": str(REPO / "src"),
     }
     script = _source_helpers() + "\n" + stub + f"\ninhere_box_entrypoint_main {args}\n"
     return _bash(script, env=env), inhere_box_home
@@ -253,7 +258,7 @@ inhere_box_run_init() {
 @posix_only
 def test_existing_db_skips_password_init(tmp_path: Path) -> None:
     home = tmp_path / "data"
-    inhere_box_home = home / ".octop"
+    inhere_box_home = home / ".inhere-box"
     inhere_box_home.mkdir(parents=True)
     (inhere_box_home / "inhere-box.db").write_text("stub", encoding="utf-8")
     result, _ = _run_first_boot(tmp_path, password="GoodPass1")
@@ -301,13 +306,13 @@ exit 0
 
 
 def _init_marker(tmp_path: Path) -> Path:
-    return tmp_path / "data" / ".octop" / ".initialized"
+    return tmp_path / "data" / ".inhere-box" / ".initialized"
 
 
 def _run_entrypoint(
     tmp_path: Path,
     *,
-    extra_env: dict[str, str] | None = None,
+    extra_env: dict[str, str | None] | None = None,
     args: tuple[str, ...] = (),
 ) -> tuple[subprocess.CompletedProcess[str], list[str]]:
     """Run the real entrypoint with a stub ``octop`` on PATH; return (result, octop argv lines)."""
@@ -319,21 +324,36 @@ def _run_entrypoint(
     if not stub.exists():
         stub.write_text(_STUB_INHERE_BOX, encoding="utf-8", newline="\n")
         stub.chmod(0o755)
+    python = stub_dir / "python3"
+    python.write_text(
+        '#!/usr/bin/env bash\nexec "$INHERE_BOX_TEST_PYTHON" "$@"\n', encoding="utf-8", newline="\n"
+    )
+    python.chmod(0o755)
     log = tmp_path / "inhere-box-calls.log"
     log.write_text("", encoding="utf-8")
-    env = os.environ.copy()
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith(("INHERE_BOX_", "OCTOP_"))
+    }
     env.update(
         {
             "HOME": str(home),
-            "INHERE_BOX_HOME": str(home / ".octop"),
+            "INHERE_BOX_HOME": str(home / ".inhere-box"),
             "PATH": str(stub_dir) + os.pathsep + env.get("PATH", ""),
             "INHERE_BOX_STUB_LOG": str(log),
             "INHERE_BOX_DEFAULT_PASSWORD": "Str0ngPass1",
             "INHERE_BOX_PORT": "8088",
+            "INHERE_BOX_TEST_PYTHON": Path(sys.executable).as_posix(),
+            "PYTHONPATH": str(REPO / "src"),
         }
     )
     if extra_env:
-        env.update(extra_env)
+        for key, value in extra_env.items():
+            if value is None:
+                env.pop(key, None)
+            else:
+                env[key] = value
     result = subprocess.run(
         [bash_exe, str(ENTRYPOINT), *args],
         check=False,
@@ -347,6 +367,96 @@ def _run_entrypoint(
     return result, calls
 
 
+def _create_entrypoint_database(database: Path, value: str) -> None:
+    database.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(database) as connection:
+        connection.execute("CREATE TABLE preserved_data (value TEXT)")
+        connection.execute("INSERT INTO preserved_data VALUES (?)", (value,))
+
+
+@bash_only
+@pytest.mark.parametrize("home_variable", ["INHERE_BOX_HOME", "OCTOP_HOME"])
+def test_entrypoint_migrates_explicit_legacy_root_before_start(
+    tmp_path: Path, home_variable: str
+) -> None:
+    root = tmp_path / "data" / ".octop"
+    _create_entrypoint_database(root / "octop.db", "existing installation")
+    config = root / "config.json"
+    config.write_text(
+        json.dumps({"database": {"driver": "sqlite", "sqlite_path": "octop.db"}}),
+        encoding="utf-8",
+    )
+    env = {"INHERE_BOX_HOME": None, home_variable: str(root)}
+
+    first, calls = _run_entrypoint(tmp_path, extra_env=env)
+
+    assert first.returncode == 0, first.stdout + first.stderr
+    assert not any(call.startswith("init") for call in calls)
+    assert any(call.startswith("run --host") for call in calls)
+    current = root.with_name(".inhere-box")
+    assert not root.exists()
+    with sqlite3.connect(current / "inhere-box.db") as connection:
+        assert connection.execute("SELECT value FROM preserved_data").fetchone() == (
+            "existing installation",
+        )
+    assert json.loads((current / "config.json").read_text(encoding="utf-8"))["database"][
+        "sqlite_path"
+    ] == ("inhere-box.db")
+    files = set(current.rglob("*"))
+    repeated, calls = _run_entrypoint(tmp_path, extra_env=env)
+    assert repeated.returncode == 0, repeated.stdout + repeated.stderr
+    assert not any(call.startswith("init") for call in calls)
+    assert set(current.rglob("*")) == files
+
+
+@bash_only
+def test_entrypoint_conflicting_databases_prevent_init_and_start(tmp_path: Path) -> None:
+    root = tmp_path / "data" / ".inhere-box"
+    for name in ("octop.db", "inhere-box.db"):
+        _create_entrypoint_database(root / name, name)
+    before = {path: path.read_bytes() for path in root.glob("*.db")}
+
+    result, calls = _run_entrypoint(tmp_path)
+
+    assert result.returncode != 0
+    assert calls == []
+    assert {path: path.read_bytes() for path in before} == before
+    assert not _init_marker(tmp_path).exists()
+
+
+@bash_only
+@pytest.mark.parametrize("database_name", ["octop.db", "inhere-box.db"])
+def test_entrypoint_migrates_default_legacy_root(tmp_path: Path, database_name: str) -> None:
+    legacy = tmp_path / "data" / ".octop" / database_name
+    _create_entrypoint_database(legacy, "old root")
+
+    result, calls = _run_entrypoint(tmp_path, extra_env={"INHERE_BOX_HOME": None})
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert not any(call.startswith("init") for call in calls)
+    assert any(call.startswith("run --host") for call in calls)
+    assert not legacy.parent.exists()
+    current = tmp_path / "data" / ".inhere-box" / "inhere-box.db"
+    with sqlite3.connect(current) as connection:
+        assert connection.execute("SELECT value FROM preserved_data").fetchone() == ("old root",)
+
+
+@bash_only
+def test_entrypoint_conflicting_installation_roots_prevent_start(tmp_path: Path) -> None:
+    roots = [tmp_path / "data" / name for name in (".octop", ".inhere-box")]
+    before = {}
+    for root in roots:
+        database = root / "inhere-box.db"
+        _create_entrypoint_database(database, root.name)
+        before[database] = database.read_bytes()
+
+    result, calls = _run_entrypoint(tmp_path)
+
+    assert result.returncode != 0
+    assert calls == []
+    assert {path: path.read_bytes() for path in before} == before
+
+
 @bash_only
 def test_entrypoint_restart_skips_init_for_external_db(tmp_path: Path) -> None:
     """Issue #1866: with PostgreSQL there is no inhere-box.db; a restart must not re-run init."""
@@ -358,7 +468,7 @@ def test_entrypoint_restart_skips_init_for_external_db(tmp_path: Path) -> None:
     assert first.returncode == 0, first.stderr
     assert any(call.startswith("init ") for call in calls), calls
     assert any(call.startswith("run --host") for call in calls), calls
-    assert not (tmp_path / "data" / ".octop" / "inhere-box.db").exists()
+    assert not (tmp_path / "data" / ".inhere-box" / "inhere-box.db").exists()
     assert _init_marker(tmp_path).is_file(), first.stdout
 
     second, calls = _run_entrypoint(tmp_path, extra_env=pg_env)
@@ -370,7 +480,7 @@ def test_entrypoint_restart_skips_init_for_external_db(tmp_path: Path) -> None:
 @bash_only
 def test_entrypoint_sqlite_install_skips_init_without_marker(tmp_path: Path) -> None:
     """Backward compat: an existing inhere-box.db still short-circuits the guard."""
-    inhere_box_home = tmp_path / "data" / ".octop"
+    inhere_box_home = tmp_path / "data" / ".inhere-box"
     inhere_box_home.mkdir(parents=True)
     (inhere_box_home / "inhere-box.db").write_text("", encoding="utf-8")
 
@@ -383,7 +493,7 @@ def test_entrypoint_sqlite_install_skips_init_without_marker(tmp_path: Path) -> 
 @bash_only
 def test_entrypoint_adopts_existing_admin_without_rewriting_credentials(tmp_path: Path) -> None:
     """Upgrade path: init now no-ops on an already-bootstrapped DB; the credential card must survive."""
-    inhere_box_home = tmp_path / "data" / ".octop"
+    inhere_box_home = tmp_path / "data" / ".inhere-box"
     inhere_box_home.mkdir(parents=True)
     credential = inhere_box_home / "credential.txt"
     credential.write_text("ORIGINAL CREDENTIALS\n", encoding="utf-8")

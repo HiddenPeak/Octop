@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from inhere_box.infra.knowledge.citations import (
     CITATIONS_MARKER_PREFIX,
     append_citations_marker,
@@ -57,6 +59,7 @@ def test_append_citations_marker() -> None:
     assert '"filename":"doc.md"' in text
     assert '"path":"doc.md"' in text
     assert text.endswith("-->")
+    assert "<!--octop-kb-citations:" not in text
 
 
 def test_append_citations_marker_skips_empty() -> None:
@@ -93,3 +96,41 @@ def test_strip_citations_marker() -> None:
     )
     assert strip_citations_marker(raw) == "passages here"
     assert strip_citations_marker("plain") == "plain"
+
+
+@pytest.mark.parametrize("legacy_last", [False, True])
+def test_strip_accepts_legacy_and_mixed_suffixes_without_rewriting_original(
+    legacy_last: bool,
+) -> None:
+    old = '<!--octop-kb-citations:[{"doc_id":"old"}]-->'
+    new = '<!--inhere-box-kb-citations:[{"doc_id":"new"}]-->'
+    assert strip_citations_marker("passages\n" + old) == "passages"
+    markers = [new, old] if legacy_last else [old, new]
+    original = "passages\n" + "\n".join(markers)
+    assert strip_citations_marker(original) == "passages"
+    assert old in original and new in original
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "octop and inhere-box appear in ordinary prose.  ",
+        '<!--octop-kb-citations:[{"doc_id":"d1"}]--> followed by prose',
+        "```html\n<!--octop-kb-citations:[]-->\n```",
+        '<!--unrelated-kb-citations:[{"doc_id":"d1"}]-->',
+        "<!--octop-kb-citations:[invalid JSON]-->",
+        '<!--inhere-box-kb-citations:{"doc_id":"d1"}-->',
+        '<!--octop-kb-citations:[{"doc_id":"d1"}]-->\n<!--inhere-box-kb-citations:[invalid]-->',
+    ],
+)
+def test_strip_keeps_prose_and_invalid_or_nonterminal_markers(raw: str) -> None:
+    assert strip_citations_marker(raw) == raw
+
+
+def test_marker_prefix_inside_citation_filename_is_not_a_separate_envelope() -> None:
+    filename = "<!--octop-kb-citations:example.md"
+    raw = append_citations_marker(
+        "passages",
+        [{"kb_id": "kb", "kb_name": "KB", "doc_id": "d1", "filename": filename, "path": filename}],
+    )
+    assert strip_citations_marker(raw) == "passages"

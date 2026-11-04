@@ -48,7 +48,8 @@ def test_publish_skill_bumps_fnos_manifest_versions() -> None:
 
 def test_fnos_docker_compose_uses_trim_data_share_paths() -> None:
     text = COMPOSE.read_text(encoding="utf-8")
-    assert "${TRIM_DATA_SHARE_PATHS}/.octop:/data/.octop" in text
+    assert '"${TRIM_DATA_SHARE_PATHS}:/data"' in text
+    assert "INHERE_BOX_HOME=/data/.inhere-box" in text
     assert "${TRIM_DATA_SHARE_PATHS}/fnos-boot.sh:/usr/local/bin/fnos-boot.sh:ro" in text
     assert "${TRIM_DATA_SHARE_PATHS}/fnos-admin.env:/data/fnos-admin.env:ro" in text
     assert 'entrypoint: ["bash", "/usr/local/bin/fnos-boot.sh"]' in text
@@ -58,14 +59,14 @@ def test_fnos_docker_compose_uses_trim_data_share_paths() -> None:
     assert "pull_policy: missing" in text
     assert "pull_policy: always" not in text
     assert "ghcr.io/tencentcloud/octop:latest" not in text
-    assert "ghcr.io/tencentcloud/inhere-box:1.0.2b5" in text
+    assert "ghcr.io/rminte/octop:1.0.2b5" in text
     assert "env_file:" not in text
     volume_lines = [
         line
         for line in text.splitlines()
-        if line.lstrip().startswith("- ") and ":/data/.octop" in line
+        if line.lstrip().startswith("- ") and line.rstrip().endswith(':/data"')
     ]
-    assert volume_lines, "compose must bind a host path onto /data/.octop"
+    assert volume_lines, "compose must bind the parent data-share onto /data"
     assert all(LEGACY_DIR not in line for line in volume_lines)
 
 
@@ -102,12 +103,15 @@ inhere_box_data_share_dir octop/data
 
 
 @posix_only
-def test_inhere_box_prepare_docker_persist_migrates_legacy_db(tmp_path: Path) -> None:
+@pytest.mark.parametrize("database_name", ["octop.db", "inhere-box.db"])
+def test_inhere_box_prepare_docker_persist_migrates_legacy_db(
+    tmp_path: Path, database_name: str
+) -> None:
     dest = tmp_path / "share"
     dest.mkdir()
     legacy = tmp_path / "legacy"
     legacy.mkdir()
-    (legacy / "inhere-box.db").write_text("db", encoding="utf-8")
+    (legacy / database_name).write_text("db", encoding="utf-8")
     (legacy / "config.json").write_text("{}", encoding="utf-8")
     env_file = tmp_path / "docker.env"
     pkgvar = tmp_path / "pkgvar"
@@ -121,8 +125,9 @@ inhere_box_prepare_docker_persist "{env_file}"
 """
     out = subprocess.check_output(["bash", "-c", script], text=True)
     assert out == str(dest)
-    assert (dest / ".octop" / "inhere-box.db").read_text(encoding="utf-8") == "db"
+    assert (dest / ".octop" / database_name).read_text(encoding="utf-8") == "db"
     assert (dest / ".octop" / "config.json").read_text(encoding="utf-8") == "{}"
+    assert not (dest / ".inhere-box").exists()
     env_text = env_file.read_text(encoding="utf-8")
     assert f"TRIM_DATA_SHARE_PATHS={dest}" in env_text
     assert f"INHERE_BOX_DATA={dest}" in env_text
@@ -130,11 +135,12 @@ inhere_box_prepare_docker_persist "{env_file}"
 
 
 @posix_only
+@pytest.mark.parametrize("root_name", [".inhere-box", ".octop"])
 def test_inhere_box_prepare_docker_persist_does_not_overwrite_existing_db(
-    tmp_path: Path,
+    tmp_path: Path, root_name: str
 ) -> None:
     dest = tmp_path / "share"
-    dest_home = dest / ".octop"
+    dest_home = dest / root_name
     dest_home.mkdir(parents=True)
     (dest_home / "inhere-box.db").write_text("keep", encoding="utf-8")
     legacy = tmp_path / "legacy"
@@ -151,13 +157,43 @@ inhere_box_prepare_docker_persist "{env_file}" >/dev/null
 """
     subprocess.check_call(["bash", "-c", script])
     assert (dest_home / "inhere-box.db").read_text(encoding="utf-8") == "keep"
+    if root_name == ".octop":
+        assert not (dest / ".inhere-box").exists()
 
 
 @posix_only
-def test_inhere_box_sync_fnos_compose_bakes_absolute_bind(tmp_path: Path) -> None:
+def test_inhere_box_legacy_copy_failure_prevents_partial_new_root(tmp_path: Path) -> None:
+    source = tmp_path / "legacy"
+    source.mkdir()
+    (source / "octop.db").write_text("original", encoding="utf-8")
+    destination = tmp_path / "share"
+    destination.mkdir()
+    script = f"""
+set -euo pipefail
+source "{COMMON_SH}"
+inhere_box_legacy_docker_data_dir() {{ printf '%s' "{source}"; }}
+cp() {{ return 1; }}
+if inhere_box_migrate_legacy_docker_data "{destination}"; then exit 41; fi
+"""
+    subprocess.check_call(["bash", "-c", script])
+    assert not (destination / ".inhere-box").exists()
+    assert not (destination / ".octop").exists()
+    assert (source / "octop.db").read_text(encoding="utf-8") == "original"
+
+
+@posix_only
+@pytest.mark.parametrize("old_binding", [False, True])
+def test_inhere_box_sync_fnos_compose_bakes_absolute_bind(
+    tmp_path: Path, old_binding: bool
+) -> None:
     compose = tmp_path / "docker-compose.yaml"
+    template = COMPOSE.read_text(encoding="utf-8")
+    if old_binding:
+        template = template.replace(
+            '${TRIM_DATA_SHARE_PATHS}:/data"', '${TRIM_DATA_SHARE_PATHS}/.octop:/data/.octop"'
+        ).replace("INHERE_BOX_HOME=/data/.inhere-box", "INHERE_BOX_HOME=/data/.octop")
     compose.write_text(
-        COMPOSE.read_text(encoding="utf-8").replace(
+        template.replace(
             "    volumes:\n",
             "    env_file:\n      - .env\n    volumes:\n",
         ),
@@ -177,11 +213,14 @@ inhere_box_sync_fnos_compose "{compose}" "{data_dir}" "{env_file}"
 """
     subprocess.check_call(["bash", "-c", script])
     text = compose.read_text(encoding="utf-8")
-    assert f"{data_dir}/.octop:/data/.octop" in text
+    assert f'"{data_dir}:/data"' in text
+    assert "INHERE_BOX_HOME=/data/.inhere-box" in text
     assert "env_file:" not in text
     assert f"{data_dir}/fnos-boot.sh:/usr/local/bin/fnos-boot.sh:ro" in text
     assert f"{data_dir}/fnos-admin.env:/data/fnos-admin.env:ro" in text
-    assert (data_dir / ".octop").is_dir()
+    assert data_dir.is_dir()
+    assert not (data_dir / ".octop").exists()
+    assert not (data_dir / ".inhere-box").exists()
 
 
 @posix_only
@@ -529,15 +568,19 @@ inhere_box_render_config_wizard "{template}" "{wizard_dir}" alice Secret1 "{data
 
 
 @posix_only
-def test_inhere_box_mark_fnos_passwd_pending(tmp_path: Path) -> None:
+@pytest.mark.parametrize("legacy_exists", [False, True])
+def test_inhere_box_mark_fnos_passwd_pending(tmp_path: Path, legacy_exists: bool) -> None:
     share = tmp_path / "share"
+    if legacy_exists:
+        (share / ".octop").mkdir(parents=True)
     script = f"""
 set -euo pipefail
 source "{COMMON_SH}"
 inhere_box_mark_fnos_passwd_pending "{share}"
 """
     subprocess.check_call(["bash", "-c", script])
-    assert (share / ".octop" / ".fnos-apply-wizard-password").is_file()
+    assert (share / ".inhere-box-apply-wizard-password").is_file()
+    assert not (share / ".inhere-box").exists()
 
 
 @posix_only

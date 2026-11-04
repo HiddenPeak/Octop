@@ -117,7 +117,7 @@ start_process() {
 
     log_msg "Starting inhere-box (native) on port ${PORT} ..."
 
-    if [ ! -f "${DATA_DIR}/.octop/inhere-box.db" ] && [ ! -f "${DATA_DIR}/inhere-box.db" ]; then
+    if [ ! -f "${DATA_DIR}/.inhere-box/inhere-box.db" ]; then
         log_msg "数据库尚未初始化，先执行 --prepare"
         if ! INHERE_BOX_PORT="$PORT" INHERE_BOX_BIND_HOST=0.0.0.0 run_as_service "$BIN" --prepare >> "${LOG_FILE}" 2>&1; then
             fail_start "首次初始化失败。请打开数据目录 inhere-box-start-error.txt，或确认已安装「Python 3.12」。"

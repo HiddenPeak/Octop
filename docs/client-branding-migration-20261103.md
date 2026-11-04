@@ -1,6 +1,6 @@
 # APP 接线变更：Inhere-Box 命名迁移
 
-更新：2026-11-03。适用于本仓库当前服务端和 Dashboard；APP 本轮只提供接线文档，没有修改 Swift/UI。部署是否包含本次改动须核对实际运行版本，不能只依据软件版本号判断。
+更新：2026-11-04。适用于本仓库当前服务端和 Dashboard；APP 本轮只提供接线文档，没有修改 Swift/UI。部署是否包含本次改动须核对实际运行版本，不能只依据软件版本号判断。
 
 ## 客户端需要同步的名称
 
@@ -58,6 +58,7 @@ HTTP 头名不区分大小写；Cookie、JWS `typ`、JWT `aud`、JSON 键和值�
 - 服务端读取历史 `octop_planning` 计划及 `engine_id=octop` 快照时，转换成当前模型并输出新名称；计划、步骤、客户端和业务记录的稳定 ID 保留。
 - 旧插件的 `octop_ui` 输出仍可输入；运行时转换为 `inhere_box_ui`，新内置插件直接输出新键。Dashboard 也能读取历史旧信封；新键和旧键同时存在时，新键优先。
 - 已落盘的原始事件、消息、检查点、用户文件和 APP 本地缓存不做整库字符串替换。客户端读取旧缓存或历史原始事件时，应兼容旧名称；提交新请求、保存新协议数据时使用新名称。不要替换用户正文、工具参数或任意 JSON 字符串中的品牌文字。
+- 知识库工具结果的引用尾标记读取 `<!--octop-kb-citations:[...]-->` 和 `<!--inhere-box-kb-citations:[...]-->`，转换成同一引用结构；两种有效尾标记并存时新标记优先，新工具结果只写新标记。历史来源仍从真实工具结果恢复，回答中的标记不会新增来源；原始消息保持原样。
 - 历史消息 `additional_kwargs` 中的 `octop_composer_context`、`octop_inbound_attachments`、`octop_stream_error`、`octop_task_image` 分别对应新的 `inhere_box_*` 键；工具 `artifact` 中的 `octop_task_file_changes` 对应 `inhere_box_task_file_changes`。若 APP 直接读取这些原始对象，也应双读、新写优先。常规 Task DTO 的 `file_changes`、正文块、附件字段未改名。
 - 内部渠道绑定改为 `_inhere_box_task`，读取旧 `_octop_task` 配置仍可恢复项目和动作模式。APP 继续调用渠道的正式 DTO，不自行构造内部配置键。
 - Dashboard 的 Cron 元数据辅助键也已改为 `inhere_box_*`，属于前端内部表示；正式 cron DTO 中的 `session_key`、`model`、`last_status` 等未添加品牌前缀。
@@ -66,7 +67,7 @@ HTTP 头名不区分大小写；Cookie、JWS `typ`、JWT `aud`、JSON 键和值�
 
 ## 不改动的外部名称和存储定位符
 
-外部依赖 `octop_harness`、`octop_gateway`、`octop_memory`、`octop_browser` 及其真实发布名称继续保留。Harness 的 `.octop/` 系统目录、已有主数据目录/数据库名的读取回退、专家记忆的 `octop_expert_<hash>` 存储命名空间及 Docker 的 `octop_sandbox` 默认定位符用于定位已有数据，不做目录或存储迁移；它们不是本轮新增客户端字段。腾讯新闻 CLI 的 `octop_tencent-news_0.1` 是对接方标识，保留真实值。
+外部依赖 `octop_harness`、`octop_gateway`、`octop_memory`、`octop_browser` 及其真实发布名称继续保留。Harness 的工作区内部 `.octop/` 系统目录、专家记忆的 `octop_expert_<hash>` 存储命名空间及 Docker 的 `octop_sandbox` 默认定位符用于定位已有数据，不做目录或存储迁移；它们不是本轮新增客户端字段。安装根目录 `.octop` 和 SQLite 的旧 `octop.db` 文件名须通过一次性迁移切换为 `.inhere-box` 和 `inhere-box.db`，同时更新保存的本机安装路径，正常运行不再回退旧位置，见下方说明。腾讯新闻 CLI 的 `octop_tencent-news_0.1` 是对接方标识，保留真实值。
 
 ## 客户端核对顺序
 
@@ -76,7 +77,13 @@ HTTP 头名不区分大小写；Cookie、JWS `typ`、JWT `aud`、JSON 键和值�
 4. 验证新任务原生引擎、计划步骤、工具 UI 的普通输出和 `data_ref=artifact` 输出，以及历史计划/工具输出恢复。
 5. 对照 [当前 WS Schema](project-task-websocket.schema.json)、[计划示例](examples/project-task-planning-turn.json) 和实际服务 `/api/openapi.json`。
 
-网络地址、动态 IP 和断线恢复见 [APP 网络接入](app-network-connection-handoff.md)；认证完整 DTO 见 [盒子账户接线](box-local-account-client.md)。本次没有向远端部署、提交或推送代码。
+网络地址、动态 IP 和断线恢复见 [APP 网络接入](app-network-connection-handoff.md)；认证完整 DTO 见 [盒子账户接线](box-local-account-client.md)。本次没有修改 APP 的 Swift/UI，也没有向远端部署或推送代码。
+
+## 安装目录与数据库：停服后迁移一次
+
+使用 `scripts/migrate_installation_branding.py --root /path/to/.octop --destination /path/to/.inhere-box` 预检，确认服务已停止后添加 `--apply` 执行。脚本在临时副本中迁移安装根目录、旧 SQLite 文件名与已知的服务端路径引用，校验通过后启用新目录；原始目录作为完整备份保留，账户、盒子身份和业务记录保持原值。客户端目录、原始消息、检查点内容以及工作区内部 `.octop` 目录不改写。
+
+新旧目录或数据库并存时拒绝覆盖；中断后重跑相同命令恢复。外部启动配置、服务入口与挂载需在部署时改为新目录，进程环境中的旧数据库路径须先更新。FnOS/Docker 在启动前调用同一迁移模块，正常运行不再通过旧目录或旧库名回退。自定义根目录只需迁库时可省略 `--destination`。具体命令与备份、路径字段范围见 [命名迁移说明](inhere-box-renaming.md#已有安装)。
 
 ## 桌面包旧版本标记：升级前迁移一次
 
@@ -89,6 +96,12 @@ uv run python scripts/migrate_portable_branding.py "/path/to/portable" --apply
 
 第一条只预览；第二条创建带原文件哈希的旁置备份后替换。也可直接传 `VERSION.txt` 或 ZIP 文件路径。脚本重复运行不会再次改写已迁移文件，JSON 输出提供备份路径和原始 SHA-256。只处理版本标记，不对业务数据库、原始消息或检查点做替换；上文其他历史字段仍按各自读取兼容规则处理。完整操作说明见 [桌面说明](../desktop/README.md#one-time-version-marker-migration)。
 
-## 本轮验证记录
+## 2026-11-04 安装迁移验证记录
+
+目录、数据库与保存路径的一次性迁移已接入本地启动入口。`make all`：7749 passed、31 skipped，严格类型检查与 Ruff 通过；开发验证使用临时数据。随后按用户要求完成本机数据迁移和服务重启，业务记录与盒子身份核对一致，原目录完整归档；未部署远端。
+
+同日后续 P2 修复验证：Windows 打包/安装脚本的前端路径已与实际 wheel 内容核对；两套 Docker 健康检查使用与启动入口一致的端口选择；历史知识引用恢复预览与下载。`make all`：7777 passed、31 skipped；前端专项 26 passed，TypeScript、ESLint 和生产构建通过。本机无 PowerShell，未直接执行 Windows 脚本；本轮 P2 未重启服务或部署远端。
+
+## 2026-11-03 改名轮次验证记录
 
 `make all`：7525 passed、31 skipped；前端 TypeScript 与生产构建通过，相关前端测试 53 passed，接线集成测试 59 passed，最终迁移兼容测试 140 passed。独立版本标记迁移脚本 3 passed，并已演练 CLI 预览、执行和重复执行；桌面 Go 测试通过。本机没有旧桌面运行包需要执行实际迁移。当前业务数据库的 839 个轮次、115 个计划块已只读验证可恢复；其中 17 个旧引擎快照可转换为新名称。

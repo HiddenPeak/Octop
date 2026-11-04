@@ -43,7 +43,7 @@ if [ -f "$PKGVAR/.env" ]; then
 fi
 
 export HOME="$DATA_DIR"
-export INHERE_BOX_HOME="${DATA_DIR}/.octop"
+export INHERE_BOX_HOME="${DATA_DIR}/.inhere-box"
 export INHERE_BOX_DATA_DIR="$DATA_DIR"
 
 # 查找飞牛系统上的 Python 3.12（优先应用商店安装路径，再 PATH）。
@@ -98,7 +98,15 @@ INHERE_BOX_PORT="${INHERE_BOX_PORT:-8089}"
 INHERE_BOX_LOG_LEVEL="${INHERE_BOX_LOG_LEVEL:-info}"
 INHERE_BOX_BIND_HOST="${INHERE_BOX_BIND_HOST:-0.0.0.0}"
 
+if [ -e "${DATA_DIR}/.octop" ] || [ -f "${DATA_DIR}/.inhere-box-directory-migration.json" ]; then
+    "$PY" -m inhere_box.infra.setup.branding_migration \
+        --root "${DATA_DIR}/.octop" --destination "$INHERE_BOX_HOME" --apply
+fi
+"$PY" -m inhere_box.infra.setup.branding_migration --root "$INHERE_BOX_HOME" --apply
 mkdir -p "$INHERE_BOX_HOME"
+if [ -f "${DATA_DIR}/.inhere-box-apply-wizard-password" ]; then
+    mv "${DATA_DIR}/.inhere-box-apply-wizard-password" "$INHERE_BOX_HOME/.fnos-apply-wizard-password"
+fi
 
 inhere_box_cmd() {
     "$PY" -m inhere_box.cli.main "$@"
@@ -110,7 +118,7 @@ inhere_box_cmd() {
 #   2) init 因密码策略被拒（如旧版写死的 Octop123 在弱密码黑名单内，
 #      报 "password is too common"）→ 换随机强密码重试一次；
 #   3) 重试后同步回写 .env 与 inhere-box-login.txt 回落备份，保证凭据一致、用户不丢密码。
-if [ ! -f "$INHERE_BOX_HOME/inhere_box.db" ]; then
+if [ ! -f "$INHERE_BOX_HOME/inhere-box.db" ]; then
     echo "[inhere-box-native] 首次启动，正在初始化管理员账号 ..."
     INIT_PW="${INHERE_BOX_DEFAULT_PASSWORD:-}"
     if [ -z "$INIT_PW" ]; then

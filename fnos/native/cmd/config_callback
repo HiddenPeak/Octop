@@ -49,7 +49,7 @@ else
     ADMIN_PASS="$CUR_PASS"
 fi
 
-INHERE_BOX_HOME="${DATA_DIR}/.octop"
+INHERE_BOX_HOME="${DATA_DIR}/.inhere-box"
 MAIN="$APPDEST/cmd/main"
 if [ "$PASS_CHANGED" = "1" ] && [ -f "$INHERE_BOX_HOME/inhere-box.db" ]; then
     echo "[inhere-box-native] 检测到已初始化实例，先停止服务再离线修改管理员密码 ..." > "${TRIM_TEMP_LOGFILE:-/dev/null}" 2>&1 || true
@@ -64,6 +64,9 @@ if [ "$PASS_CHANGED" = "1" ] && [ -f "$INHERE_BOX_HOME/inhere-box.db" ]; then
 fi
 
 if [ "$PASS_CHANGED" = "1" ]; then
+    if [ ! -f "$INHERE_BOX_HOME/inhere-box.db" ]; then
+        inhere_box_mark_fnos_passwd_pending "$DATA_DIR"
+    fi
     inhere_box_env_set "$ENV_FILE" INHERE_BOX_DEFAULT_PASSWORD "$ADMIN_PASS"
     echo "[inhere-box-native] 已更新配置: $ENV_FILE" > "${TRIM_TEMP_LOGFILE:-/dev/null}" 2>/dev/null || true
     inhere_box_write_login_file "$DATA_DIR" "$CUR_USER" "$ADMIN_PASS" 8089

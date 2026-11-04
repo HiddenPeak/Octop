@@ -243,7 +243,7 @@ exit /b 0
 
 :prepare_console
 set "_RD=%~1"
-set "_DEST=%_RD%\src\inhere-box\dashboard"
+set "_DEST=%_RD%\src\inhere_box\dashboard"
 if exist "%_DEST%\index.html" (set "CONSOLE_AVAILABLE=1" & exit /b 0)
 if not exist "%_RD%\dashboard\package.json" exit /b 0
 where npm >nul 2>&1 || exit /b 0

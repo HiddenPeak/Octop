@@ -1,7 +1,7 @@
 name: Docker Publish
 
 # 仅在版本标签（v*）上构建并同步发布镜像到 Docker Hub 与 GHCR。
-# 文档与对外引用统一使用：ghcr.io/tencentcloud/inhere-box
+# GHCR 镜像按当前 github.repository 生成，不固定上游仓库。
 # （Hub 仍用 DOCKERHUB_* secrets 同步推送。）
 #
 # 架构：ubuntu-latest 打 linux/amd64，ubuntu-24.04-arm 打 linux/arm64，
@@ -18,8 +18,8 @@ name: Docker Publish
 # FnOS FPK 由 Release 成功后自动 dispatch，并等待本工作流推送的 :{version} 就绪。
 #
 # 拉取示例：
-#   docker pull ghcr.io/tencentcloud/inhere-box:latest
-#   docker pull ghcr.io/tencentcloud/inhere-box:0.9.28
+#   docker pull ghcr.io/rminte/octop:latest
+#   docker pull ghcr.io/rminte/octop:0.9.28
 on:
   push:
     tags:

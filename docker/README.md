@@ -26,7 +26,7 @@ From the repository root:
 docker compose -f docker/docker-compose.yml up -d --build
 ```
 
-Open `http://localhost:8088`. Set `INHERE_BOX_DEFAULT_PASSWORD` to create the initial administrator (at least 8 characters with letters and digits). When it is unset or rejected by the password policy, open the setup wizard instead; its one-time password is saved to `/data/.octop/inhere-box-login.txt`. Initial credentials or setup instructions are written to `/data/.octop/credential.txt`.
+Open `http://localhost:8088`. Set `INHERE_BOX_DEFAULT_PASSWORD` to create the initial administrator (at least 8 characters with letters and digits). When it is unset or rejected by the password policy, open the setup wizard instead; its one-time password is saved to `/data/.inhere-box/inhere-box-login.txt`. Initial credentials or setup instructions are written to `/data/.inhere-box/credential.txt`.
 
 Compose sets `nofile` to 65535 for multiple agents, streams and connector subprocesses. When using `docker run`, add `--ulimit nofile=65535:65535`.
 
@@ -37,7 +37,7 @@ bash docker/docker_build.sh
 docker run -d \
   --name inhere-box \
   -p 8088:8088 \
-  -v inhere-box-data:/data/.octop \
+  -v inhere-box-data:/data/.inhere-box \
   -e HOME=/data \
   inhere-box:latest
 ```
@@ -60,7 +60,7 @@ bash docker/docker_build.sh
 |----------|---------|-------------|
 | `HOME` | `/data` | Must be `/data` so `~/.inhere-box` maps to the data volume |
 | `INHERE_BOX_PORT` | `8088` | HTTP listen port |
-| `INHERE_BOX_DEFAULT_PASSWORD` | _(unset)_ | First-run admin password (≥8 chars, letters + digits). When unset, a random password is generated and written to `credential.txt` |
+| `INHERE_BOX_DEFAULT_PASSWORD` | _(unset)_ | First-run admin password (≥8 chars, letters + digits). When unset or rejected, the setup wizard is used |
 | `INHERE_BOX_ADMIN_USERNAME` | `admin` | Initial admin username |
 | `INHERE_BOX_DATABASE_URL` | — | PostgreSQL DSN (or other `INHERE_BOX_DATABASE_*`; see [configuration.md](../docs/configuration.md)) |
 | `INHERE_BOX_DATABASE_DRIVER` | — | `sqlite` \| `postgresql` when overriding defaults via env |
@@ -79,9 +79,11 @@ Remote providers can coexist with their own keys. Choose the box or a remote mod
 
 ### Data persistence
 
-- Compose mounts host `~/.inhere-box` → container `/data/.octop`
+- Compose mounts host `~/.inhere-box` → container `/data/.inhere-box`
 - `docker run` example uses named volume `inhere-box-data`
-- First boot runs `inhere-box init`; credentials are written to `/data/.octop/credential.txt`. With `INHERE_BOX_DEFAULT_PASSWORD` unset a random password is generated; a specified password that the app password policy rejects falls back to a random one automatically (the container must never fail its first init because of a weak default).
+- First boot creates an administrator only when `INHERE_BOX_DEFAULT_PASSWORD` meets the password policy. Otherwise it starts the setup wizard. Credentials or setup instructions are written to `/data/.inhere-box/credential.txt`.
+
+Stop the old container before upgrading an existing installation. To migrate sibling `.octop` and `.inhere-box` roots inside the container, mount their host parent directory onto `/data`; the entrypoint migrates the old root before initialization or startup. An old root mounted directly at `/data/.octop` is a mount point and cannot be renamed in the container. Rebind its parent, or migrate offline on the host and bind the resulting root to `/data/.inhere-box`. Existing source and destination roots cause a clear error instead of an overwrite. Explicit `INHERE_BOX_HOME=.../.octop` (including the old `OCTOP_HOME` environment prefix) is converted to its sibling `.inhere-box` during migration; save the new path in the deployment configuration afterward.
 
 ### Health check
 

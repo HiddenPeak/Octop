@@ -15,6 +15,9 @@
 #                    例如 FPK_NAME_PREFIX=inhere-box-fnos 会生成 inhere-box-fnos-docker-<ver>.fpk / inhere-box-fnos-native-<ver>.fpk
 #   FPK_ITER         迭代号，默认空
 #                    例如 FPK_ITER=01 会生成 ...-<ver>-01.fpk（通常不需要，按版本号发布）
+#   FPK_IMAGE_REPOSITORY Docker 镜像仓库（不含标签）；CI 传入实际发布地址。
+#                    本地默认按 GITHUB_REPOSITORY 或 Git origin 生成 GHCR 地址。
+#   FPK_IMAGE_TAG    Docker 镜像标签，默认本包版本；测试包可指定 latest。
 #   FPK_ARCH         本地版架构。arm64 → inhere-box-fnos-native-arm64-<ver>.fpk，
 #                    并写入 manifest platform=arm64。空或其它值保持现有 x86 包名。
 #                    fnpack 官方只有 linux-amd64，ARM 包应在 amd64 主机上打包
@@ -160,9 +163,28 @@ build_one() {
   if [ "$KIND" = "docker" ]; then
     local compose="$BUILD/app/docker/docker-compose.yaml" image_tag="${FPK_IMAGE_TAG:-$VER}"
     if [ -f "$compose" ]; then
-      sed -i.bak -E "s#ghcr.io/tencentcloud/inhere-box:[^[:space:]]+#ghcr.io/tencentcloud/inhere-box:${image_tag}#" "$compose"
+      local image_repository="${FPK_IMAGE_REPOSITORY:-}" repository="${GITHUB_REPOSITORY:-}" origin
+      if [ -z "$image_repository" ]; then
+        if [ -z "$repository" ]; then
+          origin="$(git -C "$ROOT" config --get remote.origin.url 2>/dev/null || true)"
+          case "$origin" in
+            git@github.com:*) repository="${origin#git@github.com:}" ;;
+            https://github.com/*|http://github.com/*|ssh://git@github.com/*) repository="${origin#*github.com/}" ;;
+          esac
+          repository="${repository%/}"
+          repository="${repository%.git}"
+        fi
+        if [ -n "$repository" ]; then
+          image_repository="ghcr.io/${repository}"
+        else
+          # 源码压缩包没有 Git 信息，沿用模板中的镜像仓库。
+          image_repository="$(sed -nE 's#^[[:space:]]*image:[[:space:]]*([^[:space:]]+):[^:[:space:]]+$#\1#p' "$compose")"
+        fi
+      fi
+      image_repository="$(printf '%s' "$image_repository" | tr '[:upper:]' '[:lower:]')"
+      sed -i.bak -E "s#^([[:space:]]*image:).*#\1 ${image_repository}:${image_tag}#" "$compose"
       rm -f "${compose}.bak"
-      echo "[build-fpk] compose 镜像: ghcr.io/tencentcloud/inhere-box:${image_tag}"
+      echo "[build-fpk] compose 镜像: ${image_repository}:${image_tag}"
     fi
   fi
 

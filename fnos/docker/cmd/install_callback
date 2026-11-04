@@ -61,7 +61,7 @@ chmod 600 "$ENV_FILE"
 inhere_box_persist_docker_env "$ENV_FILE"
 inhere_box_write_fnos_bootstrap "$DATA_DIR" "$ADMIN_USER" "$ADMIN_PASS" "$ADMIN_DISPLAY" "$ADMIN_EMAIL"
 inhere_box_distribute_docker_env "$ENV_FILE" "$DATA_DIR"
-if [ -f "${DATA_DIR}/.octop/inhere-box.db" ]; then
+if [ -f "${DATA_DIR}/.inhere-box/inhere-box.db" ] || [ -d "${DATA_DIR}/.octop" ]; then
     inhere_box_mark_fnos_passwd_pending "$DATA_DIR"
 fi
 echo "[inhere-box] 已写入配置: $ENV_FILE（data-share=${DATA_DIR}）" > "${TRIM_TEMP_LOGFILE:-/dev/null}" 2>/dev/null || true

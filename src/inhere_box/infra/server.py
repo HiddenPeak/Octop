@@ -424,6 +424,9 @@ class InhereBoxServer:
             raise RuntimeError("server shutdown is still in progress")
         if self._started:
             return
+        from inhere_box.infra.setup.branding_migration import require_installation_migrated
+
+        require_installation_migrated(self.paths.root)
         if self._agentcomputer_bootstrap is not None:
             await self._agentcomputer_bootstrap.acquire()
         try:
@@ -433,6 +436,9 @@ class InhereBoxServer:
             raise
 
     async def _start(self) -> None:
+        from inhere_box.infra.setup.branding_migration import require_installation_migrated
+
+        require_installation_migrated(self.paths.root)
         self.paths.ensure_root()
         # fnOS/容器内非 root 用户场景：把用户级 npm 全局 bin 目录（~/.npm-global）
         # 纳入进程 PATH，保证连接器 CLI（wecom-cli / lark-cli）可被检测与调用。

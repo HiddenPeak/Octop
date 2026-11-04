@@ -14,7 +14,7 @@ from inhere_box.cli.main import cli
 
 @pytest.fixture
 def fake_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    inhere_box_home = tmp_path / ".octop"
+    inhere_box_home = tmp_path / ".inhere-box"
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("INHERE_BOX_HOME", str(inhere_box_home))
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
@@ -38,19 +38,19 @@ def test_init_non_interactive_creates_admin(fake_home: Path) -> None:
         ],
     )
     assert result.exit_code == 0, result.output
-    assert (fake_home / ".octop").is_dir()
-    assert (fake_home / ".octop" / "inhere-box.db").is_file()
+    assert (fake_home / ".inhere-box").is_dir()
+    assert (fake_home / ".inhere-box" / "inhere-box.db").is_file()
     # New catalog plugins are installed via the marketplace, not auto-seeded.
-    weather = fake_home / ".octop" / "plugins" / "weather" / "plugin.yaml"
+    weather = fake_home / ".inhere-box" / "plugins" / "weather" / "plugin.yaml"
     assert not weather.is_file()
-    cfg = json.loads((fake_home / ".octop" / "config.json").read_text(encoding="utf-8"))
+    cfg = json.loads((fake_home / ".inhere-box" / "config.json").read_text(encoding="utf-8"))
     assert "weather" not in (cfg.get("plugins") or {})
 
     from inhere_box.infra.db.pool import SqlitePool
     from inhere_box.infra.db.repos.users import UserRepo
     from inhere_box.infra.utils.paths import PathLayout
 
-    paths = PathLayout(fake_home / ".octop")
+    paths = PathLayout(fake_home / ".inhere-box")
     db = SqlitePool(paths.db)
     row = UserRepo(db).get_by_username("alice")
     assert row is not None
@@ -59,7 +59,7 @@ def test_init_non_interactive_creates_admin(fake_home: Path) -> None:
 
 def test_init_allows_sidecar_files_without_database(fake_home: Path) -> None:
     """NAS / Docker shares often have login.txt before the first inhere-box.db exists."""
-    home = fake_home / ".octop"
+    home = fake_home / ".inhere-box"
     home.mkdir()
     (home / "inhere-box-login.txt").write_text("placeholder\n", encoding="utf-8")
     runner = CliRunner()
@@ -127,7 +127,7 @@ def test_init_force_resets(fake_home: Path) -> None:
     from inhere_box.infra.db.repos.users import UserRepo
     from inhere_box.infra.utils.paths import PathLayout
 
-    paths = PathLayout(fake_home / ".octop")
+    paths = PathLayout(fake_home / ".inhere-box")
     repo = UserRepo(SqlitePool(paths.db))
     assert repo.get_by_username("bob") is not None
 
@@ -156,7 +156,7 @@ def test_init_rerun_skips_existing_admin_without_local_db(
     ]
     r1 = runner.invoke(cli, args)
     assert r1.exit_code == 0, r1.output
-    assert not (fake_home / ".octop" / "inhere-box.db").exists()
+    assert not (fake_home / ".inhere-box" / "inhere-box.db").exists()
 
     r2 = runner.invoke(cli, args)
     assert r2.exit_code == 0, r2.output or str(r2.exception)
@@ -189,6 +189,6 @@ def test_init_env_vars_supply_credentials(fake_home: Path, monkeypatch: pytest.M
     from inhere_box.infra.db.repos.users import UserRepo
     from inhere_box.infra.utils.paths import PathLayout
 
-    paths = PathLayout(fake_home / ".octop")
+    paths = PathLayout(fake_home / ".inhere-box")
     repo = UserRepo(SqlitePool(paths.db))
     assert repo.get_by_username("fromenv") is not None

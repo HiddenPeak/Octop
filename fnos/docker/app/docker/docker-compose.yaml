@@ -1,6 +1,6 @@
 services:
   inhere-box:
-    image: ghcr.io/tencentcloud/inhere-box:1.0.2b5
+    image: ghcr.io/rminte/octop:1.0.2b5
     container_name: inhere-box
     restart: unless-stopped
     ulimits:
@@ -14,12 +14,12 @@ services:
     # 改用 data-share 上的引导脚本：每次启动用向导密码 init 或 passwd。
     entrypoint: ["bash", "/usr/local/bin/fnos-boot.sh"]
     volumes:
-      - "${TRIM_DATA_SHARE_PATHS}/.octop:/data/.octop"
+      - "${TRIM_DATA_SHARE_PATHS}:/data"
       - "${TRIM_DATA_SHARE_PATHS}/fnos-boot.sh:/usr/local/bin/fnos-boot.sh:ro"
       - "${TRIM_DATA_SHARE_PATHS}/fnos-admin.env:/data/fnos-admin.env:ro"
     environment:
       - HOME=/data
-      - INHERE_BOX_HOME=/data/.octop
+      - INHERE_BOX_HOME=/data/.inhere-box
       - INHERE_BOX_BIND_HOST=0.0.0.0
       - INHERE_BOX_PORT=${INHERE_BOX_PORT:-8088}
       - INHERE_BOX_LOG_LEVEL=${INHERE_BOX_LOG_LEVEL:-info}

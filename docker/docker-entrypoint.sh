@@ -13,12 +13,12 @@
 #
 # 首次引导（issue #502）：容器不得因弱默认密码重启循环。未设置或不合格
 # 的 INHERE_BOX_DEFAULT_PASSWORD 不再静默换成随机管理员密码，而是把向导口令
-# 写到数据卷（/data/.octop/inhere-box-login.txt），打开页面走设置向导。
+# 写到数据卷（/data/.inhere-box/inhere-box-login.txt），打开页面走设置向导。
 #
 # 初始化标记（issue #1866）：PostgreSQL 等外部数据库不会在数据卷生成
 # inhere-box.db，仅凭 DB_FILE 判断会在每次重启重复执行 inhere-box init（管理员
 # INSERT 撞 UNIQUE 约束直接崩溃）。inhere-box init 成功后写入
-# /data/.octop/.initialized，重启命中该标记即跳过引导直接启动。
+# /data/.inhere-box/.initialized，重启命中该标记即跳过引导直接启动。
 # =============================================================================
 set -euo pipefail
 
@@ -31,17 +31,19 @@ while IFS= read -r legacy_key; do
     export "$new_key"
   fi
 done < <(compgen -e | sed -n '/^OCTOP_/p')
-if [ -z "${INHERE_BOX_HOME:-}" ]; then
-  INHERE_BOX_HOME="${HOME}/.inhere-box"
-  if [ ! -e "$INHERE_BOX_HOME" ] && [ -d "${HOME}/.octop" ]; then
-    INHERE_BOX_HOME="${HOME}/.octop"
-  fi
-fi
+INHERE_BOX_HOME="${INHERE_BOX_HOME:-${HOME}/.inhere-box}"
+_inhere_box_legacy_home=""
+case "$(basename "$INHERE_BOX_HOME")" in
+  .octop)
+    _inhere_box_legacy_home="$INHERE_BOX_HOME"
+    INHERE_BOX_HOME="$(dirname "$INHERE_BOX_HOME")/.inhere-box"
+    ;;
+  .inhere-box)
+    _inhere_box_legacy_home="$(dirname "$INHERE_BOX_HOME")/.octop"
+    ;;
+esac
 export INHERE_BOX_HOME
 DB_FILE="${INHERE_BOX_HOME}/inhere-box.db"
-if [ ! -e "$DB_FILE" ] && [ -f "${INHERE_BOX_HOME}/octop.db" ]; then
-  DB_FILE="${INHERE_BOX_HOME}/octop.db"
-fi
 INIT_MARKER="${INHERE_BOX_HOME}/.initialized"
 CREDENTIAL_FILE="${INHERE_BOX_HOME}/credential.txt"
 WIZARD_FILE="${INHERE_BOX_HOME}/inhere-box-login.txt"
@@ -174,6 +176,14 @@ inhere_box_run_init() {
 inhere_box_entrypoint_main() {
     local default_password="${INHERE_BOX_DEFAULT_PASSWORD:-}"
     local init_log reason
+
+    if [ -n "$_inhere_box_legacy_home" ] && {
+        [ -e "$_inhere_box_legacy_home" ] || [ -f "$(dirname "$INHERE_BOX_HOME")/.inhere-box-directory-migration.json" ]
+    }; then
+        python3 -m inhere_box.infra.setup.branding_migration \
+            --root "$_inhere_box_legacy_home" --destination "$INHERE_BOX_HOME" --apply
+    fi
+    python3 -m inhere_box.infra.setup.branding_migration --root "$INHERE_BOX_HOME" --apply
 
     if [ ! -f "$DB_FILE" ] && [ ! -f "$INIT_MARKER" ]; then
         echo "[entrypoint] 首次启动，正在初始化 inhere-box..."

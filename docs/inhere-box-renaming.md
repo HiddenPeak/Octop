@@ -1,6 +1,6 @@
 # inhere-box 命名迁移
 
-更新：2026-11-03。
+更新：2026-11-04。
 
 本地产品及内部入口统一使用以下名称：
 
@@ -24,9 +24,26 @@
 
 `INHERE_BOX_*` 优先，未设置时接受对应的 `OCTOP_*`。`INHERE_BOX_HOME` 或旧的 `OCTOP_HOME` 可以显式选择数据目录。
 
-未指定目录时，已有 `~/.octop` 且尚无 `~/.inhere-box` 的安装继续原地读取旧目录。新文件名不存在时继续使用已有 `octop.db` 和 `octop-login.txt`；不会搬动、覆盖或复制数据库，也不会改写数据库中保存的绝对路径。需要改用其他目录时，应先停服务并规划绝对路径迁移，不能只重命名目录。
+已有安装采用一次性迁移：停服后将安装根目录 `.octop` 迁到同级 `.inhere-box`，将 `octop.db` 迁为 `inhere-box.db`，同步更新配置与数据库中的本机安装路径。正常运行只使用新目录和新库名；发现旧根目录、旧库或未完成的迁移时，会要求先完成迁移，不再回退打开旧数据位置。
 
-配置文件内显式指定的数据库名、用户、文件路径和工作目录保持原值。Python 的公开导入入口现在是 `inhere_box`，自行编写的扩展若导入应用代码，需要同步更新。CLI 主命令现在是 `inhere-box`；现有 OS 服务的 unit/plist 不自动删除或重装，需要在部署时更新启动入口。浏览器本地偏好在同一站点首次加载新版本时复制到新前缀，保留原值。
+先停止该实例的服务、驻留 worker 和其他写入进程，在当前源码或已安装本版本的 Python 环境中执行：
+
+```sh
+uv run python scripts/migrate_installation_branding.py --root /path/to/.octop --destination /path/to/.inhere-box
+uv run python scripts/migrate_installation_branding.py --root /path/to/.octop --destination /path/to/.inhere-box --apply
+```
+
+第一条只做只读预检，第二条取得离线锁后复制到同级临时目录，在副本中迁移并校验 SQLite，再启用新目录。原目录归档为同级 `.octop.before-inhere-box-<id>`，完整保留原数据库、附件和身份；新目录中另有旧库文件的迁移备份。应预留至少一份完整数据目录的可用空间。迁移进度保存在父目录 `.inhere-box-directory-migration.json`，中断后重跑相同命令恢复。新旧目录或新旧库独立并存时拒绝覆盖，不自动合并。迁移完成后重复执行不会重建数据库。
+
+路径更新只作用于指向旧安装根目录的明确字段：服务端项目目录、专家工作目录和本地存储、轮次配置中的服务端目录、SQLite 记忆路径、技能路径、ACP 与本地 MCP 启动配置、历史归档的控制库身份，以及 `config.json` 和 `env`/`.env` 中已知的本机路径项。客户端目录、远端存储路径、业务正文、原始事件、检查点内容和 SDK 内部 `.octop` 子目录不做品牌字符串替换。盒子身份、账户、密钥和任务 ID 保持原值。
+
+这套目录迁移处理根目录内的 SQLite 控制库。PostgreSQL 的路径记录位于外部数据库，当前脚本会拒绝该目录迁移，需要单独安排外部数据库中的路径更新；不会连接或改写外部数据库。
+
+迁移完成后，将外部部署配置中的 `INHERE_BOX_HOME` 改为新目录。根目录内的 POSIX venv 生成启动脚本会更新路径；目录外的 shell wrapper、systemd unit、launchd plist 和容器挂载需要在部署时更新或重装。Windows venv 启动器若嵌入旧路径，迁移会报错，须先移走旧 venv 并在新目录重建。进程环境中显式指定旧 `DATABASE_SQLITE_PATH` 时也须先更新；数据根目录中的对应 env 文件由目录迁移器更新。不要在迁移未完成时启动服务或手工改写临时副本。
+
+自定义数据根目录不需要改名时，可不带 `--destination`，仅迁移该目录中的旧数据库文件。`migrate_portable_branding.py` 仍只负责桌面包 `VERSION.txt`，不负责安装数据目录迁移。FnOS 与 Docker 启动入口会在初始化或启动服务前调用安装迁移模块，失败时中止启动；原来只挂载 `.octop` 子目录的容器须先改为父级挂载或在宿主机离线迁移，参见 [FnOS 升级说明](../fnos/README.md)。
+
+Python 的公开导入入口是 `inhere_box`，CLI 主命令是 `inhere-box`；自行编写的扩展需要同步入口。浏览器本地偏好在同一站点首次加载新版本时复制到新前缀，保留原值。
 
 ## HTTP、Cookie 与签名协议
 
@@ -62,10 +79,14 @@ HTTP 头名称不区分大小写；JWS 类型、audience 与 Cookie 名按这里
 
 Bonjour 客户端需要把浏览类型及 `NSBonjourServices` 更新为 `_inhere-box._tcp`，并接受 `product=inhere-box`。端口、接口、HTTP/WS 支持和认证流程保持当前行为；参见 [APP 网络接入文档](app-network-connection-handoff.md)。新名称在服务重新启动后发布，主机名继续动态生成，不包含固定局域网 IP。
 
-容器升级时把 `INHERE_BOX_DATA` 显式设为原宿主机数据目录；FnOS 部署时核对原应用共享的映射。安装包和 App ID 改名不会自动迁移宿主机的数据卷。
+容器升级时核对宿主机数据目录与挂载关系：需要迁移时，让迁移器同时看到同级的新旧目录；不要将旧安装目录独立挂载为不可重命名的挂载点。安装包和 App ID 改名本身不代表宿主机数据已经完成迁移。
 
 
-## 本次本地验证
+## 2026-11-04 安装迁移验证
+
+`make all` 通过：7749 passed、31 skipped；Ruff 和全量严格 mypy 通过。新增验证覆盖完整根目录备份、SQLite WAL、路径字段与历史身份、加密 MCP、venv、迁移中断恢复、目标丢失拒绝启动，以及 FnOS/Docker/安装器入口和自有仓库镜像接线。开发验证使用临时实例；随后按用户要求完成本机安装目录迁移和服务重启，业务记录与盒子身份核对一致，原目录完整归档；未部署远端。
+
+## 2026-11-03 改名轮次验证
 
 - `make all`（含自有标识改名）：7525 passed，31 skipped；Python 严格类型检查通过。
 - 补充的备份、游标与静态资源验证：114 passed；旧目录/变量、旧备份名称和旧游标签名的迁移验证：7 passed。
@@ -76,4 +97,4 @@ Bonjour 客户端需要把浏览类型及 `NSBonjourServices` 更新为 `_inhere
 - 前端全量测试在当前 Node 26 上需要关闭实验 WebStorage。相同设置下，改名前对照为 19 个失败；改名后的首轮为 21 个失败。新增的目录显示测试预期已修正，AuthGuard 单独复验通过，相关两文件合计 26 passed。原有 mock/DTO、语音和超时问题仍可在改名前源码复现，本次没有顺带修改这些功能。
 - 本机 8088 已使用新入口重启；Bonjour 发布 `_inhere-box._tcp` / `product=inhere-box`。LAN 与 `.local` HTTP 健康检查通过，未认证业务请求仍返回 401；重启前后盒子身份、数据库版本与业务记录数量一致。
 
-本次未提交、未推送，也未部署到远端。当前本地安装包位于 `dist/inhere-box-20261103/`。
+2026-11-03 验证时未提交、未推送，也未部署到远端；当时本地安装包位于 `dist/inhere-box-20261103/`。

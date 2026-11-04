@@ -67,7 +67,7 @@ PY="$(find_python312)" || {
 SITE_PACKAGES="$APPDEST/site-packages"
 export PYTHONPATH="${SITE_PACKAGES}${PYTHONPATH:+:$PYTHONPATH}"
 export HOME="$DATA_DIR"
-export INHERE_BOX_HOME="$DATA_DIR/.octop"
+export INHERE_BOX_HOME="$DATA_DIR/.inhere-box"
 export INHERE_BOX_DATA_DIR="$DATA_DIR"
 
 # 内置在线升级优先使用 uv（pip 对 octop-harness[all] 依赖树解析会卡死）。
@@ -95,15 +95,20 @@ if ! "$PY" -c "import inhere_box" >/dev/null 2>&1; then
 fi
 
 # 以 inhere-box-native 身份运行，避免产生 root 所有的数据文件
+PYTHON_COMMAND=("$PY")
 if id inhere-box-native >/dev/null 2>&1 && command -v sudo >/dev/null 2>&1; then
-    exec sudo -u inhere-box-native \
-        PYTHONPATH="$PYTHONPATH" \
-        HOME="$HOME" \
-        INHERE_BOX_HOME="$INHERE_BOX_HOME" \
-        INHERE_BOX_DATA_DIR="$INHERE_BOX_DATA_DIR" \
-        INHERE_BOX_INSTALL_MODE="$INHERE_BOX_INSTALL_MODE" \
-        INHERE_BOX_FPK_SITE_PACKAGES="$INHERE_BOX_FPK_SITE_PACKAGES" \
-        "$PY" -m inhere_box.cli.main "$@"
-else
-    exec "$PY" -m inhere_box.cli.main "$@"
+    PYTHON_COMMAND=(sudo -u inhere-box-native
+        "PYTHONPATH=$PYTHONPATH"
+        "HOME=$HOME"
+        "INHERE_BOX_HOME=$INHERE_BOX_HOME"
+        "INHERE_BOX_DATA_DIR=$INHERE_BOX_DATA_DIR"
+        "INHERE_BOX_INSTALL_MODE=$INHERE_BOX_INSTALL_MODE"
+        "INHERE_BOX_FPK_SITE_PACKAGES=$INHERE_BOX_FPK_SITE_PACKAGES"
+        "$PY")
 fi
+if [ -e "${DATA_DIR}/.octop" ] || [ -f "${DATA_DIR}/.inhere-box-directory-migration.json" ]; then
+    "${PYTHON_COMMAND[@]}" -m inhere_box.infra.setup.branding_migration \
+        --root "${DATA_DIR}/.octop" --destination "$INHERE_BOX_HOME" --apply
+fi
+"${PYTHON_COMMAND[@]}" -m inhere_box.infra.setup.branding_migration --root "$INHERE_BOX_HOME" --apply
+exec "${PYTHON_COMMAND[@]}" -m inhere_box.cli.main "$@"

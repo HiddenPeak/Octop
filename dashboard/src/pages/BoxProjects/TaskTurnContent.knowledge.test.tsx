@@ -138,61 +138,79 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("任务持久化知识来源", () => {
-  it("重开后从真实工具结果恢复去重来源，回答标记不编造来源，可鉴权预览和下载", async () => {
-    const user = userEvent.setup();
-    const saved = JSON.parse(
-      JSON.stringify({
-        ...turn,
-        content_blocks: [
-          tool,
-          { ...tool, block_id: "repeated-result" },
-          {
-            block_id: "answer",
-            type: "text",
-            status: "completed",
-            text: `最终答复。\n${marker({
-              ...citation,
-              doc_id: "fake_doc",
-              filename: "模型编造来源.md",
-            })}`,
-            tool_call_id: null,
-            tool_name: null,
-          },
-        ],
-      }),
-    ) as TaskTurn;
-    const first = render(<TaskTurnContent turn={saved} />);
-    expect(
-      screen.getAllByRole("button", { name: "操作指南.md · 共享知识" }),
-    ).toHaveLength(1);
-    expect(
-      screen.queryByText(/inhere-box-kb-citations/),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("最终答复。")).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: /模型编造来源/ }),
-    ).not.toBeInTheDocument();
-    expect(api.listDocuments).not.toHaveBeenCalled();
-    first.unmount();
-    render(<TaskTurnContent turn={JSON.parse(JSON.stringify(saved))} />);
-    await user.click(
-      screen.getByRole("button", { name: "操作指南.md · 共享知识" }),
-    );
-    expect(await screen.findByText("# 来源正文")).toBeVisible();
-    expect(api.listDocuments).toHaveBeenCalledWith("kb_shared");
-    expect(api.getTextDocument).toHaveBeenCalledWith("kb_shared", "doc_guide");
-    await user.click(screen.getByRole("button", { name: "下载原文件" }));
-    await waitFor(() =>
-      expect(api.fetchDocumentFile).toHaveBeenCalledWith(
+  it.each(["inhere-box", "octop"])(
+    "重开后从%s工具结果恢复去重来源，回答标记不编造来源，可鉴权预览和下载",
+    async (prefix) => {
+      const user = userEvent.setup();
+      const savedTool = {
+        ...tool,
+        output: tool.output.replaceAll(
+          "inhere-box-kb-citations",
+          `${prefix}-kb-citations`,
+        ),
+      };
+      const saved = JSON.parse(
+        JSON.stringify({
+          ...turn,
+          content_blocks: [
+            savedTool,
+            { ...savedTool, block_id: "repeated-result" },
+            {
+              block_id: "answer",
+              type: "text",
+              status: "completed",
+              text: `最终答复。\n${marker({
+                ...citation,
+                doc_id: "fake_doc",
+                filename: "模型编造来源.md",
+              }).replaceAll(
+                "inhere-box-kb-citations",
+                `${prefix}-kb-citations`,
+              )}`,
+              tool_call_id: null,
+              tool_name: null,
+            },
+          ],
+        }),
+      ) as TaskTurn;
+      const first = render(<TaskTurnContent turn={saved} />);
+      expect(
+        screen.getAllByRole("button", { name: "操作指南.md · 共享知识" }),
+      ).toHaveLength(1);
+      expect(
+        screen.queryByText(/(?:inhere-box|octop)-kb-citations/),
+      ).not.toBeInTheDocument();
+      expect(screen.getByText("最终答复。")).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: /模型编造来源/ }),
+      ).not.toBeInTheDocument();
+      expect(api.listDocuments).not.toHaveBeenCalled();
+      first.unmount();
+      render(<TaskTurnContent turn={JSON.parse(JSON.stringify(saved))} />);
+      await user.click(
+        screen.getByRole("button", { name: "操作指南.md · 共享知识" }),
+      );
+      expect(await screen.findByText("# 来源正文")).toBeVisible();
+      expect(api.listDocuments).toHaveBeenCalledWith("kb_shared");
+      expect(api.getTextDocument).toHaveBeenCalledWith(
         "kb_shared",
         "doc_guide",
-        "attachment",
-        undefined,
-        expect.any(AbortSignal),
-      ),
-    );
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:knowledge-original");
-  });
+      );
+      await user.click(screen.getByRole("button", { name: "下载原文件" }));
+      await waitFor(() =>
+        expect(api.fetchDocumentFile).toHaveBeenCalledWith(
+          "kb_shared",
+          "doc_guide",
+          "attachment",
+          undefined,
+          expect.any(AbortSignal),
+        ),
+      );
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith(
+        "blob:knowledge-original",
+      );
+    },
+  );
 
   it("原文件格式复用文档预览，通过知识 API 读取鉴权文件", async () => {
     const user = userEvent.setup();

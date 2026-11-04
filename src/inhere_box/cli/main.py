@@ -120,6 +120,16 @@ def cli(
 ) -> None:
     """inhere-box command-line interface."""
     _ensure_utf8_stdio()
+    from inhere_box.infra.setup.branding_migration import (
+        BrandingMigrationError,
+        require_installation_migrated,
+    )
+    from inhere_box.infra.utils.paths import PathLayout
+
+    try:
+        require_installation_migrated(PathLayout.from_env().root)
+    except BrandingMigrationError as exc:
+        raise click.ClickException(str(exc)) from exc
     ctx.ensure_object(dict)
     ctx.obj["as_user"] = as_user
     ctx.obj["agent_id"] = agent_id

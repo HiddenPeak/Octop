@@ -1,6 +1,6 @@
 # inhere-box — 飞牛 FnOS 安装包
 
-本目录包含将 [TencentCloud/inhere-box](https://github.com/TencentCloud/Octop) 打包为飞牛 fnOS `.fpk` 安装包所需的全部文件，并附带自动同步上游 + 自动构建的 GitHub Actions。
+本目录包含将 [Inhere-Box](https://github.com/RMinte/Octop) 打包为飞牛 fnOS `.fpk` 安装包所需的全部文件，并附带自动构建和发布到当前仓库的 GitHub Actions。
 
 ## 首次使用（初始账号）
 
@@ -33,14 +33,14 @@ inhere-box backup --help     # 备份/恢复
 
 | 版本 | 包名 | 体积 | 运行方式 | 依赖 |
 |------|------|------|----------|------|
-| **Docker 版（推荐，尤其是 ARM）** | `inhere-box-fnos-docker-<ver>.fpk` | ~340 KB | 飞牛拉取 `ghcr.io/tencentcloud/inhere-box:<本包版本>`（`amd64` / `arm64` 多架构），重启不再重拉 | 宿主需有 Docker，且能访问 `ghcr.io` |
+| **Docker 版（推荐，尤其是 ARM）** | `inhere-box-fnos-docker-<ver>.fpk` | ~340 KB | 飞牛拉取当前发布仓库的 `ghcr.io/<owner>/<repo>:<本包版本>`（`amd64` / `arm64` 多架构），重启不再重拉 | 宿主需有 Docker，且能访问 `ghcr.io` |
 | **本地版 x86_64** | `inhere-box-fnos-native-<ver>.fpk` | ~200 MB | 复用飞牛「Python 3.12」+ 包内核心依赖与前端 | 无需 Docker |
 | **本地版 ARM64** | `inhere-box-fnos-native-arm64-<ver>.fpk` | ~200 MB | 同上，site-packages 为 aarch64；勿装到 x86 | 无需 Docker；ARM 飞牛无 Docker 时再用 |
 
 - **Docker 版**实现为 FnOS `docker-project`：包体只含 `docker-compose.yaml` 与向导配置，运行时由飞牛从 GHCR 拉取镜像。x86 / ARM 飞牛共用这一份 FPK，Docker 按本机架构拉对应镜像层。ARM 飞牛优先用这一份。镜像已内置 `desktop` 桌面控制与前端；Playwright Chromium 不预装，可在控制台按需安装。
 - **本地版**实现为 FnOS 原生 `app`：解释器复用飞牛「Python 3.12」开发工具；包内是 inhere-box 核心依赖与前端。专家 shell / 技能若要跑 `node` / `npx`，会复用飞牛已装的 Node.js（不强制安装）。扩展里的 `.so` 与 CPU 架构绑定，因此 x86 与 ARM 各打一份；装错架构会在安装或启动时报错。
 
-> 上述包随正式版一起挂在 **`v*` GitHub Release** 上（例如 [v0.9.31](https://github.com/TencentCloud/Octop/releases/latest)）：`inhere-box-fnos-docker-<ver>.fpk` / `inhere-box-fnos-native-<ver>.fpk` / `inhere-box-fnos-native-arm64-<ver>.fpk`。
+> 上述包随正式版一起挂在当前仓库的 **[`v*` GitHub Release](https://github.com/RMinte/Octop/releases/latest)** 上：`inhere-box-fnos-docker-<ver>.fpk` / `inhere-box-fnos-native-<ver>.fpk` / `inhere-box-fnos-native-arm64-<ver>.fpk`。
 
 ## 目录结构
 
@@ -62,7 +62,7 @@ fnos/
 │   │   └── uninstall     # 卸载向导（数据清理方式）
 │   ├── app/
 │   │   ├── docker/
-│   │   │   └── docker-compose.yaml   # 引用 ghcr.io/tencentcloud/inhere-box:<version>；卷挂 TRIM_DATA_SHARE_PATHS
+│   │   │   └── docker-compose.yaml   # 打包时注入当前仓库镜像；卷挂 TRIM_DATA_SHARE_PATHS
 │   │   └── ui/
 │   │       ├── config                # 桌面图标入口
 │   │       └── images/icon-{64,256}.png
@@ -83,7 +83,7 @@ fnos/
 ## 工作机制
 
 1. **发版链路**：`v*` tag → `release.yml`（PyPI + GitHub Release）与 `docker-publish.yml`（GHCR / Hub）并行；Release 成功后自动 `workflow_dispatch` 本工作流。
-2. **镜像复用**：不再重新 build 镜像；`ensure-image` 轮询等待 `ghcr.io/tencentcloud/inhere-box:{version}`（由 docker-publish 推送的 amd64+arm64 清单）。Docker 版 `.fpk` 仅打包 compose，运行时拉取该镜像。
+2. **镜像复用**：不再重新 build 镜像；`ensure-image` 轮询等待 `ghcr.io/<owner>/<repo>:{version}`（由当前仓库的 docker-publish 推送的 amd64+arm64 清单），并将同一个镜像地址传给打包脚本。Docker 版 `.fpk` 仅打包 compose，运行时拉取该镜像。
 3. **Wheel 复用**：Native 版优先从同版本 GitHub Release（`v*`）下载 `inhere_box-*.whl`；若缺失再回退源码构建前端 + wheel。
 4. **安装包构建**：`fpk` / `native` / `native-arm64` job 用 `scripts/build-fpk.sh` 打包。官方 fnpack 只有 linux-amd64，ARM 本地版先在 `ubuntu-24.04-arm` 上装好 aarch64 `site-packages`，再回到 amd64 runner 打包。产物挂到同一个 `v*` GitHub Release（与 wheel、桌面包并列）。
 
@@ -95,6 +95,18 @@ bash scripts/build-fpk.sh docker     # 仅 Docker 版  → dist/inhere-box-fnos-
 bash scripts/build-fpk.sh native     # 仅本地版      → dist/inhere-box-fnos-native-<version>.fpk
 FPK_ARCH=arm64 bash scripts/build-fpk.sh native   # ARM 本地版（需已放入 aarch64 site-packages）
 ```
+
+Docker 包的镜像仓库依次取 `FPK_IMAGE_REPOSITORY`、`GITHUB_REPOSITORY`、本地 Git `origin`；GitHub 仓库名转换为小写。例如当前 `RMinte/Octop` 对应 `ghcr.io/rminte/octop`。无 Git 信息的源码压缩包使用 compose 模板中的仓库地址，也可显式设置 `FPK_IMAGE_REPOSITORY`。标签默认使用本包版本，可通过 `FPK_IMAGE_TAG` 覆盖。
+
+### 升级已有数据目录
+
+正式安装数据根目录统一为共享目录下的 `.inhere-box`，数据库为其中的 `inhere-box.db`。先停止旧服务；新启动器在初始化或启动服务前预检并备份，将旧安装根目录 `.octop` 迁到同级 `.inhere-box`，迁移旧数据库名及保存的安装路径。已有账号、密码和业务数据继续保留。工作区内部由 harness 使用的 `.octop` 子目录保持原样。
+
+Docker 版现在将整个共享目录挂到容器 `/data`：`${TRIM_DATA_SHARE_PATHS}:/data`，并设置 `INHERE_BOX_HOME=/data/.inhere-box`。父级挂载让迁移器同时看到新旧安装目录。应用共享目录的选择仍由飞牛配置决定；升级时应确认该父级目录就是原数据所在的共享目录。
+
+旧部署若只挂载 `宿主路径/.octop:/data/.octop`，容器内的旧根目录是独立挂载点，不能原地重命名。升级前应停止容器，改为挂载宿主父级目录到 `/data`；也可在宿主离线完成迁移后，将新根目录挂到 `/data/.inhere-box`。迁移器遇到挂载点或新旧目录同时存在时会报错退出，不会覆盖已有目录或改用空数据库。
+
+原先显式设置的 `INHERE_BOX_HOME=.../.octop`（或旧前缀 `OCTOP_HOME`）由启动入口一次性转换为同级 `.../.inhere-box` 并执行迁移；父级目录必须可写。升级后应将部署配置保存为新路径。迁移失败时先按错误信息检查原目录、目标目录及备份，修正后重试启动。
 
 `.fpk` 为「双层 gzip tar」：外层含 `app.tgz / cmd / config / wizard / ICON.PNG / ICON_256.PNG / LICENSE / manifest`，内层 `app.tgz` 含 `app/` 内容。
 

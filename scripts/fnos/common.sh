@@ -442,7 +442,7 @@ inhere_box_env_set() {
 # ---------------------------------------------------------------------------
 # Docker 版数据持久化：必须挂飞牛 data-share，不能写 /var/apps/<app>/share/。
 #
-# 旧 FPK 把 compose 绑到 /var/apps/inhere-box/share/inhere-box/data（单数 share，且
+# 旧 FPK 把 compose 绑到 /var/apps/octop/share/octop/data（单数 share，且
 # 不是 @appshare）。应用中心重启 / 重建容器后该目录被清空或未挂载，
 # entrypoint 看不到 inhere-box.db 就再次 init，表现为「每次重启都要重新配置」。
 # 官方 docker-project 在 compose up 时注入 TRIM_DATA_SHARE_PATHS
@@ -450,7 +450,7 @@ inhere_box_env_set() {
 # ---------------------------------------------------------------------------
 
 inhere_box_legacy_docker_data_dir() {
-    printf '%s' "/var/apps/inhere-box/share/inhere-box/data"
+    printf '%s' "/var/apps/octop/share/octop/data"
 }
 
 # 解析飞牛持久 data-share 目录。可选参数为 resource.json 里的 share name。
@@ -490,21 +490,25 @@ inhere_box_data_share_dir() {
     printf '%s' "/var/apps/${app}/shares/${share_name}"
 }
 
-# 旧绑定目录里若有 inhere-box.db / config.json，迁到 share/.octop（不覆盖已有库）。
+# 旧平铺目录先复制到旧命名根目录，容器启动时统一迁移目录、数据库及保存的路径。
 inhere_box_migrate_legacy_docker_data() {
-    local dest="$1" src home
+    local dest="$1" src home staging
     src="$(inhere_box_legacy_docker_data_dir)"
     [ -n "$dest" ] || return 0
     home="${dest}/.octop"
-    mkdir -p "$home"
     [ -d "$src" ] || return 0
     [ "$src" = "$home" ] && return 0
     [ "$src" = "$dest" ] && return 0
-    if [ -f "${home}/inhere-box.db" ]; then
+    if [ -e "$home" ] || [ -e "${dest}/.inhere-box" ]; then
         return 0
     fi
-    if [ -f "${src}/inhere-box.db" ] || [ -f "${src}/config.json" ]; then
-        cp -a "${src}/." "${home}/" 2>/dev/null || true
+    if [ -f "${src}/octop.db" ] || [ -f "${src}/inhere-box.db" ] || [ -f "${src}/config.json" ]; then
+        staging="$(mktemp -d "${dest}/.inhere-box-copy.XXXXXX")"
+        if ! cp -a "${src}/." "${staging}/"; then
+            rm -rf "$staging"
+            return 1
+        fi
+        mv "$staging" "$home"
         echo "[inhere-box] 已将旧数据目录 ${src} 迁移到 ${home}" > "${TRIM_TEMP_LOGFILE:-/dev/null}" 2>/dev/null || true
     fi
 }
@@ -526,7 +530,7 @@ inhere_box_sync_fnos_compose() {
     local compose="$1" data_dir="$2" env_file="${3:-}" bind tmp line in_env_file=0
     [ -f "$compose" ] || return 0
     [ -n "$data_dir" ] || return 0
-    bind="${data_dir}/.octop"
+    bind="$data_dir"
     mkdir -p "$bind"
     tmp="${compose}.tmp.$$"
     : > "$tmp"
@@ -548,8 +552,11 @@ inhere_box_sync_fnos_compose() {
             esac
         fi
         case "$line" in
-            *":/data/.octop"*)
-                printf '      - "%s:/data/.octop"\n' "$bind" >> "$tmp"
+            *"INHERE_BOX_HOME=/data/.octop"*)
+                printf '      - INHERE_BOX_HOME=/data/.inhere-box\n' >> "$tmp"
+                ;;
+            *':/data/.octop"'|*':/data/.inhere-box"'|*':/data"'|*':/data')
+                printf '      - "%s:/data"\n' "$bind" >> "$tmp"
                 ;;
             *"/fnos-boot.sh:"*)
                 printf '      - "%s/fnos-boot.sh:/usr/local/bin/fnos-boot.sh:ro"\n' "$data_dir" >> "$tmp"
@@ -611,17 +618,17 @@ inhere_box_restore_docker_env() {
 inhere_box_mark_fnos_passwd_pending() {
     local data_dir="$1"
     [ -n "$data_dir" ] || return 0
-    mkdir -p "${data_dir}/.octop"
-    : > "${data_dir}/.octop/.fnos-apply-wizard-password"
+    mkdir -p "$data_dir"
+    : > "${data_dir}/.inhere-box-apply-wizard-password"
 }
 
-# 向导凭据落到 data-share（不进 .octop，避免 published init 因目录非空失败）。
+# 向导凭据落到 data-share，迁移成功前不创建新安装根目录。
 # 容器用 fnos-boot.sh 读取后 init；仅待处理标记或首次遗留同步时才 passwd。
 inhere_box_write_fnos_bootstrap() {
     local data_dir="$1" username="${2:-admin}" password="$3" display="${4:-}" email="${5:-}"
     [ -n "$data_dir" ] || return 0
     [ -n "$password" ] || return 0
-    mkdir -p "$data_dir" "${data_dir}/.octop"
+    mkdir -p "$data_dir"
     cat > "${data_dir}/fnos-admin.env" << EOF
 INHERE_BOX_ADMIN_USERNAME=${username}
 INHERE_BOX_DEFAULT_PASSWORD=${password}
@@ -634,6 +641,9 @@ EOF
 set -euo pipefail
 export HOME="${HOME:-/data}"
 export INHERE_BOX_HOME="${INHERE_BOX_HOME:-${HOME}/.inhere-box}"
+case "$(basename "$INHERE_BOX_HOME")" in
+    .octop) export INHERE_BOX_HOME="$(dirname "$INHERE_BOX_HOME")/.inhere-box" ;;
+esac
 PORT="${INHERE_BOX_PORT:-8088}"
 USER_NAME="${INHERE_BOX_ADMIN_USERNAME:-admin}"
 PASSWORD="${INHERE_BOX_DEFAULT_PASSWORD:-}"
@@ -653,7 +663,16 @@ if [ -z "$PASSWORD" ]; then
     echo "[fnos-boot] 缺少管理员密码（/data/fnos-admin.env），无法启动。" >&2
     exit 1
 fi
+LEGACY_HOME="$(dirname "$INHERE_BOX_HOME")/.octop"
+if [ -e "$LEGACY_HOME" ] || [ -f "$(dirname "$INHERE_BOX_HOME")/.inhere-box-directory-migration.json" ]; then
+    python3 -m inhere_box.infra.setup.branding_migration \
+        --root "$LEGACY_HOME" --destination "$INHERE_BOX_HOME" --apply
+fi
+python3 -m inhere_box.infra.setup.branding_migration --root "$INHERE_BOX_HOME" --apply
 mkdir -p "$INHERE_BOX_HOME"
+if [ -f "${HOME}/.inhere-box-apply-wizard-password" ]; then
+    mv "${HOME}/.inhere-box-apply-wizard-password" "$INHERE_BOX_HOME/.fnos-apply-wizard-password"
+fi
 PENDING="${INHERE_BOX_HOME}/.fnos-apply-wizard-password"
 APPLIED="${INHERE_BOX_HOME}/.fnos-wizard-password-applied"
 if [ ! -f "${INHERE_BOX_HOME}/inhere-box.db" ]; then
@@ -716,7 +735,7 @@ inhere_box_prepare_docker_persist() {
     local env_file="$1" data_dir compose
     inhere_box_restore_docker_env "$env_file"
     data_dir="$(inhere_box_data_share_dir inhere-box/data)"
-    mkdir -p "${data_dir}/.octop"
+    mkdir -p "$data_dir"
     inhere_box_migrate_legacy_docker_data "$data_dir"
     inhere_box_env_set "$env_file" TRIM_DATA_SHARE_PATHS "$data_dir"
     inhere_box_env_set "$env_file" INHERE_BOX_DATA "$data_dir"

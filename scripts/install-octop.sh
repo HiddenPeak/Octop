@@ -11,7 +11,16 @@
 set -euo pipefail
 
 # ── 默认配置 ──────────────────────────────────────────────────────────────────
-INHERE_BOX_HOME="${INHERE_BOX_HOME:-$HOME/.inhere-box}"
+INHERE_BOX_HOME="${INHERE_BOX_HOME:-${OCTOP_HOME:-$HOME/.inhere-box}}"
+_INHERE_BOX_LEGACY_HOME=""
+case "$(basename "$INHERE_BOX_HOME")" in
+  .octop)
+    _INHERE_BOX_LEGACY_HOME="$INHERE_BOX_HOME"
+    INHERE_BOX_HOME="$(dirname "$INHERE_BOX_HOME")/.inhere-box"
+    ;;
+  .inhere-box) _INHERE_BOX_LEGACY_HOME="$(dirname "$INHERE_BOX_HOME")/.octop" ;;
+esac
+export INHERE_BOX_HOME
 INHERE_BOX_VENV="$INHERE_BOX_HOME/venv"
 INHERE_BOX_BIN="$INHERE_BOX_HOME/bin"
 PYTHON_VERSION="3.12"
@@ -115,6 +124,47 @@ EOF
             die "Unknown option: $1 (try --help)" ;;
     esac
 done
+
+# Refuse to install or launch against an unmigrated installation.
+_migration_pending=0
+if [ -n "$_INHERE_BOX_LEGACY_HOME" ]; then
+  _migration_journal="$(dirname "$INHERE_BOX_HOME")/.inhere-box-directory-migration.json"
+  if [ -e "$_INHERE_BOX_LEGACY_HOME" ]; then
+    _migration_pending=1
+  elif [ -f "$_migration_journal" ]; then
+    _migration_python="$INHERE_BOX_HOME/venv/bin/python"
+    if [ ! -x "$_migration_python" ]; then
+      _migration_python="$(command -v python3 || true)"
+    fi
+    if [ -z "$_migration_python" ] || ! "$_migration_python" -c '
+import json, pathlib, sys
+journal = json.loads(pathlib.Path(sys.argv[1]).read_text())
+root = pathlib.Path(sys.argv[2])
+owner = root / ".inhere-box-directory-migration-owner"
+token = journal.get("token")
+valid = (
+    journal.get("phase") == "complete"
+    and root.is_dir() and not root.is_symlink()
+    and owner.is_file() and not owner.is_symlink()
+    and isinstance(token, str) and len(token) == 32
+    and all(c in "0123456789abcdef" for c in token)
+    and owner.read_text("ascii") == token
+    and isinstance(journal.get("database_present"), bool)
+)
+if journal.get("database_present") is True:
+    database = root / "inhere-box.db"
+    valid = valid and database.is_file() and not database.is_symlink()
+sys.exit(0 if valid else 1)
+' "$_migration_journal" "$INHERE_BOX_HOME" 2>/dev/null; then
+      _migration_pending=1
+    fi
+  fi
+fi
+if [ "$_migration_pending" = 1 ]; then
+  echo "Stop the old service and migrate it with the updated source/runtime before continuing:" >&2
+  printf '  python -m inhere_box.infra.setup.branding_migration --root %q --destination %q --apply\n' "$_INHERE_BOX_LEGACY_HOME" "$INHERE_BOX_HOME" >&2
+  exit 1
+fi
 
 # ── 操作系统检查 ──────────────────────────────────────────────────────────────
 OS="$(uname -s)"
@@ -914,7 +964,57 @@ cat > "$INHERE_BOX_BIN/inhere-box" << 'WRAPPER'
 # inhere-box CLI 包装脚本 — 委托给 uv 管理的环境。
 set -euo pipefail
 
-INHERE_BOX_HOME="${INHERE_BOX_HOME:-$HOME/.inhere-box}"
+INHERE_BOX_HOME="${INHERE_BOX_HOME:-${OCTOP_HOME:-$HOME/.inhere-box}}"
+_INHERE_BOX_LEGACY_HOME=""
+case "$(basename "$INHERE_BOX_HOME")" in
+  .octop)
+    _INHERE_BOX_LEGACY_HOME="$INHERE_BOX_HOME"
+    INHERE_BOX_HOME="$(dirname "$INHERE_BOX_HOME")/.inhere-box"
+    ;;
+  .inhere-box) _INHERE_BOX_LEGACY_HOME="$(dirname "$INHERE_BOX_HOME")/.octop" ;;
+esac
+export INHERE_BOX_HOME
+# Refuse to install or launch against an unmigrated installation.
+_migration_pending=0
+if [ -n "$_INHERE_BOX_LEGACY_HOME" ]; then
+  _migration_journal="$(dirname "$INHERE_BOX_HOME")/.inhere-box-directory-migration.json"
+  if [ -e "$_INHERE_BOX_LEGACY_HOME" ]; then
+    _migration_pending=1
+  elif [ -f "$_migration_journal" ]; then
+    _migration_python="$INHERE_BOX_HOME/venv/bin/python"
+    if [ ! -x "$_migration_python" ]; then
+      _migration_python="$(command -v python3 || true)"
+    fi
+    if [ -z "$_migration_python" ] || ! "$_migration_python" -c '
+import json, pathlib, sys
+journal = json.loads(pathlib.Path(sys.argv[1]).read_text())
+root = pathlib.Path(sys.argv[2])
+owner = root / ".inhere-box-directory-migration-owner"
+token = journal.get("token")
+valid = (
+    journal.get("phase") == "complete"
+    and root.is_dir() and not root.is_symlink()
+    and owner.is_file() and not owner.is_symlink()
+    and isinstance(token, str) and len(token) == 32
+    and all(c in "0123456789abcdef" for c in token)
+    and owner.read_text("ascii") == token
+    and isinstance(journal.get("database_present"), bool)
+)
+if journal.get("database_present") is True:
+    database = root / "inhere-box.db"
+    valid = valid and database.is_file() and not database.is_symlink()
+sys.exit(0 if valid else 1)
+' "$_migration_journal" "$INHERE_BOX_HOME" 2>/dev/null; then
+      _migration_pending=1
+    fi
+  fi
+fi
+if [ "$_migration_pending" = 1 ]; then
+  echo "Stop the old service and migrate it with the updated source/runtime before continuing:" >&2
+  printf '  python -m inhere_box.infra.setup.branding_migration --root %q --destination %q --apply\n' "$_INHERE_BOX_LEGACY_HOME" "$INHERE_BOX_HOME" >&2
+  exit 1
+fi
+
 REAL_BIN="$INHERE_BOX_HOME/venv/bin/inhere-box"
 
 if [ ! -x "$REAL_BIN" ]; then
@@ -1012,10 +1112,6 @@ add_to_profile() {
     local profile="$1"
     local create="$2"
     if [ -f "$profile" ] && grep -qF "$INHERE_BOX_BIN" "$profile" 2>/dev/null; then
-        return 0
-    fi
-    # 兼容旧版标记（仅含 .octop/bin 字样）
-    if [ -f "$profile" ] && grep -qF '.octop/bin' "$profile" 2>/dev/null; then
         return 0
     fi
     if [ -f "$profile" ] || [ "$create" = "create" ]; then

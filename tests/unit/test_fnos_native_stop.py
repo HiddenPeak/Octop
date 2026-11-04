@@ -172,8 +172,8 @@ def test_native_main_stop_frees_port_after_wrapper_start(tmp_path: Path) -> None
     cmd = tmp_path / "cmd"
     bindir.mkdir(parents=True)
     pkgvar.mkdir()
-    (data / ".octop").mkdir(parents=True)
-    (data / ".octop" / "inhere-box.db").write_text("", encoding="utf-8")
+    (data / ".inhere-box").mkdir(parents=True)
+    (data / ".inhere-box" / "inhere-box.db").write_text("", encoding="utf-8")
     cmd.mkdir()
     shutil.copy(FNOS_NATIVE / "cmd" / "main", cmd / "main")
     shutil.copy(COMMON_SH, cmd / "common.sh")
@@ -269,8 +269,8 @@ def test_native_main_start_term_cleans_unready_child(tmp_path: Path) -> None:
     data = tmp_path / "data"
     (appdest / "bin").mkdir(parents=True)
     pkgvar.mkdir()
-    (data / ".octop").mkdir(parents=True)
-    (data / ".octop" / "inhere-box.db").write_text("", encoding="utf-8")
+    (data / ".inhere-box").mkdir(parents=True)
+    (data / ".inhere-box" / "inhere-box.db").write_text("", encoding="utf-8")
     cmd = tmp_path / "cmd"
     _copy_ctl(cmd)
     launcher = appdest / "bin" / "inhere-box"

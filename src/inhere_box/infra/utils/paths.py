@@ -9,11 +9,9 @@ from inhere_box.environment import env_get
 
 
 def default_root(home: Path | None = None) -> Path:
-    """Use the new install root, retaining an existing legacy installation."""
+    """Return the canonical install root; migration is an explicit domain action."""
     home = home if home is not None else Path.home()
-    current = home / ".inhere-box"
-    legacy = home / ".octop"
-    return legacy if not current.exists() and legacy.is_dir() else current
+    return home / ".inhere-box"
 
 
 def _existing_name(parent: Path, name: str, legacy: str) -> Path:
@@ -41,7 +39,7 @@ class PathLayout:
 
     @property
     def db(self) -> Path:
-        return _existing_name(self.root, "inhere-box.db", "octop.db")
+        return self.root / "inhere-box.db"
 
     @property
     def logs_dir(self) -> Path:

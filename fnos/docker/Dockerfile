@@ -99,12 +99,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 ENV PATH="/app/.venv/bin:$PATH" \
     PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
 
-RUN mkdir -p /data/.octop
+RUN mkdir -p /data
 
 EXPOSE 8088
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
-    CMD ["sh", "-c", "curl -f http://localhost:${OCTOP_PORT:-8088}/api/health || exit 1"]
+    CMD ["sh", "-c", "health_port=${INHERE_BOX_PORT-${OCTOP_PORT:-8088}}; curl -f \"http://localhost:${health_port:-8088}/api/health\" || exit 1"]
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD []

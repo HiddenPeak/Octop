@@ -17,7 +17,10 @@ def test_fresh_install_uses_new_home(monkeypatch) -> None:
     assert PathLayout.from_env().root == Path.home() / ".inhere-box"
 
 
-def test_existing_install_retains_database_and_password_file(monkeypatch) -> None:
+def test_existing_install_requires_database_migration(monkeypatch) -> None:
+    from inhere_box.infra.db.factory import open_database
+    from inhere_box.infra.setup.branding_migration import BrandingMigrationError
+
     monkeypatch.delenv("INHERE_BOX_HOME", raising=False)
     monkeypatch.delenv("OCTOP_HOME", raising=False)
     legacy = Path.home() / ".octop"
@@ -29,12 +32,16 @@ def test_existing_install_retains_database_and_password_file(monkeypatch) -> Non
     password.write_text("existing-password")
 
     paths = PathLayout.from_env()
-    assert paths.root == legacy
-    assert paths.db == database
-    assert paths.wizard_password_file == password
-    assert load_config(paths.config).port == 8123
-    assert DatabaseConfig().resolve_sqlite_path(paths.root) == database
+    assert paths.root == Path.home() / ".inhere-box"
+    assert paths.db == paths.root / "inhere-box.db"
+    assert PathLayout(legacy).wizard_password_file == password
+    config = load_config(legacy / "config.json")
+    assert config.port == 8123
+    assert DatabaseConfig().resolve_sqlite_path(paths.root) == paths.db
+    with pytest.raises(BrandingMigrationError, match="--destination"):
+        open_database(config, paths)
     assert database.read_bytes() == b"existing-database"
+    assert not paths.db.exists()
     assert not (Path.home() / ".inhere-box").exists()
 
 
