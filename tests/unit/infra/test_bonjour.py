@@ -110,7 +110,9 @@ async def test_interface_failure_does_not_prevent_service_start(monkeypatch):
         raise OSError("interface enumeration unavailable")
 
     monkeypatch.setattr(bonjour, "_bound_addresses", fail)
-    await bonjour.BonjourPublisher().start(host="0.0.0.0", port=8088, tls=False)
+    publisher = bonjour.BonjourPublisher()
+    await publisher.start(host="0.0.0.0", port=8088, tls=False)
+    await publisher.close()
 
 
 async def test_cleanup_failure_does_not_interrupt_shutdown(monkeypatch, adapters):
@@ -124,3 +126,141 @@ async def test_cleanup_failure_does_not_interrupt_shutdown(monkeypatch, adapters
     await publisher.start(host="0.0.0.0", port=8088, tls=False)
     await publisher.close()
     zeroconf.async_close.assert_awaited_once()
+
+
+@pytest.fixture
+def registrations(monkeypatch):
+    created = []
+
+    def create(**kwargs):
+        zeroconf = AsyncMock()
+        announcements = AsyncMock()
+        zeroconf.async_register_service.side_effect = lambda *a, **kw: announcements()
+        created.append((kwargs, zeroconf))
+        return zeroconf
+
+    monkeypatch.setattr(bonjour, "AsyncZeroconf", create)
+    return created
+
+
+@pytest.mark.parametrize(
+    ("host", "before", "after", "ip_version"),
+    [
+        (
+            "0.0.0.0",
+            (["192.168.0.21"], ["192.168.0.21"]),
+            (["192.168.3.90"], ["192.168.3.90"]),
+            IPVersion.V4Only,
+        ),
+        ("::", (["fe80::10"], [2]), (["fe80::10"], [3]), IPVersion.V6Only),
+    ],
+)
+async def test_network_change_rebinds_sockets_and_preserves_identity(
+    monkeypatch, registrations, host, before, after, ip_version
+):
+    monkeypatch.setattr(bonjour, "_bound_addresses", lambda host: before)
+    publisher = bonjour.BonjourPublisher()
+    box_id = "f095fb9a-7f69-4d01-8d85-63bea1356b8e"
+    await publisher.start(host=host, port=8088, tls=False, box_id=box_id)
+    first = registrations[0][1]
+    original = first.async_register_service.call_args.args[0]
+    # Zeroconf may rename a conflicting instance during registration.
+    original.name = f"renamed.{bonjour.SERVICE_TYPE}"
+    try:
+        await publisher._refresh(host)
+        assert len(registrations) == 1  # Unchanged networks do not churn registrations.
+        monkeypatch.setattr(bonjour, "_bound_addresses", lambda host: after)
+        await publisher._refresh(host)
+        first.async_close.assert_awaited_once()
+        kwargs, second = registrations[1]
+        assert kwargs == {"interfaces": after[1], "ip_version": ip_version}
+        updated = second.async_register_service.call_args.args[0]
+        assert updated.parsed_addresses() == after[0]
+        assert updated.server == original.server == f"inhere-box-{box_id.replace('-', '')}.local."
+        assert updated.name == original.name
+        assert updated.port == original.port
+        assert updated.properties == original.properties
+    finally:
+        await publisher.close()
+    second.async_close.assert_awaited_once()
+
+
+@pytest.mark.parametrize("initially_offline", [False, True])
+async def test_offline_and_recovery(monkeypatch, registrations, initially_offline):
+    network = ([], []) if initially_offline else (["192.168.0.21"], ["192.168.0.21"])
+    monkeypatch.setattr(bonjour, "_bound_addresses", lambda host: network)
+    publisher = bonjour.BonjourPublisher()
+    await publisher.start(host="0.0.0.0", port=8088, tls=False)
+    try:
+        server = publisher._info.server
+        network = ([], [])
+        await publisher._refresh("0.0.0.0")
+        if not initially_offline:
+            registrations[0][1].async_close.assert_awaited_once()
+        assert publisher._zeroconf is None
+        network = (["192.168.3.90"], ["192.168.3.90"])
+        await publisher._refresh("0.0.0.0")
+        info = registrations[-1][1].async_register_service.call_args.args[0]
+        assert info.parsed_addresses() == ["192.168.3.90"]
+        assert info.server == server  # Also stable for pre-setup discovery.
+    finally:
+        await publisher.close()
+
+
+@pytest.mark.parametrize("failure", ["enumeration", "registration"])
+async def test_network_failure_is_retried(monkeypatch, registrations, failure):
+    network = (["192.168.0.21"], ["192.168.0.21"])
+    monkeypatch.setattr(bonjour, "_bound_addresses", lambda host: network)
+    publisher = bonjour.BonjourPublisher()
+    await publisher.start(host="0.0.0.0", port=8088, tls=False)
+    try:
+        if failure == "enumeration":
+
+            def fail(host):
+                raise OSError("interface temporarily unavailable")
+
+            monkeypatch.setattr(bonjour, "_bound_addresses", fail)
+        else:
+            registrations[0][1].async_close.side_effect = OSError("old interface disappeared")
+
+            def fail_registration(**kwargs):
+                zeroconf = AsyncMock()
+                zeroconf.async_register_service.side_effect = OSError("network not ready")
+                registrations.append((kwargs, zeroconf))
+                return zeroconf
+
+            monkeypatch.setattr(bonjour, "AsyncZeroconf", fail_registration)
+            network = (["192.168.3.90"], ["192.168.3.90"])
+        await publisher._refresh("0.0.0.0")
+        assert publisher._zeroconf is None
+        if failure == "registration":
+            registrations[-1][1].async_close.assert_awaited_once()
+        recovered = AsyncMock()
+        announcements = AsyncMock()
+        recovered.async_register_service.side_effect = lambda *a, **kw: announcements()
+        monkeypatch.setattr(bonjour, "AsyncZeroconf", lambda **kw: recovered)
+        monkeypatch.setattr(bonjour, "_bound_addresses", lambda host: network)
+        await publisher._refresh("0.0.0.0")
+        recovered.async_register_service.assert_awaited_once()
+    finally:
+        await publisher.close()
+
+
+async def test_watcher_refreshes_and_stops_on_close(monkeypatch, registrations):
+    monkeypatch.setattr(bonjour, "_NETWORK_CHECK_INTERVAL", 0.001)
+    network = (["192.168.0.21"], ["192.168.0.21"])
+    monkeypatch.setattr(bonjour, "_bound_addresses", lambda host: network)
+    publisher = bonjour.BonjourPublisher()
+    await publisher.start(host="0.0.0.0", port=8088, tls=False)
+    task = publisher._watch_task
+    network = (["192.168.3.90"], ["192.168.3.90"])
+    try:
+        async with asyncio.timeout(2):
+            while len(registrations) < 2 or publisher._network is None:
+                await asyncio.sleep(0.001)
+        info = registrations[1][1].async_register_service.call_args.args[0]
+        assert info.parsed_addresses() == ["192.168.3.90"]
+    finally:
+        await publisher.close()
+    assert task.done()
+    assert publisher._zeroconf is None
