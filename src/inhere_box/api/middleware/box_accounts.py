@@ -11,6 +11,7 @@ from starlette.datastructures import Headers, MutableHeaders, QueryParams
 from starlette.requests import HTTPConnection
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.websockets import WebSocket
 
 from inhere_box.api.common.box_auth import (
     BOX_CSRF_HEADER,
@@ -146,12 +147,20 @@ class BoxAccountMiddleware:
     async def _reject(
         self, scope: Scope, receive: Receive, send: Send, exc: InhereBoxError
     ) -> None:
+        response = JSONResponse(
+            exc.to_envelope(), status_code=exc.status, headers={"Cache-Control": "no-store"}
+        )
         if scope["type"] == "websocket":
-            await send({"type": "websocket.close", "code": 4401})
+            if "websocket.http.response" in scope.get("extensions", {}):
+                # A pre-accept close becomes an undifferentiated HTTP 403.
+                # Preserve 401 so native clients can renew their existing device
+                # session after a box restart, without treating scoped 403 as auth.
+                await WebSocket(scope, receive, send).send_denial_response(response)
+            else:
+                # Older ASGI adapters cannot send an HTTP denial response.
+                await send({"type": "websocket.close", "code": 4401})
         else:
-            await JSONResponse(
-                exc.to_envelope(), status_code=exc.status, headers={"Cache-Control": "no-store"}
-            )(scope, receive, send)
+            await response(scope, receive, send)
 
     async def _authenticated(
         self, scope: Scope, receive: Receive, send: Send, service: Any, token: str

@@ -40,7 +40,7 @@ async def test_publish_only_after_successful_socket_startup(monkeypatch, enabled
     monkeypatch.setattr(uvicorn.Server, "serve", serve)
     await server.serve()
     if enabled and started:
-        publisher.start.assert_awaited_once_with(host="0.0.0.0", port=49152, tls=tls)
+        publisher.start.assert_awaited_once_with(host="0.0.0.0", port=49152, tls=tls, box_id=None)
     else:
         publisher.start.assert_not_called()
     assert publisher.close.await_count == int(enabled)

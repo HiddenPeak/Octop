@@ -7,7 +7,7 @@ import ipaddress
 import logging
 import re
 import socket
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import ifaddr
 from zeroconf import IPVersion, ServiceInfo
@@ -58,7 +58,7 @@ class BonjourPublisher:
     def __init__(self) -> None:
         self._zeroconf: AsyncZeroconf | None = None
 
-    async def start(self, *, host: str, port: int, tls: bool) -> None:
+    async def start(self, *, host: str, port: int, tls: bool, box_id: str | None = None) -> None:
         try:
             addresses, interfaces = await asyncio.to_thread(_bound_addresses, host)
             if not addresses:
@@ -67,8 +67,14 @@ class BonjourPublisher:
             # Keep both DNS labels below 63 bytes, including on long/non-ASCII hosts.
             hostname = re.sub(r"[^a-z0-9-]", "-", socket.gethostname().split(".")[0].lower())
             hostname = hostname[:40].strip("-") or "host"
-            # Boxes may share the same factory hostname; keep their A/AAAA records separate.
-            label = f"inhere-box-{hostname}-{uuid4().hex[:8]}"
+            # A configured box's DNS name must survive process restarts: clients
+            # save its SRV target. The installation ID also separates boxes that
+            # share a factory hostname. Pre-setup discovery has no saved login yet.
+            label = (
+                f"inhere-box-{UUID(box_id).hex}"
+                if box_id is not None
+                else f"inhere-box-{hostname}-{uuid4().hex[:8]}"
+            )
             info = ServiceInfo(
                 SERVICE_TYPE,
                 f"inhere-box {hostname} ({port}).{SERVICE_TYPE}",

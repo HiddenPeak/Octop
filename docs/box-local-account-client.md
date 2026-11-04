@@ -148,6 +148,14 @@ App 对已有登记（包括已撤销登记）统一使用以上 login 流程，
 
 原生HTTP和WS握手使用 `Authorization: Bearer …`。Task WS鉴权成功先返回ready，不需要再发送登录首帧。令牌到期前重新签名换票，再按订阅游标重连；没有长期refresh token，不接受URL token或WS旧authenticate首帧。普通断线不代表设备被撤销。
 
+### 5.6 服务重启后的WS会话恢复（2026-11-04）
+
+服务重启仍使旧boot_id票据失效，不能延长旧票据或跳过设备证明。原生端沿已登记设备的session挑战换取新票据，不重新登记设备，也不恢复被撤销设备。
+
+全局盒子鉴权在握手前拒绝时，支持 `websocket.http.response` 的ASGI服务现返回实际HTTP状态及原错误信封（no-store）：失效票据／无凭据为401，权限／来源拒绝仍为403。此前握手前直接close使Uvicorn把401变成笼统403，原生端无法识别换票机会；不应把所有403一概视为登录失效。无拒绝响应扩展的旧ASGI适配器保留原握手前close行为，不进入业务处理器；已建立连接的撤销关闭仍沿原4401协议。
+
+实际本机Uvicorn与Mac App复验：16:16及16:17两轮重启均为401→设备证明换票200→WS101／ready→账号与项目／任务同步完成，未重新输入凭据；缺少凭据的真实WS握手401、禁止路由403。按用户要求未运行自动化测试。
+
 ## 6. 网页登录
 
 `POST /api/auth/browser/sessions` 请求只有 `{"management_key":"..."}`。要求同源Origin；若携带仍有效的管理员Cookie，还需要对应CSRF。失效或过期Cookie不阻止重新输入管理密钥登录。原生proof和分享码不能替代management_key。

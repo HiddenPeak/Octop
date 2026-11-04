@@ -63,16 +63,21 @@ async def _serve(server: Any) -> None:
 class _BonjourServer(uvicorn.Server):
     """Advertise the API only after uvicorn has bound a usable socket."""
 
-    def __init__(self, config: uvicorn.Config, *, bonjour_enabled: bool) -> None:
+    def __init__(
+        self, config: uvicorn.Config, *, bonjour_enabled: bool, box_id: str | None = None
+    ) -> None:
         super().__init__(config)
         self._bonjour = BonjourPublisher() if bonjour_enabled else None
+        self._box_id = box_id
 
     async def startup(self, sockets: list[socket.socket] | None = None) -> None:
         await super().startup(sockets=sockets)
         if self.started and self._bonjour is not None:
             # getsockname also resolves --port 0 to the actual listening port.
             host, port, *_ = self.servers[0].sockets[0].getsockname()
-            await self._bonjour.start(host=host, port=port, tls=self.config.is_ssl)
+            await self._bonjour.start(
+                host=host, port=port, tls=self.config.is_ssl, box_id=self._box_id
+            )
 
     async def serve(self, sockets: list[socket.socket] | None = None) -> None:
         try:
@@ -136,6 +141,7 @@ async def run_foreground(
             reload = False
 
         app = build_app(srv)
+        box_id = srv.box_account_service.box_id if srv.box_account_service is not None else None
         servers: list[uvicorn.Server] = []
 
         if plan.dual_listeners:
@@ -164,7 +170,9 @@ async def run_foreground(
                 workers=1,
                 reload=False,
             )
-            servers.append(_BonjourServer(https_config, bonjour_enabled=cfg.bonjour_enabled))
+            servers.append(
+                _BonjourServer(https_config, bonjour_enabled=cfg.bonjour_enabled, box_id=box_id)
+            )
             servers.append(uvicorn.Server(http_config))
             logger.info(
                 "Listening on https://%s:%s and http://%s:%s (ACME + redirect)",
@@ -186,7 +194,9 @@ async def run_foreground(
                 ssl_certfile=plan.ssl_certfile,
                 ssl_keyfile=plan.ssl_keyfile,
             )
-            servers.append(_BonjourServer(single_config, bonjour_enabled=cfg.bonjour_enabled))
+            servers.append(
+                _BonjourServer(single_config, bonjour_enabled=cfg.bonjour_enabled, box_id=box_id)
+            )
 
         from inhere_box.infra.agents.memory.slim_control import MemorySlimControl
 
