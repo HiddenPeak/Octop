@@ -185,6 +185,40 @@ async def test_network_change_rebinds_sockets_and_preserves_identity(
     second.async_close.assert_awaited_once()
 
 
+async def test_multicast_recovery_with_unchanged_addresses(monkeypatch, registrations):
+    monkeypatch.setattr(
+        bonjour, "_bound_addresses", lambda host: (["192.168.0.21"], ["192.168.0.21"])
+    )
+    probe = AsyncMock(side_effect=[False, True, False, False, False])
+    monkeypatch.setattr(bonjour, "_advertisement_healthy", probe)
+    publisher = bonjour.BonjourPublisher()
+    await publisher.start(host="0.0.0.0", port=8088, tls=False)
+    first = registrations[0][1]
+    original = first.async_register_service.call_args.args[0]
+    try:
+        await publisher._refresh("0.0.0.0")
+        probe.assert_not_awaited()
+        for _ in range(4):
+            publisher._probe_at = 0.0
+            await publisher._refresh("0.0.0.0")
+            first.async_close.assert_not_awaited()
+        await publisher._refresh("0.0.0.0")
+        first.async_close.assert_awaited_once()
+        second = registrations[1][1]
+        restored = second.async_register_service.call_args.args[0]
+        assert (restored.name, restored.server, restored.port) == (
+            original.name,
+            original.server,
+            original.port,
+        )
+        assert restored.parsed_addresses() == original.parsed_addresses()
+        await publisher._refresh("0.0.0.0")
+        assert probe.await_count == 5
+        assert len(registrations) == 2
+    finally:
+        await publisher.close()
+
+
 @pytest.mark.parametrize("initially_offline", [False, True])
 async def test_offline_and_recovery(monkeypatch, registrations, initially_offline):
     network = ([], []) if initially_offline else (["192.168.0.21"], ["192.168.0.21"])

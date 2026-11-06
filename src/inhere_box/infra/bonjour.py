@@ -10,7 +10,7 @@ import socket
 from uuid import UUID, uuid4
 
 import ifaddr
-from zeroconf import IPVersion, ServiceInfo
+from zeroconf import DNSQuestionType, IPVersion, ServiceInfo
 from zeroconf.asyncio import AsyncZeroconf
 
 from inhere_box import __version__
@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 SERVICE_TYPE = "_inhere-box._tcp.local."
 _NETWORK_CHECK_INTERVAL = 5.0
+_PROBE_INTERVAL = 30.0
+_PROBE_TIMEOUT_MS = 2000
+_PROBE_FAILURE_LIMIT = 3
 
 
 def _bound_addresses(host: str) -> tuple[list[str], list[str | int]]:
@@ -53,6 +56,23 @@ def _bound_addresses(host: str) -> tuple[list[str], list[str | int]]:
     return addresses, interfaces
 
 
+async def _advertisement_healthy(
+    info: ServiceInfo, interfaces: list[str | int], ip_version: IPVersion
+) -> bool:
+    # A fresh resolver must receive the reply over multicast. The publisher's
+    # own registration and a unicast reply can both outlive its multicast path.
+    async with AsyncZeroconf(interfaces=interfaces, ip_version=ip_version) as probe:
+        reply = await probe.async_get_service_info(
+            info.type, info.name, timeout=_PROBE_TIMEOUT_MS, question_type=DNSQuestionType.QM
+        )
+        return (
+            reply is not None
+            and reply.server == info.server
+            and reply.port == info.port
+            and not set(info.parsed_addresses()).isdisjoint(reply.parsed_addresses())
+        )
+
+
 class BonjourPublisher:
     """Own a single registration, without changing HTTP binding or auth."""
 
@@ -60,6 +80,8 @@ class BonjourPublisher:
         self._zeroconf: AsyncZeroconf | None = None
         self._info: ServiceInfo | None = None
         self._network: tuple[frozenset[str], frozenset[str | int]] | None = None
+        self._probe_at = 0.0
+        self._probe_failures = 0
         self._watch_task: asyncio.Task[None] | None = None
         self._stop = asyncio.Event()
 
@@ -109,14 +131,37 @@ class BonjourPublisher:
 
     async def _refresh(self, host: str) -> None:
         try:
-            addresses, interfaces = await asyncio.get_running_loop().run_in_executor(
-                None, _bound_addresses, host
-            )
+            loop = asyncio.get_running_loop()
+            addresses, interfaces = await loop.run_in_executor(None, _bound_addresses, host)
             network = (frozenset(addresses), frozenset(interfaces))
+            versions = {ipaddress.ip_address(address).version for address in addresses}
+            ip_version = (
+                IPVersion.All
+                if len(versions) > 1
+                else IPVersion.V6Only
+                if versions == {6}
+                else IPVersion.V4Only
+            )
             if self._zeroconf is not None and network == self._network:
-                return
+                if loop.time() < self._probe_at:
+                    return
+                info = self._info
+                assert info is not None
+                try:
+                    healthy = await _advertisement_healthy(info, interfaces, ip_version)
+                except Exception:
+                    logger.debug("Bonjour multicast probe failed", exc_info=True)
+                    healthy = False
+                if healthy:
+                    self._probe_at = loop.time() + _PROBE_INTERVAL
+                    self._probe_failures = 0
+                    return
+                self._probe_failures += 1
+                if self._probe_failures < _PROBE_FAILURE_LIMIT:
+                    return
+                logger.warning("Bonjour multicast replies unavailable; rebuilding registration")
             # Sockets are bound to the old interfaces. Rebuild them as well as
-            # the A/AAAA records; updating only the records cannot survive DHCP.
+            # the A/AAAA records to recover from address or multicast changes.
             await self._close_registration()
             if not addresses:
                 return
@@ -130,14 +175,6 @@ class BonjourPublisher:
                 parsed_addresses=addresses,
                 properties=previous.properties,
             )
-            versions = {ipaddress.ip_address(address).version for address in addresses}
-            ip_version = (
-                IPVersion.All
-                if len(versions) > 1
-                else IPVersion.V4Only
-                if 4 in versions
-                else IPVersion.V6Only
-            )
             self._zeroconf = AsyncZeroconf(interfaces=interfaces, ip_version=ip_version)
             announcements = await self._zeroconf.async_register_service(
                 info, allow_name_change=True
@@ -145,6 +182,8 @@ class BonjourPublisher:
             await announcements
             self._info = info
             self._network = network
+            self._probe_at = loop.time() + _PROBE_INTERVAL
+            self._probe_failures = 0
             logger.info("Bonjour registered %s on port %s at %s", info.name, info.port, addresses)
         except Exception:
             logger.warning(
