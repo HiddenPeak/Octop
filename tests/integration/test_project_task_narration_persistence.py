@@ -12,7 +12,7 @@ from inhere_box.infra.projects import runtime
 from tests.integration.test_project_task_checkpoints import parked
 from tests.integration.test_project_task_interactions import approval, respond
 from tests.integration.test_project_task_narration import visible
-from tests.integration.test_project_task_planning import planning_models, tool_call
+from tests.integration.test_project_task_planning import planning_models, step_command, tool_call
 from tests.integration.test_project_tasks import settled
 
 
@@ -45,7 +45,7 @@ async def test_delayed_narration_database_write_cannot_overwrite_first_answer(
         return original(*args, **kwargs)
 
     async def narrate(self, snapshot):
-        if snapshot.key == "opening":
+        if snapshot.facts["stage"] == "plan_update":
             await paused.wait()
             return late
         return None
@@ -76,7 +76,13 @@ async def test_delayed_narration_database_write_cannot_overwrite_first_answer(
     planning_models(
         monkeypatch,
         [
+            tool_call(
+                "planning", "plan-create", command="create", title="Verify", steps=["Run the check"]
+            ),
             tool_call("execute", "approved-work", command="echo actual-proof"),
+            step_command(
+                "mark_step", "plan-complete", status="completed", result="Check completed."
+            ),
             AIMessage(content="First answer segment."),
         ],
     )

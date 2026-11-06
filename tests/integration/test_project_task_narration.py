@@ -123,7 +123,7 @@ async def test_narrator_does_not_gate_tools_or_final_answer(
         assert [artifact["name"] for artifact in turn["artifacts"]] == ["proof.txt"]
         assert len(observed) == 2
         assert all(late != block["text"] for block in turn["content_blocks"])
-        assert len([block for block in progress(turn) if block["introduction"] is True]) == 1
+        assert progress(turn) == []
         if narrator_mode == "blocked":
             assert cancelled.is_set() and not release.is_set()
         release.set()
@@ -135,115 +135,43 @@ async def test_narrator_does_not_gate_tools_or_final_answer(
         gates[1][1].set()
 
 
-async def test_opening_narration_is_visible_while_main_model_is_still_waiting(
-    env_with_provider, monkeypatch
+@pytest.mark.parametrize("cancel", [False, True])
+async def test_waiting_for_first_model_response_has_no_progress(
+    env_with_provider, monkeypatch, cancel
 ):
     client, _, auth = env_with_provider
-    entered, release = asyncio.Event(), asyncio.Event()
-    explanation = "我正在核对输入，随后会给出可直接使用的说明。"
+    snapshots = []
 
     async def narrate(self, snapshot):
-        assert snapshot.key == "opening" and snapshot.tool_call_id is None
-        assert snapshot.facts["stage"] == "received"
-        entered.set()
-        await release.wait()
-        return explanation
+        snapshots.append(snapshot)
+        return "不应产生开场进展。"
 
     monkeypatch.setattr(runtime.TaskProgressAgent, "generate", narrate)
-    observed, gates = hold_models(monkeypatch, [AIMessage(content="核对完成。")], 0)
+    _, gates = hold_models(monkeypatch, [AIMessage(content="你好！")], 0)
     task = await create(env_with_provider)
     try:
         await asyncio.wait_for(gates[0][0].wait(), timeout=3)
-        await asyncio.wait_for(entered.wait(), timeout=3)
-        initial = await visible(
-            env_with_provider, task["task_id"], lambda turn: bool(progress(turn))
+        live = await visible(
+            env_with_provider, task["task_id"], lambda turn: turn["status"] == "running"
         )
-        opening = progress(initial["turns"][0])
-        assert len(opening) == 1 and opening[0]["text"] and opening[0]["introduction"] is True
-        release.set()
-        narrated = await visible(
-            env_with_provider,
-            task["task_id"],
-            lambda turn: any(block["text"] == explanation for block in progress(turn)),
-        )
-        assert narrated["status"] == "running" and narrated["turns"][0]["reply"] == ""
-        assert observed == [] and not gates[0][1].is_set()
-        updated = progress(narrated["turns"][0])
-        assert len(updated) == 1 and updated[0]["block_id"] == opening[0]["block_id"]
-        gates[0][1].set()
-        assert (await settled(client, auth, task["task_id"]))["status"] == "completed"
-    finally:
-        release.set()
-        gates[0][1].set()
-
-
-async def test_late_opening_is_discarded_while_public_body_is_still_running(
-    env_with_provider, monkeypatch
-):
-    client, server, auth = env_with_provider
-    entered, opening_release, body_release, published = (
-        asyncio.Event(),
-        asyncio.Event(),
-        asyncio.Event(),
-        asyncio.Event(),
-    )
-    body, late = "这是已经开始显示的公开正文。", "正文开始后不能迟到替换开场进展。"
-
-    async def narrate(self, snapshot):
-        assert snapshot.key == "opening"
-        entered.set()
-        await opening_release.wait()
-        return late
-
-    original_narrator = runtime.TaskProgressNarrator
-
-    def observed_narrator(generate, publish):
-        async def observe(snapshot, text):
-            await publish(snapshot, text)
-            published.set()
-
-        return original_narrator(generate, observe)
-
-    original_run = runtime.run_turn
-
-    async def hold_after_body(services, owner, turn, history):
-        stream = original_run(services, owner, turn, history)
-        try:
-            async for event in stream:
-                yield event
-                if event["type"] == "token":
-                    await body_release.wait()
-        finally:
-            await stream.aclose()
-
-    monkeypatch.setattr(runtime.TaskProgressAgent, "generate", narrate)
-    monkeypatch.setattr(runtime, "TaskProgressNarrator", observed_narrator)
-    monkeypatch.setattr(runtime, "run_turn", hold_after_body)
-    _, gates = hold_models(monkeypatch, [AIMessage(content=body)], 0)
-    task = await create(env_with_provider)
-    try:
-        await asyncio.wait_for(entered.wait(), 3)
-        before = await visible(
-            env_with_provider, task["task_id"], lambda turn: bool(progress(turn))
-        )
-        opening = deepcopy(progress(before["turns"][0]))
-        gates[0][1].set()
-        live = await visible(env_with_provider, task["task_id"], lambda turn: turn["reply"] == body)
-        assert live["status"] == "running" and not body_release.is_set()
-        opening_release.set()
-        await asyncio.wait_for(published.wait(), 3)
-        after = (await client.get(f"/api/project-tasks/{task['task_id']}", headers=auth)).json()
-        assert after["status"] == "running" and after["turns"][0]["reply"] == body
-        assert progress(after["turns"][0]) == opening
-        saved = server.services.project_task_turn_repo.get(task["active_turn_id"])
-        assert late not in saved.content_blocks_json
-        body_release.set()
+        assert live["status"] == "running"
+        assert live["turns"][0]["content_blocks"] == []
+        if cancel:
+            cancelled = await client.post(
+                f"/api/project-tasks/{task['task_id']}/cancel",
+                headers=auth,
+                json={"turn_id": task["active_turn_id"]},
+            )
+            assert cancelled.status_code == 200, cancelled.text
+        else:
+            gates[0][1].set()
         final = await settled(client, auth, task["task_id"])
-        assert final["status"] == "completed" and final["turns"][0]["reply"] == body
-        assert progress(final["turns"][0]) == opening
+        assert final["status"] == ("cancelled" if cancel else "completed")
+        assert [block["type"] for block in final["turns"][0]["content_blocks"]] == (
+            [] if cancel else ["text"]
+        )
+        assert snapshots == []
     finally:
-        opening_release.set()
-        body_release.set()
         gates[0][1].set()
 
 
@@ -541,10 +469,17 @@ async def test_cancel_discards_narration_even_when_generator_returns_after_cance
         return late
 
     monkeypatch.setattr(runtime.TaskProgressAgent, "generate", narrate)
-    _, gates = hold_models(monkeypatch, [AIMessage(content="不应出现的最终回答。")], 0)
+    _, gates = hold_models(
+        monkeypatch,
+        [
+            tool_call("create_artifact", "proof", name="proof.txt", content="actual-proof"),
+            AIMessage(content="不应出现的最终回答。"),
+        ],
+        1,
+    )
     task = await create(env_with_provider)
     try:
-        await asyncio.wait_for(gates[0][0].wait(), timeout=3)
+        await asyncio.wait_for(gates[1][0].wait(), timeout=3)
         await asyncio.wait_for(entered.wait(), timeout=3)
         cancelled = await client.post(
             f"/api/project-tasks/{task['task_id']}/cancel",
@@ -562,7 +497,7 @@ async def test_cancel_discards_narration_even_when_generator_returns_after_cance
         ] == final["turns"]
     finally:
         release.set()
-        gates[0][1].set()
+        gates[1][1].set()
 
 
 @pytest.mark.parametrize("update_kind", ["tool_receipt", "tool_end"])
@@ -676,7 +611,7 @@ async def test_cancel_between_publish_check_and_write_rejects_and_rolls_back_nar
 ):
     client, server, auth = env_with_provider
     late = "取消边界之后不能保存这条旁路说明。"
-    main_release, intercepted = asyncio.Event(), asyncio.Event()
+    intercepted = asyncio.Event()
     loop = asyncio.get_running_loop()
     repo = server.services.project_task_turn_repo
     original_progress = repo.progress
@@ -701,13 +636,18 @@ async def test_cancel_between_publish_check_and_write_rejects_and_rolls_back_nar
     async def narrate(self, snapshot):
         return late
 
-    async def run(services, owner, turn, history):
-        await main_release.wait()
-        yield {"type": "token", "content": "取消后不应执行到最终回答。"}
-
     monkeypatch.setattr(repo, "progress", cancel_before_progress)
-    monkeypatch.setattr(runtime, "run_turn", run)
     monkeypatch.setattr(runtime.TaskProgressAgent, "generate", narrate)
+    _, gates = hold_models(
+        monkeypatch,
+        [
+            tool_call(
+                "planning", "plan-create", command="create", title="核对结果", steps=["执行检查"]
+            ),
+            AIMessage(content="取消后不应执行到最终回答。"),
+        ],
+        1,
+    )
     task = await create(env_with_provider)
     try:
         await asyncio.wait_for(intercepted.wait(), timeout=3)
@@ -724,7 +664,7 @@ async def test_cancel_between_publish_check_and_write_rejects_and_rolls_back_nar
         assert saved.content_revision == before.content_revision
         assert saved.content_blocks_json == before.content_blocks_json
     finally:
-        main_release.set()
+        gates[1][1].set()
 
 
 async def test_disabled_action_timeline_never_starts_narration(env_with_provider, monkeypatch):
@@ -736,7 +676,13 @@ async def test_disabled_action_timeline_never_starts_narration(env_with_provider
         return "不应产生旁路进展。"
 
     monkeypatch.setattr(runtime.TaskProgressAgent, "generate", narrate)
-    planning_models(monkeypatch, [AIMessage(content="直接回答。")])
+    planning_models(
+        monkeypatch,
+        [
+            tool_call("create_artifact", "proof", name="proof.txt", content="actual-proof"),
+            AIMessage(content="已交付验证附件。"),
+        ],
+    )
     task = await create(env_with_provider, enabled=False)
     final = await settled(client, auth, task["task_id"])
     assert final["status"] == "completed" and snapshots == []
@@ -769,24 +715,25 @@ async def test_main_and_narrator_usage_accumulate_even_when_late_summary_is_unus
     _, gates = hold_models(
         monkeypatch,
         [
+            tool_call("create_artifact", "proof", name="proof.txt", content="actual-proof"),
             AIMessage(
                 content="主回答已完成。",
                 usage_metadata={"input_tokens": 11, "output_tokens": 7, "total_tokens": 18},
-            )
+            ),
         ],
-        0,
+        1,
     )
     task = await create(env_with_provider)
     try:
         await asyncio.wait_for(recorded.wait(), timeout=3)
-        await asyncio.wait_for(gates[0][0].wait(), timeout=3)
+        await asyncio.wait_for(gates[1][0].wait(), timeout=3)
         early = await visible(
             env_with_provider,
             task["task_id"],
             lambda turn: (turn["input_tokens"], turn["output_tokens"]) == (3, 2),
         )
         assert early["status"] == "running"
-        gates[0][1].set()
+        gates[1][1].set()
         final = await settled(client, auth, task["task_id"])
         assert final["status"] == "completed", final
         assert (final["turns"][0]["input_tokens"], final["turns"][0]["output_tokens"]) == (14, 9)
@@ -804,12 +751,11 @@ async def test_main_and_narrator_usage_accumulate_even_when_late_summary_is_unus
     finally:
         release.set()
         late_release.set()
-        gates[0][1].set()
+        gates[1][1].set()
 
 
-@pytest.mark.parametrize("saved_opening", [True, False])
-async def test_approval_resume_does_not_redispatch_opening_or_repeat_real_work(
-    env_with_provider, monkeypatch, saved_opening
+async def test_approval_resume_does_not_add_opening_or_repeat_real_work(
+    env_with_provider, monkeypatch
 ):
     from deepagents.backends.protocol import ExecuteResponse
     from octop_harness.backends.bwrap_shell import BubbledLocalShellBackend
@@ -851,25 +797,9 @@ async def test_approval_resume_does_not_redispatch_opening_or_repeat_real_work(
     assert waiting["status"] == "waiting_approval" and effects == []
     assert waiting["turns"][0]["reply"] == public_body
     assert waiting["turns"][0]["reasoning"] == ""
-    opening = next(
-        block for block in progress(waiting["turns"][0]) if block["introduction"] is True
-    )
-    assert keys.count("opening") == 1
+    assert progress(waiting["turns"][0]) == []
+    assert keys == []
     await server.project_task_worker.close()
-    if not saved_opening:
-        # A saved public body is sufficient to suppress a new opening, even if
-        # the checkpoint came from a runtime that did not save an opening block.
-        blocks = [
-            block
-            for block in waiting["turns"][0]["content_blocks"]
-            if block["block_id"] != opening["block_id"]
-        ]
-        with server.services.db.transaction() as conn:
-            conn.execute(
-                "UPDATE project_task_turns SET content_blocks_json=?,"
-                "content_revision=content_revision+1 WHERE turn_id=?",
-                (json.dumps(blocks), task["active_turn_id"]),
-            )
     item = waiting["turns"][0]["interactions"][0]
     accepted = await respond(env_with_provider, waiting, item, approval(item))
     assert accepted.status_code == 200, accepted.text
@@ -889,15 +819,8 @@ async def test_approval_resume_does_not_redispatch_opening_or_repeat_real_work(
         assert final["status"] == "completed", final
         assert final["turns"][0]["reply"] == public_body + "已核对审批后的实际结果。"
         assert effects == ["echo actual-proof"] and len(observed) == 2
-        assert keys.count("opening") == 1
         assert len(keys) == len(set(keys))
         assert action(final["turns"][0])["brief"] == completed_brief
-        introductions = [
-            block for block in progress(final["turns"][0]) if block["introduction"] is True
-        ]
-        if saved_opening:
-            assert len(introductions) == 1 and introductions[0]["block_id"] == opening["block_id"]
-        else:
-            assert introductions == []
+        assert progress(final["turns"][0]) == []
     finally:
         gates[1][1].set()

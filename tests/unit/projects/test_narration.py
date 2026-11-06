@@ -462,47 +462,6 @@ async def test_partial_context_cannot_support_an_absolute_unstarted_phase_claim(
     )
 
 
-@pytest.mark.parametrize(
-    "text",
-    [
-        "已收到客户端本机文件接线测试任务，但目前没有任何工具回执，尚未开始创建或读取文件，无法确认任何结果。",
-        "目前没有任何工具回执。",
-        "尚未开始创建或读取文件。",
-        "无法确认任何结果。",
-        "No tool receipts are available.",
-        "I have not yet started creating or reading files.",
-        "I cannot confirm any results.",
-    ],
-)
-async def test_received_opening_rejects_absent_receipt_or_global_operation_state(
-    isolated_model, text
-):
-    services, _store, _model, configured, factory = isolated_model
-    configured.ainvoke.return_value = AIMessage(content=text)
-    agent = narration.TaskProgressAgent(services, 1, "chosen/model", "zh")
-    assert await agent.generate(snapshot(stage="received", goal="核对客户端本机文件接线")) is None
-    factory.aclose.assert_awaited_once()
-
-
-@pytest.mark.parametrize(
-    "text",
-    [
-        "正在核对客户端本机文件接线需求，接下来会按授权检查文件创建和读取流程。",
-        "我会核对客户端工具回执字段与预期输入。",
-        "I am reviewing the requested local file creation and reading workflow.",
-    ],
-)
-async def test_received_opening_keeps_concrete_goal_and_input_narration(isolated_model, text):
-    services, _store, _model, configured, _factory = isolated_model
-    configured.ainvoke.return_value = AIMessage(content=text)
-    assert (
-        await narration.TaskProgressAgent(services, 1, "chosen/model", "zh").generate(
-            snapshot(stage="received", goal="核对客户端本机文件接线")
-        )
-        == text
-    )
-
-
 async def test_submit_does_not_wait_and_only_latest_pending_snapshot_is_generated():
     started, release, published = asyncio.Event(), asyncio.Event(), asyncio.Event()
     generated, output = [], []

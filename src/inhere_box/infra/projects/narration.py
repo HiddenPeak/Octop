@@ -303,21 +303,6 @@ def _unsupported_global_absence(text: str) -> bool:
     )
 
 
-def _unsupported_opening_state(text: str) -> bool:
-    """An opening can describe intent, never a durable claim about absent results."""
-    return any(
-        re.search(pattern, text, re.I)
-        for pattern in (
-            r"(?:没有|尚无|暂无|未收到|缺少|缺乏)[^。！？.;!?]{0,16}(?:回执|工具结果|执行结果|证据)",
-            r"(?:尚未|还未|还没(?:有)?|没有|未)(?:开始|进行|执行|开展)?[^。！？.;!?]{0,20}(?:创建|读取|写入|文件|操作|工具)",
-            r"(?:无法|不能|尚不能|未能)[^。！？.;!?]{0,8}(?:确认|验证|确定)[^。！？.;!?]{0,12}(?:结果|事实|任何|操作)",
-            r"\b(?:no|without|lacking|haven['’]t received)\b[^.!?]{0,32}\b(?:receipts?|tool results?|execution results?|evidence)\b",
-            r"\b(?:not yet|haven['’]t|hasn['’]t|not)\b[^.!?]{0,20}\b(?:started|created|read|written|executed)\b",
-            r"\b(?:cannot|can't|unable to)\s+(?:confirm|verify|determine)\b[^.!?]{0,25}\b(?:results?|outcomes?|anything)\b",
-        )
-    )
-
-
 @dataclass(frozen=True)
 class ProgressSnapshot:
     key: str
@@ -457,9 +442,6 @@ class TaskProgressAgent:
                 if text is not None
                 and not _unsupported_test_counts(text)
                 and not _unsupported_global_absence(text)
-                and not (
-                    snapshot.facts.get("stage") == "received" and _unsupported_opening_state(text)
-                )
                 else None
             )
         finally:

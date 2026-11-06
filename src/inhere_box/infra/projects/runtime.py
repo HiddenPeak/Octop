@@ -1953,8 +1953,6 @@ class ProjectTaskWorker:
                         or plan.revision != snapshot.facts["revision"]
                     ):
                         return
-                    if snapshot.key == "opening" and (reply or plan is not None):
-                        return
                     block = next(
                         (
                             b
@@ -2055,26 +2053,6 @@ class ProjectTaskWorker:
                 )
                 narrator = TaskProgressNarrator(progress_agent.generate, publish_narration)
                 narrator.start()
-                if not reply and not any(
-                    b.type == "progress" and b.tool_call_id == "narration:opening"
-                    for b in content.blocks
-                ):
-                    async with output_lock:
-                        content.report_progress(
-                            "narration:opening",
-                            tr("projects.progress_received", locale),
-                            introduction=not any(
-                                b.type == "progress" and b.introduction is True
-                                for b in content.blocks
-                            ),
-                        )
-                        if await save_output():
-                            raise InhereBoxError.localized(ErrorCode.TASK_INTERRUPTED)
-                    narrator.submit(
-                        ProgressSnapshot(
-                            key="opening", facts={"stage": "received", "goal": turn.prompt[:2000]}
-                        )
-                    )
             context = await asyncio.to_thread(
                 self.services.project_task_turn_repo.context, turn.task_id
             )
