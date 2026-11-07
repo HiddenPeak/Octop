@@ -43,6 +43,15 @@ class ProjectTaskExecutionReceiptRow:
 
 class ProjectTaskExecutionReceiptRepo:
     @staticmethod
+    def has_for_turn(conn: Any, turn_id: str) -> bool:
+        return (
+            conn.execute(
+                "SELECT 1 FROM project_task_execution_receipts WHERE turn_id=? LIMIT 1", (turn_id,)
+            ).fetchone()
+            is not None
+        )
+
+    @staticmethod
     def get(conn: Any, turn_id: str, call_id: str) -> ProjectTaskExecutionReceiptRow | None:
         row = conn.execute(
             "SELECT * FROM project_task_execution_receipts WHERE turn_id=? AND tool_call_id=?",

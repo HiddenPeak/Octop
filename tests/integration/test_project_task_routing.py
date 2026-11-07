@@ -209,6 +209,99 @@ async def test_hybrid_rejudges_each_turn_and_uses_the_recorded_model(
     assert active == {"provider_name": "remote", "model": "cloud-chat"}
 
 
+@pytest.mark.parametrize("resume", [False, True])
+async def test_hybrid_task_completes_on_remote_after_box_http_503(env, monkeypatch, resume):
+    client, server, auth = env
+    await _seed_models(client, auth)
+    await _configure(client, auth)
+    remote = server.services.provider_repo.get_by_name("remote")
+    if resume:
+        server.services.provider_repo.update(remote.id, enabled=False)
+    monkeypatch.setattr(
+        task_submission,
+        "classify_difficulty",
+        AsyncMock(return_value=DifficultyAssessment(9, "basic")),
+    )
+    attempted = []
+    send = httpx.AsyncClient.send
+
+    async def send_model(self, request, **kwargs):
+        host = request.url.host
+        if host not in {"box.internal", "models.example"}:
+            return await send(self, request, **kwargs)
+        body = json.loads(request.content)
+        attempted.append(body["model"])
+        if host == "box.internal":
+            return httpx.Response(
+                503,
+                headers={"x-should-retry": "false"},
+                json={"error": {"message": "Service unavailable"}},
+                request=request,
+            )
+        chunk = {
+            "id": "failover-fixture",
+            "object": "chat.completion.chunk",
+            "created": 1,
+            "model": body["model"],
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {"role": "assistant", "content": "Remote reply"},
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream"},
+            text=f"data: {json.dumps(chunk)}\n\ndata: [DONE]\n\n",
+            request=request,
+        )
+
+    monkeypatch.setattr(httpx.AsyncClient, "send", send_model)
+    submitted = await _submit(
+        client,
+        auth,
+        "rest",
+        {
+            "request_id": "routing-box-503",
+            "prompt": "Hello",
+            "options": {
+                "routing": {"mode": "hybrid", "level": 100},
+                "action_timeline_enabled": False,
+            },
+        },
+    )
+    if resume:
+        for _ in range(300):
+            response = await client.get(f"/api/project-tasks/{submitted['task_id']}", headers=auth)
+            interrupted = response.json()["turns"][0]
+            if interrupted["status"] == "interrupted":
+                break
+            await asyncio.sleep(0.01)
+        else:
+            pytest.fail("initial Box 503 did not interrupt the task")
+        assert interrupted["recovery"]["status_code"] == 503
+        server.services.provider_repo.update(remote.id, enabled=True)
+        attempted.clear()
+        response = await client.post(
+            f"/api/project-tasks/{submitted['task_id']}/resume",
+            headers=auth,
+            json={"request_id": "resume-box-503", "turn_id": interrupted["turn_id"]},
+        )
+        assert response.status_code == 200, response.text
+    task = await _settled(client, auth, submitted["task_id"])
+    assert task["status"] == "completed", task
+    assert len(task["turns"]) == 1
+    turn = task["turns"][0]
+    assert turn["turn_id"] == submitted["turns"][0]["turn_id"]
+    assert turn["reply"] == "Remote reply"
+    assert attempted[:2] == ["RM-01 VLM", "cloud-chat"]
+    audit = server.services.audit_repo.query(action="task.model_failover")
+    assert [event.target for event in audit] == [turn["turn_id"]]
+    assert json.loads(audit[0].payload)["to_model_ref"] == REMOTE_MODEL
+
+
 @pytest.mark.parametrize("transport", ["rest", "websocket"])
 async def test_explicit_and_legacy_selection_skip_routing_judge(
     routing_env: Any, transport: str

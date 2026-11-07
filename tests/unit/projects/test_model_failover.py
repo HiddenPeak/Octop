@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 from langchain.agents.middleware import ModelRequest, ModelResponse
 from langchain_core.messages import AIMessage, HumanMessage
@@ -19,6 +21,7 @@ from inhere_box.infra.db.pool import SqlitePool
 from inhere_box.infra.db.repos.project_task_turns import ProjectTaskTurnRow
 from inhere_box.infra.db.services import RepoBundle, SharedServices
 from inhere_box.infra.projects import model_failover
+from inhere_box.infra.projects.content import TaskContent
 from inhere_box.infra.utils.paths import PathLayout
 
 
@@ -132,6 +135,42 @@ def test_only_recorded_automatic_routes_can_fail_over(configuration, expected):
     assert model_failover.automatic_route(configuration) is expected
 
 
+def test_recovery_excludes_model_output_and_durable_tool_receipts(environment):
+    services, turn, _, _ = environment
+    recovery = {"phase": "model", "status_code": 503}
+    content = TaskContent.restore(
+        turn.turn_id,
+        [
+            {
+                "block_id": "old-introduction",
+                "type": "progress",
+                "status": "completed",
+                "tool_call_id": "narration:opening",
+            }
+        ],
+        1,
+    )
+    assert model_failover.recovery_before_output(services, turn, recovery, content)
+    assert not model_failover.recovery_before_output(
+        services, replace(turn, reasoning="partial output"), recovery, content
+    )
+    with services.db.transaction() as conn:
+        repo = services.project_task_execution_receipt_repo
+        assert repo.start(
+            conn,
+            "receipt-one",
+            turn.task_id,
+            turn.turn_id,
+            "call-one",
+            "write_file",
+            "digest",
+            turn.worker_id,
+            1_001,
+        )
+        assert repo.complete(conn, turn.turn_id, "call-one", turn.worker_id, "{}", 1_002)
+    assert not model_failover.recovery_before_output(services, turn, recovery, content)
+
+
 @pytest.mark.asyncio
 async def test_box_failover_stays_local_and_audits_without_mutating_snapshot(
     environment, monkeypatch
@@ -194,6 +233,77 @@ async def test_explicit_task_failure_is_raised_without_another_model(environment
         )
     assert attempted == ["box/local"]
     assert not services.audit_repo.query(action="task.model_failover")
+
+
+@pytest.mark.parametrize(
+    ("mode", "level", "status", "explicit", "started", "has_checkpoint", "remote"),
+    [
+        ("hybrid", 100, 503, False, False, False, True),
+        ("hybrid", 100, 500, False, False, False, False),
+        ("hybrid", 0, 503, False, False, False, False),
+        ("box", 0, 503, False, False, False, False),
+        ("hybrid", 100, 503, True, False, False, False),
+        ("hybrid", 100, 503, False, True, False, False),
+        ("hybrid", 100, 503, False, False, True, False),
+    ],
+)
+@pytest.mark.asyncio
+async def test_box_503_can_fail_over_to_remote_on_fresh_hybrid_turns(
+    environment, monkeypatch, mode, level, status, explicit, started, has_checkpoint, remote
+):
+    services, turn, raw, models = environment
+    provider = services.provider_repo.get_by_name("box")
+    services.provider_repo.update(
+        provider.id, models_json=json.dumps([{"id": "local", "enabled": True}])
+    )
+    if has_checkpoint:
+        turn = replace(turn, checkpoint_id="existing-checkpoint")
+    raw["routing"] = {"mode": mode, "level": level, "target": "explicit" if explicit else "box"}
+    if explicit:
+        raw["execution_options"]["model_ref"] = "box/local"
+    middleware = await model_failover.task_failover_middleware(
+        services, 1, turn, raw, ProviderStore(services.provider_repo).build_harness_configs()
+    )
+    initial_config = {
+        "model": "box/local",
+        "inhere_box_auto_route": model_failover.automatic_route(raw),
+    }
+    configurable = initial_config.copy()
+    monkeypatch.setattr(middleware_module, "_configurable", lambda _request: configurable)
+    request = ModelRequest(model=models["box/local"], messages=[HumanMessage(content="continue")])
+    attempted = []
+
+    async def handler(routed):
+        ref = routed.model.model
+        attempted.append(ref)
+        if ref == "box/local":
+            if started:
+                middleware.callbacks[0].on_llm_new_token("partial")
+            response = httpx.Response(status, request=httpx.Request("POST", "http://box.invalid"))
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                raise RuntimeError("model call failed") from exc
+        return ModelResponse(result=[AIMessage(content="recovered")])
+
+    try:
+        if remote:
+            response = await middleware.awrap_model_call(request, handler)
+            assert response.result[0].content == "recovered"
+            configurable = initial_config.copy()
+            await middleware.awrap_model_call(request, handler)
+            assert attempted == ["box/local", "cloud/remote", "cloud/remote"]
+            audit = services.audit_repo.query(action="task.model_failover")
+            assert len(audit) == 1
+            assert json.loads(audit[0].payload)["to_model_ref"] == "cloud/remote"
+            assert services.project_task_turn_repo.get(turn.turn_id).model_ref == "box/local"
+        else:
+            with pytest.raises(RuntimeError, match="model call failed"):
+                await middleware.awrap_model_call(request, handler)
+            assert attempted == ["box/local"]
+            assert not services.audit_repo.query(action="task.model_failover")
+    finally:
+        await middleware.aclose()
 
 
 @pytest.mark.asyncio

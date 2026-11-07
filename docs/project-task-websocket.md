@@ -461,7 +461,7 @@ TaskDetail 在 TaskSummary 上增加 `turns:TaskTurn[]`、`next_page_cursor:stri
 
 已安装 Skill 使用 `{package_id,slug}`；SkillHub 引用使用 `{source:"skillhub",slug,name,description?}`。MCP 使用当前账号可用的 server_name，不提交凭据或任意连接地址。候选资源来自 `GET /api/project-tasks/resources`。连接管理、授权及选择示例见 [APP MCP 与连接器接入](app-mcp-connectors.md)。
 
-options 只影响本轮，不写回项目或全局默认模型。本轮入队后模型固定；`result.data.turns[].model_ref`、后续历史及轮次更新里的 `model_ref` 是实际执行选择，客户端按该轮返回值标注，不能用当前输入框选择替代历史模型。相同 request_id 的网络重发必须保持原 options，包括 model_ref 当时的显式值或省略/null 形态；不要用响应中解析后的 options 填回原请求，也不要在重连时重新计算默认模型。要更换模型执行新一轮，使用新的 request_id。
+options 只影响本轮，不写回项目或全局默认模型。`result.data.turns[].model_ref`、后续历史及轮次更新里的 `model_ref` 是受理时固定的模型；如发生故障切换，实际调用以模型调用流水为准。客户端按该轮返回值标注，不能用当前输入框选择替代历史模型。相同 request_id 的网络重发必须保持原 options，包括 model_ref 当时的显式值或省略/null 形态；不要用响应中解析后的 options 填回原请求，也不要在重连时重新计算默认模型。要更换模型执行新一轮，使用新的 request_id。
 
 ### 任务上下文压缩
 

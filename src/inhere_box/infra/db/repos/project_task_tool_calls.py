@@ -51,6 +51,15 @@ class ProjectTaskToolCallRow:
 
 class ProjectTaskToolCallRepo:
     @staticmethod
+    def has_for_turn(conn: Any, turn_id: str) -> bool:
+        return (
+            conn.execute(
+                "SELECT 1 FROM project_task_tool_calls WHERE turn_id=? LIMIT 1", (turn_id,)
+            ).fetchone()
+            is not None
+        )
+
+    @staticmethod
     def get(conn: Any, call_id: str) -> ProjectTaskToolCallRow | None:
         row = conn.execute(
             "SELECT * FROM project_task_tool_calls WHERE call_id=?", (call_id,)

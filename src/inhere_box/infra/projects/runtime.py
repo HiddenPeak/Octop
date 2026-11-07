@@ -20,7 +20,13 @@ from typing import Any, cast
 
 import aiosqlite
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
-from langchain_core.messages import AIMessage, ToolMessage, message_to_dict, messages_from_dict
+from langchain_core.messages import (
+    AIMessage,
+    HumanMessage,
+    ToolMessage,
+    message_to_dict,
+    messages_from_dict,
+)
 from langchain_core.messages.tool import ToolCall
 from langchain_core.tools import ToolException
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -476,7 +482,11 @@ async def _run_turn(
     ):
         raise InhereBoxError.localized(ErrorCode.TASK_IMAGE_MODEL_REQUIRED)
     configs_provider = await asyncio.to_thread(providers.build_harness_configs)
-    from inhere_box.infra.projects.model_failover import automatic_route, task_failover_middleware
+    from inhere_box.infra.projects.model_failover import (
+        automatic_route,
+        recovery_before_output,
+        task_failover_middleware,
+    )
 
     failover = await task_failover_middleware(services, owner_id, turn, raw, configs_provider)
     workspace = Path(fields.directory) if fields.directory else runtime_dir / "workspace"
@@ -1103,6 +1113,18 @@ async def _run_turn(
                         "graph",
                         turn.checkpoint_id,
                     )
+                # A graph checkpoint can exist before the first model call.
+                # Only resume with failover when the saved input is still the tail.
+                if (
+                    state.next == ("model",)
+                    and saved_messages
+                    and isinstance(saved_messages[-1], HumanMessage)
+                    and saved_messages[-1].content == user_content
+                    and await asyncio.to_thread(
+                        recovery_before_output, services, turn, recovery, restored_content
+                    )
+                ):
+                    failover.enable_503_recovery()
                 decisions = None
             else:
                 decisions = await asyncio.to_thread(resume_decisions, services, owner_id, turn)

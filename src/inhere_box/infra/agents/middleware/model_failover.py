@@ -19,6 +19,7 @@ from octop_harness.middleware.turn_model import content_has_non_text
 
 from inhere_box.i18n.domains.stream import model_retry_failure_prompt
 from inhere_box.infra.agents.providers.health import (
+    FailureDecision,
     ModelHealthRegistry,
     classify_model_failure,
 )
@@ -90,6 +91,8 @@ class SafeModelFailoverMiddleware(AgentMiddleware[Any, Any]):
         on_model_selected: Callable[[str, dict[str, Any]], Awaitable[None]] | None = None,
         close_models: Callable[[], Awaitable[None]] | None = None,
         execution_safety: ModelExecutionSafety | None = None,
+        service_unavailable_candidates: Callable[[str, bool], Sequence[AutoRouteCandidate]]
+        | None = None,
     ) -> None:
         super().__init__()
         self._health = health
@@ -100,6 +103,9 @@ class SafeModelFailoverMiddleware(AgentMiddleware[Any, Any]):
         self._close_models = close_models
         self._close_task: asyncio.Future[None] | None = None
         self._execution_safety = execution_safety
+        self._service_unavailable_candidates = service_unavailable_candidates
+        self._selected_model_ref: str | None = None
+        self._recovery_outage_only = False
         self._retry = ModelRetryMiddleware(
             max_retries=max_retries,
             initial_delay=initial_delay,
@@ -120,6 +126,12 @@ class SafeModelFailoverMiddleware(AgentMiddleware[Any, Any]):
     @property
     def callbacks(self) -> list[BaseCallbackHandler]:
         return [self._execution_safety] if self._execution_safety is not None else []
+
+    def enable_503_recovery(self) -> None:
+        """Allow a verified pre-output checkpoint to try the box again first."""
+        if self._execution_safety is not None and self._service_unavailable_candidates is not None:
+            self._execution_safety.allowed = True
+            self._recovery_outage_only = True
 
     def _may_failover(self) -> bool:
         return self._execution_safety is None or self._execution_safety.allowed
@@ -142,7 +154,12 @@ class SafeModelFailoverMiddleware(AgentMiddleware[Any, Any]):
             configurable.get(AUTO_ROUTE_CONFIG_KEY) is True and self._may_failover(),
         )
 
-    def _fallbacks(self, request: ModelRequest[Any], current_ref: str) -> list[AutoRouteCandidate]:
+    def _fallbacks(
+        self,
+        request: ModelRequest[Any],
+        current_ref: str,
+        candidates: Callable[[str, bool], Sequence[AutoRouteCandidate]],
+    ) -> list[AutoRouteCandidate]:
         # A text follow-up can still send images from earlier messages to the model.
         needs_multimodal = any(
             content_has_non_text(message.content) for message in request.messages or []
@@ -152,16 +169,16 @@ class SafeModelFailoverMiddleware(AgentMiddleware[Any, Any]):
         route_cap = raw_route_cap if isinstance(raw_route_cap, int) else None
         return [
             candidate
-            for candidate in self._candidates(current_ref, needs_multimodal)
+            for candidate in candidates(current_ref, needs_multimodal)
             if candidate.ref != current_ref
             and self._health.is_routable(candidate.ref)
             and _fits_context(candidate, estimated, route_cap)
         ]
 
-    def _record_failure(self, ref: str, exc: Exception) -> bool:
+    def _record_failure(self, ref: str, exc: Exception) -> FailureDecision:
         decision = classify_model_failure(exc)
         self._health.record_failure(ref, kind=decision.kind, scope=decision.scope)
-        return decision.failover
+        return decision
 
     def wrap_model_call(
         self,
@@ -175,7 +192,8 @@ class SafeModelFailoverMiddleware(AgentMiddleware[Any, Any]):
         attempts: list[tuple[str, Any]] = [(current_ref, request.model)]
         if automatic and current_ref:
             attempts.extend(
-                (candidate.ref, None) for candidate in self._fallbacks(request, current_ref)
+                (candidate.ref, None)
+                for candidate in self._fallbacks(request, current_ref, self._candidates)
             )
         if self._execution_safety is not None and len(attempts) == 1:
             # Keep an admitted Task executable when its catalog has no safe
@@ -199,8 +217,8 @@ class SafeModelFailoverMiddleware(AgentMiddleware[Any, Any]):
                     last_error = exc
                     if not self._may_failover():
                         return self._failure_response(exc)
-                    may_failover = self._record_failure(ref, exc)
-                    if not automatic or not may_failover or not self._may_failover():
+                    decision = self._record_failure(ref, exc)
+                    if not automatic or not decision.failover or not self._may_failover():
                         return self._failure_response(exc)
                     logger.warning("AUTO model route failed; trying next candidate: model=%s", ref)
                     continue
@@ -220,17 +238,34 @@ class SafeModelFailoverMiddleware(AgentMiddleware[Any, Any]):
         handler: Callable[[ModelRequest[Any]], Awaitable[ModelResponse[Any]]],
     ) -> ModelResponse[Any]:
         current_ref, automatic = self._route(request)
+        if self._selected_model_ref is not None:
+            current_ref = self._selected_model_ref
+            automatic = False
+            configurable = _configurable(request)
+            configurable["model"] = current_ref
+            if self._on_model_selected is not None:
+                await self._on_model_selected(current_ref, configurable)
+            request = request.override(model=self._model_for_ref(current_ref))
         last_error: Exception | None = None
         attempts: list[tuple[str, Any]] = [(current_ref, request.model)]
+        outage_fallbacks: list[AutoRouteCandidate] = []
         if automatic and current_ref:
-            attempts.extend(
-                (candidate.ref, None) for candidate in self._fallbacks(request, current_ref)
-            )
-        if self._execution_safety is not None and len(attempts) == 1:
+            if not self._recovery_outage_only:
+                attempts.extend(
+                    (candidate.ref, None)
+                    for candidate in self._fallbacks(request, current_ref, self._candidates)
+                )
+            if self._service_unavailable_candidates is not None:
+                outage_fallbacks = self._fallbacks(
+                    request, current_ref, self._service_unavailable_candidates
+                )
+        # A Task without a healthy same-source fallback still tries its primary.
+        reserve_primary = self._execution_safety is None or len(attempts) > 1
+        if not reserve_primary and not outage_fallbacks:
             automatic = False
 
         for ref, model in attempts:
-            reserved = automatic and bool(ref)
+            reserved = automatic and bool(ref) and (ref != current_ref or reserve_primary)
             if reserved and not self._health.begin_attempt(ref):
                 continue
             try:
@@ -248,12 +283,17 @@ class SafeModelFailoverMiddleware(AgentMiddleware[Any, Any]):
                     last_error = exc
                     if not self._may_failover():
                         return self._failure_response(exc)
-                    may_failover = self._record_failure(ref, exc)
-                    if not automatic or not may_failover or not self._may_failover():
+                    decision = self._record_failure(ref, exc)
+                    if not automatic or not decision.failover or not self._may_failover():
                         return self._failure_response(exc)
+                    if decision.kind == "http_503" and outage_fallbacks:
+                        attempts.extend((candidate.ref, None) for candidate in outage_fallbacks)
+                        outage_fallbacks.clear()
                     logger.warning("AUTO model route failed; trying next candidate: model=%s", ref)
                     continue
                 self._health.record_success(ref)
+                if ref != current_ref and self._on_model_selected is not None:
+                    self._selected_model_ref = ref
                 return cast(ModelResponse[Any], response)
             finally:
                 if reserved:

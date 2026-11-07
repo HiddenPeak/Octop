@@ -6,6 +6,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+from urllib.error import HTTPError
 from weakref import WeakKeyDictionary
 
 from inhere_box.i18n.domains.stream import (
@@ -60,6 +61,23 @@ _MODEL_NOT_FOUND_MARKERS = (
 
 def classify_model_failure(exc: Exception) -> FailureDecision:
     """Decide whether AUTO routing may try another model after *exc*."""
+    # Cross-source failover needs an HTTP status from the exception chain.
+    cause: BaseException | None = exc
+    seen: set[int] = set()
+    while cause is not None and id(cause) not in seen:
+        seen.add(id(cause))
+        status = (
+            cause.code
+            if isinstance(cause, HTTPError)
+            else getattr(cause, "status_code", None)
+            or getattr(getattr(cause, "response", None), "status_code", None)
+        )
+        if status is not None:
+            if status == 503:
+                return FailureDecision(True, "http_503", FailureScope.MODEL)
+            break
+        cause = cause.__cause__
+
     detail = exception_display_message(exc)
     lower = detail.lower()
     if any(marker in lower for marker in _MODEL_NOT_FOUND_MARKERS):
