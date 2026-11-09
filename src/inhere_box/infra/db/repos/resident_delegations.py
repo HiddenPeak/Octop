@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from inhere_box.infra.db.pool import DatabasePool
 from inhere_box.infra.db.repos._base import DbRow, strict_int
 from inhere_box.infra.db.repos.resident_inbox import ResidentInboxRepo
+from inhere_box.infra.db.repos.resident_timeline_changes import record_timeline_change
 
 
 @dataclass(frozen=True)
@@ -328,6 +329,9 @@ class ResidentTaskReportRepo:
                 "UPDATE resident_conversations SET revision=revision+1,updated_at=? WHERE thread_id=?",
                 (now, delegation["origin_thread_id"]),
             )
+            record_timeline_change(
+                conn, str(delegation["origin_thread_id"]), "report:report_" + turn_id
+            )
 
     def mark_archived(self, report_id: str, now: int) -> bool:
         return self._mark_stage(report_id, "archive_written_at", now)
@@ -347,6 +351,7 @@ class ResidentTaskReportRepo:
                     "UPDATE resident_conversations SET revision=revision+1,updated_at=? WHERE thread_id=?",
                     (now, row["thread_id"]),
                 )
+                record_timeline_change(conn, str(row["thread_id"]), f"report:{report_id}")
             return row is not None
 
     def mark_delivered(self, report_id: str, now: int) -> bool:
@@ -371,6 +376,7 @@ class ResidentTaskReportRepo:
                     "UPDATE resident_conversations SET revision=revision+1,updated_at=? WHERE thread_id=?",
                     (now, row["thread_id"]),
                 )
+                record_timeline_change(conn, str(row["thread_id"]), f"report:{report_id}")
             return row is not None
 
     def record_delivery_error(self, report_id: str, error_code: str, now: int) -> None:
@@ -385,3 +391,4 @@ class ResidentTaskReportRepo:
                     "UPDATE resident_conversations SET revision=revision+1,updated_at=? WHERE thread_id=?",
                     (now, row["thread_id"]),
                 )
+                record_timeline_change(conn, str(row["thread_id"]), f"report:{report_id}")

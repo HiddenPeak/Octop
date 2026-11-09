@@ -117,6 +117,10 @@ class ResidentCapabilities(ResidentModel):
         default_factory=ResidentConversationStream,
         description="Preferred live observation. REST snapshots and command receipts remain available; this declaration does not mean a client has subscribed.",
     )
+    conversation_cursor_sync: Literal[True] = Field(
+        default=True,
+        description="Resident WebSocket subscriptions can opt into resumable timeline snapshots and updates.",
+    )
     message_types: list[Literal["text", "image", "file"]] = ["text", "image", "file"]
     web_search: bool = Field(
         default=True, description="Built-in web search is available directly in new resident turns."
@@ -811,6 +815,8 @@ class ResidentConversationRuntime:
                 )
                 self._notification_retry[row.notification_id] = time.monotonic() + 2
                 return False
+            finally:
+                self._updates.notify(row.thread_id)
             self._notification_retry.pop(row.notification_id, None)
             return True
 
@@ -840,6 +846,8 @@ class ResidentConversationRuntime:
             )
             self._report_retry[report.report_id] = time.monotonic() + 2
             return False
+        finally:
+            self._updates.notify(report.thread_id)
         self._report_retry.pop(report.report_id, None)
         return True
 

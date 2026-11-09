@@ -660,6 +660,26 @@
           "minLength": 1,
           "title": "Thread Id",
           "type": "string"
+        },
+        "timeline": {
+          "default": false,
+          "description": "Opt into resumable timeline events.",
+          "title": "Timeline",
+          "type": "boolean"
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cursor"
         }
       },
       "required": [
@@ -4817,6 +4837,401 @@
       "title": "ResidentSnapshot",
       "type": "object"
     },
+    "ResidentHistoryItem": {
+      "additionalProperties": false,
+      "properties": {
+        "item_id": {
+          "title": "Item Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "turn",
+            "task_report",
+            "notification"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "day_key": {
+          "title": "Day Key",
+          "type": "string"
+        },
+        "timezone": {
+          "title": "Timezone",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "turn": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResidentTurn"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "report": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResidentTaskReport"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "notification": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResidentHistoryNotification"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "item_id",
+        "kind",
+        "day_key",
+        "timezone",
+        "created_at",
+        "updated_at"
+      ],
+      "title": "ResidentHistoryItem",
+      "type": "object"
+    },
+    "ResidentHistoryNotification": {
+      "additionalProperties": false,
+      "properties": {
+        "notification_id": {
+          "title": "Notification Id",
+          "type": "string"
+        },
+        "message_id": {
+          "title": "Message Id",
+          "type": "string"
+        },
+        "followup_id": {
+          "title": "Followup Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "note",
+            "task_watch",
+            "task"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": true,
+          "title": "Payload",
+          "type": "object"
+        },
+        "status": {
+          "const": "delivered",
+          "default": "delivered",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "notification_id",
+        "message_id",
+        "followup_id",
+        "kind",
+        "text",
+        "payload"
+      ],
+      "title": "ResidentHistoryNotification",
+      "type": "object"
+    },
+    "ResidentInbox": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "thread_id": {
+          "title": "Thread Id",
+          "type": "string"
+        },
+        "unread_count": {
+          "title": "Unread Count",
+          "type": "integer"
+        },
+        "last_message_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Message Id"
+        },
+        "last_read_message_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Last Read Message Id"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "agent_id",
+        "thread_id",
+        "unread_count",
+        "last_message_id",
+        "last_read_message_id",
+        "revision"
+      ],
+      "title": "ResidentInbox",
+      "type": "object"
+    },
+    "ResidentTaskReport": {
+      "additionalProperties": false,
+      "properties": {
+        "report_id": {
+          "title": "Report Id",
+          "type": "string"
+        },
+        "message_id": {
+          "title": "Message Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "task_turn_id": {
+          "title": "Task Turn Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "failed",
+            "cancelled"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error Code"
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error Message"
+        },
+        "artifacts": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Artifacts",
+          "type": "array"
+        },
+        "delivery_status": {
+          "enum": [
+            "pending",
+            "delivered"
+          ],
+          "title": "Delivery Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "report_id",
+        "message_id",
+        "task_id",
+        "task_turn_id",
+        "status",
+        "text",
+        "error_code",
+        "error_message",
+        "artifacts",
+        "delivery_status"
+      ],
+      "title": "ResidentTaskReport",
+      "type": "object"
+    },
+    "ResidentTimelineSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "thread_id": {
+          "title": "Thread Id",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        },
+        "cursor": {
+          "title": "Cursor",
+          "type": "string"
+        },
+        "active_turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Active Turn Id"
+        },
+        "settings": {
+          "$ref": "#/$defs/ResidentConversationSettings"
+        },
+        "inbox": {
+          "$ref": "#/$defs/ResidentInbox"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ResidentHistoryItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Next Cursor"
+        }
+      },
+      "required": [
+        "agent_id",
+        "thread_id",
+        "revision",
+        "cursor",
+        "active_turn_id",
+        "settings",
+        "inbox",
+        "items",
+        "next_cursor"
+      ],
+      "title": "ResidentTimelineSnapshot",
+      "type": "object"
+    },
+    "ResidentTimelineUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "thread_id": {
+          "title": "Thread Id",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        },
+        "cursor": {
+          "title": "Cursor",
+          "type": "string"
+        },
+        "active_turn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Active Turn Id"
+        },
+        "settings": {
+          "$ref": "#/$defs/ResidentConversationSettings"
+        },
+        "inbox": {
+          "$ref": "#/$defs/ResidentInbox"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/ResidentHistoryItem"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "agent_id",
+        "thread_id",
+        "revision",
+        "cursor",
+        "active_turn_id",
+        "settings",
+        "inbox",
+        "items"
+      ],
+      "title": "ResidentTimelineUpdate",
+      "type": "object"
+    },
     "ClientApprovalContext": {
       "additionalProperties": false,
       "properties": {
@@ -5197,6 +5612,40 @@
       ],
       "additionalProperties": true
     },
+    "ResidentTimelineSnapshotEvent": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "resident.timeline.snapshot"
+        },
+        "data": {
+          "$ref": "#/$defs/ResidentTimelineSnapshot"
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "additionalProperties": true
+    },
+    "ResidentTimelineUpdateEvent": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "resident.timeline.update"
+        },
+        "data": {
+          "$ref": "#/$defs/ResidentTimelineUpdate"
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "additionalProperties": true
+    },
     "ToolCallEvent": {
       "type": "object",
       "properties": {
@@ -5338,6 +5787,12 @@
         },
         {
           "$ref": "#/$defs/ResidentSnapshotEvent"
+        },
+        {
+          "$ref": "#/$defs/ResidentTimelineSnapshotEvent"
+        },
+        {
+          "$ref": "#/$defs/ResidentTimelineUpdateEvent"
         },
         {
           "$ref": "#/$defs/ToolCallEvent"

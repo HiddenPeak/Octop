@@ -1,5 +1,29 @@
 # App 智能体与任务共用正文 WebSocket：客户端接入交接
 
+## 智能体从缓存续接
+
+支持该能力的服务端在 `GET /api/agents/resident-capabilities` 返回 `conversation_cursor_sync: true`。新版客户端复用共享 WebSocket，沿用任务的「快照、缓存游标、补发、订阅回执」流程。原订阅命令省略 `timeline` 和 `cursor` 时仍接收下文的 `resident.snapshot`。
+
+```json
+{"type":"resident.subscribe","id":"resident-first-0001","agent_id":"resident_agent_example","thread_id":"resident_thread_example","timeline":true}
+```
+
+首次订阅或重建时，服务端先发 `resident.timeline.snapshot`，再补齐期间的变化并发出 `result`。快照 `data` 包含 `agent_id`、`thread_id`、`revision`、`cursor`、`active_turn_id`、`settings`、`inbox`、`items` 和 `next_cursor`。`items` 是最新最多 80 个时间线条目，与 `GET .../conversation/history` 使用同一结构，包含 `turn`、`task_report` 和已投递的 `notification`。`next_cursor` 交给历史接口翻更早的页。
+
+```json
+{"type":"resident.subscribe","id":"resident-resume-0001","agent_id":"resident_agent_example","thread_id":"resident_thread_example","timeline":true,"cursor":"opaque_resident_cursor"}
+```
+
+带 `cursor` 时，服务端先发 `resident.timeline.update` 补齐该位置之后的变化，再发 `result`。没有任何变化时只有 `result`。后续实时推送也使用 `resident.timeline.update`，字段与快照相同，历史分页的 `next_cursor` 仅在快照中返回。每条补发内容都是该项最新的完整状态。仅已读、配置等会话状态变化时，`items` 可以为空。
+
+- 重连前登记事件接收方。应用快照或按 `item_id` 合并全部补发项后，将已应用的 `cursor` 和缓存一起写入。打开时可以用同一订阅的 `result` 作为追平后发布的界面边界。收到正文更新即可刷新当前轮，不需要再等历史首屏。历史页按 `history_revision` 处理迟到的响应，永远不推进实时 `cursor`。
+- 用 `created_at` 和稳定 `item_id` 排序，用 `day_key` 分组。离线期间更新的旧回报、晚投递的通知可能插入较早位置。轮次按 `turn_id` 和单轮 `revision` 合并完整正文，状态变化也应用。已读位置继续通过 `POST .../conversation/read` 提交实际读到的 `message_id`。
+- 游标绑定盒子、账号和会话，不能用 Task 游标、历史分页游标或裸 `revision` 替代。游标无效或离线积累超过 80 个变化项时，服务端返回 `PROJECT_SYNC_RESET`。客户端用 `timeline:true` 且省略游标重新订阅，清理已失效的时间线缓存和历史分页基线，应用新快照后按需向前分页。取消订阅仍用 `resident.unsubscribe`。
+
+机器定义见 [WebSocket JSON Schema](project-task-websocket.schema.json) 的 `ResidentTimelineSnapshotEvent` 和 `ResidentTimelineUpdateEvent`。下文记录的是原快照订阅契约，供尚未采用游标的客户端使用。
+
+---
+
 更新日期：2026-10-23。范围：服务端已实现的会话订阅契约；客户端接线待客户端任务完成。本轮不修改 AgentComputer Swift/UI，不代表当前 App 已改为 WebSocket。
 
 服务端工作区基线：`feature/agentcomputer-foundation @ 45ee2e793c5574f85ff2e13a762afb984cd707d4`，包含尚未提交的相关实现。客户端只读核对基线：`feature/0.0.2/octp @ 5d3526f195d114063c4b639f3d5409304449872e`。

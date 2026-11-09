@@ -9,6 +9,7 @@ from typing import Any
 from inhere_box.infra.db.pool import DatabasePool
 from inhere_box.infra.db.repos._base import DbRow, strict_int
 from inhere_box.infra.db.repos.resident_inbox import ResidentInboxRepo
+from inhere_box.infra.db.repos.resident_timeline_changes import record_timeline_change
 
 
 @dataclass(frozen=True)
@@ -219,6 +220,9 @@ class ResidentNotificationRepo:
                     notification_id,
                     str(row["message_id"]),
                     now,
+                )
+                record_timeline_change(
+                    conn, str(row["thread_id"]), f"notification:{notification_id}"
                 )
 
     def discard(self, notification_id: str, now: int) -> None:

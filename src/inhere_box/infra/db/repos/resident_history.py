@@ -9,6 +9,15 @@ from zoneinfo import ZoneInfo
 
 from inhere_box.infra.db.pool import DatabasePool
 from inhere_box.infra.db.repos._base import DbRow, strict_int
+from inhere_box.infra.db.repos.resident_conversations import (
+    ResidentConversationRepo,
+    ResidentConversationRow,
+)
+from inhere_box.infra.db.repos.resident_inbox import ResidentInboxRepo
+
+
+class ResidentTimelineReset(ValueError):
+    """The cursor cannot be caught up within the stream window."""
 
 
 @dataclass(frozen=True)
@@ -64,6 +73,14 @@ class ResidentHistoryRow:
             input_json=str(row["input_json"]),
             configuration_json=str(row["configuration_json"]),
         )
+
+
+@dataclass(frozen=True)
+class ResidentTimelineRead:
+    binding: ResidentConversationRow
+    rows: list[ResidentHistoryRow]
+    active_turn_id: str | None
+    inbox: dict[str, Any]
 
 
 # Each branch applies scope, keyset and LIMIT before the bounded windows are
@@ -192,6 +209,45 @@ class ResidentHistoryRepo:
                 item_id=item_id,
             )
 
+    def timeline(
+        self, owner_id: int, thread_id: str, limit: int, after_revision: int | None
+    ) -> ResidentTimelineRead | None:
+        with self._db.read_snapshot() as conn:
+            binding = ResidentConversationRepo.get_by_thread_in_transaction(
+                conn, owner_id, thread_id
+            )
+            if binding is None:
+                raise ResidentTimelineReset
+            if after_revision is None:
+                rows = self._page(conn, owner_id, thread_id, limit + 1)
+            else:
+                if after_revision > binding.revision:
+                    raise ResidentTimelineReset
+                if after_revision == binding.revision:
+                    return None
+                changes = conn.execute(
+                    "SELECT item_id FROM resident_timeline_changes WHERE thread_id=? AND revision>? "
+                    "ORDER BY revision LIMIT ?",
+                    (thread_id, after_revision, limit + 1),
+                ).fetchall()
+                if len(changes) > limit:
+                    raise ResidentTimelineReset
+                item_ids = [str(change["item_id"]) for change in changes]
+                rows = self._page(conn, owner_id, thread_id, limit, item_ids=item_ids)
+                if len(rows) != len(item_ids):
+                    raise ResidentTimelineReset
+            active = conn.execute(
+                "SELECT turn_id FROM resident_requests WHERE owner_id=? AND thread_id=? "
+                "AND status IN ('queued','running')",
+                (owner_id, thread_id),
+            ).fetchone()
+            return ResidentTimelineRead(
+                binding,
+                rows,
+                str(active["turn_id"]) if active else None,
+                ResidentInboxRepo.state_in_transaction(conn, owner_id, thread_id),
+            )
+
     def _page(
         self,
         conn: Any,
@@ -204,6 +260,7 @@ class ResidentHistoryRepo:
         before: tuple[int, str] | None = None,
         after: tuple[int, str] | None = None,
         item_id: str = "",
+        item_ids: list[str] | None = None,
     ) -> list[ResidentHistoryRow]:
         common: list[str] = []
         common_values: list[Any] = []
@@ -223,6 +280,13 @@ class ResidentHistoryRepo:
                     continue
                 clauses.append(f"{id_column}=?")
                 values.append(item_id[len(prefix) :])
+            if item_ids is not None:
+                identifiers = [item[len(prefix) :] for item in item_ids if item.startswith(prefix)]
+                if not identifiers:
+                    continue
+                placeholders = ",".join("?" for _ in identifiers)
+                clauses.append(f"{id_column} IN ({placeholders})")
+                values.extend(identifiers)
             if query:
                 escaped = query.lower().replace("!", "!!").replace("%", "!%").replace("_", "!_")
                 if prefix == "turn:":

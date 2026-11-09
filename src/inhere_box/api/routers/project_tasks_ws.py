@@ -23,6 +23,7 @@ from inhere_box.api.deps import (
 )
 from inhere_box.api.routers.projects import _services, _task_worker
 from inhere_box.api.routers.resident_conversations import _runtime as _resident_runtime
+from inhere_box.infra.agents.resident_history import timeline_sync
 from inhere_box.infra.conversations.updates import PendingUpdates
 from inhere_box.infra.errors import ErrorCode, InhereBoxError
 from inhere_box.infra.projects import (
@@ -127,6 +128,8 @@ class ResidentSubscribeFrame(CommandFrame):
     type: Literal["resident.subscribe"]
     agent_id: Reference
     thread_id: Reference
+    timeline: bool = Field(default=False, description="Opt into resumable timeline events.")
+    cursor: Annotated[str, StringConstraints(min_length=1, max_length=4096)] | None = None
 
 
 class ResidentUnsubscribeFrame(CommandFrame):
@@ -293,7 +296,7 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
     token = extract_raw_token(authorization=websocket.headers.get("authorization"))
     subscriptions: dict[str, str] = {}
     update_watches: dict[str, Callable[[], None]] = {}
-    resident_subscriptions: dict[tuple[str, str], int] = {}
+    resident_subscriptions: dict[tuple[str, str], int | str] = {}
     resident_watches: dict[tuple[str, str], Callable[[], None]] = {}
     pending_updates = PendingUpdates[tuple[str, ...]]()
     client_id: str | None = None
@@ -317,6 +320,24 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
         if stop is not None:
             stop()
         pending_updates.discard(("resident", *scope))
+
+    async def send_resident_timeline(scope: tuple[str, str], cursor: str | None) -> str:
+        agent_id, thread_id = scope
+        update = await asyncio.to_thread(
+            timeline_sync, services, user.id, agent_id, thread_id, cursor, locale
+        )
+        if update is None:
+            assert cursor is not None
+            return cursor
+        await websocket.send_json(
+            {
+                "type": "resident.timeline.snapshot"
+                if cursor is None
+                else "resident.timeline.update",
+                "data": update.model_dump(mode="json"),
+            }
+        )
+        return update.cursor
 
     async def authenticate(stage: str) -> None:
         nonlocal token
@@ -388,12 +409,17 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                                 {"type": "turn", "data": update.model_dump(mode="json")}
                             )
                             subscriptions[task_id] = update.cursor
-                    for scope, revision in list(resident_subscriptions.items()):
+                    for scope, baseline in list(resident_subscriptions.items()):
                         if not poll and ("resident", *scope) not in changed:
                             continue
                         stage = "resident_subscription_updates"
                         agent_id, thread_id = scope
                         try:
+                            if isinstance(baseline, str):
+                                resident_subscriptions[scope] = await send_resident_timeline(
+                                    scope, baseline
+                                )
+                                continue
                             snapshot = await _resident_runtime(server).snapshot(
                                 user.id, agent_id, thread_id, 50, locale
                             )
@@ -408,7 +434,7 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                                 thread_id=thread_id,
                             )
                             continue
-                        if snapshot.revision != revision:
+                        if snapshot.revision != baseline:
                             await websocket.send_json(
                                 {
                                     "type": "resident.snapshot",
@@ -612,16 +638,24 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                         ):
                             raise InhereBoxError.localized(ErrorCode.TASK_FRAME_INVALID)
                         resident = _resident_runtime(server)
-                        resident_snapshot = await resident.snapshot(
-                            user.id, frame.agent_id, frame.thread_id, 50, locale
-                        )
-                        await websocket.send_json(
-                            {
-                                "type": "resident.snapshot",
-                                "data": resident_snapshot.model_dump(mode="json"),
-                            }
-                        )
-                        resident_subscriptions[resident_scope] = resident_snapshot.revision
+                        if frame.timeline or frame.cursor is not None:
+                            cursor = frame.cursor
+                            if cursor is None:
+                                cursor = await send_resident_timeline(resident_scope, None)
+                            resident_subscriptions[resident_scope] = await send_resident_timeline(
+                                resident_scope, cursor
+                            )
+                        else:
+                            resident_snapshot = await resident.snapshot(
+                                user.id, frame.agent_id, frame.thread_id, 50, locale
+                            )
+                            await websocket.send_json(
+                                {
+                                    "type": "resident.snapshot",
+                                    "data": resident_snapshot.model_dump(mode="json"),
+                                }
+                            )
+                            resident_subscriptions[resident_scope] = resident_snapshot.revision
                         stop_resident_watch(resident_scope)
                         resident_watches[resident_scope] = resident.watch_updates(
                             frame.thread_id, partial(queue_resident_update, resident_scope)

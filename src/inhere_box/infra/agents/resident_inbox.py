@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from inhere_box.infra.agents.resident_history import require_resident_binding
 from inhere_box.infra.db.services import SharedServices
 from inhere_box.infra.errors import ErrorCode, InhereBoxError
 from inhere_box.infra.projects.models import ProjectModel
@@ -34,6 +33,8 @@ def inbox_state(
     thread_id: str,
     message_id: str | None = None,
 ) -> ResidentInbox:
+    from inhere_box.infra.agents.resident_history import require_resident_binding
+
     require_resident_binding(services, owner_id, agent_id, thread_id)
     repo = services.resident_inbox_repo
     state = (

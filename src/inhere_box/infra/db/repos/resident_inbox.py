@@ -102,7 +102,7 @@ class ResidentInboxRepo:
                 )
 
     @staticmethod
-    def _state(conn: Any, owner: int, thread: str) -> dict[str, Any]:
+    def state_in_transaction(conn: Any, owner: int, thread: str) -> dict[str, Any]:
         binding = conn.execute(
             "SELECT revision,read_event_seq FROM resident_conversations WHERE owner_id=? AND thread_id=?",
             (owner, thread),
@@ -131,7 +131,7 @@ class ResidentInboxRepo:
 
     def state(self, owner: int, thread: str) -> dict[str, Any]:
         with self._db.read_snapshot() as conn:
-            return self._state(conn, owner, thread)
+            return self.state_in_transaction(conn, owner, thread)
 
     def mark_read(self, owner: int, thread: str, message_id: str) -> dict[str, Any] | None:
         with self._db.transaction() as conn:
@@ -146,4 +146,4 @@ class ResidentInboxRepo:
                 "WHERE owner_id=? AND thread_id=? AND read_event_seq<?",
                 (anchor["id"], owner, thread, anchor["id"]),
             )
-            return self._state(conn, owner, thread)
+            return self.state_in_transaction(conn, owner, thread)

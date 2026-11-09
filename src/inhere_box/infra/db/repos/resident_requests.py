@@ -14,6 +14,7 @@ from inhere_box.infra.db.repos.resident_conversations import (
     ResidentConversationRow,
 )
 from inhere_box.infra.db.repos.resident_inbox import ResidentInboxRepo
+from inhere_box.infra.db.repos.resident_timeline_changes import record_timeline_change
 
 
 class ResidentRequestConflict(ValueError):
@@ -86,11 +87,13 @@ class ResidentRequestRepo:
     @staticmethod
     def _bump_turn(conn: Any, turn_id: str, now: int) -> None:
         ResidentInboxRepo.record_turn(conn, turn_id, now)
-        conn.execute(
+        row = conn.execute(
             "UPDATE resident_conversations SET revision=revision+1,updated_at=? WHERE thread_id="
-            "(SELECT thread_id FROM resident_requests WHERE turn_id=?)",
+            "(SELECT thread_id FROM resident_requests WHERE turn_id=?) RETURNING thread_id",
             (now, turn_id),
-        )
+        ).fetchone()
+        if row:
+            record_timeline_change(conn, str(row["thread_id"]), f"turn:{turn_id}")
 
     def snapshot(
         self, owner_id: int, thread_id: str, limit: int = 51

@@ -8,6 +8,10 @@ from typing import Any
 
 from inhere_box.api.routers.project_tasks_ws import AuthenticateFrame, _command
 from inhere_box.infra.agents.resident_conversation import ResidentSnapshot
+from inhere_box.infra.agents.resident_history import (
+    ResidentTimelineSnapshot,
+    ResidentTimelineUpdate,
+)
 from inhere_box.infra.projects.artifact_models import (
     CreateArtifactArgs,
     PublishWorkspaceArchiveArgs,
@@ -30,6 +34,8 @@ def export_schema() -> dict[str, Any]:
         TaskDetail,
         TaskUpdate,
         ResidentSnapshot,
+        ResidentTimelineSnapshot,
+        ResidentTimelineUpdate,
         ClientToolCall,
         ClientToolClaim,
         CreateArtifactArgs,
@@ -71,6 +77,16 @@ def export_schema() -> dict[str, Any]:
     event("SnapshotEvent", "snapshot", {"data": ref("TaskDetail")})
     event("TurnEvent", "turn", {"data": ref("TaskUpdate")})
     event("ResidentSnapshotEvent", "resident.snapshot", {"data": ref("ResidentSnapshot")})
+    event(
+        "ResidentTimelineSnapshotEvent",
+        "resident.timeline.snapshot",
+        {"data": ref("ResidentTimelineSnapshot")},
+    )
+    event(
+        "ResidentTimelineUpdateEvent",
+        "resident.timeline.update",
+        {"data": ref("ResidentTimelineUpdate")},
+    )
     event("ToolCallEvent", "tool.call", {"data": ref("ClientToolCall")})
     event("ToolClosedEvent", "tool.closed", {"data": ref("ClientToolCall")})
     event(

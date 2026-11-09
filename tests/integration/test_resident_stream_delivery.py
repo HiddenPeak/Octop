@@ -120,6 +120,24 @@ async def next_snapshot(ws, binding, turn_id, *, reply, status="running"):
     return (await until(ws, matches))["data"]
 
 
+async def subscribe_timeline(ws, binding, key, cursor=None):
+    await ws.send_json(
+        {
+            "type": "resident.subscribe",
+            "id": key,
+            "agent_id": binding["agent_id"],
+            "thread_id": binding["thread_id"],
+            "timeline": True,
+            "cursor": cursor,
+        }
+    )
+    kind = "resident.timeline.snapshot" if cursor is None else "resident.timeline.update"
+    event = await until(ws, lambda frame: frame.get("type") == kind or frame.get("id") == key)
+    assert event["type"] == kind, event
+    assert await ws.receive_json() == {"type": "result", "id": key, "data": None}
+    return event["data"]
+
+
 async def receipt(env, request_id, reply):
     async with asyncio.timeout(5):
         while True:
@@ -284,6 +302,65 @@ async def test_disconnect_keeps_execution_and_reconnect_sends_latest_snapshot(re
         )
     finally:
         await resumed_session.__aexit__(None, None, None)
+
+
+async def test_timeline_cursor_resends_only_latest_changed_turn_and_resets_bad_cursor(
+    resident_delivery,
+):
+    env = resident_delivery
+    async with asyncio.timeout(10):
+        session, ws = await connected(env.client, env.auth)
+        try:
+            old, old_queue = await send(env, "Already saved")
+            old_queue.put_nowait({"type": "token", "content": "Cached answer"})
+            old_queue.put_nowait(None)
+            await _turn(env.client, env.auth, env.base, old["request_id"], "completed")
+            initial = await subscribe_timeline(ws, env.binding, "timeline-first")
+            assert [item["item_id"] for item in initial["items"]] == [f"turn:{old['turn_id']}"]
+            accepted, queue = await send(env, "Continue from cache")
+            queue.put_nowait({"type": "token", "content": "First"})
+            live = await until(
+                ws,
+                lambda frame: (
+                    frame["type"] == "resident.timeline.update"
+                    and any(item["turn"]["reply"] == "First" for item in frame["data"]["items"])
+                ),
+            )
+        finally:
+            await session.__aexit__(None, None, None)
+        queue.put_nowait({"type": "token", "content": " second"})
+        await receipt(env, accepted["request_id"], "First second")
+        queue.put_nowait(None)
+        finished = await _turn(env.client, env.auth, env.base, accepted["request_id"], "completed")
+        session, ws = await connected(env.client, env.auth)
+        try:
+            resumed = await subscribe_timeline(
+                ws, env.binding, "timeline-resume", live["data"]["cursor"]
+            )
+            assert [item["turn"] for item in resumed["items"]] == [finished]
+            assert resumed["active_turn_id"] is None
+            for cursor, expected in ((resumed["cursor"], "result"), ("invalid", "error")):
+                await ws.send_json(
+                    {
+                        "type": "resident.subscribe",
+                        "id": "timeline-check",
+                        "agent_id": env.binding["agent_id"],
+                        "thread_id": env.binding["thread_id"],
+                        "cursor": cursor,
+                    }
+                )
+                response = await ws.receive_json()
+                assert response["id"] == "timeline-check" and response["type"] == expected
+                if expected == "error":
+                    assert response["error"]["code"] == "PROJECT_SYNC_RESET"
+            reset = await subscribe_timeline(ws, env.binding, "timeline-reset")
+            assert [item["turn"]["turn_id"] for item in reset["items"]] == [
+                old["turn_id"],
+                accepted["turn_id"],
+            ]
+            assert len(env.invocations) == 2
+        finally:
+            await session.__aexit__(None, None, None)
     assert not any(env.watches.values())
 
 

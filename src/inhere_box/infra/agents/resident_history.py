@@ -9,17 +9,22 @@ from typing import Any, Literal, cast
 
 from inhere_box.i18n import error_message
 from inhere_box.infra.agents.resident_conversation import (
+    ResidentConversationSettings,
     ResidentInput,
     ResidentModel,
     ResidentTurn,
     TurnStatus,
+    settings_view,
     turn_attachments,
 )
+from inhere_box.infra.agents.resident_inbox import ResidentInbox
 from inhere_box.infra.db.repos.resident_conversations import ResidentConversationRow
-from inhere_box.infra.db.repos.resident_history import ResidentHistoryRow
+from inhere_box.infra.db.repos.resident_history import ResidentHistoryRow, ResidentTimelineReset
 from inhere_box.infra.db.services import SharedServices
 from inhere_box.infra.errors import ErrorCode, InhereBoxError
-from inhere_box.infra.projects.cursors import cursor_codec
+from inhere_box.infra.projects.cursors import CursorCodec, cursor_codec, cursor_reset
+
+_TIMELINE_LIMIT = 80
 
 
 def require_resident_binding(
@@ -109,6 +114,21 @@ class ResidentHistoryLocation(ResidentModel):
     items: list[ResidentHistoryItem]
     has_before: bool
     has_after: bool
+
+
+class ResidentTimelineUpdate(ResidentModel):
+    agent_id: str
+    thread_id: str
+    revision: int
+    cursor: str
+    active_turn_id: str | None
+    settings: ResidentConversationSettings
+    inbox: ResidentInbox
+    items: list[ResidentHistoryItem]
+
+
+class ResidentTimelineSnapshot(ResidentTimelineUpdate):
+    next_cursor: str | None
 
 
 def _item(row: ResidentHistoryRow, locale: str) -> ResidentHistoryItem:
@@ -215,10 +235,7 @@ def history_page(
     query: str = "",
 ) -> ResidentHistoryPage:
     require_resident_binding(services, owner_id, agent_id, thread_id)
-    query_digest = hashlib.sha256(query.encode()).hexdigest()
-    codec = cursor_codec(
-        services, owner_id, f"resident-items-v1:{thread_id}:{day_key}:{query_digest}"
-    )
+    codec = _history_codec(services, owner_id, thread_id, day_key, query)
     boundary = codec.decode(cursor, "conversation") if cursor else None
     revision, rows = services.resident_history_repo.page(
         owner_id,
@@ -229,18 +246,66 @@ def history_page(
         before=(boundary.position, boundary.after) if boundary else None,
     )
     more, rows = len(rows) > limit, rows[:limit]
-    next_cursor = (
-        codec.encode("conversation", position=rows[-1].created_at, after=rows[-1].item_id)
-        if more
-        else None
-    )
     return ResidentHistoryPage(
         agent_id=agent_id,
         thread_id=thread_id,
         history_revision=revision,
         items=[_item(row, locale) for row in reversed(rows)],
-        next_cursor=next_cursor,
+        next_cursor=_older_cursor(codec, rows[-1]) if more else None,
     )
+
+
+def _history_codec(
+    services: SharedServices, owner_id: int, thread_id: str, day_key: str = "", query: str = ""
+) -> CursorCodec:
+    query_digest = hashlib.sha256(query.encode()).hexdigest()
+    return cursor_codec(
+        services, owner_id, f"resident-items-v1:{thread_id}:{day_key}:{query_digest}"
+    )
+
+
+def _older_cursor(codec: CursorCodec, row: ResidentHistoryRow) -> str:
+    return codec.encode("conversation", position=row.created_at, after=row.item_id)
+
+
+def timeline_sync(
+    services: SharedServices,
+    owner_id: int,
+    agent_id: str,
+    thread_id: str,
+    cursor: str | None,
+    locale: str,
+) -> ResidentTimelineUpdate | None:
+    require_resident_binding(services, owner_id, agent_id, thread_id)
+    codec = cursor_codec(services, owner_id, f"resident-timeline-v1:{thread_id}")
+    revision = codec.decode(cursor, "conversation").position if cursor else None
+    try:
+        state = services.resident_history_repo.timeline(
+            owner_id, thread_id, _TIMELINE_LIMIT, revision
+        )
+    except ResidentTimelineReset as exc:
+        raise cursor_reset() from exc
+    if state is None:
+        return None
+    rows = state.rows[:_TIMELINE_LIMIT]
+    update = ResidentTimelineUpdate(
+        agent_id=agent_id,
+        thread_id=thread_id,
+        revision=state.binding.revision,
+        cursor=codec.encode("conversation", position=state.binding.revision),
+        active_turn_id=state.active_turn_id,
+        settings=settings_view(state.binding),
+        inbox=ResidentInbox(agent_id=agent_id, thread_id=thread_id, **state.inbox),
+        items=[_item(row, locale) for row in reversed(rows)],
+    )
+    if cursor is not None:
+        return update
+    next_cursor = (
+        _older_cursor(_history_codec(services, owner_id, thread_id), rows[-1])
+        if len(state.rows) > _TIMELINE_LIMIT
+        else None
+    )
+    return ResidentTimelineSnapshot(**update.model_dump(), next_cursor=next_cursor)
 
 
 def history_location(

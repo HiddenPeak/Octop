@@ -2366,10 +2366,15 @@ def _ensure_unified_task_conversations_schema(db: DatabasePool) -> None:
 def run_migrations(db: DatabasePool) -> None:
     if db.dialect == "sqlite":
         _repair_legacy_schema(db)
-    for version, path in _discover(db.dialect):
+    migrations = _discover(db.dialect)
+    for version, path in migrations:
         # Independent project DDL is repaired below. Apply its dependent v56
         # only after those tables exist, including on a fresh installation.
-        if 28 <= version <= 53 or version in {56, 58, 59, 60} or version <= _current_version(db):
+        if (
+            28 <= version <= 53
+            or version in {56, 58, 59, 60, 64}
+            or version <= _current_version(db)
+        ):
             continue
         if version == 57:
             _ensure_skill_package_access_schema(db)
@@ -2458,3 +2463,13 @@ def run_migrations(db: DatabasePool) -> None:
         )
         with db.transaction() as conn:
             conn.execute("UPDATE _schema_version SET version = 60 WHERE version < 60")
+
+    timeline = next((path for version, path in migrations if version == 64), None)
+    if timeline is not None and (
+        _current_version(db) < 64 or not _table_exists(db, "resident_timeline_changes")
+    ):
+        # On a fresh PostgreSQL database the referenced Resident table is
+        # created by the independent project migrations above.
+        with db.transaction() as conn:
+            for statement in _split_pg_sql(timeline.read_text(encoding="utf-8")):
+                conn.execute(statement)

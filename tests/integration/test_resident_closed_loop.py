@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 from uuid import uuid4
@@ -14,9 +14,12 @@ import httpx
 import pytest
 from langchain_core.messages import AIMessage, SystemMessage, convert_to_messages
 
+from inhere_box.infra.agents.resident_followups import poll_followups
 from inhere_box.infra.agents.resident_identity import ResidentTextOnlyMiddleware
 from inhere_box.infra.projects import resident_tasks
 from inhere_box.infra.projects.recovery import TaskInterruption, TaskRecovery
+from tests.integration.test_project_tasks_ws import connected
+from tests.integration.test_resident_stream_delivery import subscribe_timeline
 from tests.support.auth import create_user, resolve_user_id
 from tests.support.fakes import FakeHarnessAgent
 from tests.support.harness import patch_resident_stream, patch_task_stream
@@ -582,6 +585,65 @@ async def test_history_search_paging_and_report_survive_task_deletion(closed_loo
         await client.get(f"{history_base}/items/{report_item['item_id']}", headers=auth)
     )
     assert any(item["kind"] == "task_report" for item in retained_history["items"])
+
+
+async def test_timeline_catches_up_turn_report_and_delivered_notification_together(closed_loop):
+    client, server, auth, binding, base, source, _requests, _calls = closed_loop
+    schedule = datetime.now(UTC) + timedelta(minutes=5)
+    await _json(
+        await client.post(
+            f"{base}/conversation/followups",
+            headers=auth,
+            json={
+                "request_id": _key(),
+                "purpose": "Send the authorized reminder",
+                "kind": "note",
+                "schedule": "date:" + schedule.isoformat(),
+                "payload": {"text": "Reminder text"},
+            },
+        ),
+        201,
+    )
+    async with asyncio.timeout(15):
+        session, ws = await connected(client, auth)
+        try:
+            cached = await subscribe_timeline(ws, binding, "timeline-before")
+            assert [item["turn"] for item in cached["items"]] == [source]
+        finally:
+            await session.__aexit__(None, None, None)
+        new_turn = await _send_resident(client, auth, base, "This turn was created offline.")
+        delegated = await _json(
+            await client.post(
+                f"{base}/conversation/delegations", headers=auth, json=_delegate_body(source)
+            ),
+            202,
+        )
+        report = await _delegation(client, auth, base, delegated["delegation_id"])
+        due = int((schedule + timedelta(seconds=1)).timestamp() * 1000)
+        assert await asyncio.to_thread(poll_followups, server.services, due) == 1
+        while True:
+            history = await _json(await client.get(f"{base}/conversation/history", headers=auth))
+            if any(item["kind"] == "notification" for item in history["items"]):
+                break
+            await asyncio.sleep(0.01)
+        session, ws = await connected(client, auth)
+        try:
+            delta = await subscribe_timeline(ws, binding, "timeline-catch-up", cached["cursor"])
+            by_kind = {item["kind"]: item for item in delta["items"]}
+            assert len(delta["items"]) == 3
+            assert by_kind["turn"]["turn"] == new_turn
+            assert (
+                by_kind["task_report"]["report"]["report_id"] == report["reports"][0]["report_id"]
+            )
+            assert by_kind["task_report"]["report"]["delivery_status"] == "delivered"
+            assert by_kind["notification"]["notification"]["text"] == "Reminder text"
+            assert delta["revision"] == history["history_revision"]
+            assert (
+                delta["inbox"]["last_message_id"]
+                == by_kind["notification"]["notification"]["message_id"]
+            )
+        finally:
+            await session.__aexit__(None, None, None)
 
 
 async def test_shutdown_drains_an_admitted_report_write_before_releasing_thread(
