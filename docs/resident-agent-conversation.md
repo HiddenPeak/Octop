@@ -8,7 +8,7 @@
 
 首版闭环现已追加[历史与基本记忆接口](resident-history-memory.md)和[任务委派与成果回流](resident-delegation-results.md)。下列六个接口继续保留原职责；新 primary 消息默认支持自然语言任务委派，统一历史使用新增 `/conversation/history`，显式委派与记忆管理仍保留各自入口。
 
-2026-10-23 增加正文实时观察：`GET /api/agents/resident-capabilities` 的 `conversation_stream` 声明共享 `/api/project-tasks/ws` 和协议版本 3。通过 `resident.subscribe` 订阅已保存的累计正文和状态，使用 `resident.snapshot` 建立、更新及恢复最近 50 轮快照；发送、原请求查询和取消仍使用以下 REST 接口。`ResidentTurn` 的 `revision` 统一出现在 REST 回执、快照和历史，用于阻止迟到旧状态覆盖新正文。完整接入与验收见 [App 共用正文 WebSocket 交接](agentcomputer-conversation-stream-handoff.md)，本轮未修改客户端。
+2026-10-23 增加正文实时观察：`GET /api/agents/resident-capabilities` 的 `conversation_stream` 声明共享 `/api/project-tasks/ws` 和协议版本 3。通过 `resident.subscribe` 订阅已保存的累计正文和状态，以 `timeline:true` 订阅时间线，接收最近 80 条的快照或从游标补发；发送、原请求查询和取消仍使用以下 REST 接口。`ResidentTurn` 的 `revision` 统一出现在 REST 回执、快照和历史，用于阻止迟到旧状态覆盖新正文。完整接入与验收见 [App 共用正文 WebSocket 交接](agentcomputer-conversation-stream-handoff.md)。
 
 ## 领域关系与本期范围
 

@@ -66,7 +66,7 @@
 
 实际改变后返回新版本，例如 `{"web_search_enabled":false,"revision":2}`。两个字段均严格校验类型；`web_search_enabled` 只接受 JSON 布尔值，`expected_revision` 是大于等于 1 的整数。旧版本写入返回 `409 RESIDENT_SETTINGS_CONFLICT`；当前版本写相同值不增加版本。读取和更新均限本人绑定，不创建会话，也不调用模型。
 
-`ResidentSnapshot.settings` 与当前会话 `revision` 在同一数据库快照读取；设置变化也会通过已有 `resident.snapshot` 推送。菜单以 `settings.web_search_enabled` 显示当前选择，并用 `settings.revision` 修改；它独立于随回答增量更新的会话版本。切换成功后采用服务器回执；冲突或写入结果未知时重新读取设置核对，不用旧菜单状态自动覆盖另一个设备的更新。
+`ResidentSnapshot.settings` 与当前会话 `revision` 在同一数据库快照读取；设置变化也会通过`resident.timeline.update` 推送。菜单以 `settings.web_search_enabled` 显示当前选择，并用 `settings.revision` 修改；它独立于随回答增量更新的会话版本。切换成功后采用服务器回执；冲突或写入结果未知时重新读取设置核对，不用旧菜单状态自动覆盖另一个设备的更新。
 
 发送 `ResidentMessage` 无须携带开关参数，与普通任务追问一样，服务端在受理事务中读取当前设置。`ResidentTurn.web_search_enabled` 是该轮实际冻结值，在受理回执、原请求查询、快照、历史和实时更新中一致；不能用当前菜单状态改写历史。升级前没有搜索能力快照的旧轮次仍返回 false，不因重传或恢复增权。
 
@@ -133,4 +133,4 @@
 5. 关注事项的明确授权、暂停、取消，以及通知历史与共享已读水位。
 6. 模型上下文用量与显式整理。
 
-正文实时观察已支持共享 WebSocket，能力响应新增 `conversation_stream={transport:"websocket",path:"/api/project-tasks/ws",protocol_version:3}`；`resident.subscribe` 推送有界累计正文和状态，原 REST 接口继续用于受理、恢复与历史读取。旧 `conversation_transport` 字段保留，避免尚未接线的 App 因能力门禁失效；新客户端应依据新增声明接入。客户端本轮未改动，具体协议和验收见 [App 共用正文 WebSocket 交接](agentcomputer-conversation-stream-handoff.md)。系统推送 APNs 仍属于后续工作；会话 WebSocket 不等于系统后台推送。私人工作区不自动取得项目目录或电脑执行权限，实际工作继续由普通 Task 的权限、设备声明与审批约束。
+正文实时观察已支持共享 WebSocket，能力响应新增 `conversation_stream={transport:"websocket",path:"/api/project-tasks/ws",protocol_version:3}`；`resident.subscribe` 推送有界累计正文和状态，原 REST 接口继续用于受理、恢复与历史读取。同时声明 `conversation_cursor_sync:true`，App 和盒子网页据此接入时间线。具体协议和验收见 [App 共用正文 WebSocket 交接](agentcomputer-conversation-stream-handoff.md)。系统推送 APNs 仍属于后续工作；会话 WebSocket 不等于系统后台推送。私人工作区不自动取得项目目录或电脑执行权限，实际工作继续由普通 Task 的权限、设备声明与审批约束。

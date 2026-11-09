@@ -23,7 +23,7 @@ from tests.integration.test_project_task_images import (
 )
 from tests.integration.test_project_tasks_ws import connected
 from tests.integration.test_resident_conversations import _base, _binding, _turn
-from tests.integration.test_resident_stream_delivery import subscribe
+from tests.integration.test_resident_stream_delivery import subscribe_timeline, timeline_turns
 from tests.support.auth import create_provider, create_user
 from tests.support.harness import patch_resident_stream
 
@@ -102,8 +102,8 @@ async def test_image_only_and_followup_preserve_private_receipts_history_and_mod
     assert location.status_code == 200 and location.json()["items"][0]["turn"] == first
     session, ws = await connected(client, auth)
     try:
-        live = await subscribe(ws, binding, "resident-image-snapshot")
-        assert live["turns"] == [first, second]
+        live = await subscribe_timeline(ws, binding, "resident-image-snapshot")
+        assert timeline_turns(live) == [first, second]
     finally:
         await session.__aexit__(None, None, None)
     owner = server.services.agent_repo.get(binding["agent_id"]).user_id

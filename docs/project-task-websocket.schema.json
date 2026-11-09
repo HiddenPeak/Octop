@@ -635,6 +635,35 @@
       "title": "QuestionDefault",
       "type": "object"
     },
+    "ReplaceSessionFrame": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "关联本次命令响应；网络重发使用新的命令 ID。",
+          "pattern": "^[A-Za-z0-9_-]{8,128}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "session.replace",
+          "title": "Type",
+          "type": "string"
+        },
+        "access_token": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Access Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "access_token"
+      ],
+      "title": "ReplaceSessionFrame",
+      "type": "object"
+    },
     "ResidentSubscribeFrame": {
       "additionalProperties": false,
       "properties": {
@@ -662,8 +691,8 @@
           "type": "string"
         },
         "timeline": {
-          "default": false,
-          "description": "Opt into resumable timeline events.",
+          "const": true,
+          "description": "Subscribe to the resumable resident timeline.",
           "title": "Timeline",
           "type": "boolean"
         },
@@ -686,7 +715,8 @@
         "id",
         "type",
         "agent_id",
-        "thread_id"
+        "thread_id",
+        "timeline"
       ],
       "title": "ResidentSubscribeFrame",
       "type": "object"
@@ -1628,6 +1658,55 @@
       "title": "ToolReviewFrame",
       "type": "object"
     },
+    "ToolStartFrame": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "关联本次命令响应；网络重发使用新的命令 ID。",
+          "pattern": "^[A-Za-z0-9_-]{8,128}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "task_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "turn_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Turn Id",
+          "type": "string"
+        },
+        "call_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Call Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "tool.start",
+          "title": "Type",
+          "type": "string"
+        },
+        "claim_token": {
+          "pattern": "^[A-Za-z0-9_-]{16,256}$",
+          "title": "Claim Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "task_id",
+        "turn_id",
+        "call_id",
+        "type",
+        "claim_token"
+      ],
+      "title": "ToolStartFrame",
+      "type": "object"
+    },
     "UnsubscribeFrame": {
       "additionalProperties": false,
       "properties": {
@@ -1664,6 +1743,7 @@
           "ping": "#/$defs/PingFrame",
           "resident.subscribe": "#/$defs/ResidentSubscribeFrame",
           "resident.unsubscribe": "#/$defs/ResidentUnsubscribeFrame",
+          "session.replace": "#/$defs/ReplaceSessionFrame",
           "task.approval.set": "#/$defs/ApprovalPolicyFrame",
           "task.cancel": "#/$defs/CancelFrame",
           "task.create": "#/$defs/CreateFrame",
@@ -1678,7 +1758,8 @@
           "tool.claim": "#/$defs/ToolClaimFrame",
           "tool.get": "#/$defs/ToolGetFrame",
           "tool.result": "#/$defs/ToolResultFrame",
-          "tool.review": "#/$defs/ToolReviewFrame"
+          "tool.review": "#/$defs/ToolReviewFrame",
+          "tool.start": "#/$defs/ToolStartFrame"
         },
         "propertyName": "type"
       },
@@ -1723,6 +1804,9 @@
           "$ref": "#/$defs/PingFrame"
         },
         {
+          "$ref": "#/$defs/ReplaceSessionFrame"
+        },
+        {
           "$ref": "#/$defs/AttachFrame"
         },
         {
@@ -1730,6 +1814,9 @@
         },
         {
           "$ref": "#/$defs/ToolClaimFrame"
+        },
+        {
+          "$ref": "#/$defs/ToolStartFrame"
         },
         {
           "$ref": "#/$defs/ToolResultFrame"
@@ -4337,6 +4424,19 @@
           "title": "List Revision",
           "type": "integer"
         },
+        "title_revision": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "标题独立版本；旧增量记录没有此值。存在时支持字段级标题与网络搜索写入。",
+          "title": "Title Revision"
+        },
         "approval_policy": {
           "$ref": "#/$defs/TaskApprovalPolicy"
         },
@@ -4538,6 +4638,19 @@
           "title": "List Revision",
           "type": "integer"
         },
+        "title_revision": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "标题独立版本；旧增量记录没有此值。存在时支持字段级标题与网络搜索写入。",
+          "title": "Title Revision"
+        },
         "approval_policy": {
           "$ref": "#/$defs/TaskApprovalPolicy"
         },
@@ -4608,233 +4721,6 @@
         }
       },
       "title": "ResidentConversationSettings",
-      "type": "object"
-    },
-    "ResidentTaskContext": {
-      "additionalProperties": false,
-      "properties": {
-        "project_id": {
-          "anyOf": [
-            {
-              "maxLength": 256,
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "The user's explicitly selected project, or explicit null.",
-          "title": "Project Id"
-        },
-        "message": {
-          "$ref": "#/$defs/TaskMessage",
-          "description": "Task instructions, attachments and execution options fixed by the host or explicitly selected by the user. Never populated by the assistant model."
-        }
-      },
-      "required": [
-        "project_id",
-        "message"
-      ],
-      "title": "ResidentTaskContext",
-      "type": "object"
-    },
-    "ResidentToolInput": {
-      "additionalProperties": false,
-      "properties": {
-        "read_tools": {
-          "default": false,
-          "title": "Read Tools",
-          "type": "boolean"
-        },
-        "task_context": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ResidentTaskContext"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "knowledge_base_ids": {
-          "items": {
-            "maxLength": 256,
-            "minLength": 1,
-            "type": "string"
-          },
-          "maxItems": 20,
-          "title": "Knowledge Base Ids",
-          "type": "array"
-        }
-      },
-      "title": "ResidentToolInput",
-      "type": "object"
-    },
-    "ResidentTurn": {
-      "additionalProperties": false,
-      "properties": {
-        "turn_id": {
-          "title": "Turn Id",
-          "type": "string"
-        },
-        "revision": {
-          "description": "Monotonic version of this durable turn, shared by REST and live snapshots.",
-          "minimum": 1,
-          "title": "Revision",
-          "type": "integer"
-        },
-        "request_id": {
-          "title": "Request Id",
-          "type": "string"
-        },
-        "user_message_id": {
-          "title": "User Message Id",
-          "type": "string"
-        },
-        "assistant_message_id": {
-          "description": "Stable receipt display ID; distinct from the provider's canonical history ID.",
-          "title": "Assistant Message Id",
-          "type": "string"
-        },
-        "prompt": {
-          "title": "Prompt",
-          "type": "string"
-        },
-        "reply": {
-          "title": "Reply",
-          "type": "string"
-        },
-        "web_search_enabled": {
-          "default": false,
-          "description": "Effective built-in search selection frozen for this turn. Legacy receipts without a search capability snapshot return false.",
-          "title": "Web Search Enabled",
-          "type": "boolean"
-        },
-        "attachments": {
-          "items": {
-            "$ref": "#/$defs/TaskInputAttachment"
-          },
-          "title": "Attachments",
-          "type": "array"
-        },
-        "status": {
-          "enum": [
-            "queued",
-            "running",
-            "completed",
-            "failed",
-            "cancelled",
-            "interrupted"
-          ],
-          "title": "Status",
-          "type": "string"
-        },
-        "created_at": {
-          "format": "date-time",
-          "title": "Created At",
-          "type": "string"
-        },
-        "updated_at": {
-          "format": "date-time",
-          "title": "Updated At",
-          "type": "string"
-        },
-        "error_code": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Error Code"
-        },
-        "error_message": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Error Message"
-        },
-        "authorization": {
-          "$ref": "#/$defs/ResidentToolInput",
-          "description": "Additional host capabilities explicitly selected for this original send. Default task delegation is server-managed; retries cannot change the frozen scope."
-        }
-      },
-      "required": [
-        "turn_id",
-        "revision",
-        "request_id",
-        "user_message_id",
-        "assistant_message_id",
-        "prompt",
-        "reply",
-        "status",
-        "created_at",
-        "updated_at",
-        "error_code",
-        "error_message"
-      ],
-      "title": "ResidentTurn",
-      "type": "object"
-    },
-    "ResidentSnapshot": {
-      "additionalProperties": false,
-      "properties": {
-        "agent_id": {
-          "title": "Agent Id",
-          "type": "string"
-        },
-        "thread_id": {
-          "title": "Thread Id",
-          "type": "string"
-        },
-        "revision": {
-          "title": "Revision",
-          "type": "integer"
-        },
-        "active_turn_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Active Turn Id"
-        },
-        "has_earlier": {
-          "title": "Has Earlier",
-          "type": "boolean"
-        },
-        "settings": {
-          "$ref": "#/$defs/ResidentConversationSettings"
-        },
-        "turns": {
-          "items": {
-            "$ref": "#/$defs/ResidentTurn"
-          },
-          "title": "Turns",
-          "type": "array"
-        }
-      },
-      "required": [
-        "agent_id",
-        "thread_id",
-        "revision",
-        "active_turn_id",
-        "has_earlier",
-        "turns"
-      ],
-      "title": "ResidentSnapshot",
       "type": "object"
     },
     "ResidentHistoryItem": {
@@ -5020,6 +4906,35 @@
       "title": "ResidentInbox",
       "type": "object"
     },
+    "ResidentTaskContext": {
+      "additionalProperties": false,
+      "properties": {
+        "project_id": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The user's explicitly selected project, or explicit null.",
+          "title": "Project Id"
+        },
+        "message": {
+          "$ref": "#/$defs/TaskMessage",
+          "description": "Task instructions, attachments and execution options fixed by the host or explicitly selected by the user. Never populated by the assistant model."
+        }
+      },
+      "required": [
+        "project_id",
+        "message"
+      ],
+      "title": "ResidentTaskContext",
+      "type": "object"
+    },
     "ResidentTaskReport": {
       "additionalProperties": false,
       "properties": {
@@ -5104,6 +5019,152 @@
         "delivery_status"
       ],
       "title": "ResidentTaskReport",
+      "type": "object"
+    },
+    "ResidentToolInput": {
+      "additionalProperties": false,
+      "properties": {
+        "read_tools": {
+          "default": false,
+          "title": "Read Tools",
+          "type": "boolean"
+        },
+        "task_context": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResidentTaskContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "knowledge_base_ids": {
+          "items": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Knowledge Base Ids",
+          "type": "array"
+        }
+      },
+      "title": "ResidentToolInput",
+      "type": "object"
+    },
+    "ResidentTurn": {
+      "additionalProperties": false,
+      "properties": {
+        "turn_id": {
+          "title": "Turn Id",
+          "type": "string"
+        },
+        "revision": {
+          "description": "Monotonic version of this durable turn, shared by REST and live snapshots.",
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "request_id": {
+          "title": "Request Id",
+          "type": "string"
+        },
+        "user_message_id": {
+          "title": "User Message Id",
+          "type": "string"
+        },
+        "assistant_message_id": {
+          "description": "Stable receipt display ID; distinct from the provider's canonical history ID.",
+          "title": "Assistant Message Id",
+          "type": "string"
+        },
+        "prompt": {
+          "title": "Prompt",
+          "type": "string"
+        },
+        "reply": {
+          "title": "Reply",
+          "type": "string"
+        },
+        "web_search_enabled": {
+          "default": false,
+          "description": "Effective built-in search selection frozen for this turn. Legacy receipts without a search capability snapshot return false.",
+          "title": "Web Search Enabled",
+          "type": "boolean"
+        },
+        "attachments": {
+          "items": {
+            "$ref": "#/$defs/TaskInputAttachment"
+          },
+          "title": "Attachments",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "queued",
+            "running",
+            "completed",
+            "failed",
+            "cancelled",
+            "interrupted"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error Code"
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error Message"
+        },
+        "authorization": {
+          "$ref": "#/$defs/ResidentToolInput",
+          "description": "Additional host capabilities explicitly selected for this original send. Default task delegation is server-managed; retries cannot change the frozen scope."
+        }
+      },
+      "required": [
+        "turn_id",
+        "revision",
+        "request_id",
+        "user_message_id",
+        "assistant_message_id",
+        "prompt",
+        "reply",
+        "status",
+        "created_at",
+        "updated_at",
+        "error_code",
+        "error_message"
+      ],
+      "title": "ResidentTurn",
       "type": "object"
     },
     "ResidentTimelineSnapshot": {
@@ -5350,10 +5411,30 @@
           "type": "string"
         },
         "expires_at": {
-          "description": "服务端固定十分钟截止时间；重连、领取不延长。",
+          "description": "审批及等待开始执行的截止时间；领取或重连不延长。",
           "format": "date-time",
           "title": "Expires At",
           "type": "string"
+        },
+        "execution_window_seconds": {
+          "const": 600,
+          "default": 600,
+          "title": "Execution Window Seconds",
+          "type": "integer"
+        },
+        "execution_expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "首次 tool.start 固定执行截止时间，重复开始或重连不延长。",
+          "title": "Execution Expires At"
         }
       },
       "required": [
@@ -5501,6 +5582,9 @@
         "protocol_version": {
           "type": "integer",
           "const": 3
+        },
+        "session_replace": {
+          "const": true
         }
       },
       "required": [
@@ -5587,23 +5671,6 @@
         },
         "data": {
           "$ref": "#/$defs/TaskUpdate"
-        }
-      },
-      "required": [
-        "type",
-        "data"
-      ],
-      "additionalProperties": true
-    },
-    "ResidentSnapshotEvent": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "resident.snapshot"
-        },
-        "data": {
-          "$ref": "#/$defs/ResidentSnapshot"
         }
       },
       "required": [
@@ -5784,9 +5851,6 @@
         },
         {
           "$ref": "#/$defs/TurnEvent"
-        },
-        {
-          "$ref": "#/$defs/ResidentSnapshotEvent"
         },
         {
           "$ref": "#/$defs/ResidentTimelineSnapshotEvent"

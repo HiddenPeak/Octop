@@ -62,6 +62,103 @@ async def test_tasks_require_model_without_creating_empty_tasks_or_experts(env):
     assert server.services.agent_repo.list_all() == before
 
 
+async def test_creation_receipt_is_read_only_and_scoped_to_the_owner(task_env):
+    client, _, auth, calls = task_env
+    other = await create_user(client, auth, username="receipt-other")
+    path = "/api/project-tasks/requests/receipt-request"
+    absent = await client.get(path, headers=auth)
+    assert absent.status_code == 404
+    assert absent.json()["error"]["code"] == "TASK_REQUEST_NOT_ACCEPTED"
+    created = await client.post(
+        "/api/project-tasks",
+        headers=auth,
+        json={"request_id": "receipt-request", "prompt": "Hello"},
+    )
+    assert created.status_code == 202, created.text
+    task = await settled(client, auth, created.json()["task_id"])
+    receipt = await client.get(path, headers=auth)
+    assert receipt.status_code == 200, receipt.text
+    assert receipt.headers["cache-control"] == "no-store"
+    assert receipt.json() == {
+        "task_id": task["task_id"],
+        "project_id": None,
+        "request_id": "receipt-request",
+        "turn_id": task["turns"][0]["turn_id"],
+        "prompt": "Hello",
+        "attachment_ids": [],
+    }
+    assert (await client.get(path, headers=other)).status_code == 404
+    assert len(calls) == 1
+
+    task_path = f"/api/project-tasks/{task['task_id']}"
+    followup_path = task_path + "/requests/receipt-followup"
+    absent = await client.get(followup_path, headers=auth)
+    assert absent.status_code == 404
+    assert absent.json()["error"]["code"] == "TASK_REQUEST_NOT_ACCEPTED"
+    inaccessible = await client.get(followup_path, headers=other)
+    assert inaccessible.status_code == 404
+    assert inaccessible.json()["error"]["code"] == "NOT_FOUND"
+
+    followup_body = {"request_id": "receipt-followup", "prompt": "Follow up"}
+    assert (
+        await client.post(task_path + "/messages", headers=auth, json=followup_body)
+    ).status_code == 202
+    task = await settled(client, auth, task["task_id"])
+    followup = await client.get(followup_path, headers=auth)
+    assert followup.status_code == 200
+    assert followup.headers["cache-control"] == "no-store"
+    assert followup.json()["turn_id"] == task["turns"][-1]["turn_id"]
+    assert followup.json()["prompt"] == "Follow up"
+    assert followup.json()["retry_of_turn_id"] is None
+    assert len(calls) == 2
+
+    assert (await client.delete(task_path, headers=auth)).status_code == 204
+    for receipt_path in (path, followup_path):
+        deleted = await client.get(receipt_path, headers=auth)
+        assert deleted.status_code == 404
+        assert deleted.json()["error"]["code"] == "NOT_FOUND"
+    replay = await client.post(
+        "/api/project-tasks",
+        headers=auth,
+        json={"request_id": "receipt-request", "prompt": "Hello"},
+    )
+    assert replay.status_code == 409
+    assert len(calls) == 2
+
+
+async def test_metadata_preconditions_ignore_other_fields_but_reject_stale_writes(task_env):
+    client, _, auth, _ = task_env
+    created = await client.post(
+        "/api/project-tasks",
+        headers=auth,
+        json={"request_id": "metadata-request", "prompt": "Hello"},
+    )
+    assert created.status_code == 202, created.text
+    task = await settled(client, auth, created.json()["task_id"])
+    path = f"/api/project-tasks/{task['task_id']}"
+    seen = {"expected_revision": task["list_revision"]}
+    pinned = await client.patch(path, headers=auth, json={**seen, "pinned": True})
+    assert pinned.status_code == 200, pinned.text
+
+    title = {**seen, "title": "New title", "expected_title_revision": task["title_revision"]}
+    search = {**seen, "web_search_enabled": False, "expected_web_search_enabled": True}
+    renamed = await client.patch(path, headers=auth, json=title)
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["title_revision"] == task["title_revision"] + 1
+    toggled = await client.patch(path, headers=auth, json=search)
+    assert toggled.status_code == 200, toggled.text
+    assert toggled.json()["web_search_enabled"] is False
+    assert toggled.json()["title"] == "New title" and toggled.json()["pinned"]
+
+    for stale in (title, search, {**seen, "title": "Legacy stale write"}):
+        result = await client.patch(path, headers=auth, json=stale)
+        assert result.status_code == 409, result.text
+        assert result.json()["error"]["code"] == "TASK_REVISION_CONFLICT"
+
+    mixed = await client.patch(path, headers=auth, json={**title, "archived": True})
+    assert mixed.status_code == 422, mixed.text
+
+
 async def test_task_multi_turn_idempotency_and_latest_project_configuration(task_env, tmp_path):
     client, server, auth, calls = task_env
     before = server.services.agent_repo.list_all()

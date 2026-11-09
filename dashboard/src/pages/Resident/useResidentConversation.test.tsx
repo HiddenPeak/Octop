@@ -134,9 +134,36 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
-async function ready() {
+function timeline(value: ResidentSnapshot, kind = "resident.timeline.update") {
+  return {
+    type: kind,
+    data: {
+      ...value,
+      cursor: `cursor-${value.revision}`,
+      inbox: { ...value, revision: 1, unread_count: 0 },
+      next_cursor: null,
+      items: value.turns.map((item) => ({
+        item_id: `turn:${item.turn_id}`,
+        kind: "turn",
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        turn: item,
+      })),
+    },
+  };
+}
+function confirm(ws: Socket, value?: ResidentSnapshot) {
+  ws.open();
+  ws.message({ type: "ready", protocol_version: 3 });
+  if (value) ws.message(timeline(value, "resident.timeline.snapshot"));
+  ws.message({ type: "result", id: ws.sent.at(-1)!.id, data: null });
+}
+async function ready(value = snapshot()) {
+  const before = Socket.instances.length;
   const hook = renderHook(() => useResidentConversation(1));
-  await waitFor(() => expect(hook.result.current.snapshot).not.toBeNull());
+  await waitFor(() => expect(Socket.instances).toHaveLength(before + 1));
+  await act(async () => confirm(Socket.instances[before], value));
+  expect(hook.result.current.connectionState).toBe("connected");
   return hook;
 }
 beforeEach(() => {
@@ -151,6 +178,7 @@ beforeEach(() => {
   api.binding.mockResolvedValue(binding);
   api.capabilities.mockResolvedValue({
     api_version: 1,
+    conversation_cursor_sync: true,
     conversation_stream: {
       transport: "websocket",
       path: "/api/project-tasks/ws",
@@ -182,66 +210,53 @@ afterEach(() => {
 });
 
 it("loads only the server-managed identity and subscribes through real resident frames", async () => {
-  const hook = await ready();
+  const hook = await ready(
+    snapshot({ revision: 2, turns: [turn({ reply: "partial" })] }),
+  );
   const ws = Socket.instances[0];
   expect(api.repair).not.toHaveBeenCalled();
   expect(api.markRead).not.toHaveBeenCalled();
+  expect(api.snapshot).not.toHaveBeenCalled();
+  expect(api.history).not.toHaveBeenCalled();
+  expect(api.inbox).not.toHaveBeenCalled();
   expect(ws.url).toBe("ws://inhere_box.test/api/project-tasks/ws");
-  act(() => {
-    ws.open();
-    ws.message({ type: "ready", protocol_version: 3 });
-  });
   expect(ws.sent[0]).toEqual({
     type: "authenticate",
     token: "owner-token",
     locale: "zh",
   });
-  expect(ws.sent[1]).toMatchObject({ type: "resident.subscribe", ...scope });
-  await act(async () =>
-    ws.message({
-      type: "resident.snapshot",
-      data: snapshot({ revision: 2, turns: [turn({ reply: "partial" })] }),
-    }),
-  );
-  expect(hook.result.current.connectionState).toBe("connected");
+  expect(ws.sent[1]).toMatchObject({
+    type: "resident.subscribe",
+    ...scope,
+    timeline: true,
+  });
   expect(hook.result.current.turns[0].reply).toBe("partial");
 });
-it("rejects late snapshot and per-turn revisions instead of appending cumulative text", async () => {
+it("rejects late timeline and per-turn revisions instead of appending cumulative text", async () => {
   const hook = await ready();
   const ws = Socket.instances[0];
-  await act(async () =>
-    ws.message({
-      type: "resident.snapshot",
-      data: snapshot({
-        revision: 5,
-        turns: [turn({ revision: 4, reply: "complete", status: "completed" })],
-      }),
-    }),
-  );
-  await act(async () =>
-    ws.message({
-      type: "resident.snapshot",
-      data: snapshot({
-        revision: 4,
-        turns: [turn({ revision: 3, reply: "late" })],
-      }),
-    }),
-  );
-  await act(async () =>
-    ws.message({
-      type: "resident.snapshot",
-      data: snapshot({
-        revision: 6,
-        turns: [turn({ revision: 2, reply: "older turn" })],
-      }),
-    }),
-  );
-  expect(hook.result.current.turns).toHaveLength(1);
-  expect(hook.result.current.turns[0]).toMatchObject({
-    reply: "complete",
-    status: "completed",
-    revision: 4,
+  const latest = turn({ revision: 4, reply: "complete", status: "completed" });
+  await act(async () => {
+    ws.message(timeline(snapshot({ revision: 5, turns: [latest] })));
+    ws.message(
+      timeline(
+        snapshot({
+          revision: 4,
+          turns: [turn({ revision: 3, reply: "late" })],
+        }),
+      ),
+    );
+    ws.message(
+      timeline(
+        snapshot({
+          revision: 6,
+          turns: [turn({ revision: 2, reply: "older turn" })],
+        }),
+      ),
+    );
   });
+  expect(hook.result.current.turns).toEqual([latest]);
+  expect(hook.result.current.timeline?.items[0].turn).toEqual(latest);
 });
 it("persists a send before POST and recovers a lost receipt without a second acceptance", async () => {
   const hook = await ready();
@@ -358,13 +373,21 @@ it("isolates account, agent and thread state and ignores old in-flight reads", a
   const hook = renderHook(({ id }) => useResidentConversation(id), {
     initialProps: { id: 1 },
   });
-  await waitFor(() => expect(api.snapshot).toHaveBeenCalled());
+  await waitFor(() => expect(Socket.instances).toHaveLength(1));
+  await act(async () =>
+    confirm(Socket.instances[0], snapshot({ active_turn_id: "missing-turn" })),
+  );
+  expect(api.snapshot).toHaveBeenCalledWith(scope, 1);
   act(() => hook.result.current.setDraft("private account one"));
   const scope2 = { agent_id: "private-b", thread_id: "private-u" };
   api.binding.mockResolvedValue({ ...binding, ...scope2 });
   api.snapshot.mockResolvedValue(snapshot({ ...scope2, revision: 10 }));
   api.history.mockResolvedValue({ ...history, ...scope2 });
   hook.rerender({ id: 2 });
+  await waitFor(() => expect(Socket.instances).toHaveLength(2));
+  await act(async () =>
+    confirm(Socket.instances[1], snapshot({ ...scope2, revision: 10 })),
+  );
   await waitFor(() =>
     expect(hook.result.current.snapshot?.agent_id).toBe("private-b"),
   );
@@ -379,10 +402,9 @@ it("isolates account, agent and thread state and ignores old in-flight reads", a
   expect(Socket.instances[0].closed).toBe(true);
 });
 it("cancels only the chosen active turn and reuses its cancellation intent after a lost response", async () => {
-  api.snapshot.mockResolvedValue(
+  const hook = await ready(
     snapshot({ active_turn_id: "turn-1", turns: [turn()] }),
   );
-  const hook = await ready();
   api.cancel.mockRejectedValueOnce(new Error("lost cancel receipt"));
   await act(() => hook.result.current.cancel(hook.result.current.turns[0]));
   api.cancel.mockResolvedValue(
@@ -430,7 +452,9 @@ it("leaves failed or missing bindings visible and repairs only on explicit reque
   expect(Socket.instances).toHaveLength(0);
   api.repair.mockResolvedValue(binding);
   await act(() => hook.result.current.repair());
-  await waitFor(() => expect(hook.result.current.snapshot).not.toBeNull());
+  await waitFor(() => expect(Socket.instances).toHaveLength(1));
+  await act(async () => confirm(Socket.instances[0], snapshot()));
+  expect(hook.result.current.snapshot).not.toBeNull();
   expect(api.repair).toHaveBeenCalledTimes(1);
 });
 it("does not mark unseen messages read and sends only the visible message anchor", async () => {
@@ -456,21 +480,31 @@ it("prevents new sends when the original intent cannot be durably stored", async
   expect(api.send).not.toHaveBeenCalled();
   expect(hook.result.current.error).toBeInstanceOf(Error);
 });
-it("falls back to scoped REST observation when WebSocket is unavailable", async () => {
-  vi.stubGlobal("WebSocket", undefined);
-  const hook = await ready();
-  expect(hook.result.current.connectionState).toBe("polling");
-  expect(api.snapshot).toHaveBeenCalledWith(scope);
-  expect(api.history).toHaveBeenCalledWith(scope, { limit: 50 });
-});
-it("does not guess a WebSocket protocol without a recognized capability declaration", async () => {
-  api.capabilities.mockResolvedValue({ api_version: 1 } as Awaited<
-    ReturnType<typeof residentApi.capabilities>
-  >);
-  const hook = await ready();
-  expect(hook.result.current.connectionState).toBe("polling");
-  expect(Socket.instances).toHaveLength(0);
-});
+it.each(["no WebSocket", "no cursor capability", "capability probe failed"])(
+  "does not fall back to REST when there is %s",
+  async (reason) => {
+    if (reason === "no WebSocket") vi.stubGlobal("WebSocket", undefined);
+    else if (reason === "no cursor capability")
+      api.capabilities.mockResolvedValue({
+        api_version: 1,
+        conversation_stream: {
+          transport: "websocket",
+          path: "/api/project-tasks/ws",
+          protocol_version: 3,
+        },
+      } as Awaited<ReturnType<typeof residentApi.capabilities>>);
+    else api.capabilities.mockRejectedValue(notFound());
+    const hook = renderHook(() => useResidentConversation(1));
+    await waitFor(() =>
+      expect(hook.result.current.binding?.status).toBe("ready"),
+    );
+    expect(hook.result.current.connectionState).toBe("disconnected");
+    expect(hook.result.current.snapshot).toBeNull();
+    expect(Socket.instances).toHaveLength(0);
+    expect(api.snapshot).not.toHaveBeenCalled();
+    expect(api.history).not.toHaveBeenCalled();
+  },
+);
 it("releases a definitively rejected intent only after its receipt is confirmed absent", async () => {
   const hook = await ready();
   api.send.mockRejectedValue(
@@ -505,41 +539,46 @@ it("looks up the original receipt when a WebSocket reconnects and never submits 
       status: "completed",
     }),
   );
-  await act(async () => {
-    ws.open();
-    ws.message({ type: "ready", protocol_version: 3 });
+  await act(async () => confirm(ws));
+  expect(ws.sent[1]).toMatchObject({
+    type: "resident.subscribe",
+    timeline: true,
+    cursor: "cursor-1",
   });
   expect(api.request).toHaveBeenLastCalledWith(scope, original.request_id);
   expect(api.send).toHaveBeenCalledTimes(1);
   expect(hook.result.current.pendingIntent).toBeNull();
 });
-it("clears an observation error after a successful scoped REST recovery", async () => {
-  vi.useFakeTimers();
-  const hook = renderHook(() => useResidentConversation(1));
-  await act(async () => {});
-  expect(hook.result.current.snapshot).not.toBeNull();
-  await act(async () =>
-    Socket.instances[0].message({
+it("replaces a rejected cursor on the same socket and clears a recoverable connection error", async () => {
+  const hook = await ready(
+    snapshot({ turns: [turn({ reply: "old baseline", status: "completed" })] }),
+  );
+  const ws = Socket.instances[0];
+  await act(async () => {
+    ws.message({
       type: "error",
-      status: 503,
-      error: { code: "INTERNAL_ERROR", message: "temporarily unavailable" },
-    }),
-  );
-  expect(hook.result.current.error).not.toBeNull();
-  await act(() => vi.advanceTimersByTimeAsync(5000));
+      ...scope,
+      status: 409,
+      error: { code: "PROJECT_SYNC_RESET" },
+    });
+  });
+  expect(ws.sent.at(-1)).toMatchObject({
+    type: "resident.subscribe",
+    timeline: true,
+  });
+  expect(ws.sent.at(-1)).not.toHaveProperty("cursor");
+  expect(hook.result.current.connectionState).toBe("connecting");
+  await act(async () => {
+    ws.message(
+      timeline(snapshot({ revision: 2 }), "resident.timeline.snapshot"),
+    );
+    ws.message({ type: "result", id: ws.sent.at(-1)!.id, data: null });
+  });
+  expect(hook.result.current.connectionState).toBe("connected");
+  expect(hook.result.current.turns).toEqual([]);
   expect(hook.result.current.error).toBeNull();
-  expect(hook.result.current.connectionState).toBe("polling");
+  expect(api.snapshot).not.toHaveBeenCalled();
 });
-it("continues with REST when the optional capability probe is unavailable", async () => {
-  api.capabilities.mockRejectedValue(
-    new Error("Request failed: 404 Not Found"),
-  );
-  const hook = await ready();
-  expect(hook.result.current.binding?.status).toBe("ready");
-  expect(hook.result.current.connectionState).toBe("polling");
-  expect(Socket.instances).toHaveLength(0);
-});
-
 it.each(["image-original", "file-original"])(
   "freezes %s before delivery and replays it after draft changes",
   async (attachmentID) => {

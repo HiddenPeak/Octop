@@ -51,7 +51,7 @@ def test_confirmation_upgrade_retains_existing_schedule(
         migrate.run_migrations(db)
         assert CronJobRepo(db).get("keep").skip_confirmation is True
         with db.connect() as conn:
-            assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 64
+            assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 66
             assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     finally:
         db.close()

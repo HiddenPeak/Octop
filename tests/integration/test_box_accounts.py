@@ -65,7 +65,7 @@ async def test_primary_share_guest_and_independent_revocation(box_env, secret_on
     assert guest_account["owner"] is None
     assert guest_account["user"]["id"] != account["owner"]["id"]
     assert (await client.get("/api/box/clients", headers=second_auth)).status_code == 403
-    # Management is Web-only, even the primary's signature cannot revoke a device.
+    # An owner Bearer alone cannot revoke a device.
     assert (
         await client.post(f"/api/box/clients/{second_id}/revoke", headers=first_auth, json={})
     ).status_code == 403
@@ -84,6 +84,128 @@ async def test_primary_share_guest_and_independent_revocation(box_env, secret_on
     ).status_code == 204
     assert (await client.get("/api/box/account", headers=second_auth)).status_code == 401
     assert await _admin_login(client, server)
+
+
+@pytest.mark.parametrize("target_role", ["primary", "guest"])
+async def test_owner_revocation_binds_the_caller_and_target_and_preserves_data(
+    box_env, target_role
+) -> None:
+    from tests.integration.test_project_task_imports import imported, project, source_session
+
+    client, server, _home = box_env
+    owner_key, owner_id, owner_auth = await _claim(client, server)
+    other_key, other_id, other_auth = await _claim(client, server, request_id="owner-two")
+    share_proof = await _action(
+        client, owner_key, owner_id, "enroll", {"request_id": "guest-share"}
+    )
+    grant = await client.post(
+        "/api/box/pairing-grants",
+        headers=owner_auth,
+        json={"request_id": "guest-share", "proof": share_proof},
+    )
+    assert grant.status_code == 200, grant.text
+    guest_key = ec.generate_private_key(ec.SECP256R1())
+    guest = await _candidate(client, grant.json(), guest_key, request_id="revoke-guest")
+    guest_id = guest["client_id"]
+    guest_auth, _ = await _login(client, guest_key, guest_id)
+
+    saved_project = await project(client, owner_auth)
+    project_id = saved_project["project_id"]
+    task = await imported(client, owner_auth, source_session(project_id=project_id))
+    task_path = f"/api/project-tasks/{task['task_id']}"
+    before = await client.get(task_path, headers=owner_auth)
+    assert before.status_code == 200, before.text
+    assert before.json()["turns"][0]["reply"] == "Imported answer 1"
+
+    target_id, target_auth = (
+        (other_id, other_auth) if target_role == "primary" else (guest_id, guest_auth)
+    )
+    unrelated_id, unrelated_auth = (
+        (guest_id, guest_auth) if target_role == "primary" else (other_id, other_auth)
+    )
+    target_path = f"/api/box/clients/{target_id}/revoke"
+    params = {"target_client_id": target_id}
+    proof = await _action(client, owner_key, owner_id, "revoke", params)
+    wrong_signature = await _action(client, other_key, owner_id, "revoke", params)
+    wrong_device = await _action(client, other_key, other_id, "revoke", params)
+    wrong_action = await _action(client, owner_key, owner_id, "session")
+    self_proof = await _action(
+        client, owner_key, owner_id, "revoke", {"target_client_id": owner_id}
+    )
+    guest_proof = await _action(
+        client, guest_key, guest_id, "revoke", {"target_client_id": owner_id}
+    )
+
+    assert (await client.post(target_path, headers=owner_auth, json={})).status_code == 403
+    for path, auth, signed, status in [
+        (target_path, owner_auth, wrong_signature, 401),
+        (target_path, owner_auth, wrong_device, 401),
+        (target_path, owner_auth, wrong_action, 401),
+        (f"/api/box/clients/{unrelated_id}/revoke", owner_auth, proof, 401),
+        (f"/api/box/clients/{owner_id}/revoke", owner_auth, self_proof, 403),
+        (f"/api/box/clients/{owner_id}/revoke", guest_auth, guest_proof, 403),
+    ]:
+        denied = await client.post(path, headers=auth, json={"proof": signed})
+        assert denied.status_code == status, denied.text
+    assert (await client.get("/api/box/account", headers=target_auth)).status_code == 200
+
+    revoked = await client.post(target_path, headers=owner_auth, json={"proof": proof})
+    assert revoked.status_code == 204, revoked.text
+    assert (
+        await client.post(target_path, headers=owner_auth, json={"proof": proof})
+    ).status_code == 401
+    fresh_proof = await _action(client, owner_key, owner_id, "revoke", params)
+    assert (
+        await client.post(target_path, headers=owner_auth, json={"proof": fresh_proof})
+    ).status_code == 204
+    assert (await client.get("/api/box/account", headers=target_auth)).status_code == 401
+    assert (await client.get("/api/box/account", headers=unrelated_auth)).status_code == 200
+    device_list = await client.get("/api/box/clients", headers=owner_auth)
+    assert device_list.status_code == 200
+    assert {item["client_id"]: item["state"] for item in device_list.json()} == {
+        owner_id: "active",
+        target_id: "revoked",
+        unrelated_id: "active",
+    }
+    assert (
+        await client.get(f"/api/projects/{project_id}", headers=owner_auth)
+    ).json() == saved_project
+    assert (await client.get(task_path, headers=owner_auth)).json()["turns"] == before.json()[
+        "turns"
+    ]
+    audit = server.services.audit_repo.query(action="box.client.revoke")
+    assert [(row.actor, row.target) for row in audit] == [(owner_id, target_id)]
+
+
+async def test_expired_owner_revocation_proof_allows_retry_with_same_session(
+    box_env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from inhere_box.infra.auth.box_accounts.service import CHALLENGE_TTL
+
+    client, server, _home = box_env
+    owner_key, owner_id, owner_auth = await _claim(client, server)
+    other_key, other_id, other_auth = await _claim(client, server, request_id="owner-two")
+    path = f"/api/box/clients/{other_id}/revoke"
+    params = {"target_client_id": other_id}
+    stale = await _action(client, owner_key, owner_id, "revoke", params)
+    forged = await _action(client, other_key, owner_id, "revoke", params)
+    after_expiration = time.time() + CHALLENGE_TTL
+    with monkeypatch.context() as clock:
+        clock.setattr(time, "time", lambda: after_expiration)
+        invalid = await client.post(path, headers=owner_auth, json={"proof": forged})
+        assert invalid.status_code == 401, invalid.text
+        assert invalid.json()["error"]["details"]["reason"] == "proof_invalid"
+        response = await client.post(path, headers=owner_auth, json={"proof": stale})
+        assert response.status_code == 409, response.text
+        assert response.json()["error"]["details"]["reason"] == "challenge_stale"
+        assert (await client.get("/api/box/account", headers=owner_auth)).status_code == 200
+        assert (await client.get("/api/box/account", headers=other_auth)).status_code == 200
+
+    fresh = await _action(client, owner_key, owner_id, "revoke", params)
+    response = await client.post(path, headers=owner_auth, json={"proof": fresh})
+    assert response.status_code == 204, response.text
+    assert (await client.get("/api/box/account", headers=owner_auth)).status_code == 200
+    assert (await client.get("/api/box/account", headers=other_auth)).status_code == 401
 
 
 async def test_box_rejects_old_credentials_and_setup(box_env) -> None:
@@ -107,6 +229,7 @@ async def test_box_docs_have_typed_public_and_protected_operations(box_env) -> N
     response = await client.get("/api/openapi.json")
     assert response.status_code == 200, response.text
     paths = response.json()["paths"]
+    assert "/api/box/primary-claims" not in paths
     for path, method in [
         ("/api/box/status", "get"),
         ("/api/box/pairings", "post"),
@@ -133,7 +256,6 @@ async def test_box_docs_have_typed_public_and_protected_operations(box_env) -> N
     for path, method in [
         ("/api/auth/browser/session", "delete"),
         ("/api/auth/browser/refresh", "post"),
-        ("/api/box/clients/{client_id}/revoke", "post"),
         ("/api/box/clients/{client_id}/primary", "post"),
         ("/api/box/clients/{client_id}/owner", "post"),
         ("/api/box/management-key/rotate", "post"),
@@ -142,10 +264,11 @@ async def test_box_docs_have_typed_public_and_protected_operations(box_env) -> N
         assert operation["security"] == [{"BoxAdminCookie": [], "BoxCSRF": []}]
         origin = next(p for p in operation["parameters"] if p["name"] == "Origin")
         assert origin["required"] is True
-    assert paths["/api/box/pairing-grants"]["post"]["security"] == [
-        {"BearerAuth": []},
-        {"BoxAdminCookie": [], "BoxCSRF": []},
-    ]
+    for path in ["/api/box/pairing-grants", "/api/box/clients/{client_id}/revoke"]:
+        operation = paths[path]["post"]
+        assert operation["security"] == [{"BearerAuth": []}, {"BoxAdminCookie": [], "BoxCSRF": []}]
+        origin = next(p for p in operation["parameters"] if p["name"] == "Origin")
+        assert origin["required"] is False
     for path, item in paths.items():
         if path.startswith(("/api/box/", "/api/auth/browser/")):
             for operation in item.values():

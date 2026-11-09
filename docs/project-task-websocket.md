@@ -4,7 +4,7 @@
 
 统一会话扩展保持版本 3。迁移轮次新增 `source_trajectory`，仅包含有来源、脱敏且 `history_only=true/restorable=false` 的旧公开轨迹，不是执行回执或可恢复检查点。远端 Task 通过 `/api/bridge/connections/{connection_id}/project-tasks/ws` 复用 Task 命令子集；私人 resident 订阅只保留在本机专用入口，Bridge 不转发。主机身份、能力握手和缓存隔离见 [APP 统一接线文档](agentcomputer-unified-conversations-handoff.md)。
 
-2026 年 10 月 23 日增加私人智能体会话订阅：同一认证连接支持 `resident.subscribe`、`resident.unsubscribe` 和 `resident.snapshot`，与 Task 合计最多 32 个订阅；Task 原有命令、事件与 cursor 不变。客户端字段、完整示例、双版本合并与重连规则见 [App 共用正文 WebSocket 接入交接](agentcomputer-conversation-stream-handoff.md)。服务端已抽取共用提交通知与待更新队列；本轮未修改 App，当前 App 是否使用新订阅须单独验收。
+私人智能体会话复用同一认证连接，`resident.subscribe` 必须带 `timeline:true`，可带管家自己的 `cursor`。服务端发送 `resident.timeline.snapshot` 或 `resident.timeline.update`，断开观察使用 `resident.unsubscribe`。Task 与 Resident 合计最多 32 个订阅。字段、版本合并与重连规则见 [正文 WebSocket 接入交接](agentcomputer-conversation-stream-handoff.md)。
 
 2026 年 10 月 22 日补充任务文件变更：`TaskTurn.file_changes` 和工具内容块的 `file_changes` 随现有完整快照返回，沿用 `content_revision`，不新增公开事件或审核接口。客户端字段、合并规则、只读差异及未覆盖范围见 [APP 文件变更接入指南](agentcomputer-task-file-changes.md)。
 
@@ -74,6 +74,8 @@ token 必填，长度 1–16384 字符。locale 可省略或为 null，非空时
 
 ### 续期与心跳
 
+盒子设备连接收到 `ready.session_replace: true` 后，可用新签名会话替换当前连接的票据。先用 `/api/auth/challenges` 与 `/api/auth/sessions` 签名换票，再提交 `{"type":"session.replace","id":"session-command-001","access_token":"<new bearer token>"}`。仅接受同账号、同设备、同角色的有效票据。成功回 `result`，原订阅和已绑定的执行端保持，后续的到期与撤销检查使用新票据。未声明能力时使用原换票重连。浏览器和旧服务器模式继续用各自的认证。
+
 每条命令都会重新验证登录态；空闲时约每 10 秒也会检查一次。滑动续期时返回：
 
 ```json
@@ -118,7 +120,7 @@ heartbeat 不需要回复。下文的 ping 命令用于主动检查请求与回�
 
 请求模型拒绝未声明字段。除明确允许 null 的字段外，不要用 null 代替省略；例如 options 可以省略，但 `options:null` 不合法。响应解析应忽略未知字段，并为未知错误码提供通用处理。
 
-服务端不使用命令 id 去重。网络重发可以换命令 id，但要保留 data.request_id、正文、attachment_ids 及顺序和 options。命令按连接上的接收顺序处理，回执和订阅事件可以交错出现。
+服务端不使用命令 id 去重。网络重发可以换命令 id，但要保留 data.request_id、正文、attachment_ids 及顺序和 options。命令按连接上的接收顺序处理，回执和订阅事件可以交错出现。任务受理等待混合模型分类时，已建立的订阅仍可推送。
 
 ## 4 客户端命令
 
@@ -724,6 +726,8 @@ REST 首次详情默认最近 50 轮，最多 100 轮；历史页 event_cursor �
 
 ### 发送后没收到回执
 
+发送结果不明时，已收到的订阅轮次可用同一 `request_id` 确认。新建任务用 `GET /api/project-tasks/requests/{request_id}` 对账，指定任务的追问或重试用 `GET /api/project-tasks/{task_id}/requests/{request_id}`。两者均为当前账号的只读查询，返回任务、项目、轮次、原请求标识、正文及有序附件，指定任务的回执另含原重试轮次。App 在新连接明确收到 `404 TASK_REQUEST_NOT_ACCEPTED` 后才复用原请求补发，其他查询失败保留待确认。已删除任务的创建标识由盒子保留，重放同一标识会返回冲突。
+
 此时是否已保存未知，不自动换新 request_id 重发。保留原正文、attachment_ids 及顺序、options、project_id/task_id 和 request_id；用户选择重试时，用新命令 id 重发同一消息。服务端按消息身份返回原任务或轮次，不重复排队。内容、附件、选项或重试来源变化却复用旧 request_id，会返回 TASK_REQUEST_CONFLICT。
 
 连接断开不等于服务端进程重启。执行服务中断时读取原轮 status 和 recovery：可恢复的 interrupted 由用户明确 task.resume 续接，结果未知先核对；重连仅恢复订阅，不能自动重新执行消息或工具。原轮无法续接时才由用户选择 task.retry 创建新执行轮次，并告知可能重复之前的操作。
@@ -931,7 +935,7 @@ client_id 是当前登录用户下的**路由标识**，不是独立的设备认
 
 模型侧工具名加 client__ 前缀，例如 client__read_note；推送给客户端的 name 仍为 read_note。该声明只允许模型请求这些工具，不上传客户端实现代码，不修改项目、专家或服务端 MCP 配置。客户端工具和服务端工具同时可用；需要用户电脑数据时，应在工具描述和行动指南中说明使用客户端工具。服务端不会读取或解析 client_directory 指向的文件。
 
-客户端不在线时也允许提交任务。模型调用客户端工具后等待执行端重连，最多十分钟；离线不会自动切换到其他电脑，也不会改用服务端文件工具。
+客户端不在线时也允许提交任务。模型调用客户端工具后最多等待十分钟审批和开始。新调用落库后唤醒对应账号和设备的 WebSocket，连接使用只读快照查看调用。五秒兜底覆盖外部写入及尚未通知的状态变化。离线时执行端仍绑定原设备。
 
 ### 12.2 接收调用并领取
 
@@ -953,11 +957,13 @@ call_id 为服务端生成的不透明标识，客户端以它做持久化去重
 
 同一调用只允许首次 pending→claimed。领取回执丢失后，在任意重连上复用原 request_id，可恢复同一个 claim_token；换 request_id 会返回 TASK_CLIENT_TOOL_CLAIMED。命令 id 仍只匹配这次收发，可以更换。
 
+新盒子的调用带 `execution_window_seconds: 600`。实际执行前发送 `{"type":"tool.start","id":"tool-start-command-001","task_id":"task_example","turn_id":"turn_example","call_id":"call_example","claim_token":"<original claim token>"}`，获批的 App 在执行证据落盘前核对回执。盒子校验原领取凭据和当前调用状态，首次确认固定 `execution_expires_at`。重复确认返回同一个截止时间。原 `expires_at` 仍是审批截止时间。老盒子缺少能力字段时，原截止时间继续覆盖整次调用。
+
 多个连接可能同时收到同一调用；只有领取成功者执行。claimed 推送仅表示调用已经领取，**不授权重新执行**。执行开始前再次核对本地记录，确保同一个 call_id 不被多个本地处理器重复执行。
 
 ### 12.3 回传结果并继续模型
 
-执行完成后回传一个 JSON 值，可以是对象、数组、字符串、数字、布尔或 null。output 必填；序列化后最多 256 KiB。is_error 默认为 false，工具报错或用户拒绝本地执行时设为 true，并在 output 中提供可供模型理解的信息。
+执行完成后回传一个 JSON 值，可以是对象、数组、字符串、数字、布尔或 null。output 必填，按紧凑 JSON 的 UTF-8 字节计量，最多 256 KiB，包含引号和必要转义。Unicode 字符和正斜杠保留原样。确定性的帧拒绝不应当作网络丢回执反复重送。is_error 默认为 false，工具报错或用户拒绝本地执行时设为 true，并在 output 中提供可供模型理解的信息。
 
 ```json
 {"type":"tool.result","id":"tool-result-command-001","task_id":"task_example","turn_id":"turn_example","call_id":"call_example","data":{"claim_token":"example_claim_token_replace_with_receipt","output":{"text":"客户端笔记的实际内容"},"is_error":false}}
@@ -992,7 +998,7 @@ call_id 为服务端生成的不透明标识，客户端以它做持久化去重
 
 ### 12.5 断线与本地执行记录
 
-重连后重新鉴权并 client.attach；服务端重新下发尚未结束的 pending/claimed 调用，call_id 和 expires_at 保持不变。已结束调用不会作为新的执行请求回放。task.subscribe 的 cursor 只管文字状态，与工具恢复独立。
+重连后重新鉴权并 client.attach；服务端重新下发尚未结束的 pending/claimed 调用，call_id、expires_at 和已固定的 execution_expires_at 保持不变。已结束调用不会作为新的执行请求回放。task.subscribe 的 cursor 只管文字状态，与工具恢复独立。
 
 本地执行记录至少保存：账号与服务端地址、client_id、三个调用标识、领取 request_id、claim_token、执行是否开始/完成、固定的 output/is_error，以及服务端确认状态。按下面顺序恢复：
 

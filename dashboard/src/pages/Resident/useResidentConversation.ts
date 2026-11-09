@@ -24,13 +24,13 @@ import {
   type ResidentMessage,
   type ResidentScope,
   type ResidentSnapshot,
+  type ResidentTimeline,
   type ResidentTurn,
 } from "../../api/modules/resident";
 
 export type ResidentConnectionState =
   | "connecting"
   | "connected"
-  | "polling"
   | "disconnected";
 interface StoredConversation {
   draft: string;
@@ -108,7 +108,6 @@ export function useResidentConversation(accountId: string | number | null) {
   currentAccount.current = account;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
-  const connectionError = useRef<unknown>(null);
   const [connectionState, setConnectionState] =
     useState<ResidentConnectionState>("disconnected");
   const [view, setView] = useState<{
@@ -137,6 +136,7 @@ export function useResidentConversation(accountId: string | number | null) {
   const [historyError, setHistoryError] = useState<unknown>(null);
   const historySequence = useRef(0);
   const snapshotRef = useRef<ResidentSnapshot | null>(null);
+  const retryObservation = useRef<(() => void) | null>(null);
   const repairSequence = useRef(0);
 
   const persist = useCallback(
@@ -171,7 +171,15 @@ export function useResidentConversation(accountId: string | number | null) {
             ...snapshot.turns.filter((item) => item.turn_id !== turn.turn_id),
             turn,
           ].sort((a, b) => a.created_at.localeCompare(b.created_at));
-          const next = { ...snapshot, turns };
+          const next = {
+            ...snapshot,
+            turns,
+            active_turn_id: active(turn)
+              ? turn.turn_id
+              : snapshot.active_turn_id === turn.turn_id
+              ? null
+              : snapshot.active_turn_id,
+          };
           // Fence later REST/WS reads synchronously, before React schedules its render.
           snapshotRef.current = next;
           setView((previous) =>
@@ -204,16 +212,27 @@ export function useResidentConversation(accountId: string | number | null) {
   );
 
   const applySnapshot = useCallback(
-    (expectedKey: string, incoming: ResidentSnapshot) => {
+    (
+      expectedKey: string,
+      incoming: ResidentSnapshot,
+      replacesBaseline = false,
+    ) => {
       if (currentKey.current !== expectedKey) return;
       const previous = snapshotRef.current;
       if (previous && incoming.revision < previous.revision) return;
-      const turns = new Map(
-        (previous?.turns ?? []).map((turn) => [turn.turn_id, turn]),
+      const previousTurns = new Map(
+        previous?.turns.map((turn) => [turn.turn_id, turn]),
       );
-      for (const turn of incoming.turns)
-        if ((turns.get(turn.turn_id)?.revision ?? 0) <= turn.revision)
-          turns.set(turn.turn_id, turn);
+      const turns = replacesBaseline
+        ? new Map<string, ResidentTurn>()
+        : previousTurns;
+      for (const turn of incoming.turns) {
+        const old = previousTurns.get(turn.turn_id);
+        turns.set(
+          turn.turn_id,
+          old && old.revision > turn.revision ? old : turn,
+        );
+      }
       const snapshot = {
         ...incoming,
         turns: [...turns.values()].sort((a, b) =>
@@ -232,37 +251,9 @@ export function useResidentConversation(accountId: string | number | null) {
         pending &&
         snapshot.turns.find((turn) => turn.request_id === pending.request_id);
       if (accepted) settle(expectedKey, accepted);
+      return true;
     },
     [settle],
-  );
-
-  const observe = useCallback(
-    async (expectedKey: string, target: ResidentScope) => {
-      const [snapshot, timeline, inbox] = await Promise.all([
-        residentApi.snapshot(target),
-        residentApi.history(target, { limit: 50 }),
-        residentApi.inbox(target),
-      ]);
-      if (currentKey.current !== expectedKey) return;
-      applySnapshot(expectedKey, snapshot);
-      setView((previous) =>
-        previous.key === expectedKey
-          ? {
-              ...previous,
-              timeline:
-                !previous.timeline ||
-                timeline.history_revision >= previous.timeline.history_revision
-                  ? timeline
-                  : previous.timeline,
-              inbox:
-                !previous.inbox || inbox.revision >= previous.inbox.revision
-                  ? inbox
-                  : previous.inbox,
-            }
-          : previous,
-      );
-    },
-    [applySnapshot],
   );
 
   const recover = useCallback(
@@ -297,7 +288,6 @@ export function useResidentConversation(accountId: string | number | null) {
         if (currentKey.current !== expectedKey) return;
         settle(expectedKey, turn);
         setError(null);
-        await observe(expectedKey, target);
       } catch (failure) {
         // A lost POST receipt is ambiguous. One read may reconcile it, never a new send ID.
         if (currentKey.current !== expectedKey) return;
@@ -323,7 +313,7 @@ export function useResidentConversation(accountId: string | number | null) {
         setSendingKey((previous) => (previous === expectedKey ? "" : previous));
       }
     },
-    [observe, settle, persist],
+    [settle, persist],
   );
 
   useEffect(() => {
@@ -360,6 +350,7 @@ export function useResidentConversation(accountId: string | number | null) {
   const threadId = scope?.thread_id;
   const streamSupported =
     capabilities?.api_version === 1 &&
+    capabilities.conversation_cursor_sync === true &&
     capabilities.conversation_stream?.transport === "websocket" &&
     capabilities.conversation_stream.path === "/api/project-tasks/ws" &&
     capabilities.conversation_stream.protocol_version === 3;
@@ -377,7 +368,10 @@ export function useResidentConversation(accountId: string | number | null) {
     let socket: WebSocket | null = null;
     let reconnect: ReturnType<typeof setTimeout> | undefined;
     let watchdog: ReturnType<typeof setTimeout> | undefined;
-    let pollBusy = false;
+    let cursor: string | undefined;
+    let subscriptionID: string | undefined;
+    let missingActiveTurn: string | undefined;
+    let observationError: Error | undefined;
     let token = getAuthToken();
     try {
       const next = { key, value: restore(key) };
@@ -387,27 +381,17 @@ export function useResidentConversation(accountId: string | number | null) {
       setError(failure);
     }
     setLoading(true);
-    const poll = async () => {
-      if (disposed || pollBusy) return;
-      pollBusy = true;
-      try {
-        await observe(key, target);
-        if (!disposed) {
-          const recovered = connectionError.current;
-          connectionError.current = null;
-          setError((previous: unknown) =>
-            previous === recovered ? null : previous,
-          );
-        }
-      } catch (failure) {
-        if (!disposed) {
-          connectionError.current = failure;
-          setError(failure);
-        }
-      } finally {
-        pollBusy = false;
-        if (!disposed) setLoading(false);
-      }
+    const subscribe = (ws: WebSocket) => {
+      subscriptionID = randomUUID();
+      ws.send(
+        JSON.stringify({
+          type: "resident.subscribe",
+          id: subscriptionID,
+          ...target,
+          timeline: true,
+          cursor,
+        }),
+      );
     };
     const connect = () => {
       if (disposed) return;
@@ -418,22 +402,26 @@ export function useResidentConversation(accountId: string | number | null) {
         isBoxSessionPaused() ||
         typeof WebSocket === "undefined"
       ) {
-        setConnectionState("polling");
+        setConnectionState("disconnected");
+        setLoading(false);
         return;
       }
+      setConnectionState("connecting");
       let ws: WebSocket;
       const fail = () => {
         if (disposed || socket !== ws) return;
         socket = null;
         clearTimeout(watchdog);
         ws.close();
-        setConnectionState("polling");
+        setConnectionState("disconnected");
+        setLoading(false);
         reconnect = setTimeout(connect, 3000);
       };
       try {
         ws = openAuthenticatedWebSocket(getWsUrl("/project-tasks/ws"));
       } catch {
-        setConnectionState("polling");
+        setConnectionState("disconnected");
+        setLoading(false);
         reconnect = setTimeout(connect, 3000);
         return;
       }
@@ -465,12 +453,16 @@ export function useResidentConversation(accountId: string | number | null) {
               fail();
               return;
             }
-            ws.send(
-              JSON.stringify({
-                type: "resident.subscribe",
-                id: randomUUID(),
-                ...target,
-              }),
+            subscribe(ws);
+          } else if (frame.type === "result" && frame.id === subscriptionID) {
+            if (!cursor) {
+              fail();
+              return;
+            }
+            setConnectionState("connected");
+            setLoading(false);
+            setError((current: unknown) =>
+              current === observationError ? null : current,
             );
             void recover(key, target, true);
           } else if (
@@ -481,20 +473,126 @@ export function useResidentConversation(accountId: string | number | null) {
             setAuthToken(frame.access_token, !isSessionOnlyAuth());
             token = frame.access_token;
           } else if (
-            frame.type === "resident.snapshot" &&
+            (frame.type === "resident.timeline.snapshot" ||
+              frame.type === "resident.timeline.update") &&
             frame.data?.agent_id === target.agent_id &&
             frame.data?.thread_id === target.thread_id
           ) {
-            applySnapshot(key, frame.data);
-            setConnectionState("connected");
-            void poll();
+            const update = frame.data as ResidentTimeline;
+            if (!update.cursor || !Array.isArray(update.items)) {
+              fail();
+              return;
+            }
+            const replacesBaseline =
+              frame.type === "resident.timeline.snapshot";
+            const turns = update.items.flatMap((item) =>
+              item.turn ? [item.turn] : [],
+            );
+            const applied = applySnapshot(
+              key,
+              {
+                ...target,
+                revision: update.revision,
+                active_turn_id: update.active_turn_id,
+                has_earlier: replacesBaseline
+                  ? !!update.next_cursor
+                  : snapshotRef.current?.has_earlier ?? false,
+                settings: update.settings,
+                turns,
+              },
+              replacesBaseline,
+            );
+            if (!applied) return;
+            cursor = update.cursor;
+            setView((previous) => {
+              if (previous.key !== key) return previous;
+              const items = new Map(
+                (replacesBaseline ? [] : previous.timeline?.items ?? []).map(
+                  (item) => [item.item_id, item],
+                ),
+              );
+              for (const item of update.items) {
+                const old = items.get(item.item_id);
+                if (
+                  !old?.turn ||
+                  !item.turn ||
+                  old.turn.revision <= item.turn.revision
+                )
+                  items.set(item.item_id, item);
+              }
+              return {
+                ...previous,
+                timeline: {
+                  ...target,
+                  history_revision: update.revision,
+                  items: [...items.values()].sort((a, b) =>
+                    a.created_at.localeCompare(b.created_at),
+                  ),
+                  next_cursor: replacesBaseline
+                    ? update.next_cursor ?? null
+                    : previous.timeline?.next_cursor ?? null,
+                },
+                inbox:
+                  !previous.inbox ||
+                  update.inbox.revision >= previous.inbox.revision
+                    ? update.inbox
+                    : previous.inbox,
+              };
+            });
+            const activeID = update.active_turn_id;
+            if (
+              activeID &&
+              missingActiveTurn !== activeID &&
+              !snapshotRef.current?.turns.some(
+                (turn) => turn.turn_id === activeID,
+              )
+            ) {
+              missingActiveTurn = activeID;
+              void residentApi
+                .snapshot(target, 1)
+                .then((snapshot) => {
+                  const current = snapshotRef.current;
+                  if (
+                    disposed ||
+                    !current ||
+                    current.active_turn_id !== activeID ||
+                    snapshot.agent_id !== target.agent_id ||
+                    snapshot.thread_id !== target.thread_id
+                  )
+                    return;
+                  const turn = snapshot.turns.find(
+                    (item) => item.turn_id === activeID,
+                  );
+                  if (turn) applySnapshot(key, { ...current, turns: [turn] });
+                })
+                .catch((failure) => {
+                  if (!disposed && currentKey.current === key)
+                    setError(failure);
+                })
+                .finally(() => {
+                  if (missingActiveTurn === activeID)
+                    missingActiveTurn = undefined;
+                });
+            }
           } else if (frame.type === "error") {
+            if (
+              frame.error?.code === "PROJECT_SYNC_RESET" &&
+              cursor &&
+              (frame.id === subscriptionID ||
+                (frame.agent_id === target.agent_id &&
+                  frame.thread_id === target.thread_id))
+            ) {
+              cursor = undefined;
+              setConnectionState("connecting");
+              subscribe(ws);
+              return;
+            }
             const failure = new Error(
               `${frame.status ?? 500} - ${JSON.stringify({
                 error: frame.error,
               })}`,
             );
-            connectionError.current = failure;
+            observationError = failure;
             setError(failure);
             fail();
           }
@@ -505,17 +603,18 @@ export function useResidentConversation(accountId: string | number | null) {
       ws.onerror = fail;
       ws.onclose = fail;
     };
-    void poll().then(() => {
-      if (!disposed) void recover(key, target, true);
-    });
+    retryObservation.current = () => {
+      clearTimeout(reconnect);
+      clearTimeout(watchdog);
+      const previous = socket;
+      socket = null;
+      previous?.close();
+      connect();
+    };
     connect();
-    // REST also covers task reports/notifications that do not advance conversation revision.
-    const interval = setInterval(() => {
-      void poll();
-    }, 5000);
     return () => {
       disposed = true;
-      clearInterval(interval);
+      retryObservation.current = null;
       clearTimeout(reconnect);
       clearTimeout(watchdog);
       if (socket) {
@@ -524,15 +623,7 @@ export function useResidentConversation(accountId: string | number | null) {
         socket.close();
       }
     };
-  }, [
-    key,
-    agentId,
-    threadId,
-    streamSupported,
-    observe,
-    recover,
-    applySnapshot,
-  ]);
+  }, [key, agentId, threadId, streamSupported, recover, applySnapshot]);
 
   // Initializing is server-managed; reads can observe completion without repeatedly repairing.
   useEffect(() => {
@@ -575,14 +666,8 @@ export function useResidentConversation(accountId: string | number | null) {
     [key, persist],
   );
   const refresh = useCallback(async () => {
-    if (!scope || !key || currentKey.current !== key) return;
-    try {
-      await observe(key, scope);
-      if (currentKey.current === key) setError(null);
-    } catch (failure) {
-      if (currentKey.current === key) setError(failure);
-    }
-  }, [key, scope, observe]);
+    retryObservation.current?.();
+  }, []);
   const retryPending = useCallback(async () => {
     if (scope && key) await recover(key, scope, true);
   }, [key, scope, recover]);
@@ -592,7 +677,8 @@ export function useResidentConversation(accountId: string | number | null) {
         !scope ||
         !key ||
         currentKey.current !== key ||
-        sendingRef.current === key
+        sendingRef.current === key ||
+        connectionState !== "connected"
       )
         return;
       try {
@@ -604,7 +690,7 @@ export function useResidentConversation(accountId: string | number | null) {
           if (
             (!value.draft.trim() && !attachmentIDs.length) ||
             value.draft.length > 32768 ||
-            snapshotRef.current?.turns.some(active)
+            snapshotRef.current?.active_turn_id
           )
             return;
           persist(key, (previous) => ({
@@ -624,7 +710,7 @@ export function useResidentConversation(accountId: string | number | null) {
         if (currentKey.current === key) setError(failure);
       }
     },
-    [key, scope, persist, recover],
+    [key, scope, persist, recover, connectionState],
   );
   const cancel = useCallback(
     async (turn: ResidentTurn) => {
@@ -648,12 +734,11 @@ export function useResidentConversation(accountId: string | number | null) {
             turn_id: turn.turn_id,
           }),
         );
-        if (currentKey.current === key) await observe(key, scope);
       } catch (failure) {
         if (currentKey.current === key) setError(failure);
       }
     },
-    [key, scope, persist, settle, observe],
+    [key, scope, persist, settle],
   );
   const repair = useCallback(async () => {
     if (!account || currentAccount.current !== account) return;
@@ -762,7 +847,10 @@ export function useResidentConversation(accountId: string | number | null) {
     refresh,
     repair,
     sending: !!key && sendingKey === key,
-    activeTurn: data.snapshot?.turns.find(active) ?? null,
+    activeTurn:
+      data.snapshot?.turns.find(
+        (turn) => turn.turn_id === data.snapshot?.active_turn_id,
+      ) ?? null,
     history: historyState.key === key ? historyState.page : null,
     historyLoading,
     historyError,

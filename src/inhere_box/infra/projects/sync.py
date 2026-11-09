@@ -274,6 +274,7 @@ def task_sync(
         payload = json.loads(row.payload_json)
         payload.setdefault("web_search_enabled", True)
         payload.setdefault("execution_json", "{}")
+        payload.setdefault("title_revision", None)
         deleted = payload.pop("deleted", False)
         data = summary(ProjectTaskRow.from_row(payload), policy)
         deleted = deleted or (

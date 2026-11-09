@@ -64,6 +64,72 @@ async def ws_env(env_with_provider, monkeypatch):
         gate.set()
 
 
+async def test_slow_submission_does_not_block_another_tasks_live_updates(ws_env, monkeypatch):
+    from inhere_box.infra.projects import task_submission
+
+    client, _server, auth, _calls, gates = ws_env
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    submit = task_submission.submit
+
+    async def blocked(services, owner_id, body, **kwargs):
+        if body.request_id == "slow-submission":
+            entered.set()
+            await release.wait()
+        return await submit(services, owner_id, body, **kwargs)
+
+    monkeypatch.setattr(task_submission, "submit", blocked)
+    session, ws = await connected(client, auth)
+    try:
+        first = await command(
+            ws,
+            "task.create",
+            "create-first",
+            data={"request_id": "streaming-request", "prompt": "Streaming"},
+        )
+        task_id = first["data"]["task_id"]
+        await command(ws, "task.subscribe", "watch-first", task_id=task_id)
+        await asyncio.wait_for(
+            until(
+                ws,
+                lambda frame: (
+                    frame["type"] == "turn" and frame["data"]["turn"]["reply"] == "实时中文"
+                ),
+            ),
+            5,
+        )
+        await ws.send_json(
+            {
+                "type": "task.create",
+                "id": "create-slow",
+                "data": {"request_id": "slow-submission", "prompt": "Slow"},
+            }
+        )
+        await asyncio.wait_for(entered.wait(), 5)
+        gates["Streaming"].set()
+        update = await asyncio.wait_for(
+            until(
+                ws,
+                lambda frame: (
+                    frame["type"] == "turn"
+                    and frame["data"]["task"]["task_id"] == task_id
+                    and frame["data"]["turn"]["reply"].endswith("，已经完成")
+                ),
+            ),
+            5,
+        )
+        assert update["data"]["turn"]["reply"] == "实时中文，已经完成"
+        assert not release.is_set()
+        release.set()
+        receipt = await asyncio.wait_for(
+            until(ws, lambda frame: frame.get("id") == "create-slow"), 5
+        )
+        assert receipt["type"] == "result"
+    finally:
+        release.set()
+        await session.__aexit__(None, None, None)
+
+
 async def test_ws_streams_tasks_concurrently_and_cancels_exact_turn(ws_env, monkeypatch):
     client, server, auth, calls, gates = ws_env
     subscribed = asyncio.Event()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from inhere_box.infra.errors import ErrorCode, InhereBoxError
@@ -11,7 +12,13 @@ if TYPE_CHECKING:
     from inhere_box.infra.auth.box_accounts import BoxAccountService, BoxAuthContext
 
 
-box_request_auth: ContextVar[tuple[BoxAccountService, BoxAuthContext] | None] = ContextVar(
+@dataclass
+class BoxRequestAuthorization:
+    service: BoxAccountService
+    context: BoxAuthContext
+
+
+box_request_auth: ContextVar[BoxRequestAuthorization | None] = ContextVar(
     "box_request_auth", default=None
 )
 
@@ -20,8 +27,8 @@ def validate_request(owner_id: int, *, conn: Any = None, client_id: str | None =
     binding = box_request_auth.get()
     if binding is None:
         raise InhereBoxError.localized(ErrorCode.AUTH_FAILED)
-    service, context = binding
-    service.validate_context(context, conn=conn)
+    context = binding.context
+    binding.service.validate_context(context, conn=conn)
     if context.user.id != owner_id or (
         client_id is not None and client_id != context.paired_client_id
     ):

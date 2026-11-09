@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import hashlib
 import hmac
 import json
@@ -31,8 +32,9 @@ from inhere_box.infra.projects.client_tool_models import (
 )
 from inhere_box.infra.utils.ulid import new_ulid
 
-CALL_TIMEOUT_MS = 600_000
-_POLL_SECONDS = 0.2
+APPROVAL_TIMEOUT_MS = 600_000
+EXECUTION_TIMEOUT_MS = 600_000
+_POLL_SECONDS = 2.0
 
 
 def _now() -> int:
@@ -64,7 +66,7 @@ def _dispatch_allowed(turn: ProjectTaskTurnRow | None, row: ProjectTaskToolCallR
         and not turn.pause_requested
         and not turn.cancel_requested
         and row.status in {"pending", "claimed"}
-        and row.expires_at > now
+        and row.deadline > now
         and not (
             turn.status == "running" and not turn.is_waiting and turn.updated_at < now - 90_000
         )
@@ -104,10 +106,15 @@ def view(row: ProjectTaskToolCallRow, services: SharedServices, conn: Any) -> Cl
         created_at=datetime.fromtimestamp(row.created_at / 1000, UTC),
         updated_at=datetime.fromtimestamp(row.updated_at / 1000, UTC),
         expires_at=datetime.fromtimestamp(row.expires_at / 1000, UTC),
+        execution_expires_at=(
+            datetime.fromtimestamp(row.execution_expires_at / 1000, UTC)
+            if row.execution_expires_at is not None
+            else None
+        ),
     )
 
 
-def _normalize(
+def _project_state(
     services: SharedServices, conn: Any, row: ProjectTaskToolCallRow
 ) -> ProjectTaskToolCallRow:
     if row.status not in {"pending", "claimed"}:
@@ -118,7 +125,7 @@ def _normalize(
         status = "cancelled"
     elif turn.status not in {"running", "queued"}:
         status, error = "interrupted", "TASK_INTERRUPTED"
-    elif row.expires_at <= now:
+    elif row.deadline <= now:
         # A claimed action may already have run. Preserve its original token so
         # the executor can reconcile the result without granting another dispatch.
         status = "claimed" if row.status == "claimed" else "expired"
@@ -126,9 +133,21 @@ def _normalize(
         if row.status == status and row.error_code == error:
             return row
     if status:
-        services.project_task_tool_call_repo.close(conn, row.call_id, status, error, now)
-        return replace(row, status=status, error_code=error, updated_at=now)
+        return replace(row, status=status, error_code=error)
     return row
+
+
+def _normalize(
+    services: SharedServices, conn: Any, row: ProjectTaskToolCallRow
+) -> ProjectTaskToolCallRow:
+    current = _project_state(services, conn, row)
+    if current != row:
+        now = _now()
+        services.project_task_tool_call_repo.close(
+            conn, row.call_id, current.status, current.error_code, now
+        )
+        return replace(current, updated_at=now)
+    return current
 
 
 def _load(
@@ -184,19 +203,20 @@ def get_call(
         )
 
 
-def open_calls(services: SharedServices, owner_id: int, client_id: str) -> list[ClientToolCall]:
-    from inhere_box.infra.auth.box_context import validate_client_tools
-
-    with services.db.transaction() as conn:
-        validate_client_tools(services.config, owner_id, client_id, conn)
-        if not services.project_task_repo.lock_owner(conn, owner_id):
-            raise InhereBoxError.localized(ErrorCode.FORBIDDEN)
-        return [
-            view(_normalize(services, conn, row), services, conn)
-            for row in services.project_task_tool_call_repo.open_for_client(
-                conn, owner_id, client_id
-            )
-        ]
+def open_calls(
+    services: SharedServices, owner_id: int, client_id: str, delivered: tuple[str, ...] = ()
+) -> list[ClientToolCall]:
+    # The socket validates the attached identity and rechecks its session before
+    # sending. This projection never acquires a write lock or changes the journal.
+    repo = services.project_task_tool_call_repo
+    with services.db.read_snapshot() as conn:
+        rows = {row.call_id: row for row in repo.open_for_client(conn, owner_id, client_id)}
+        for call_id in delivered:
+            if call_id not in rows:
+                row = repo.get(conn, call_id)
+                if row is not None and row.owner_id == owner_id and row.client_id == client_id:
+                    rows[call_id] = row
+        return [view(_project_state(services, conn, row), services, conn) for row in rows.values()]
 
 
 def claim_call(
@@ -238,6 +258,33 @@ def claim_call(
         call=get_call(services, owner_id, client_id, task_id, turn_id, call_id),
         claim_token=row.claim_token,
     )
+
+
+def start_execution(
+    services: SharedServices,
+    owner_id: int,
+    client_id: str,
+    task_id: str,
+    turn_id: str,
+    call_id: str,
+    claim_token: str,
+) -> ClientToolCall:
+    from inhere_box.infra.projects.deletion_state import assert_task_writable
+
+    with services.db.transaction() as conn:
+        row = _load_for_client(services, conn, owner_id, client_id, task_id, turn_id, call_id)
+        if not row.claim_token or not hmac.compare_digest(row.claim_token, claim_token):
+            raise InhereBoxError.localized(ErrorCode.FORBIDDEN)
+        assert_task_writable(services, conn, owner_id, task_id)
+        turn = services.project_task_turn_repo.get_in_transaction(conn, turn_id)
+        if row.status != "claimed" or not _dispatch_allowed(turn, row):
+            raise InhereBoxError.localized(ErrorCode.TASK_CLIENT_TOOL_CLOSED)
+        if row.execution_expires_at is None:
+            now = _now()
+            deadline = now + EXECUTION_TIMEOUT_MS
+            services.project_task_tool_call_repo.start_execution(conn, call_id, now, deadline)
+            row = replace(row, execution_expires_at=deadline, updated_at=now)
+        return view(row, services, conn)
 
 
 def _reconcile_completed_wait(
@@ -351,7 +398,7 @@ class ClientToolBroker:
             "",
             now,
             now,
-            now + CALL_TIMEOUT_MS,
+            now + APPROVAL_TIMEOUT_MS,
         )
         with self.services.db.transaction() as conn:
             if not self.services.project_task_repo.lock_owner(conn, self.owner_id):
@@ -405,6 +452,13 @@ class ClientToolBroker:
             self.services.project_task_tool_call_repo.insert(conn, row)
         return row.call_id
 
+    async def create_call(
+        self, definition: ClientToolDefinition, arguments: dict[str, Any], tool_call_id: str = ""
+    ) -> str:
+        call_id = await asyncio.to_thread(self._create, definition, arguments, tool_call_id)
+        self.services.client_tool_updates.notify((self.owner_id, self.client_id))
+        return call_id
+
     def _poll(self, call_id: str) -> ProjectTaskToolCallRow:
         with self.services.db.transaction() as conn:
             return _load(
@@ -427,22 +481,34 @@ class ClientToolBroker:
             return json.dumps(
                 {"is_error": True, "error_code": "TASK_CLIENT_TOOL_ARGUMENTS_INVALID"}
             )
-        call_id = await asyncio.to_thread(self._create, definition, arguments)
-        while True:
-            row = await asyncio.to_thread(self._poll, call_id)
-            if row.status == "completed":
-                return row.result_json
-            if row.status == "claimed" and row.error_code == "TASK_CLIENT_TOOL_TIMEOUT":
-                self.failure = ErrorCode.TASK_CLIENT_TOOL_TIMEOUT
-                raise InhereBoxError.localized(self.failure)
-            if row.status not in {"pending", "claimed"}:
-                self.failure = (
-                    ErrorCode.TASK_CLIENT_TOOL_TIMEOUT
-                    if row.status == "expired"
-                    else ErrorCode.TASK_CLIENT_TOOL_CLOSED
-                )
-                raise InhereBoxError.localized(self.failure)
-            await asyncio.sleep(_POLL_SECONDS)
+        call_id = await self.create_call(definition, arguments)
+        key = (self.owner_id, self.client_id)
+        updates = self.services.client_tool_updates
+        wake = asyncio.Event()
+        stop = updates.watch(key, wake.set)
+        try:
+            while True:
+                wake.clear()
+                row = await asyncio.to_thread(self._poll, call_id)
+                if row.status == "completed":
+                    return row.result_json
+                if row.status == "claimed" and row.error_code == "TASK_CLIENT_TOOL_TIMEOUT":
+                    updates.notify(key)
+                    self.failure = ErrorCode.TASK_CLIENT_TOOL_TIMEOUT
+                    raise InhereBoxError.localized(self.failure)
+                if row.status not in {"pending", "claimed"}:
+                    updates.notify(key)
+                    self.failure = (
+                        ErrorCode.TASK_CLIENT_TOOL_TIMEOUT
+                        if row.status == "expired"
+                        else ErrorCode.TASK_CLIENT_TOOL_CLOSED
+                    )
+                    raise InhereBoxError.localized(self.failure)
+                remaining = max(0, (row.deadline - _now()) / 1000)
+                with contextlib.suppress(TimeoutError):
+                    await asyncio.wait_for(wake.wait(), timeout=min(remaining, _POLL_SECONDS))
+        finally:
+            stop()
 
     def tools(self) -> list[StructuredTool]:
         def build(definition: ClientToolDefinition) -> StructuredTool:

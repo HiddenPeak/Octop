@@ -62,7 +62,7 @@ Task 返回 `configuration_revision`、`selected_expert_id`、`action_mode`、`p
 
 ## 私人智能体常驻会话（2026-10-20）
 
-每个用户的统一生活工作管家沿用唯一私人 Agent 与稳定 thread，使用六个 REST 接口：`GET/PUT /api/agents/resident-conversation`，以及绑定 thread 下的 `/conversation`、`POST /messages`、`GET /requests/{request_id}`、`POST /cancel`。正文实时观察另通过共享 `/api/project-tasks/ws` 的 `resident.subscribe` 接收 `resident.snapshot`；新能力声明、轮次 revision、重连和客户端接线见 [共用正文 WebSocket 交接](agentcomputer-conversation-stream-handoff.md)。支持普通文字、持久受理、有界快照和定向取消；专业工作通过普通 Task 委派，成果回到同一管家会话，不创建或切换不同专业助手，也不把项目或 Task 绑定到专家，未修改 AgentComputer 客户端。字段、幂等、模型选择、恢复边界和验证范围见 [私人智能体服务端接入说明](resident-agent-conversation.md)。
+每个用户的统一生活工作管家沿用唯一私人 Agent 与稳定 thread，使用六个 REST 接口：`GET/PUT /api/agents/resident-conversation`，以及绑定 thread 下的 `/conversation`、`POST /messages`、`GET /requests/{request_id}`、`POST /cancel`。正文实时观察另通过共享 `/api/project-tasks/ws` 的 `resident.subscribe` 接收 `resident.timeline.snapshot` 和 `resident.timeline.update`；新能力声明、轮次 revision、重连和客户端接线见 [共用正文 WebSocket 交接](agentcomputer-conversation-stream-handoff.md)。支持普通文字、持久受理、有界快照和定向取消；专业工作通过普通 Task 委派，成果回到同一管家会话，不创建或切换不同专业助手，也不把项目或 Task 绑定到专家。字段、幂等、模型选择、恢复边界和验证范围见 [私人智能体服务端接入说明](resident-agent-conversation.md)。
 
 管家由服务端自动准备，无需用户创建或配置，也无需客户端先调用 PUT。`UserManager` 启动为已有启用用户补齐唯一绑定，新用户创建、邀请注册、SSO/LDAP 接入、用户启用及成功登录时均幂等准备，不调用模型或增加执行授权。客户端使用只读 `GET /api/agents/resident-conversation` 获取绑定并检查状态；自动准备失败仍返回 `failed`，不保证每次读取均为 `ready`。`PUT` 保留为显式重试或修复用途；修复后服务启动、成功登录或显式重试均复用原身份及历史。
 

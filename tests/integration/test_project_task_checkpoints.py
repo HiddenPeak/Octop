@@ -105,16 +105,24 @@ async def parked(server, turn_id):
 
 async def start_native(client, server, auth, *, web_search_enabled=True):
     session, ws = await connected(client, auth)
-    task, first = await start_call(ws, web_search_enabled=web_search_enabled)
-    second = (
-        await until(
-            ws,
-            lambda frame: (
-                frame["type"] == "tool.call" and frame["data"]["call_id"] != first["call_id"]
-            ),
+    try:
+        # The real Harness must start and run the model before the first tool call exists.
+        task, first = await start_call(
+            ws, web_search_enabled=web_search_enabled, startup_timeout=10
         )
-    )["data"]
-    turn = await parked(server, first["turn_id"])
+        second = (
+            await until(
+                ws,
+                lambda frame: (
+                    frame["type"] == "tool.call" and frame["data"]["call_id"] != first["call_id"]
+                ),
+            )
+        )["data"]
+        turn = await parked(server, first["turn_id"])
+    except BaseException:
+        # The caller takes ownership only after initialization succeeds.
+        await session.__aexit__(None, None, None)
+        raise
     return session, ws, task, [first, second], turn
 
 

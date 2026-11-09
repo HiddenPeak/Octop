@@ -38,6 +38,7 @@ class ProjectTaskRow:
     pinned: bool = False
     internal_kind: str = ""
     execution_json: str = "{}"
+    title_revision: int | None = 1
 
     @classmethod
     def from_row(cls, row: DbRow) -> ProjectTaskRow:
@@ -67,6 +68,7 @@ class ProjectTaskRow:
             bool(row["pinned"]),
             str(row["internal_kind"]),
             str(row["execution_json"]),
+            strict_int(row["title_revision"]) if row["title_revision"] is not None else None,
         )
 
 
@@ -167,9 +169,13 @@ class ProjectTaskRepo:
             return self.get_in_transaction(conn, task_id, owner_id)
 
     @staticmethod
-    def get_in_transaction(conn: Any, task_id: str, owner_id: int) -> ProjectTaskRow | None:
+    def get_in_transaction(
+        conn: Any, task_id: str, owner_id: int, *, for_update: bool = False
+    ) -> ProjectTaskRow | None:
+        suffix = " FOR UPDATE" if for_update else ""
         row = conn.execute(
-            "SELECT * FROM project_tasks WHERE task_id=? AND owner_id=? AND internal_kind=''",
+            "SELECT * FROM project_tasks WHERE task_id=? AND owner_id=? AND internal_kind=''"
+            + suffix,
             (task_id, owner_id),
         ).fetchone()
         return ProjectTaskRow.from_row(row) if row else None
@@ -197,6 +203,12 @@ class ProjectTaskRepo:
 
     @staticmethod
     def delete(conn: Any, row: ProjectTaskRow) -> None:
+        if not row.internal_kind:
+            conn.execute(
+                "INSERT INTO project_task_deleted_requests(owner_id, request_id) VALUES (?, ?) "
+                "ON CONFLICT(owner_id, request_id) DO NOTHING",
+                (row.owner_id, row.request_id),
+            )
         conn.execute(
             "UPDATE unified_source_inbox SET payload_json='{}',status='target_deleted' "
             "WHERE owner_id=? AND (task_id=? OR (status='received' AND route_id IN "
@@ -255,6 +267,16 @@ class ProjectTaskRepo:
             (owner_id, request_id),
         ).fetchone()
         return ProjectTaskRow.from_row(row) if row else None
+
+    @staticmethod
+    def was_deleted_by_request(conn: Any, owner_id: int, request_id: str) -> bool:
+        return (
+            conn.execute(
+                "SELECT 1 FROM project_task_deleted_requests WHERE owner_id=? AND request_id=?",
+                (owner_id, request_id),
+            ).fetchone()
+            is not None
+        )
 
     @staticmethod
     def title_exists(conn: Any, owner_id: int, title: str) -> bool:

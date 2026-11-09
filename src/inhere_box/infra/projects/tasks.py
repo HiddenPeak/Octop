@@ -274,9 +274,11 @@ class TaskPatch(ProjectModel):
         default=None, description="空闲时选择下一轮执行引擎；必须提供配置版本，历史快照不变。"
     )
     expected_revision: Annotated[StrictInt, Field(ge=1)] = Field(
-        description="详情或摘要的 list_revision；冲突返回 409。"
+        description="详情或摘要的 list_revision；未提供字段级前置条件时用于冲突校验。"
     )
     expected_configuration_revision: Annotated[StrictInt, Field(ge=1)] | None = None
+    expected_title_revision: Annotated[StrictInt, Field(ge=1)] | None = None
+    expected_web_search_enabled: StrictBool | None = None
     selected_expert_id: Reference | None = Field(
         default=None, description="省略不变；显式 null 切换为通用助手。"
     )
@@ -296,9 +298,25 @@ class TaskPatch(ProjectModel):
 
     @model_validator(mode="after")
     def validate_changes(self) -> Self:
+        field_guards = {
+            key
+            for key, value in (
+                ("title", self.expected_title_revision),
+                ("web_search_enabled", self.expected_web_search_enabled),
+            )
+            if value is not None
+        }
         changes = self.model_dump(
-            exclude_unset=True, exclude={"expected_revision", "expected_configuration_revision"}
+            exclude_unset=True,
+            exclude={
+                "expected_revision",
+                "expected_configuration_revision",
+                "expected_title_revision",
+                "expected_web_search_enabled",
+            },
         )
+        if field_guards and field_guards != changes.keys():
+            raise ValueError("field-level preconditions must cover exactly the changed fields")
         if not changes or any(
             value is None for key, value in changes.items() if key != "selected_expert_id"
         ):
@@ -517,6 +535,10 @@ class TaskSummary(ProjectModel):
     )
     active_turn_id: str | None
     list_revision: int = Field(description="任务摘要版本；仅列表字段变化时递增。")
+    title_revision: int | None = Field(
+        default=None,
+        description="标题独立版本；旧增量记录没有此值。存在时支持字段级标题与网络搜索写入。",
+    )
     approval_policy: TaskApprovalPolicy
     created_at: datetime
     updated_at: datetime
@@ -542,6 +564,19 @@ class TaskDetail(TaskSummary):
     event_cursor: str | None = Field(
         default=None, description="首页对应的实时状态续接位置；历史页不推进。"
     )
+
+
+class TaskCreationReceipt(ProjectModel):
+    task_id: str
+    project_id: str | None
+    request_id: str
+    turn_id: str
+    prompt: str
+    attachment_ids: list[str]
+
+
+class TaskTurnReceipt(TaskCreationReceipt):
+    retry_of_turn_id: str | None
 
 
 class TaskUpdate(ProjectModel):
@@ -575,6 +610,7 @@ def summary(row: ProjectTaskRow, policy: TaskApprovalPolicy) -> TaskSummary:
         status=cast(TurnStatus, public_status(row.status, row.wait_kind)),
         active_turn_id=row.active_turn_id,
         list_revision=row.list_revision,
+        title_revision=row.title_revision,
         approval_policy=policy,
         created_at=_datetime(row.created_at),
         updated_at=_datetime(row.updated_at),
@@ -694,6 +730,54 @@ def _fingerprint(turn: TaskTurn, list_revision: int) -> str:
     return hashlib.sha256(
         (str(list_revision) + ":" + turn.model_dump_json(exclude={"updated_at"})).encode()
     ).hexdigest()
+
+
+def creation_receipt(
+    services: SharedServices, owner_id: int, request_id: str
+) -> TaskCreationReceipt:
+    with services.db.read_snapshot() as conn:
+        tasks, turns = services.project_task_repo, services.project_task_turn_repo
+        task = tasks.by_request(conn, owner_id, request_id)
+        if task is None:
+            code = (
+                ErrorCode.NOT_FOUND
+                if tasks.was_deleted_by_request(conn, owner_id, request_id)
+                else ErrorCode.TASK_REQUEST_NOT_ACCEPTED
+            )
+            raise InhereBoxError.localized(code)
+        turn = turns.by_request(conn, task.task_id, request_id)
+        if turn is None or turns.page(conn, task.task_id, 1, before=turn.pk):
+            raise InhereBoxError.localized(ErrorCode.NOT_FOUND)
+        return TaskCreationReceipt(**_receipt_fields(task, turn))
+
+
+def turn_receipt(
+    services: SharedServices, owner_id: int, task_id: str, request_id: str
+) -> TaskTurnReceipt:
+    with services.db.read_snapshot() as conn:
+        task = services.project_task_repo.get_in_transaction(conn, task_id, owner_id)
+        if task is None:
+            raise InhereBoxError.localized(ErrorCode.NOT_FOUND)
+        turn = services.project_task_turn_repo.by_request(conn, task_id, request_id)
+        if turn is None:
+            raise InhereBoxError.localized(ErrorCode.TASK_REQUEST_NOT_ACCEPTED)
+        config = json.loads(turn.configuration_json)
+        if config.get("branch_origin", {}).get("history_only"):
+            raise InhereBoxError.localized(ErrorCode.NOT_FOUND)
+        return TaskTurnReceipt(
+            **_receipt_fields(task, turn), retry_of_turn_id=config.get("retry_of_turn_id")
+        )
+
+
+def _receipt_fields(task: ProjectTaskRow, turn: ProjectTaskTurnRow) -> dict[str, Any]:
+    return {
+        "task_id": task.task_id,
+        "project_id": task.project_id,
+        "request_id": turn.request_id,
+        "turn_id": turn.turn_id,
+        "prompt": turn.prompt,
+        "attachment_ids": json.loads(turn.configuration_json).get("attachment_ids", []),
+    }
 
 
 def detail(
@@ -1138,6 +1222,8 @@ def _submission_state(
         )
     assert isinstance(body, TaskMessage)
     if task is None:
+        if tasks.was_deleted_by_request(conn, owner_id, body.request_id):
+            raise InhereBoxError.localized(ErrorCode.TASK_REQUEST_CONFLICT)
         assert_project_writable(services, conn, owner_id, project_id)
         return None, body, None
     if not task_id and task.project_id != project_id:
@@ -1581,11 +1667,24 @@ def patch(services: SharedServices, owner_id: int, task_id: str, body: TaskPatch
         repo = services.project_task_repo
         if not repo.lock_owner(conn, owner_id):
             raise InhereBoxError.localized(ErrorCode.FORBIDDEN)
-        current = repo.get_in_transaction(conn, task_id, owner_id)
+        # Runtime status changes can advance list_revision without the owner
+        # lock. Serialize against the task row through the metadata update.
+        current = repo.get_in_transaction(
+            conn, task_id, owner_id, for_update=services.db.dialect == "postgresql"
+        )
         if current is None:
             raise InhereBoxError.localized(ErrorCode.NOT_FOUND)
         assert_project_writable(services, conn, owner_id, current.project_id)
-        if current.list_revision != body.expected_revision:
+        checks = (
+            (body.expected_title_revision, current.title_revision),
+            (body.expected_web_search_enabled, current.web_search_enabled),
+        )
+        field_checks = [(expected, actual) for expected, actual in checks if expected is not None]
+        if field_checks:
+            conflicted = any(expected != actual for expected, actual in field_checks)
+        else:
+            conflicted = current.list_revision != body.expected_revision
+        if conflicted:
             raise InhereBoxError.localized(ErrorCode.TASK_REVISION_CONFLICT)
         if {"selected_expert_id", "action_mode", "engine"} & body.model_fields_set:
             from inhere_box.infra.projects.expert_profiles import resolve_expert_profile

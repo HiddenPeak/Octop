@@ -53,22 +53,32 @@ async def tool_env(env_with_provider, monkeypatch):
     yield *env_with_provider, calls
 
 
-async def start_call(ws, *, request="tool-message-001", web_search_enabled=True):
+async def start_call(
+    ws, *, request="tool-message-001", web_search_enabled=True, startup_timeout: float = 3
+):
     await command(ws, "client.attach", "attach-client-001", client_id=CLIENT)
-    created = await command(
-        ws,
-        "task.create",
-        "create-tool-task",
-        data={
-            "request_id": request,
-            "prompt": "Read my note",
-            "web_search_enabled": web_search_enabled,
-            "options": {**OPTIONS, "action_timeline_enabled": False},
-        },
+    await ws.send_json(
+        {
+            "type": "task.create",
+            "id": "create-tool-task",
+            "data": {
+                "request_id": request,
+                "prompt": "Read my note",
+                "web_search_enabled": web_search_enabled,
+                "options": {**OPTIONS, "action_timeline_enabled": False},
+            },
+        }
     )
-    assert created["type"] == "result", created
-    call = (await until(ws, lambda f: f["type"] == "tool.call"))["data"]
-    assert call["status"] == "pending" and call["arguments"] == {"path": "note.md"}
+    created, call = None, None
+    async with asyncio.timeout(startup_timeout):
+        while created is None or call is None:
+            frame = await ws.receive_json()
+            if frame.get("id") == "create-tool-task":
+                assert frame["type"] == "result", frame
+                created = frame
+            elif frame["type"] == "tool.call" and frame["data"]["status"] == "pending":
+                call = frame["data"]
+    assert call["arguments"] == {"path": "note.md"}
     return created["data"], call
 
 
@@ -90,6 +100,49 @@ async def result(ws, call, token, output=None, *, is_error=False):
         **identity(call),
         data={"claim_token": token, "output": output, "is_error": is_error},
     )
+
+
+async def test_tool_start_grants_one_execution_window_after_approval(tool_env, monkeypatch):
+    from inhere_box.api.routers import project_tasks_ws
+
+    client, _, auth, outputs = tool_env
+    # A newly committed call must arrive even though the safety scan is far away.
+    monkeypatch.setattr(project_tasks_ws, "_TOOL_RECHECK_SECONDS", 60)
+    monkeypatch.setattr(client_tools, "APPROVAL_TIMEOUT_MS", 10_000)
+    now = client_tools._now()
+    monkeypatch.setattr(client_tools, "_now", lambda: now)
+    connection, ws = await connected(client, auth)
+    try:
+        task, call = await start_call(ws)
+        assert call["execution_window_seconds"] == 600
+        assert call["execution_expires_at"] is None
+        claimed = (await claim(ws, call))["data"]
+        assert claimed["call"]["expires_at"] == call["expires_at"]
+        assert claimed["call"]["execution_expires_at"] is None
+        now += 9_000
+        forbidden = await command(
+            ws, "tool.start", "wrong-token", **identity(call), claim_token="wrong-claim-token-123"
+        )
+        assert forbidden["type"] == "error" and forbidden["status"] == 403
+        token = claimed["claim_token"]
+        started = await command(
+            ws, "tool.start", "start-execution", **identity(call), claim_token=token
+        )
+        assert started["type"] == "result", started
+        first = started["data"]
+        assert first["expires_at"] == call["expires_at"]
+        assert first["execution_expires_at"] > call["expires_at"]
+        now += 3_000  # Past the original approval cutoff.
+        repeated = await command(
+            ws, "tool.start", "repeat-execution", **identity(call), claim_token=token
+        )
+        assert repeated["type"] == "result", repeated
+        assert repeated["data"]["execution_expires_at"] == first["execution_expires_at"]
+        assert (await result(ws, call, token, "one result"))["type"] == "result"
+        await settled(client, auth, task["task_id"])
+        assert outputs == [{"is_error": False, "output": "one result"}]
+    finally:
+        await connection.__aexit__(None, None, None)
 
 
 async def task_with_status(client, auth, task_id, status):
@@ -118,7 +171,7 @@ async def test_real_harness_waits_for_client_and_receives_actual_result(
     monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 0.01)
     monkeypatch.setattr(client_tools, "_POLL_SECONDS", 0.01)
     if mode in {"timeout", "pending_timeout"}:
-        monkeypatch.setattr(client_tools, "CALL_TIMEOUT_MS", 500)
+        monkeypatch.setattr(client_tools, "APPROVAL_TIMEOUT_MS", 500)
     observed, names = [], set()
 
     class Model(FakeMessagesListChatModel):
@@ -237,6 +290,23 @@ async def test_real_harness_waits_for_client_and_receives_actual_result(
         await session.__aexit__(None, None, None)
 
 
+async def test_client_result_limit_counts_compact_utf8_json(tool_env):
+    client, _server, auth, _calls = tool_env
+    session, ws = await connected(client, auth)
+    try:
+        _task, call = await start_call(ws)
+        receipt = await claim(ws, call)
+        token = receipt["data"]["claim_token"]
+        output = "中" * 87380 + "//"
+        assert len(json.dumps(output, ensure_ascii=False).encode()) == 256 * 1024
+        rejected = await result(ws, call, token, output + "/")
+        assert rejected["error"]["code"] == "TASK_FRAME_INVALID"
+        accepted = await result(ws, call, token, output)
+        assert accepted["type"] == "result" and accepted["data"]["status"] == "completed"
+    finally:
+        await session.__aexit__(None, None, None)
+
+
 async def test_claim_and_result_are_durable_and_idempotent_across_reconnect(tool_env):
     client, _, auth, outputs = tool_env
     session, ws = await connected(client, auth)
@@ -351,7 +421,7 @@ async def test_cancel_closes_call_and_rejects_late_results(tool_env, claimed):
 
 async def test_uncheckpointed_broker_timeout_does_not_replay_call(tool_env, monkeypatch):
     client, _, auth, outputs = tool_env
-    monkeypatch.setattr(client_tools, "CALL_TIMEOUT_MS", 150)
+    monkeypatch.setattr(client_tools, "APPROVAL_TIMEOUT_MS", 150)
     session, ws = await connected(client, auth)
     try:
         task, call = await start_call(ws)

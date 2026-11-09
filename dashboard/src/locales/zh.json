@@ -342,6 +342,7 @@
     "TASK_CLIENT_TOOL_TIMEOUT": "等待客户端工具结果超时。",
     "TASK_CLIENT_TOOL_ARGUMENTS_INVALID": "客户端工具参数不符合声明的格式。",
     "TASK_FRAME_INVALID": "任务连接消息格式不正确，或已超过订阅数量上限。",
+    "TASK_REQUEST_NOT_ACCEPTED": "盒子尚未受理该任务请求。",
     "TASK_REQUEST_CONFLICT": "该发送标识已用于不同的消息、执行选项或重试来源，请核对原请求后重试。",
     "TASK_MODEL_UNAVAILABLE": "所选或默认对话模型不可用，请检查模型设置或重新选择。",
     "TASK_REASONING_INVALID": "此模型不支持所选的思考模式或强度，请调整本轮设置。",
@@ -7836,7 +7837,6 @@
       "connection": {
         "connected": "已连接",
         "connecting": "正在连接",
-        "polling": "通过快照同步",
         "disconnected": "连接中断"
       },
       "statuses": {

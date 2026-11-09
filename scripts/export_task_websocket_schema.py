@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from inhere_box.api.routers.project_tasks_ws import AuthenticateFrame, _command
-from inhere_box.infra.agents.resident_conversation import ResidentSnapshot
 from inhere_box.infra.agents.resident_history import (
     ResidentTimelineSnapshot,
     ResidentTimelineUpdate,
@@ -33,7 +32,6 @@ def export_schema() -> dict[str, Any]:
         AuthenticateFrame,
         TaskDetail,
         TaskUpdate,
-        ResidentSnapshot,
         ResidentTimelineSnapshot,
         ResidentTimelineUpdate,
         ClientToolCall,
@@ -57,7 +55,12 @@ def export_schema() -> dict[str, Any]:
             "additionalProperties": True,
         }
 
-    event("ReadyEvent", "ready", {"protocol_version": {"type": "integer", "const": 3}})
+    event(
+        "ReadyEvent",
+        "ready",
+        {"protocol_version": {"type": "integer", "const": 3}, "session_replace": {"const": True}},
+        optional=("session_replace",),
+    )
     event(
         "ResultEvent",
         "result",
@@ -76,7 +79,6 @@ def export_schema() -> dict[str, Any]:
     event("ApprovalPolicyEvent", "approval.policy", {"data": ref("TaskApprovalPolicy")})
     event("SnapshotEvent", "snapshot", {"data": ref("TaskDetail")})
     event("TurnEvent", "turn", {"data": ref("TaskUpdate")})
-    event("ResidentSnapshotEvent", "resident.snapshot", {"data": ref("ResidentSnapshot")})
     event(
         "ResidentTimelineSnapshotEvent",
         "resident.timeline.snapshot",

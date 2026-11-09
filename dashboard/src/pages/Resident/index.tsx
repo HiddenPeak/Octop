@@ -367,6 +367,7 @@ function ResidentBody() {
   };
   const canSend =
     !!scope &&
+    conversation.connectionState === "connected" &&
     (!!conversation.draft.trim() ||
       (supportsAttachments && !!images.attachmentIDs.length)) &&
     !images.blocked &&

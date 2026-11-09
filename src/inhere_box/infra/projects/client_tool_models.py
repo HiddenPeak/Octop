@@ -101,7 +101,11 @@ class ClientToolCall(ProjectModel):
     error_code: str
     created_at: datetime
     updated_at: datetime
-    expires_at: datetime = Field(description="服务端固定十分钟截止时间；重连、领取不延长。")
+    expires_at: datetime = Field(description="审批及等待开始执行的截止时间；领取或重连不延长。")
+    execution_window_seconds: Literal[600] = 600
+    execution_expires_at: datetime | None = Field(
+        default=None, description="首次 tool.start 固定执行截止时间，重复开始或重连不延长。"
+    )
 
 
 class ClientToolClaim(ProjectModel):
@@ -109,16 +113,23 @@ class ClientToolClaim(ProjectModel):
     claim_token: str = Field(description="仅返回给成功领取者；执行及回传前须持久保存。")
 
 
+ClaimToken = Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{16,256}$")]
+
+
 class ClientToolResult(ProjectModel):
-    claim_token: str = Field(pattern=r"^[A-Za-z0-9_-]{16,256}$")
+    claim_token: ClaimToken
     output: JsonValue = Field(description="客户端执行结果或可供模型理解的错误信息，最多 256 KiB。")
     is_error: StrictBool = False
 
     @model_validator(mode="after")
     def bounded_output(self) -> Self:
         try:
-            if len(json.dumps(self.output, allow_nan=False).encode()) > 256 * 1024:
+            # Match the native client's compact UTF-8 JSON size, not ASCII escapes.
+            encoded = json.dumps(
+                self.output, ensure_ascii=False, separators=(",", ":"), allow_nan=False
+            )
+            if len(encoded.encode("utf-8")) > 256 * 1024:
                 raise ValueError("client tool output exceeds 256 KiB")
-        except (TypeError, RecursionError) as exc:
+        except (TypeError, RecursionError, UnicodeEncodeError) as exc:
             raise ValueError("invalid JSON output") from exc
         return self

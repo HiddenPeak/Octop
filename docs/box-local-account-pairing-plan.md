@@ -8,7 +8,7 @@
 
 协议兼容：认证模型版本仍为 2，签名协议仍为 1；`GET /api/box/status` 新增 `multiple_owner_devices=true`。客户端不得再根据 `primary_client_id` 是否非空禁止添加自有设备。`primary_client_id` 已弃用，仅保留一个代表设备 ID，不用于授权或工具路由；实际权限取决于已认证客户端的角色。`GET /api/box/account` 的 `owner_client_ids` 返回活动自有设备列表（受邀端返回空列表）。
 
-新客户端使用 `/api/box/owner-claims` 登记自有设备、`/api/box/clients/{id}/owner` 授予自有设备权限。旧 `/primary-claims` 保留为弃用的登记兼容入口。旧 `/clients/{id}/primary` 转移接口经管理员认证后返回 `410 box_primary_transfer_retired`，不改变任何设备权限；客户端必须显式使用新 `/owner` 接口授予共享访问，不能自动重放旧转移请求。界面将“主设备”改为“自有设备”，说明“共享我的项目和会话”；“受邀设备”继续说明独立空间。旧服务未返回多设备能力时，不承诺支持多台自有设备。
+新客户端使用 `/api/box/owner-claims` 登记自有设备、`/api/box/clients/{id}/owner` 授予自有设备权限。首版只提供 `/owner-claims` 登记。旧 `/clients/{id}/primary` 转移接口经管理员认证后返回 `410 box_primary_transfer_retired`，不改变任何设备权限；客户端必须显式使用新 `/owner` 接口授予共享访问，不能自动重放旧转移请求。界面将“主设备”改为“自有设备”，说明“共享我的项目和会话”；“受邀设备”继续说明独立空间。
 
 ## 1. 产品模型
 

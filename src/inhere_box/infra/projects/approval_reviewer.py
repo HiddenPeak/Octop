@@ -202,6 +202,16 @@ class TaskApprovalReviewWorker:
             result.output_tokens,
             now_ms(),
         )
+        if job.execution_host == "client":
+
+            def target() -> tuple[int, str] | None:
+                with self.services.db.connect() as conn:
+                    call = self.services.project_task_tool_call_repo.get(conn, job.target_id)
+                    return (call.owner_id, call.client_id) if call is not None else None
+
+            key = await asyncio.to_thread(target)
+            if key is not None:
+                self.services.client_tool_updates.notify(key)
 
     async def _loop(self) -> None:
         while True:

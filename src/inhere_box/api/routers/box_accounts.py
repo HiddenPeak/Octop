@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
@@ -171,7 +171,7 @@ class PairingResponse(BaseModel):
 class ChallengeRequest(BoxRequest):
     client_id: str | None = Field(default=None, max_length=128)
     pairing_id: str | None = Field(default=None, max_length=128)
-    action: Literal["session", "login", "client-status", "enroll", "result"] = "session"
+    action: Literal["session", "login", "client-status", "enroll", "result", "revoke"] = "session"
     params: dict[str, str] = Field(
         default_factory=dict,
         max_length=4,
@@ -188,6 +188,7 @@ class SessionResponse(BaseModel):
     expires_in: int
     session_id: str
     paired_client_id: str
+    account: BoxAccountResponse
 
 
 class BrowserSessionResponse(BaseModel):
@@ -203,6 +204,10 @@ class BrowserSessionResponse(BaseModel):
 
 class GrantRequest(BoxRequest):
     request_id: str = Field(min_length=1, max_length=128)
+    proof: str | None = Field(default=None, min_length=1, max_length=16384)
+
+
+class RevokeRequest(BoxRequest):
     proof: str | None = Field(default=None, min_length=1, max_length=16384)
 
 
@@ -278,13 +283,6 @@ async def create_pairing(body: PairingRequest, service: PublicService) -> Pairin
     return PairingResponse.model_validate(result)
 
 
-@router.post(
-    "/primary-claims",
-    openapi_extra={"security": []},
-    response_model=PairingResponse,
-    summary="Register an owner device (legacy path)",
-    deprecated=True,
-)
 @router.post(
     "/owner-claims",
     openapi_extra={"security": []},
@@ -369,19 +367,39 @@ async def challenge(body: ChallengeRequest, service: PublicService) -> Challenge
     )
 
 
+async def _account_response(result: dict[str, Any], server: InhereBoxServer) -> BoxAccountResponse:
+    assert server.services is not None
+    instance = await asyncio.to_thread(local_instance, server.services)
+    return BoxAccountResponse.model_validate(
+        {
+            **result,
+            "instance_id": instance,
+            "account_id": hashlib.sha256(f"{instance}:{result['user']['id']}".encode()).hexdigest(),
+        }
+    )
+
+
+async def _session_response(result: dict[str, Any], server: InhereBoxServer) -> SessionResponse:
+    result["account"] = await _account_response(result["account"], server)
+    return SessionResponse.model_validate(result)
+
+
 @auth_router.post(
     "/sessions",
     openapi_extra={"security": []},
     response_model=SessionResponse,
     summary="Exchange a client signature for a short access session",
-    description="Returns a 10-minute revocable Bearer JWT. There is no refresh token or sliding renewal; obtain a new signature challenge to reconnect.",
+    description="Returns a 10-minute revocable Bearer JWT and its account scope. Obtain a new signature challenge to renew; supported task sockets can adopt the new session in place.",
 )
 async def create_session(
-    body: ProofRequest, response: Response, service: PublicService
+    body: ProofRequest,
+    response: Response,
+    service: PublicService,
+    server: InhereBoxServer = Depends(get_server),
 ) -> SessionResponse:
     response.headers["Cache-Control"] = "no-store"
-    return SessionResponse.model_validate(
-        await asyncio.to_thread(service.create_session, body.proof)
+    return await _session_response(
+        await asyncio.to_thread(service.create_session, body.proof), server
     )
 
 
@@ -393,11 +411,14 @@ async def create_session(
     description="Requires a fresh login proof bound to the credential digest. Owner devices use the current management key; guests use a fresh one-time share code. Valid credentials restore a revoked device, preserving its role and workspace. Previously revoked sessions remain invalid.",
 )
 async def login_client(
-    body: ClientLoginRequest, response: Response, service: PublicService
+    body: ClientLoginRequest,
+    response: Response,
+    service: PublicService,
+    server: InhereBoxServer = Depends(get_server),
 ) -> SessionResponse:
     response.headers["Cache-Control"] = "no-store"
-    return SessionResponse.model_validate(
-        await asyncio.to_thread(service.login_client, body.proof, body.secret)
+    return await _session_response(
+        await asyncio.to_thread(service.login_client, body.proof, body.secret), server
     )
 
 
@@ -538,14 +559,7 @@ async def delete_browser_session(context: Context, service: Service) -> Response
 async def account(
     context: Context, service: Service, server: InhereBoxServer = Depends(get_server)
 ) -> BoxAccountResponse:
-    result = await asyncio.to_thread(service.account, context)
-    assert server.services is not None
-    instance = await asyncio.to_thread(local_instance, server.services)
-    result.update(
-        instance_id=instance,
-        account_id=hashlib.sha256(f"{instance}:{context.user.id}".encode()).hexdigest(),
-    )
-    return BoxAccountResponse.model_validate(result)
+    return await _account_response(await asyncio.to_thread(service.account, context), server)
 
 
 @router.get(
@@ -606,12 +620,20 @@ async def retired_approval(context: Context) -> Response:
 @router.post(
     "/clients/{client_id}/revoke",
     status_code=204,
-    openapi_extra=box_auth_metadata(admin_only=True, mutation=True),
-    summary="Revoke any native client and its sessions",
-    description="Web administrator only. Revocation may remove the last owner device; existing data remains.",
+    openapi_extra=box_auth_metadata(admin_only=False, mutation=True),
+    summary="Revoke a native device and its sessions",
+    description=(
+        "Owner devices may revoke another device with an ES256 proof for action=revoke and "
+        "params.target_client_id matching the path. Web administrators use the existing "
+        "cookie and CSRF flow and may revoke any device. Business data is preserved."
+    ),
 )
-async def revoke(client_id: str, context: Context, service: Service) -> Response:
-    await asyncio.to_thread(service.revoke_client, context, client_id)
+async def revoke(
+    client_id: str, context: Context, service: Service, body: RevokeRequest | None = None
+) -> Response:
+    await asyncio.to_thread(
+        service.revoke_client, context, client_id, proof=body.proof if body else None
+    )
     return Response(status_code=204, headers={"Cache-Control": "no-store"})
 
 

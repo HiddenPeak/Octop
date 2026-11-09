@@ -17,7 +17,7 @@ from tests.integration.test_project_task_images import image_bytes
 from tests.integration.test_project_tasks_ws import connected
 from tests.integration.test_resident_conversations import _base, _binding, _turn
 from tests.integration.test_resident_images import resident_model
-from tests.integration.test_resident_stream_delivery import subscribe
+from tests.integration.test_resident_stream_delivery import subscribe_timeline, timeline_turns
 from tests.support.auth import create_user
 from tests.support.harness import patch_resident_stream
 
@@ -151,8 +151,8 @@ async def test_file_only_text_model_reads_real_content_and_can_read_it_again(
     if kind == "txt":
         session, ws = await connected(client, auth)
         try:
-            snapshot = await subscribe(ws, binding, "private-file-snapshot")
-            assert snapshot["turns"] == [first, second]
+            snapshot = await subscribe_timeline(ws, binding, "private-file-snapshot")
+            assert timeline_turns(snapshot) == [first, second]
         finally:
             await session.__aexit__(None, None, None)
     owner = server.services.agent_repo.get(binding["agent_id"]).user_id

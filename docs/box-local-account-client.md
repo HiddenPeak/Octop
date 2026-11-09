@@ -4,7 +4,7 @@
 
 协议兼容：认证模型版本仍为 2，签名协议仍为 1；`GET /api/box/status` 新增 `multiple_owner_devices=true`。客户端不得再根据 `primary_client_id` 是否非空禁止添加自有设备。`primary_client_id` 已弃用，仅保留一个代表设备 ID，不用于授权或工具路由；实际权限取决于已认证客户端的角色。`GET /api/box/account` 的 `owner_client_ids` 返回活动自有设备列表（受邀端返回空列表）。
 
-新客户端使用 `/api/box/owner-claims` 登记自有设备、`/api/box/clients/{id}/owner` 授予自有设备权限。旧 `/primary-claims` 保留为弃用的登记兼容入口。旧 `/clients/{id}/primary` 转移接口经管理员认证后返回 `410 box_primary_transfer_retired`，不改变任何设备权限；客户端必须显式使用新 `/owner` 接口授予共享访问，不能自动重放旧转移请求。界面将“主设备”改为“自有设备”，说明“共享我的项目和会话”；“受邀设备”继续说明独立空间。旧服务未返回多设备能力时，不承诺支持多台自有设备。
+新客户端使用 `/api/box/owner-claims` 登记自有设备、`/api/box/clients/{id}/owner` 授予自有设备权限。首版只提供 `/owner-claims` 登记。旧 `/clients/{id}/primary` 转移接口经管理员认证后返回 `410 box_primary_transfer_retired`，不改变任何设备权限；客户端必须显式使用新 `/owner` 接口授予共享访问，不能自动重放旧转移请求。界面将“主设备”改为“自有设备”，说明“共享我的项目和会话”；“受邀设备”继续说明独立空间。
 
 ## 1. 三种身份
 
@@ -66,13 +66,13 @@ HTTP没有传输加密，设备签名不提供链路加密。选用HTTPS时仍�
 | `POST /api/box/pairings` | 分享码绑定受邀候选公钥。 |
 | `POST /api/box/pairings/{id}/proof` | 候选持钥证明；成功直接登记，无审批。 |
 | `POST /api/box/pairings/{id}/result` | 候选签名查询结果，处理成功响应丢失。 |
-| `POST /api/auth/challenges` | 申请session、login、client-status、enroll或result动作挑战。 |
+| `POST /api/auth/challenges` | 申请session、login、client-status、enroll、result或revoke动作挑战。 |
 | `POST /api/auth/sessions` | 新登记后的首次换票，以及已建立连接的后台续期；10分钟Bearer。 |
 | `POST /api/auth/client-logins` | 已有登记手动登录或撤销后恢复：设备证明及用户重新输入的管理密钥／新分享码。 |
 | `POST /api/box/clients/{id}/status` | 不依赖会话，以原设备密钥证明查询自身 active／revoked 状态。 |
 | `GET /api/box/account` | 当前访问身份、角色、稳定缓存标识。 |
 | `GET /api/box/clients` | 有管理权限的身份读取客户端及角色状态。 |
-| `POST /api/box/clients/{id}/revoke` | 网页管理员撤销客户端，包括最后自有设备。 |
+| `POST /api/box/clients/{id}/revoke` | 自有设备提交目标绑定的持钥证明，可撤销其他自有或受邀设备。网页管理员仍可撤销任何登记，包括最后自有设备。 |
 | `DELETE /api/box/clients/{id}` | 网页管理员删除已撤销登记及关联认证记录；保留业务数据。 |
 | `POST /api/box/clients/{id}/owner` | 网页管理员将活动客户端指定为自有设备。 |
 | `POST /api/box/management-key/rotate` | 网页管理员轮换管理密钥。 |
@@ -124,7 +124,7 @@ HTTP没有传输加密，设备签名不提供链路加密。选用HTTPS时仍�
 
 若proof响应丢失，申请 `{"pairing_id":"...","action":"result","params":{}}` 挑战并签署，通过 `/result` 读取结果。未完成窗口过期返回expired；已完成窗口仍可返回consumed及原client_id，不创建第二个客户端。consumed只证明曾登记成功，不保证该客户端当前尚未被撤销；仍需后续会话换票。
 
-已有client_id请求 `{"client_id":"...","action":"session","params":{}}` 到 `/api/auth/challenges`。签署后向 `/api/auth/sessions` 发送 `{"proof":"..."}`，得到access_token、session_id、paired_client_id、role、user_id、session_kind=client、expires_in=600。
+已有client_id请求 `{"client_id":"...","action":"session","params":{}}` 到 `/api/auth/challenges`。签署后向 `/api/auth/sessions` 发送 `{"proof":"..."}`，得到 access_token、session_id、paired_client_id、role、user_id、session_kind=client、expires_in=600 和 account。account 与 `GET /api/box/account` 使用同一账号隔离字段。旧响应缺少 account 时再单独读取。若任务连接声明 `ready.session_replace`，续期后通过 `session.replace` 在原连接安装同设备的新票据。
 
 ### 5.4 手动连接必须重新输入凭证（2026-11-03）
 
@@ -134,7 +134,7 @@ HTTP没有传输加密，设备签名不提供链路加密。选用HTTPS时仍�
 2. 请求 `/api/auth/challenges`，body 为 `{"client_id":"…","action":"login","params":{"secret_hash":"…"}}`。`secret_hash` 是输入字符串的 canonical JSON UTF-8 字节的 SHA-256 十六进制摘要，与 ES256 证明参数编码保持一致。
 3. 签署完整挑战，向 `/api/auth/client-logins` 发送 `{"proof":"…","secret":"用户本次输入"}`。不发送秘密到 URL、Header 或日志。
 4. 设备签名及输入必须同时有效：自有设备校验当前管理密钥；受邀设备消费新的、未绑定候选、未过期且签发者仍有效的 enroll 分享码，已消费分享码不能再次使用。角色由现有设备决定，不能靠输入管理密钥把受邀设备提升为自有设备。
-5. 无论原登记为 active 还是 revoked，只要本次设备证明和凭证均有效，就返回同一 `paired_client_id` 和原用户的短会话，再核验 `/api/box/account`。revoked 登记恢复为 active、清空 revoked_at，保留原角色及账户，不创建第二个设备／受邀账户。撤销前的会话、挑战和已取消分享码不恢复；受邀设备每次手动登录均须新的单次分享码，原码不能复用。新登记本身已校验本次输入，因此首次换票仍走 `/api/auth/sessions`；已建立连接后台续期继续使用 session 证明。
+5. 无论原登记为 active 还是 revoked，只要本次设备证明和凭证均有效，就返回同一 `paired_client_id` 和原用户的短会话，再核验响应里的账号，旧盒子用 `/api/box/account`。revoked 登记恢复为 active、清空 revoked_at，保留原角色及账户，不创建第二个设备／受邀账户。撤销前的会话、挑战和已取消分享码不恢复；受邀设备每次手动登录均须新的单次分享码，原码不能复用。新登记本身已校验本次输入，因此首次换票仍走 `/api/auth/sessions`；已建立连接后台续期继续使用 session 证明。
 
 App 对已有登记（包括已撤销登记）统一使用以上 login 流程，不能因为缓存的 revoked 状态就拦截登录，也不能用 session 流程绕过凭证验证。设备私钥丢失时才走首次登记流程；受邀设备重新登记会创建独立账户，不会自动找回原受邀空间。
 
@@ -174,7 +174,9 @@ guest拥有独立内部用户身份，只能操作自己的项目、任务和附
 
 将受邀设备设为自有设备只允许网页管理员。仅目标端旧会话及未使用分享材料失效，client_id与私钥保留；重新换票后映射主人。其他自有设备的会话、身份和分享码不变。目标端原受邀数据保留，不合并进主人历史。重复授权不撤销会话。
 
-撤销客户端不删除项目或任务。原设备保留登记私钥时，可以通过第5.4节的手动登录，以当前管理密钥或新的单次分享码恢复原登记和原账户。私钥丢失或换机时须生成新密钥重新登记；通过分享码重新登记会创建新的受邀身份，不会自动接回原受邀身份的数据，主人用管理密钥登记新的自有设备后仍访问原有主人数据。当前没有“换机恢复原受邀身份”的接线协议。
+自有 App 设备可撤销其他自有设备或受邀设备。以发起方的 `client_id` 申请 `action=revoke` 挑战，`params={"target_client_id":"目标设备 ID"}`，使用发起方的登记私钥签名。用同一发起设备的 Bearer 会话向 `POST /api/box/clients/{id}/revoke` 提交 `{"proof":"…"}`。盒子在同一事务核对会话、角色、签名和路径目标，挑战只能使用一次。收到 `409 challenge_stale` 后，App 重新申请并签署一次挑战再提交。签名与路径不匹配或重放返回 401，缺少证明、受邀设备发起或自撤销返回 403。网页管理员继续使用同源 Cookie 和 CSRF。旧盒子若不识别 `revoke` 挑战，App 提示升级。
+
+撤销客户端不删除项目、任务或历史。原设备保留登记私钥时，可以通过第5.4节的手动登录，以当前管理密钥或新的单次分享码恢复原登记和原账户。私钥丢失或换机时须生成新密钥重新登记；通过分享码重新登记会创建新的受邀身份，不会自动接回原受邀身份的数据，主人用管理密钥登记新的自有设备后仍访问原有主人数据。当前没有“换机恢复原受邀身份”的接线协议。
 
 轮换请求 `{"revoke_clients":false}` 默认保留客户端及其原生会话，撤销所有Web会话和全部未完成授权，包括分享材料和待完成的自有设备认领。true同时撤销全部客户端，需要重新认领/分享。轮换或移除最后自有设备后，当前有效管理密钥仍可登录网页。
 
@@ -197,6 +199,7 @@ guest拥有独立内部用户身份，只能操作自己的项目、任务和附
 | HTTP 状态 | reason 示例 | 客户端处理 |
 | --- | --- | --- |
 | 400 / 422 | `public_key_invalid`、`pairing_parameters_invalid` 或 DTO 校验错误 | 修正字段或公钥编码，不自动生成新授权绕过错误。 |
+| 409 | `challenge_stale` | 已正确签名且未使用的换票、手动登录或撤销挑战已过期，或认证版本已改变。客户端重新申请并签署一次挑战。 |
 | 401 | `session_invalid`、`proof_invalid`、`management_key_invalid`、`pairing_invalid` | 区分失败步骤：会话到期申请新挑战，证明不可重放，错误密钥要求重新输入，失效分享材料要求重新邀请。重新换票仍失败时停止自动重试。 |
 | 403 | `management_required`、`box_guest_forbidden`、`box_origin_required`、`box_csrf_invalid` | 核对身份、同源和CSRF；重复登录不能扩大权限。 |
 | 404 | `client_not_found` 或业务资源不存在 | 更新本地列表；不能以错误详情推断其他人的业务数据。 |
@@ -205,4 +208,4 @@ guest拥有独立内部用户身份，只能操作自己的项目、任务和附
 | 429 | `rate_limited`、`pairing_capacity`、`challenge_capacity` | 延迟重试，避免不断生成候选或挑战。 |
 | 503 | `recovery_required`、`trust_unavailable` | 停止自动认领或重新注册，转交盒子本机维护。 |
 
-`proof_invalid` 也可能由挑战过期、已消费、服务重启或认证版本变化造成。不能仅凭此错误删除本地私钥或认定设备已被撤销。部分通用认证或 DTO 校验失败不包含 `details.reason`，应保留对 HTTP 状态和 `error.code` 的处理。
+`proof_invalid` 可由已消费的挑战、服务重启、签名或参数错误引起。挑战记录已不存在时同样返回此错误。客户端校验签名绑定字段的一致性，是否过期以盒子时钟为准。不能仅凭此错误删除本地私钥或认定设备已被撤销。部分通用认证或 DTO 校验失败不包含 `details.reason`，应保留对 HTTP 状态和 `error.code` 的处理。

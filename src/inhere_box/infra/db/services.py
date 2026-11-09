@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from inhere_box.config import InhereBoxConfig
+from inhere_box.infra.conversations.updates import CommittedUpdates
 from inhere_box.infra.crypto.sealed_repos import (
     SealedBackendRepo,
     SealedProviderRepo,
@@ -213,6 +214,9 @@ class SharedServices:
     paths: PathLayout
     config: InhereBoxConfig
     repos: RepoBundle
+    client_tool_updates: CommittedUpdates[tuple[int, str]] = field(
+        default_factory=CommittedUpdates, compare=False, repr=False
+    )
 
     @property
     def box_account_repo(self) -> BoxAccountRepo:

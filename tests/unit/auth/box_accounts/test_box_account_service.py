@@ -375,7 +375,26 @@ def test_proof_rejects_changed_or_untrusted_material(service, management_key, at
     )
     with pytest.raises(InhereBoxError) as denied:
         service.create_session(proof)
-    assert denied.value.details["reason"] == "proof_invalid"
+    assert denied.value.details["reason"] == (
+        "challenge_stale" if attack == "expired" else "proof_invalid"
+    )
+
+
+def test_concurrent_device_logout_requires_a_fresh_signed_challenge(service, management_key):
+    owner_key, owner_id = claim(service, management_key)
+    manager = admin(service, management_key)
+    guest_key, guest_id = enroll(service, manager)
+    guest, _ = login(service, guest_key, guest_id)
+    challenge = service.create_challenge(client_id=owner_id)
+    service.logout(guest)
+    with pytest.raises(InhereBoxError) as stale:
+        service.create_session(sign(owner_key, challenge))
+    assert stale.value.status == 409
+    assert stale.value.details["reason"] == "challenge_stale"
+    with pytest.raises(InhereBoxError) as forged:
+        service.create_session(sign(guest_key, challenge))
+    assert forged.value.details["reason"] == "proof_invalid"
+    assert login(service, owner_key, owner_id)[0].paired_client_id == owner_id
 
 
 def test_challenge_and_primary_claim_have_one_concurrent_winner(service, management_key):
@@ -774,7 +793,7 @@ def test_migration_062_preserves_old_rows_and_dialect_parity(tmp_path, monkeypat
         run_migrations(db)
         with db.connect() as conn:
             assert dict(conn.execute("SELECT * FROM users").fetchone()) == before
-            assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 64
+            assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 66
             assert conn.execute("SELECT auth_model_version FROM box_account").fetchone()[0] == 1
             assert (
                 conn.execute("SELECT role,guest_user_id FROM box_paired_clients").fetchone()["role"]
@@ -808,7 +827,7 @@ def test_management_migration_replay_preserves_live_authorization(service, manag
     with service._services.db.connect() as conn:
         assert service._repo.account(conn) == account
         assert service._repo.clients(conn) == clients
-        assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 64
+        assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 66
     assert service._trust.read() == trust
     assert service.validate_context(manager) == manager
     assert service.validate_access_token(token) == client

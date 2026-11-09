@@ -94,6 +94,8 @@ _GUEST_PATTERNS = (
     (frozenset({"GET"}), r"/api/projects/[A-Za-z0-9_-]+/tasks/sync"),
     (frozenset({"GET", "PATCH", "DELETE"}), r"/api/project-tasks/[A-Za-z0-9_-]+"),
     (frozenset({"GET"}), r"/api/project-tasks/[A-Za-z0-9_-]+/(?:context-usage|events)"),
+    (frozenset({"GET"}), r"/api/project-tasks/requests/[A-Za-z0-9_-]+"),
+    (frozenset({"GET"}), r"/api/project-tasks/[A-Za-z0-9_-]+/requests/[A-Za-z0-9_-]+"),
     (frozenset({"GET"}), r"/api/project-tasks/attachments/[A-Za-z0-9_-]+"),
     (frozenset({"GET"}), r"/api/project-tasks/[A-Za-z0-9_-]+/artifacts/[A-Za-z0-9_-]+/download"),
     (
@@ -117,9 +119,11 @@ _GUEST_RESERVED = {
 _GUEST_COMMANDS = frozenset(
     {
         "ping",
+        "session.replace",
         "client.attach",
         "tool.get",
         "tool.claim",
+        "tool.start",
         "tool.result",
         "tool.review",
         "task.create",

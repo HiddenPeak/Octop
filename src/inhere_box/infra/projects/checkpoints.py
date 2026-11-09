@@ -147,8 +147,8 @@ async def prepare_wait(
                 # inputs sent to clients/questions lose host-owned metadata.
                 arguments = strip_step_metadata(match, tool)["args"]
                 if action["name"] in definitions:
-                    client_call = await asyncio.to_thread(
-                        broker._create, definitions[action["name"]], arguments, call_id
+                    client_call = await broker.create_call(
+                        definitions[action["name"]], arguments, call_id
                     )
                     call_ids.append(client_call)
                     entries.append({"type": "client", "call_id": client_call})

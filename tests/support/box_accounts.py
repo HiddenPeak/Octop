@@ -114,13 +114,17 @@ async def _admin_login(client: httpx.AsyncClient, server: InhereBoxServer) -> di
 
 
 async def _primary_candidate(
-    client: httpx.AsyncClient, management_key: str, key: ec.EllipticCurvePrivateKey
+    client: httpx.AsyncClient,
+    management_key: str,
+    key: ec.EllipticCurvePrivateKey,
+    *,
+    request_id: str = "primary-one",
 ) -> dict[str, Any]:
     response = await client.post(
-        "/api/box/primary-claims",
+        "/api/box/owner-claims",
         json={
             "management_key": management_key,
-            "request_id": "primary-one",
+            "request_id": request_id,
             "public_key_jwk": _jwk(key),
             "name": "Phone",
             "platform": "test",
@@ -137,11 +141,11 @@ async def _primary_candidate(
 
 
 async def _claim(
-    client: httpx.AsyncClient, server: InhereBoxServer
+    client: httpx.AsyncClient, server: InhereBoxServer, *, request_id: str = "primary-one"
 ) -> tuple[ec.EllipticCurvePrivateKey, str, dict[str, str]]:
     management_key = await _management_key(server)
     key = ec.generate_private_key(ec.SECP256R1())
-    pairing = await _primary_candidate(client, management_key, key)
+    pairing = await _primary_candidate(client, management_key, key, request_id=request_id)
     client_id = pairing["client_id"]
     auth, _session = await _login(client, key, client_id)
     return key, client_id, auth

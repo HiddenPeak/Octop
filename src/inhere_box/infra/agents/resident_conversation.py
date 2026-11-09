@@ -112,14 +112,13 @@ class ResidentCapabilities(ResidentModel):
     identity_initialization: Literal["server_managed"] = "server_managed"
     assistant_role: Literal["life_work_steward"] = "life_work_steward"
     professional_work: Literal["delegated_tasks"] = "delegated_tasks"
-    conversation_transport: Literal["rest_polling"] = "rest_polling"
     conversation_stream: ResidentConversationStream = Field(
         default_factory=ResidentConversationStream,
-        description="Preferred live observation. REST snapshots and command receipts remain available; this declaration does not mean a client has subscribed.",
+        description="Resident body observation on the shared WebSocket. REST commands and targeted reads remain available.",
     )
     conversation_cursor_sync: Literal[True] = Field(
         default=True,
-        description="Resident WebSocket subscriptions can opt into resumable timeline snapshots and updates.",
+        description="Resident WebSocket subscriptions use resumable timeline snapshots and updates.",
     )
     message_types: list[Literal["text", "image", "file"]] = ["text", "image", "file"]
     web_search: bool = Field(

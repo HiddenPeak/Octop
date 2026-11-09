@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -71,7 +72,11 @@ async def _second_client(client, first_key, first_id, first_auth):
 
 
 async def _ready(socket: BoxSocket) -> None:
-    assert await socket.receive_json(timeout=3) == {"type": "ready", "protocol_version": 3}
+    assert await socket.receive_json(timeout=3) == {
+        "type": "ready",
+        "protocol_version": 3,
+        "session_replace": True,
+    }
 
 
 async def _command(socket: BoxSocket, kind: str, key: str, **fields: Any) -> dict[str, Any]:
@@ -117,6 +122,44 @@ async def test_box_ws_requires_header_and_rejects_legacy_or_query_tokens(connect
         assert result["type"] == "result"
 
 
+async def test_native_socket_replaces_only_the_same_devices_session(connected_box) -> None:
+    client, server, key, client_id, original = connected_box
+    _, _, other = await _second_client(client, key, client_id, original)
+    renewed, receipt = await _login(client, key, client_id)
+    assert receipt["account"] == (await client.get("/api/box/account", headers=renewed)).json()
+    assert server.box_account_service is not None and server.services is not None
+    old = server.box_account_service.validate_access_token(
+        original["Authorization"].split(" ", 1)[1]
+    )
+
+    async with _connect(client, original) as socket:
+        await _ready(socket)
+        denied = await _command(
+            socket,
+            "session.replace",
+            "cross-device",
+            access_token=other["Authorization"].split(" ", 1)[1],
+        )
+        assert denied["type"] == "error" and denied["status"] == 403
+        assert (
+            await _command(
+                socket, "session.replace", "same-device", access_token=receipt["access_token"]
+            )
+        )["type"] == "result"
+        with server.services.db.transaction() as conn:
+            server.services.box_account_repo.revoke_session(conn, old.session_id, int(time.time()))
+        # Domain authorization and the middleware's continuous check must
+        # both use the replacement, on the existing connection.
+        assert (await _command(socket, "client.attach", "after-rotation", client_id=client_id))[
+            "type"
+        ] == "result"
+        with server.services.db.transaction() as conn:
+            server.services.box_account_repo.revoke_session(
+                conn, receipt["session_id"], int(time.time())
+            )
+        await _closed(socket)
+
+
 async def test_revoke_closes_existing_client_socket_and_preserves_other_client(
     connected_box,
 ) -> None:
@@ -134,13 +177,17 @@ async def test_revoke_closes_existing_client_socket_and_preserves_other_client(
         assert own["type"] == "result"
         other = await _command(second, "client.attach", "other", client_id=second_id)
         assert other["type"] == "result"
-        admin = await _admin_login(client, server)
-        revoked = await client.post(f"/api/box/clients/{first_id}/revoke", headers=admin, json={})
+        proof = await _action(
+            client, first_key, first_id, "revoke", {"target_client_id": second_id}
+        )
+        revoked = await client.post(
+            f"/api/box/clients/{second_id}/revoke", headers=first_auth, json={"proof": proof}
+        )
         assert revoked.status_code == 204, revoked.text
         # Do not send more frames: idle transports must be actively closed too.
-        await _closed(first)
-        assert (await _command(second, "ping", "still-live"))["type"] == "result"
-        assert (await client.get("/api/box/account", headers=second_auth)).status_code == 200
+        await _closed(second)
+        assert (await _command(first, "ping", "still-live"))["type"] == "result"
+        assert (await client.get("/api/box/account", headers=first_auth)).status_code == 200
 
 
 async def test_logout_closes_every_socket_for_sid_but_preserves_another_session(

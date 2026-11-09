@@ -582,6 +582,7 @@
     "TASK_CLIENT_TOOL_TIMEOUT": "Timed out waiting for the client tool result.",
     "TASK_CLIENT_TOOL_ARGUMENTS_INVALID": "Client tool arguments do not match the declared schema.",
     "TASK_FRAME_INVALID": "The task connection message is invalid or exceeds the subscription limit.",
+    "TASK_REQUEST_NOT_ACCEPTED": "The task request has not been accepted.",
     "TASK_REQUEST_CONFLICT": "This request ID was used for a different message, execution options, or retry source. Check the original request before retrying.",
     "TASK_MODEL_UNAVAILABLE": "The selected or default chat model is unavailable. Check model settings or choose another model.",
     "TASK_REASONING_INVALID": "The selected reasoning mode or effort is not supported by this model. Adjust the settings for this turn.",

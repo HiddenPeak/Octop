@@ -2372,7 +2372,7 @@ def run_migrations(db: DatabasePool) -> None:
         # only after those tables exist, including on a fresh installation.
         if (
             28 <= version <= 53
-            or version in {56, 58, 59, 60, 64}
+            or version in {56, 58, 59, 60, 64, 65, 66}
             or version <= _current_version(db)
         ):
             continue
@@ -2473,3 +2473,17 @@ def run_migrations(db: DatabasePool) -> None:
         with db.transaction() as conn:
             for statement in _split_pg_sql(timeline.read_text(encoding="utf-8")):
                 conn.execute(statement)
+
+    if any(version == 65 for version, _path in migrations):
+        _ensure_column(db, "project_task_tool_calls", "execution_expires_at", "BIGINT")
+        with db.transaction() as conn:
+            conn.execute("UPDATE _schema_version SET version = 65 WHERE version < 65")
+
+    deleted_requests = next((path for version, path in migrations if version == 66), None)
+    if deleted_requests is not None and (
+        _current_version(db) < 66 or not _table_exists(db, "project_task_deleted_requests")
+    ):
+        with db.transaction() as conn:
+            for statement in _split_pg_sql(deleted_requests.read_text(encoding="utf-8")):
+                conn.execute(statement)
+            conn.execute("UPDATE _schema_version SET version = 66 WHERE version < 66")

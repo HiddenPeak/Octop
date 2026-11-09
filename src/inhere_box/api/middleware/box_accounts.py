@@ -19,14 +19,13 @@ from inhere_box.api.common.box_auth import (
     require_box_route,
     require_browser_origin,
 )
-from inhere_box.infra.auth.box_context import box_request_auth
+from inhere_box.infra.auth.box_context import BoxRequestAuthorization, box_request_auth
 from inhere_box.infra.errors import ErrorCode, InhereBoxError
 
 _RECHECK_SECONDS = 1.0
 _PUBLIC = {
     ("GET", "/api/box/status"),
     ("POST", "/api/box/pairings"),
-    ("POST", "/api/box/primary-claims"),
     ("POST", "/api/box/owner-claims"),
     ("POST", "/api/auth/challenges"),
     ("POST", "/api/auth/sessions"),
@@ -138,9 +137,10 @@ class BoxAccountMiddleware:
         state["box_auth_context"] = context
         state["box_auth_transport"] = "cookie" if using_cookie else "bearer"
         state["inhere_box_user"] = context.user
-        binding = box_request_auth.set((service, context))
+        authorization_context = BoxRequestAuthorization(service, context)
+        binding = box_request_auth.set(authorization_context)
         try:
-            await self._authenticated(scope, receive, send, service, raw)
+            await self._authenticated(scope, receive, send, authorization_context, raw)
         finally:
             box_request_auth.reset(binding)
 
@@ -163,25 +163,63 @@ class BoxAccountMiddleware:
             await response(scope, receive, send)
 
     async def _authenticated(
-        self, scope: Scope, receive: Receive, send: Send, service: Any, token: str
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+        authorization: BoxRequestAuthorization,
+        token: str,
     ) -> None:
+        service = authorization.service
         lost = asyncio.Event()
         failure: InhereBoxError | None = None
         started, complete = False, False
         send_lock = asyncio.Lock()
 
+        auth_lock = asyncio.Lock()
+
         async def check() -> bool:
             nonlocal failure
-            try:
-                current = await asyncio.to_thread(service.validate_access_token, token)
-                require_box_route(current.role, scope.get("method", "WEBSOCKET"), scope["path"])
-                scope["state"]["box_auth_context"] = current
-                scope["state"]["inhere_box_user"] = current.user
-                return True
-            except InhereBoxError as exc:
-                failure = exc
-                lost.set()
-                return False
+            async with auth_lock:
+                if lost.is_set():
+                    return False
+                try:
+                    current = await asyncio.to_thread(service.validate_access_token, token)
+                    require_box_route(current.role, scope.get("method", "WEBSOCKET"), scope["path"])
+                    scope["state"]["box_auth_context"] = current
+                    scope["state"]["inhere_box_user"] = current.user
+                    return True
+                except InhereBoxError as exc:
+                    failure = exc
+                    lost.set()
+                    return False
+
+        async def replace_token(replacement: str) -> None:
+            nonlocal token
+            async with auth_lock:
+                if lost.is_set():
+                    raise InhereBoxError.localized(ErrorCode.AUTH_FAILED)
+                previous = await asyncio.to_thread(service.validate_access_token, token)
+                candidate = await asyncio.to_thread(service.validate_access_token, replacement)
+                if (
+                    candidate.session_kind != "client"
+                    or candidate.user.id != previous.user.id
+                    or candidate.paired_client_id != previous.paired_client_id
+                    or candidate.role != previous.role
+                ):
+                    raise InhereBoxError.localized(ErrorCode.FORBIDDEN)
+                require_box_route(candidate.role, "WEBSOCKET", scope["path"])
+                token = replacement
+                authorization.context = candidate
+                scope["state"]["box_auth_context"] = candidate
+                scope["state"]["inhere_box_user"] = candidate.user
+
+        if (
+            scope["type"] == "websocket"
+            and scope["path"] == "/api/project-tasks/ws"
+            and authorization.context.session_kind == "client"
+        ):
+            scope["state"]["replace_box_session"] = replace_token
 
         async def guarded_receive() -> Message:
             message = await receive()

@@ -19,7 +19,7 @@ export interface ResidentCapabilities {
   identity_initialization: "server_managed";
   assistant_role: "life_work_steward";
   professional_work: "delegated_tasks";
-  conversation_transport: "rest_polling";
+  conversation_cursor_sync: true;
   conversation_stream: {
     transport: "websocket";
     path: "/api/project-tasks/ws";
@@ -133,6 +133,15 @@ export interface ResidentHistoryPage extends ResidentScope {
   history_revision: number;
   items: ResidentHistoryItem[];
   next_cursor: string | null;
+}
+export interface ResidentTimeline extends ResidentScope {
+  revision: number;
+  cursor: string;
+  active_turn_id: string | null;
+  settings: ResidentConversationSettings;
+  inbox: ResidentInbox;
+  items: ResidentHistoryItem[];
+  next_cursor?: string | null;
 }
 export interface ResidentHistoryDays extends ResidentScope {
   history_revision: number;

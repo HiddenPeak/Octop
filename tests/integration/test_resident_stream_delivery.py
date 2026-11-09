@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
+from threading import Event
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -81,39 +82,18 @@ async def send(env, prompt):
     return response.json(), queue
 
 
-async def subscribe(ws, binding, key):
-    await ws.send_json(
-        {
-            "type": "resident.subscribe",
-            "id": key,
-            "agent_id": binding["agent_id"],
-            "thread_id": binding["thread_id"],
-        }
-    )
-    first = await until(
-        ws,
-        lambda frame: (
-            frame["type"] == "resident.snapshot"
-            and frame["data"]["thread_id"] == binding["thread_id"]
-        ),
-    )
-    # Consuming the snapshot first also verifies that result is not sent ahead of it.
-    assert await until(ws, lambda frame: frame.get("id") == key) == {
-        "type": "result",
-        "id": key,
-        "data": None,
-    }
-    return first["data"]
+def timeline_turns(timeline):
+    return [item["turn"] for item in timeline["items"] if item["kind"] == "turn"]
 
 
-async def next_snapshot(ws, binding, turn_id, *, reply, status="running"):
+async def next_timeline(ws, binding, turn_id, *, reply, status="running"):
     def matches(frame):
         return (
-            frame["type"] == "resident.snapshot"
+            frame["type"] == "resident.timeline.update"
             and frame["data"]["thread_id"] == binding["thread_id"]
             and any(
                 turn["turn_id"] == turn_id and turn["reply"] == reply and turn["status"] == status
-                for turn in frame["data"]["turns"]
+                for turn in timeline_turns(frame["data"])
             )
         )
 
@@ -134,7 +114,8 @@ async def subscribe_timeline(ws, binding, key, cursor=None):
     kind = "resident.timeline.snapshot" if cursor is None else "resident.timeline.update"
     event = await until(ws, lambda frame: frame.get("type") == kind or frame.get("id") == key)
     assert event["type"] == kind, event
-    assert await ws.receive_json() == {"type": "result", "id": key, "data": None}
+    acknowledgment = await until(ws, lambda frame: frame.get("id") == key)
+    assert acknowledgment == {"type": "result", "id": key, "data": None}
     return event["data"]
 
 
@@ -154,7 +135,8 @@ async def test_resident_stream_publishes_committed_batches_and_terminal_without_
     env = resident_delivery
     capability = await env.client.get("/api/agents/resident-capabilities", headers=env.auth)
     assert capability.status_code == 200, capability.text
-    assert capability.json()["conversation_transport"] == "rest_polling"
+    assert "conversation_transport" not in capability.json()
+    assert capability.json()["conversation_cursor_sync"] is True
     assert capability.json()["conversation_stream"] == {
         "transport": "websocket",
         "path": "/api/project-tasks/ws",
@@ -162,18 +144,18 @@ async def test_resident_stream_publishes_committed_batches_and_terminal_without_
     }
     session, ws = await connected(env.client, env.auth)
     try:
-        initial = await subscribe(ws, env.binding, "resident-first")
-        assert initial["turns"] == [] and initial["active_turn_id"] is None
+        initial = await subscribe_timeline(ws, env.binding, "resident-first")
+        assert timeline_turns(initial) == [] and initial["active_turn_id"] is None
         assert len(env.invocations) == 0
-        await subscribe(ws, env.binding, "resident-replace")
+        await subscribe_timeline(ws, env.binding, "resident-replace")
         assert env.watches[env.binding["thread_id"]] == 1
         accepted, queue = await send(env, "Stream a durable resident answer.")
         reply, revisions, turn_revisions = "", [initial["revision"]], [accepted["revision"]]
         for text in ("首段", "，第二段", "，第三段。"):
             queue.put_nowait({"type": "token", "content": text})
             reply += text
-            snapshot = await next_snapshot(ws, env.binding, accepted["turn_id"], reply=reply)
-            current = snapshot["turns"][-1]
+            snapshot = await next_timeline(ws, env.binding, accepted["turn_id"], reply=reply)
+            current = timeline_turns(snapshot)[-1]
             assert snapshot["active_turn_id"] == accepted["turn_id"]
             rest = await receipt(env, accepted["request_id"], reply)
             assert rest == current
@@ -188,18 +170,18 @@ async def test_resident_stream_publishes_committed_batches_and_terminal_without_
             revisions.append(snapshot["revision"])
             turn_revisions.append(current["revision"])
         queue.put_nowait(None)
-        final = await next_snapshot(
+        final = await next_timeline(
             ws, env.binding, accepted["turn_id"], reply=reply, status="completed"
         )
         assert final["active_turn_id"] is None
-        assert final["turns"][-1]["revision"] > turn_revisions[-1]
+        assert timeline_turns(final)[-1]["revision"] > turn_revisions[-1]
         assert final["revision"] > revisions[-1]
         assert all(b > a for a, b in zip(revisions, revisions[1:], strict=False))
         assert all(b > a for a, b in zip(turn_revisions, turn_revisions[1:], strict=False))
         assert len(env.invocations) == 1
         assert (
             await _turn(env.client, env.auth, env.base, accepted["request_id"], "completed")
-        ) == final["turns"][-1]
+        ) == timeline_turns(final)[-1]
         await command(
             ws,
             "resident.unsubscribe",
@@ -226,7 +208,7 @@ async def test_one_socket_keeps_task_and_resident_updates_independent(
     patch_task_stream(monkeypatch, task_stream)
     session, ws = await connected(env.client, env.auth)
     try:
-        await subscribe(ws, env.binding, "shared-resident")
+        await subscribe_timeline(ws, env.binding, "shared-resident")
         created = await env.client.post(
             "/api/project-tasks",
             headers=env.auth,
@@ -241,7 +223,7 @@ async def test_one_socket_keeps_task_and_resident_updates_independent(
         await command(ws, "task.subscribe", "shared-task", task_id=task_id)
         accepted, queue = await send(env, "Independent resident output.")
         queue.put_nowait({"type": "token", "content": "Resident body"})
-        resident = await next_snapshot(ws, env.binding, accepted["turn_id"], reply="Resident body")
+        resident = await next_timeline(ws, env.binding, accepted["turn_id"], reply="Resident body")
         assert resident["agent_id"] == env.binding["agent_id"]
         task_queue.put_nowait({"type": "token", "content": "Task body"})
         turn = await until(
@@ -255,11 +237,11 @@ async def test_one_socket_keeps_task_and_resident_updates_independent(
         assert turn["data"]["turn"]["status"] == "running"
         await command(ws, "task.unsubscribe", "stop-shared-task", task_id=task_id)
         queue.put_nowait({"type": "token", "content": " keeps streaming"})
-        await next_snapshot(
+        await next_timeline(
             ws, env.binding, accepted["turn_id"], reply="Resident body keeps streaming"
         )
         queue.put_nowait(None)
-        await next_snapshot(
+        await next_timeline(
             ws,
             env.binding,
             accepted["turn_id"],
@@ -277,9 +259,9 @@ async def test_disconnect_keeps_execution_and_reconnect_sends_latest_snapshot(re
     session, ws = await connected(env.client, env.auth)
     accepted, queue = await send(env, "Continue through disconnect.")
     try:
-        await subscribe(ws, env.binding, "before-disconnect")
+        await subscribe_timeline(ws, env.binding, "before-disconnect")
         queue.put_nowait({"type": "token", "content": "Saved first"})
-        first = await next_snapshot(ws, env.binding, accepted["turn_id"], reply="Saved first")
+        first = await next_timeline(ws, env.binding, accepted["turn_id"], reply="Saved first")
     finally:
         await session.__aexit__(None, None, None)
     assert not any(env.watches.values()) and not env.cancelled
@@ -287,13 +269,13 @@ async def test_disconnect_keeps_execution_and_reconnect_sends_latest_snapshot(re
     await receipt(env, accepted["request_id"], "Saved first and second")
     resumed_session, resumed_ws = await connected(env.client, env.auth)
     try:
-        resumed = await subscribe(resumed_ws, env.binding, "after-disconnect")
-        assert resumed["turns"][-1]["reply"] == "Saved first and second"
-        assert resumed["turns"][-1]["status"] == "running"
+        resumed = await subscribe_timeline(resumed_ws, env.binding, "after-disconnect")
+        assert timeline_turns(resumed)[-1]["reply"] == "Saved first and second"
+        assert timeline_turns(resumed)[-1]["status"] == "running"
         assert resumed["revision"] > first["revision"]
         assert len(env.invocations) == 1 and not env.cancelled
         queue.put_nowait(None)
-        await next_snapshot(
+        await next_timeline(
             resumed_ws,
             env.binding,
             accepted["turn_id"],
@@ -344,6 +326,7 @@ async def test_timeline_cursor_resends_only_latest_changed_turn_and_resets_bad_c
                     {
                         "type": "resident.subscribe",
                         "id": "timeline-check",
+                        "timeline": True,
                         "agent_id": env.binding["agent_id"],
                         "thread_id": env.binding["thread_id"],
                         "cursor": cursor,
@@ -376,18 +359,20 @@ async def test_resident_subscription_checks_owner_without_dropping_valid_subscri
             ws,
             "resident.subscribe",
             "foreign-resident",
+            timeline=True,
             agent_id=env.binding["agent_id"],
             thread_id=env.binding["thread_id"],
         )
         assert denied["type"] == "error" and denied["status"] == 404
         assert denied["error"]["code"] == "NOT_FOUND"
         assert not any(env.watches.values())
-        owned = await subscribe(ws, foreign, "own-resident")
-        assert owned["agent_id"] == foreign["agent_id"] and owned["turns"] == []
+        owned = await subscribe_timeline(ws, foreign, "own-resident")
+        assert owned["agent_id"] == foreign["agent_id"] and timeline_turns(owned) == []
         denied = await command(
             ws,
             "resident.subscribe",
             "mismatched-resident",
+            timeline=True,
             agent_id=foreign["agent_id"],
             thread_id=env.binding["thread_id"],
         )
@@ -412,7 +397,7 @@ async def test_resident_subscription_error_is_scoped_and_task_keeps_streaming(
     patch_task_stream(monkeypatch, task_stream)
     session, ws = await connected(env.client, env.auth)
     try:
-        await subscribe(ws, env.binding, "resident-before-revocation")
+        await subscribe_timeline(ws, env.binding, "resident-before-revocation")
         created = await env.client.post(
             "/api/project-tasks",
             headers=env.auth,
@@ -456,27 +441,32 @@ async def test_resident_subscription_error_is_scoped_and_task_keeps_streaming(
     assert not any(env.watches.values())
 
 
-async def test_notification_during_resident_snapshot_read_wakes_another_read(
+async def test_notification_during_resident_timeline_read_wakes_another_read(
     resident_delivery, monkeypatch
 ):
     env = resident_delivery
     session, ws = await connected(env.client, env.auth)
-    read_started, release_read = asyncio.Event(), asyncio.Event()
-    original_snapshot = env.resident.snapshot
+    loop = asyncio.get_running_loop()
+    read_started, release_read = asyncio.Event(), Event()
+    original_sync = project_tasks_ws.timeline_sync
     intercept = False
 
-    async def snapshot(*args, **kwargs):
+    def sync(*args, **kwargs):
         nonlocal intercept
-        saved = await original_snapshot(*args, **kwargs)
-        if intercept and saved.turns and saved.turns[-1].reply == "First":
+        saved = original_sync(*args, **kwargs)
+        if (
+            intercept
+            and saved
+            and any(item.turn and item.turn.reply == "First" for item in saved.items)
+        ):
             intercept = False
-            read_started.set()
-            await release_read.wait()
+            loop.call_soon_threadsafe(read_started.set)
+            assert release_read.wait(5)
         return saved
 
-    monkeypatch.setattr(env.resident, "snapshot", snapshot)
+    monkeypatch.setattr(project_tasks_ws, "timeline_sync", sync)
     try:
-        await subscribe(ws, env.binding, "race-resident")
+        await subscribe_timeline(ws, env.binding, "race-resident")
         accepted, queue = await send(env, "Do not lose a later commit.")
         await _turn(env.client, env.auth, env.base, accepted["request_id"], "running")
         intercept = True
@@ -485,8 +475,8 @@ async def test_notification_during_resident_snapshot_read_wakes_another_read(
         queue.put_nowait({"type": "token", "content": " second"})
         await receipt(env, accepted["request_id"], "First second")
         release_read.set()
-        await next_snapshot(ws, env.binding, accepted["turn_id"], reply="First")
-        await next_snapshot(ws, env.binding, accepted["turn_id"], reply="First second")
+        await next_timeline(ws, env.binding, accepted["turn_id"], reply="First")
+        await next_timeline(ws, env.binding, accepted["turn_id"], reply="First second")
     finally:
         release_read.set()
         await session.__aexit__(None, None, None)
@@ -499,26 +489,26 @@ async def test_fallback_delivers_resident_commit_without_a_local_notice(
     monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 0.02)
     accepted, queue = await send(env, "Durable output with local notices suppressed.")
     await _turn(env.client, env.auth, env.base, accepted["request_id"], "running")
-    original_snapshot = env.resident.snapshot
+    original_sync = project_tasks_ws.timeline_sync
     reads = 0
     suppressed = Counter()
 
     def suppress_notice(thread_id):
         suppressed[thread_id] += 1
 
-    async def snapshot(*args, **kwargs):
+    def sync(*args, **kwargs):
         nonlocal reads
-        result = await original_snapshot(*args, **kwargs)
+        result = original_sync(*args, **kwargs)
         reads += 1
         return result
 
-    monkeypatch.setattr(env.resident, "snapshot", snapshot)
+    monkeypatch.setattr(project_tasks_ws, "timeline_sync", sync)
     # Disable notices before subscribing, leaving only the initial watch-install
     # read and periodic fallback. Native Task output remains authoritative.
     monkeypatch.setattr(env.resident._updates, "notify", suppress_notice)
     session, ws = await connected(env.client, env.auth)
     try:
-        await subscribe(ws, env.binding, "polling-resident")
+        await subscribe_timeline(ws, env.binding, "polling-resident")
         # Drain the extra read queued when installing the watch. Only the periodic
         # fallback may discover the subsequent write without a local notification.
         async with asyncio.timeout(5):
@@ -528,9 +518,9 @@ async def test_fallback_delivers_resident_commit_without_a_local_notice(
         # the receipt would race its next mirror of the native Task's old reply.
         queue.put_nowait({"type": "token", "content": "Fallback body"})
         await receipt(env, accepted["request_id"], "Fallback body")
-        live = await next_snapshot(ws, env.binding, accepted["turn_id"], reply="Fallback body")
+        live = await next_timeline(ws, env.binding, accepted["turn_id"], reply="Fallback body")
         queue.put_nowait(None)
-        final = await next_snapshot(
+        final = await next_timeline(
             ws, env.binding, accepted["turn_id"], reply="Fallback body", status="completed"
         )
         assert final["revision"] > live["revision"]
@@ -539,3 +529,22 @@ async def test_fallback_delivers_resident_commit_without_a_local_notice(
     finally:
         await session.__aexit__(None, None, None)
     assert not any(env.watches.values())
+
+
+async def test_resident_subscribe_requires_timeline(resident_delivery):
+    env = resident_delivery
+    session, ws = await connected(env.client, env.auth)
+    try:
+        await ws.send_json(
+            {
+                "type": "resident.subscribe",
+                "id": "legacy-resident-subscribe",
+                "agent_id": env.binding["agent_id"],
+                "thread_id": env.binding["thread_id"],
+            }
+        )
+        rejected = await until(ws, lambda frame: frame["type"] == "error")
+        assert rejected["status"] == 422 and rejected["error"]["code"] == "TASK_FRAME_INVALID"
+        assert (await command(ws, "ping", "still-connected"))["type"] == "result"
+    finally:
+        await session.__aexit__(None, None, None)

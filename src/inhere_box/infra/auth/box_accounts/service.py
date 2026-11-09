@@ -634,6 +634,14 @@ class BoxAccountService:
             raise _error("challenge_parameters_invalid", 400)
         if pairing_id is not None and action != "result":
             raise _error("challenge_parameters_invalid", 400)
+        if action == "revoke":
+            target = params.get("target_client_id")
+            if (
+                set(params) != {"target_client_id"}
+                or not isinstance(target, str)
+                or not 1 <= len(target) <= 128
+            ):
+                raise _error("challenge_parameters_invalid", 400)
         with self._transaction() as conn:
             grant = self._repo.grant(conn, pairing_id) if pairing_id is not None else None
             persist = pairing_id is None or (
@@ -667,17 +675,24 @@ class BoxAccountService:
             payload = json.loads(challenge["payload_json"])
             if (
                 challenge["consumed_at"] is not None
-                or challenge["expires_at"] <= int(time.time())
                 or challenge["action"] != action
                 or challenge["params_json"] != canonical(params)
                 or (client_id is not None and challenge["client_id"] != client_id)
                 or (grant_id is not None and challenge["grant_id"] != grant_id)
-                or payload["auth_revision"] != account["auth_revision"]
                 or payload["boot_id"] != self.boot_id
             ):
                 raise ValueError("challenge mismatch")
             verify_proof(proof, challenge["public_key_json"], payload)
-            if not self._repo.consume_challenge(conn, challenge["challenge_id"], int(time.time())):
+            now = int(time.time())
+            if (
+                challenge["expires_at"] <= now
+                or payload["auth_revision"] != account["auth_revision"]
+            ):
+                # Only a correctly signed, unused proof for these actions gets a retry hint.
+                if action in {"session", "login", "revoke"}:
+                    raise _error("challenge_stale", 409)
+                raise ValueError("challenge stale")
+            if not self._repo.consume_challenge(conn, challenge["challenge_id"], now):
                 raise ValueError("challenge consumed")
             return challenge
         except (ValueError, TypeError, KeyError, jwt.PyJWTError):
@@ -960,7 +975,7 @@ class BoxAccountService:
             now=now,
             expires_at=now + SESSION_TTL,
         )
-        return self._token(
+        result = self._token(
             user=user,
             sid=sid,
             client_id=client["client_id"],
@@ -971,6 +986,8 @@ class BoxAccountService:
             now=now,
             ttl=SESSION_TTL,
         )
+        result["account"] = self._account_view(conn, account, user, client["role"], "client")
+        return result
 
     def _csrf_token(self, session_id: str) -> str:
         message = canonical(["inhere-box-browser-csrf-v1", self.box_id, self.boot_id, session_id])
@@ -1165,26 +1182,26 @@ class BoxAccountService:
             validated = self.validate_context(context, conn)
             account = self._repo.account(conn)
             assert account is not None
-            user = {
-                "id": validated.user.id,
-                "username": validated.user.username,
-                "display_name": validated.user.display_name,
-            }
-            return {
-                "box_id": self.box_id,
-                "user": user,
-                "owner": user if validated.role in {"admin", "primary"} else None,
-                "auth_revision": account["auth_revision"],
-                "recovery_key_confirmed": False,
-                "role": validated.role,
-                "session_kind": validated.session_kind,
-                "primary_client_id": account["primary_client_id"],
-                "owner_client_ids": (
-                    self._repo.owner_client_ids(conn)
-                    if validated.role in {"admin", "primary"}
-                    else []
-                ),
-            }
+            return self._account_view(
+                conn, account, validated.user, validated.role, validated.session_kind
+            )
+
+    def _account_view(
+        self, conn: Any, account: dict[str, Any], user: User, role: str, session_kind: str
+    ) -> dict[str, Any]:
+        identity = {"id": user.id, "username": user.username, "display_name": user.display_name}
+        is_owner = role in {"admin", "primary"}
+        return {
+            "box_id": self.box_id,
+            "user": identity,
+            "owner": identity if is_owner else None,
+            "auth_revision": account["auth_revision"],
+            "recovery_key_confirmed": False,
+            "role": role,
+            "session_kind": session_kind,
+            "primary_client_id": account["primary_client_id"],
+            "owner_client_ids": self._repo.owner_client_ids(conn) if is_owner else [],
+        }
 
     def clients(self, context: BoxAuthContext) -> list[dict[str, Any]]:
         with self._transaction() as conn:
@@ -1219,7 +1236,28 @@ class BoxAccountService:
         self, context: BoxAuthContext, client_id: str, proof: str | None = None
     ) -> dict[str, Any]:
         with self._transaction() as conn:
-            self._require_admin(context, conn)
+            validated = self.validate_context(context, conn)
+            if validated.session_kind == "admin" and validated.role == "admin":
+                actor = "_management"
+            elif (
+                validated.session_kind == "client"
+                and validated.role == "primary"
+                and validated.paired_client_id is not None
+            ):
+                actor = validated.paired_client_id
+                if actor == client_id:
+                    raise _error("self_revocation_forbidden", 403)
+                if proof is None:
+                    raise _error("proof_required", 403)
+                self._proof(
+                    conn,
+                    proof,
+                    action="revoke",
+                    params={"target_client_id": client_id},
+                    client_id=actor,
+                )
+            else:
+                raise _error("management_required", 403)
             client = self._repo.client(conn, client_id)
             account = self._repo.account(conn)
             assert account is not None
@@ -1232,7 +1270,7 @@ class BoxAccountService:
                 remaining = self._repo.owner_client_ids(conn)
                 self._repo.set_primary(conn, remaining[0] if remaining else None)
             self._services.audit_repo.write_in_transaction(
-                conn, actor="_management", action="box.client.revoke", target=client_id
+                conn, actor=actor, action="box.client.revoke", target=client_id
             )
             self._stage_trust(conn)
             return {"client_id": client_id, "state": "revoked"}

@@ -148,6 +148,8 @@ PATCH /api/project-tasks/task_example
 
 这里 `expected_revision` 取 Task 的 `list_revision`。省略 selected_expert_id 为保持不变，明确 null 才是切回通用助手；Swift 编码器需要能表达“省略/显式 null/有值”三态。`pinned`、`title`、`archived` 等编辑也走同一 PATCH；这些字段及 action_mode/web_search_enabled 显式 null 返回 422，不能照搬专家字段的清空语义。
 
+新盒子在任务摘要返回 `title_revision`。只改标题时可传 `expected_title_revision`，只改搜索开关时可传修改前的 `expected_web_search_enabled`。两项一起修改时须分别提供前置条件。服务端事务内核对这些字段，允许无关的摘要版本变化，字段不匹配返回 `409 TASK_REVISION_CONFLICT`。其他写入及不传字段前置条件的旧请求沿用 `expected_revision`。历史增量记录可能缺少 `title_revision`，客户端可先读取当前详情。
+
 专家/行动模式只可在服务端空闲时更换。APP 有未确认提交、待发送队列或活动/等待审批轮次时禁用切换；提交前服务端仍会校验。409 `TASK_REVISION_CONFLICT`、`PROJECT_REVISION_CONFLICT` 或 `TASK_BUSY` 应刷新后让用户确认原草稿，不能刷新版本后自动沿用旧意图重发。网络重传必须保留原 request_id、原始选项及原版本；修改内容应形成新的明确发送意图。
 
 ### 4.4 分支、编辑、重新生成
@@ -204,7 +206,7 @@ PATCH /api/project-tasks/task_example
 
 创建后不会自动订阅。明确进入已有详情时发送 `task.open`，用返回 `event_cursor` 发 `task.subscribe`。重连仅重新认证、恢复订阅；不用 task.open 代替恢复，更不能因为断线重发消息。socket 命令 id 只关联本次回执，重传时可换；持久 request_id 保持原值。
 
-单个 receiver 处理 `result/error/snapshot/turn/session/heartbeat/approval.policy`，声明客户端工具后还接收 `tool.call`，本机 Resident 观察另接收 `resident.snapshot`。全局 approval.policy 无需订阅就可能推送；任何异步事件都可能与命令回执交错。`snapshot.data` 是 TaskDetail；`turn.data` 是 `{task,turn,cursor}`。正文为累计状态，不能逐帧追加。内容块、计划、交互按各自版本替换完整数组，摘要按 list_revision；应用事件后再保存 cursor。历史分页不推进实时游标。
+单个 receiver 处理 `result/error/snapshot/turn/session/heartbeat/approval.policy`，声明客户端工具后还接收 `tool.call`，本机 Resident 观察另接收 `resident.timeline.snapshot` 和 `resident.timeline.update`。全局 approval.policy 无需订阅就可能推送；任何异步事件都可能与命令回执交错。`snapshot.data` 是 TaskDetail；`turn.data` 是 `{task,turn,cursor}`。正文为累计状态，不能逐帧追加。内容块、计划、交互按各自版本替换完整数组，摘要按 list_revision；应用事件后再保存 cursor。历史分页不推进实时游标。
 
 订阅成功的 `result.data=null`，不能把它当成详情。遇到 `PROJECT_SYNC_RESET`，只清理对应 Task 的实时 cursor，重新发送不带 cursor 的 task.subscribe 取得 snapshot；不清其他订阅，不重发消息，也不因恢复观察触发 task.open。
 

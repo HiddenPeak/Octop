@@ -368,8 +368,10 @@ async def test_test_file_narration_receives_completed_ui_phase_and_prior_actual_
     )
     task = await create(env_with_provider)
     try:
-        await asyncio.wait_for(gates[4][0].wait(), 3)
-        await asyncio.wait_for(received.wait(), 3)
+        # The real Harness runs the plan and both writes before narration is ready.
+        async with asyncio.timeout(10):
+            await gates[4][0].wait()
+            await received.wait()
         actual = await visible(
             env_with_provider,
             task["task_id"],

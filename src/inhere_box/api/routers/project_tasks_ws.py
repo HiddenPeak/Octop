@@ -37,6 +37,7 @@ from inhere_box.infra.projects import (
 )
 from inhere_box.infra.projects.approval_models import ApprovalPolicyUpdate
 from inhere_box.infra.projects.client_tool_models import (
+    ClaimToken,
     ClientID,
     ClientToolCall,
     ClientToolClaim,
@@ -50,6 +51,7 @@ from inhere_box.infra.utils.locale import resolve_locale, resolve_request_locale
 router = APIRouter(prefix="/project-tasks")
 _AUTH_CHECK_SECONDS = 10.0
 _UPDATE_SECONDS = 0.5
+_TOOL_RECHECK_SECONDS = 5.0
 _MAX_SUBSCRIPTIONS = 32
 _MAX_FRAME_BYTES = 512 * 1024
 
@@ -128,7 +130,7 @@ class ResidentSubscribeFrame(CommandFrame):
     type: Literal["resident.subscribe"]
     agent_id: Reference
     thread_id: Reference
-    timeline: bool = Field(default=False, description="Opt into resumable timeline events.")
+    timeline: Literal[True] = Field(description="Subscribe to the resumable resident timeline.")
     cursor: Annotated[str, StringConstraints(min_length=1, max_length=4096)] | None = None
 
 
@@ -140,6 +142,11 @@ class ResidentUnsubscribeFrame(CommandFrame):
 
 class PingFrame(CommandFrame):
     type: Literal["ping"]
+
+
+class ReplaceSessionFrame(CommandFrame):
+    type: Literal["session.replace"]
+    access_token: str = Field(min_length=1, max_length=8192, repr=False)
 
 
 class AttachFrame(CommandFrame):
@@ -160,6 +167,11 @@ class ToolGetFrame(ToolIdentityFrame):
 class ToolClaimFrame(ToolIdentityFrame):
     type: Literal["tool.claim"]
     request_id: tasks.RequestID = Field(description="本次领取的稳定标识；恢复领取必须复用。")
+
+
+class ToolStartFrame(ToolIdentityFrame):
+    type: Literal["tool.start"]
+    claim_token: ClaimToken
 
 
 class ToolResultFrame(ToolIdentityFrame):
@@ -186,9 +198,11 @@ ConversationCommand = Annotated[
     | ResidentSubscribeFrame
     | ResidentUnsubscribeFrame
     | PingFrame
+    | ReplaceSessionFrame
     | AttachFrame
     | ToolGetFrame
     | ToolClaimFrame
+    | ToolStartFrame
     | ToolResultFrame
     | ToolReviewFrame,
     Field(discriminator="type"),
@@ -296,11 +310,13 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
     token = extract_raw_token(authorization=websocket.headers.get("authorization"))
     subscriptions: dict[str, str] = {}
     update_watches: dict[str, Callable[[], None]] = {}
-    resident_subscriptions: dict[tuple[str, str], int | str] = {}
+    resident_subscriptions: dict[tuple[str, str], str] = {}
     resident_watches: dict[tuple[str, str], Callable[[], None]] = {}
     pending_updates = PendingUpdates[tuple[str, ...]]()
     client_id: str | None = None
     delivered_calls: dict[str, ClientToolCall] = {}
+    stop_tool_watch: Callable[[], None] | None = None
+    tool_update_key = ("client_tools",)
     pump: asyncio.Task[None] | None = None
 
     def queue_update(task_id: str) -> None:
@@ -367,11 +383,13 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
     async def push_updates() -> None:
         checked = time.monotonic()
         next_poll = checked + _UPDATE_SECONDS
+        next_tools = checked + _TOOL_RECHECK_SECONDS
         delivered_policy = None
         stage = "idle"
         try:
             while True:
-                await pending_updates.wait(max(0, next_poll - time.monotonic()))
+                next_wakeup = min(next_poll, next_tools) if client_id is not None else next_poll
+                await pending_updates.wait(max(0, next_wakeup - time.monotonic()))
                 # Clear before reading: commits during a read must wake the next pass.
                 changed = pending_updates.take()
                 poll = time.monotonic() >= next_poll
@@ -409,19 +427,13 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                                 {"type": "turn", "data": update.model_dump(mode="json")}
                             )
                             subscriptions[task_id] = update.cursor
-                    for scope, baseline in list(resident_subscriptions.items()):
+                    for scope, cursor in list(resident_subscriptions.items()):
                         if not poll and ("resident", *scope) not in changed:
                             continue
                         stage = "resident_subscription_updates"
-                        agent_id, thread_id = scope
                         try:
-                            if isinstance(baseline, str):
-                                resident_subscriptions[scope] = await send_resident_timeline(
-                                    scope, baseline
-                                )
-                                continue
-                            snapshot = await _resident_runtime(server).snapshot(
-                                user.id, agent_id, thread_id, 50, locale
+                            resident_subscriptions[scope] = await send_resident_timeline(
+                                scope, cursor
                             )
                         except InhereBoxError as exc:
                             resident_subscriptions.pop(scope, None)
@@ -430,37 +442,29 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                                 exc,
                                 stage=stage,
                                 scope="subscription",
-                                agent_id=agent_id,
-                                thread_id=thread_id,
+                                agent_id=scope[0],
+                                thread_id=scope[1],
                             )
-                            continue
-                        if snapshot.revision != baseline:
-                            await websocket.send_json(
-                                {
-                                    "type": "resident.snapshot",
-                                    "data": snapshot.model_dump(mode="json"),
-                                }
-                            )
-                            resident_subscriptions[scope] = snapshot.revision
-                    if poll and client_id is not None:
+                    if client_id is not None and (
+                        tool_update_key in changed or time.monotonic() >= next_tools
+                    ):
                         stage = "client_tools"
                         calls = await asyncio.to_thread(
-                            client_tools.open_calls, services, user.id, client_id
+                            client_tools.open_calls,
+                            services,
+                            user.id,
+                            client_id,
+                            tuple(delivered_calls),
                         )
                         current_ids = {call.call_id for call in calls}
-                        for call_id, previous in list(delivered_calls.items()):
+                        for call_id, previous in delivered_calls.items():
                             if call_id not in current_ids:
                                 calls.append(
-                                    await asyncio.to_thread(
-                                        client_tools.get_call,
-                                        services,
-                                        user.id,
-                                        client_id,
-                                        previous.task_id,
-                                        previous.turn_id,
-                                        call_id,
+                                    previous.model_copy(
+                                        update={"status": "interrupted", "dispatch_allowed": False}
                                     )
                                 )
+                        next_tools = time.monotonic() + _TOOL_RECHECK_SECONDS
                         for call in calls:
                             if delivered_calls.get(call.call_id) == call:
                                 continue
@@ -504,7 +508,11 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
         locale = resolve_locale(user_locale=user.locale, explicit=locale)
         diagnostics.record("authentication_succeeded", stage=stage)
         stage = "ready"
-        await websocket.send_json({"type": "ready", "protocol_version": 3})
+        replace_session = getattr(websocket.state, "replace_box_session", None)
+        ready = {"type": "ready", "protocol_version": 3}
+        if replace_session is not None:
+            ready["session_replace"] = True
+        await websocket.send_json(ready)
         diagnostics.record("ready")
         pump = asyncio.create_task(push_updates())
         while True:
@@ -541,12 +549,62 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                     )
                     continue
                 diagnostics.command_count += 1
+                box_context = getattr(websocket.state, "box_auth_context", None)
                 try:
-                    result: Any = None
-                    box_context = getattr(websocket.state, "box_auth_context", None)
                     if box_context is not None:
                         require_box_command(box_context.role, frame.type)
-                    if isinstance(frame, AttachFrame):
+                except InhereBoxError as exc:
+                    await error(
+                        exc, stage=stage, scope="command", command_type=frame.type, id=frame.id
+                    )
+                    continue
+            if isinstance(frame, (CreateFrame, MessageFrame, RetryFrame)):
+                # Admission can await hybrid model classification. Keep the
+                # receive order, but let the push pump use the connection.
+                try:
+                    worker = _task_worker(server)
+                    detail = await task_submission.submit(
+                        services,
+                        user.id,
+                        frame.data,
+                        project_id=frame.data.project_id
+                        if isinstance(frame, CreateFrame)
+                        else None,
+                        task_id=None if isinstance(frame, CreateFrame) else frame.task_id,
+                        retry_of_turn_id=frame.turn_id if isinstance(frame, RetryFrame) else None,
+                    )
+                    worker.wake()
+                except InhereBoxError as exc:
+                    async with lock:
+                        if not closing:
+                            await error(
+                                exc,
+                                stage=stage,
+                                scope="command",
+                                command_type=frame.type,
+                                id=frame.id,
+                            )
+                else:
+                    async with lock:
+                        if not closing:
+                            await websocket.send_json(
+                                {
+                                    "type": "result",
+                                    "id": frame.id,
+                                    "data": detail.model_dump(mode="json"),
+                                }
+                            )
+                continue
+            async with lock:
+                if closing:
+                    return
+                try:
+                    result: Any = None
+                    if isinstance(frame, ReplaceSessionFrame):
+                        if replace_session is None:
+                            raise InhereBoxError.localized(ErrorCode.FORBIDDEN)
+                        await replace_session(frame.access_token)
+                    elif isinstance(frame, AttachFrame):
                         if getattr(server, "box_account_service", None) is not None:
                             from inhere_box.infra.auth.box_context import validate_request
 
@@ -556,6 +614,11 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                         if client_id is not None and frame.client_id != client_id:
                             raise InhereBoxError.localized(ErrorCode.TASK_FRAME_INVALID)
                         client_id = frame.client_id
+                        if stop_tool_watch is None:
+                            stop_tool_watch = services.client_tool_updates.watch(
+                                (user.id, client_id), lambda: pending_updates.add(tool_update_key)
+                            )
+                            pending_updates.add(tool_update_key)
                     elif isinstance(frame, ToolIdentityFrame):
                         if client_id is None:
                             raise InhereBoxError.localized(ErrorCode.TASK_FRAME_INVALID)
@@ -578,12 +641,20 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                             receipt = await asyncio.to_thread(
                                 client_tools.claim_call, *args, frame.request_id
                             )
+                        elif isinstance(frame, ToolStartFrame):
+                            receipt = await asyncio.to_thread(
+                                client_tools.start_execution, *args, frame.claim_token
+                            )
                         elif isinstance(frame, ToolResultFrame):
                             receipt = await asyncio.to_thread(
                                 client_tools.submit_result, *args, frame.data
                             )
+                            if server.project_task_worker is not None:
+                                server.project_task_worker.wake()
                         else:
                             receipt = await asyncio.to_thread(client_tools.get_call, *args)
+                        if not isinstance(frame, ToolGetFrame):
+                            services.client_tool_updates.notify((user.id, client_id))
                         result = receipt.model_dump(mode="json")
                     elif isinstance(frame, OpenFrame):
                         worker = _task_worker(server)
@@ -638,24 +709,12 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                         ):
                             raise InhereBoxError.localized(ErrorCode.TASK_FRAME_INVALID)
                         resident = _resident_runtime(server)
-                        if frame.timeline or frame.cursor is not None:
-                            cursor = frame.cursor
-                            if cursor is None:
-                                cursor = await send_resident_timeline(resident_scope, None)
-                            resident_subscriptions[resident_scope] = await send_resident_timeline(
-                                resident_scope, cursor
-                            )
-                        else:
-                            resident_snapshot = await resident.snapshot(
-                                user.id, frame.agent_id, frame.thread_id, 50, locale
-                            )
-                            await websocket.send_json(
-                                {
-                                    "type": "resident.snapshot",
-                                    "data": resident_snapshot.model_dump(mode="json"),
-                                }
-                            )
-                            resident_subscriptions[resident_scope] = resident_snapshot.revision
+                        cursor = frame.cursor
+                        if cursor is None:
+                            cursor = await send_resident_timeline(resident_scope, None)
+                        resident_subscriptions[resident_scope] = await send_resident_timeline(
+                            resident_scope, cursor
+                        )
                         stop_resident_watch(resident_scope)
                         resident_watches[resident_scope] = resident.watch_updates(
                             frame.thread_id, partial(queue_resident_update, resident_scope)
@@ -705,20 +764,6 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                             tasks.cancel, services, user.id, frame.task_id, frame.data.turn_id
                         )
                         result = detail.model_dump(mode="json")
-                    elif not isinstance(frame, PingFrame):
-                        worker = _task_worker(server)
-                        kwargs: dict[str, Any] = {}
-                        if isinstance(frame, CreateFrame):
-                            kwargs["project_id"] = frame.data.project_id
-                        else:
-                            kwargs["task_id"] = frame.task_id
-                        if isinstance(frame, RetryFrame):
-                            kwargs["retry_of_turn_id"] = frame.turn_id
-                        detail = await task_submission.submit(
-                            services, user.id, frame.data, **kwargs
-                        )
-                        worker.wake()
-                        result = detail.model_dump(mode="json")
                     await websocket.send_json({"type": "result", "id": frame.id, "data": result})
                 except InhereBoxError as exc:
                     await error(
@@ -740,6 +785,8 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
             stop_watching(task_id)
         for resident_scope in list(resident_watches):
             stop_resident_watch(resident_scope)
+        if stop_tool_watch is not None:
+            stop_tool_watch()
         if pump is not None:
             pump.cancel()
             with contextlib.suppress(asyncio.CancelledError):

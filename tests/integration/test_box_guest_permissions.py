@@ -129,6 +129,7 @@ async def test_guest_can_use_own_projects_and_tasks_but_not_owner_resources(
             socket,
             "resident.subscribe",
             "owner-resident",
+            timeline=True,
             agent_id="owner-agent",
             thread_id="owner-thread",
         )

@@ -849,7 +849,7 @@ async def continue_legacy_conversation(
     "/{task_id}",
     response_model=tasks.TaskDetail,
     summary="修改统一会话的标题、专家、引擎、模式或归档状态",
-    description="必须提供 expected_revision（list_revision）；切换专家、引擎或行动模式还须提供 expected_configuration_revision 且任务空闲，仅影响下一轮，历史快照不变。置顶、网络搜索和归档随任务保存；归档保留会话，恢复后可继续。版本冲突返回 409。",
+    description="必须提供 expected_revision（list_revision）；仅修改标题或网络搜索时可分别传入 expected_title_revision 或 expected_web_search_enabled，改用字段级比较。切换专家、引擎或行动模式还须提供 expected_configuration_revision 且任务空闲，仅影响下一轮，历史快照不变。置顶、网络搜索和归档随任务保存；归档保留会话，恢复后可继续。版本冲突返回 409。",
 )
 async def patch_task(
     task_id: str,
@@ -924,6 +924,41 @@ async def fork_task(
         worker.wake()
         return detail
     return await asyncio.to_thread(tasks.detail, services, user.id, result.task_id)
+
+
+@task_router.get(
+    "/requests/{request_id}",
+    response_model=tasks.TaskCreationReceipt,
+    summary="按原请求标识查询本人已受理的任务创建",
+    description="只读对账，不入队或重发。未受理返回 404 TASK_REQUEST_NOT_ACCEPTED，已删除的创建请求返回 404 NOT_FOUND。",
+)
+async def task_creation_receipt(
+    request_id: tasks.RequestID,
+    response: Response,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(current_user),
+) -> tasks.TaskCreationReceipt:
+    response.headers["Cache-Control"] = "no-store"
+    return await asyncio.to_thread(tasks.creation_receipt, _services(server), user.id, request_id)
+
+
+@task_router.get(
+    "/{task_id}/requests/{request_id}",
+    response_model=tasks.TaskTurnReceipt,
+    summary="按请求标识查询指定任务的已受理轮次",
+    description="只读对账。已验证任务中无该请求时返回 404 TASK_REQUEST_NOT_ACCEPTED。",
+)
+async def task_turn_receipt(
+    task_id: str,
+    request_id: tasks.RequestID,
+    response: Response,
+    server: InhereBoxServer = Depends(get_server),
+    user: User = Depends(current_user),
+) -> tasks.TaskTurnReceipt:
+    response.headers["Cache-Control"] = "no-store"
+    return await asyncio.to_thread(
+        tasks.turn_receipt, _services(server), user.id, task_id, request_id
+    )
 
 
 @task_router.get(

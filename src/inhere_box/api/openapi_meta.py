@@ -55,7 +55,7 @@ only session metadata and `csrf_token`. Native device proofs cannot create Web a
 Cookie mutations require same-origin Origin plus `X-Inhere-Box-CSRF`; safe reads require
 same-origin Origin, Fetch Metadata or Referer. Admin cookies cannot be used as Bearer tokens.
 
-Web login does not claim a primary device. `POST /api/box/primary-claims` explicitly
+Web login does not claim a primary device. `POST /api/box/owner-claims` explicitly
 binds the first native candidate using the management key; its private-key proof completes
 registration. A one-use share from `/api/box/pairing-grants` registers an independent guest
 through `/api/box/pairings` and its proof endpoint, without an approval queue.

@@ -26,6 +26,13 @@ class ProjectTaskToolCallRow:
     updated_at: int
     expires_at: int
     approval_context_json: str = "{}"
+    execution_expires_at: int | None = None
+
+    @property
+    def deadline(self) -> int:
+        return (
+            self.execution_expires_at if self.execution_expires_at is not None else self.expires_at
+        )
 
     @classmethod
     def from_row(cls, row: DbRow) -> ProjectTaskToolCallRow:
@@ -45,6 +52,11 @@ class ProjectTaskToolCallRow:
             created_at=strict_int(row["created_at"]),
             updated_at=strict_int(row["updated_at"]),
             expires_at=strict_int(row["expires_at"]),
+            execution_expires_at=(
+                strict_int(row["execution_expires_at"])
+                if row["execution_expires_at"] is not None
+                else None
+            ),
             approval_context_json=str(row["approval_context_json"]),
         )
 
@@ -102,6 +114,14 @@ class ProjectTaskToolCallRepo:
             "UPDATE project_task_tool_calls SET status='claimed',claim_request_id=?,claim_token=?,"
             "updated_at=? WHERE call_id=? AND status='pending'",
             (request_id, token, now, call_id),
+        )
+
+    @staticmethod
+    def start_execution(conn: Any, call_id: str, now: int, expires_at: int) -> None:
+        conn.execute(
+            "UPDATE project_task_tool_calls SET execution_expires_at=?,updated_at=? "
+            "WHERE call_id=? AND status='claimed' AND execution_expires_at IS NULL",
+            (expires_at, now, call_id),
         )
 
     @staticmethod

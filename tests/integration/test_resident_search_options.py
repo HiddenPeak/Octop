@@ -19,7 +19,7 @@ from tests.integration.test_project_tasks_ws import connected, until
 from tests.integration.test_resident_conversations import _base, _binding
 from tests.integration.test_resident_conversations import resident_docs_env as resident_docs_env
 from tests.integration.test_resident_search_runtime import _json, _settled
-from tests.integration.test_resident_stream_delivery import subscribe
+from tests.integration.test_resident_stream_delivery import subscribe_timeline, timeline_turns
 from tests.support.auth import create_user
 
 
@@ -128,8 +128,8 @@ async def assert_views(client, auth, base, binding, turns, settings):
         assert located["items"][0]["turn"] == turn
     session, ws = await connected(client, auth)
     try:
-        live = await subscribe(ws, binding, "search-settings-" + uuid4().hex)
-        assert live["turns"] == turns and live["settings"] == settings
+        live = await subscribe_timeline(ws, binding, "search-settings-" + uuid4().hex)
+        assert timeline_turns(live) == turns and live["settings"] == settings
     finally:
         await session.__aexit__(None, None, None)
 
@@ -217,7 +217,7 @@ async def test_running_turn_and_retries_keep_accepted_policy_after_settings_chan
     await assert_views(client, auth, base, binding, [first, second], settings)
 
 
-async def test_settings_cas_noop_and_subscribed_snapshot_push(env_with_provider):
+async def test_settings_cas_noop_and_subscribed_timeline_push(env_with_provider):
     client, _server, auth = env_with_provider
     binding = await _binding(client, auth)
     base = _base(binding)
@@ -230,20 +230,20 @@ async def test_settings_cas_noop_and_subscribed_snapshot_push(env_with_provider)
     )
     session, ws = await connected(client, auth)
     try:
-        subscribed = await subscribe(ws, binding, "watch-settings")
+        subscribed = await subscribe_timeline(ws, binding, "watch-settings")
         assert subscribed["settings"] == initial
         changed = await change_settings(client, auth, base, initial, False)
         assert changed == {"web_search_enabled": False, "revision": initial["revision"] + 1}
         frame = await until(
             ws,
             lambda incoming: (
-                incoming.get("type") == "resident.snapshot"
+                incoming.get("type") == "resident.timeline.update"
                 and incoming["data"]["thread_id"] == binding["thread_id"]
                 and incoming["data"]["settings"] == changed
             ),
         )
         assert frame["data"]["revision"] > subscribed["revision"]
-        assert frame["data"]["turns"] == subscribed["turns"] == []
+        assert frame["data"]["items"] == subscribed["items"] == []
         for enabled in (True, False):
             conflict = await client.patch(
                 base + "/conversation/settings",
