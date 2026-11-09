@@ -1,5 +1,7 @@
 # AgentComputer 保守启动恢复与检查点探测
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 第七轮以 `feature/agentcomputer-foundation @ ca904ae0f629fbbf49c1747b365a1277eb5a18bf` 为基线，补充 daemon 启动前的保守扫描、生命周期互斥与原生检查点元数据边界。
 当前 adapterVersion=0.7.0、capabilityRevision=7。完整 recovery 仍为 unsupported/notImplemented；projects/tasks/runs 仍 unavailable，权限模式为空。
 本轮复用 schema23，不开放生产 worker、真实模型/工具、HTTP recover/cancel/claim、用户运行按钮或恢复运行开关。

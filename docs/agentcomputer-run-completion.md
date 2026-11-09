@@ -1,5 +1,7 @@
 # AgentComputer 无工具 Run 的自然完成
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 本轮把可信 Harness 流的**自然完成**接到控制库，但只接受已有 v2 历史归档和已初始化的持久 SQLite 检查点共同证明的一次无工具、无暂停 Turn。普通 `agent.stream()` 返回、应用入站 ACK 或历史 Turn 单独标记 `complete` 都不能释放 Task/Project 占用。当前公开 Task/Run 创建和生产执行能力仍关闭；这里的调用入口由隔离的可信 Harness 测试覆盖，不会从 HTTP 请求直接创建 worker。
 
 ## 完成所需的三组事实

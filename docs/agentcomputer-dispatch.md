@@ -1,5 +1,7 @@
 # AgentComputer 内部派发与接收证据
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 第六轮细化 M1-06 的内部 claim、派发前提交、应用接收收据与未知交接处理。
 当前 adapterVersion=0.6.0、capabilityRevision=6；完整运行能力仍为 unavailable，权限模式为空。
 本轮没有生产 worker、启动调度、HTTP claim/dispatch/recover 路由或运行开关，不开放真实模型执行。

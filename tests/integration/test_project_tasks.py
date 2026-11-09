@@ -526,9 +526,13 @@ async def test_real_harness_reads_project_files_and_loads_selected_skills_mcp(
     assert "fixture-private-secret" not in json.dumps(done)
 
 
-async def test_model_selection_prefers_global_pin_then_existing_text_model(task_env):
+@pytest.mark.parametrize("config_key", ["task_fallback_model_ref", "agentcomputer_text_model_ref"])
+async def test_model_selection_prefers_global_pin_then_configured_fallback(
+    task_env, tmp_path, config_key
+):
     from dataclasses import replace
 
+    from inhere_box.config import load_config
     from inhere_box.infra.projects.tasks import TaskExecutionOptions, _configuration
 
     client, server, auth, calls = task_env
@@ -541,9 +545,9 @@ async def test_model_selection_prefers_global_pin_then_existing_text_model(task_
         api_key="fixture",
         models_json=json.dumps([{"id": "glm", "enabled": True}]),
     )
-    configured = replace(
-        services, config=replace(services.config, agentcomputer_text_model_ref="preferred/glm")
-    )
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({config_key: "preferred/glm"}))
+    configured = replace(services, config=load_config(config_path))
     assert _configuration(configured, owner, None, TaskExecutionOptions())[1] == "preferred/glm"
     services.settings_repo.set_active_model("openai", "gpt-4o")
     assert _configuration(configured, owner, None, TaskExecutionOptions())[1] == "openai/gpt-4o"

@@ -1,5 +1,7 @@
 # AgentComputer Run 暂停状态只读查询（第十三轮）
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 本轮为 M1-08 增加 `GET /api/agentcomputer/v1/runs/{runID}/pause`，供客户端按明确 Run ID 回查**已保存的暂停状态**。它不创建审批或问题，不提交裁决，也不恢复引擎。`adapterVersion=0.12.0`、`capabilityRevision=12`，复用 schema25；`runs`、`approvals`、`questions` 仍不可用于生产执行。
 
 ## 查询契约

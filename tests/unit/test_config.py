@@ -19,7 +19,7 @@ def test_defaults_when_missing(tmp_path: Path):
     assert cfg.enable_dashboard is True
     assert cfg.enable_api_docs is False
     assert cfg.bonjour_enabled is True
-    assert cfg.agentcomputer_text_model_ref == ""
+    assert cfg.task_fallback_model_ref == ""
     assert cfg.require_setup_password is True
     assert cfg.database.driver == "sqlite"
     assert cfg.database.sqlite_path == "inhere-box.db"
@@ -41,7 +41,8 @@ def test_defaults_when_missing(tmp_path: Path):
     assert "password" not in written.get("database", {})
     assert written.get("backup", {}).get("auto_enabled") is False
     assert written["max_upload_mb"] == 100
-    assert written["agentcomputer_text_model_ref"] == ""
+    assert written["task_fallback_model_ref"] == ""
+    assert "agentcomputer_text_model_ref" not in written
     assert written["bonjour_enabled"] is True
 
 
@@ -55,29 +56,32 @@ def test_bonjour_file_and_env_switch(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert load_config(cfg_path).bonjour_enabled is False
 
 
-def test_task_model_ref_is_trimmed_and_rejects_malformed_values(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    ("settings", "expected"),
+    [
+        ({"task_fallback_model_ref": "  Current/model  "}, "Current/model"),
+        ({"agentcomputer_text_model_ref": "  Legacy/model  "}, "Legacy/model"),
+        (
+            {
+                "task_fallback_model_ref": "Current/model",
+                "agentcomputer_text_model_ref": "Legacy/model",
+            },
+            "Current/model",
+        ),
+        ({"task_fallback_model_ref": " ", "agentcomputer_text_model_ref": "Legacy/model"}, ""),
+        ({"task_fallback_model_ref": ["Current/model"]}, ""),
+        ({"agentcomputer_text_model_ref": ["Legacy/model"]}, ""),
+    ],
+)
+def test_task_fallback_model_ref_loads_existing_config(
+    tmp_path: Path, settings: dict[str, object], expected: str
 ) -> None:
     cfg_path = tmp_path / "config.json"
-    cfg_path.write_text(
-        json.dumps(
-            {
-                "agentcomputer_text_model_ref": "  Trusted/glm-5  ",
-            }
-        )
-    )
-    enabled = load_config(cfg_path)
-    assert enabled.agentcomputer_text_model_ref == "Trusted/glm-5"
+    original = json.dumps(settings)
+    cfg_path.write_text(original)
 
-    cfg_path.write_text(
-        json.dumps(
-            {
-                "agentcomputer_text_model_ref": ["Trusted/glm-5"],
-            }
-        )
-    )
-    invalid = load_config(cfg_path)
-    assert invalid.agentcomputer_text_model_ref == ""
+    assert load_config(cfg_path).task_fallback_model_ref == expected
+    assert cfg_path.read_text() == original
 
 
 def test_loads_backup_section(tmp_path: Path):

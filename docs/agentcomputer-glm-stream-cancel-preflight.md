@@ -1,5 +1,7 @@
 # AgentComputer 本地 GLM 流式与取消边界预检（第十六轮）
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 第十五轮已经用现有 GLM-5 完成真实 Provider → harness 的合成工具续轮。本轮继续验证同一条本地模型路径的**文本流式输出**，并用确定性离线夹具检查 harness 的 thread 取消能否截断尚未完成的模型流。两项证据的对象不同：真实 GLM 请求只验证自然结束的文本流；取消夹具只验证本地消费端行为。它们都不开放 AgentComputer 生产托管 Run。
 
 ## 范围与输入

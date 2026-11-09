@@ -1,5 +1,7 @@
 # AgentComputer Task 控制事件读取
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 `GET /api/agentcomputer/v1/tasks/{taskID}/events?limit=50&cursor=...` 以 Task 的连续 `sequence` 升序返回已提交的控制事件摘要。认证使用 inhere-box 用户 Bearer；不存在或属于其他用户的 Task 一律返回 404，管理员也不越权。`limit` 为 1–100。响应禁止缓存，形状为：
 
 ```json

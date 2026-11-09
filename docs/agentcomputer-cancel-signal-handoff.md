@@ -1,5 +1,7 @@
 # AgentComputer 持久取消后的本地信号交接（第十九轮）
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 第十七轮把认证 Run 取消请求接到同服务器的活动 task；第十八轮用真实 harness 的阻塞 SSE 夹具验证这条本地链。但原路由在数据库操作返回到 HTTP 请求协程后才发信号：若请求协程恰在事务提交后被取消，持久 `cancelRequested` 已存在，本地活动 Run 却可能收不到通知。本轮只收紧这个交接窗口。
 
 ## 实施边界

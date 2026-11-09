@@ -1,5 +1,7 @@
 # 第三轮：项目准备和默认专家登记
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 本轮从 `feature/agentcomputer-foundation @ d77b37f` 开发，实现项目意图接收、停止的默认专家、受限本地工作区、准备日志和当前状态查询。创建项目可以准备资源，但当前不会产生 Task/Run 或启动模型；完整 M0/M1 门禁仍未通过。
 
 关联：[总体计划](agentcomputer-integration.md)、[第二轮事务内核](agentcomputer-core.md)。AgentComputer 的 SPEC-029 / M1-03 保存详细阶段规划。

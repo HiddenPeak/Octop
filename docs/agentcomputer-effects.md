@@ -1,5 +1,7 @@
 # AgentComputer 工具效果 Journal
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 第八轮以 `feature/agentcomputer-foundation @ ab0f0391eaa5f88d236b646862832efa63f71b23` 为基线，交付内部工具效果 Journal 与隔离 Fixture，M1-07 部分通过。
 当前 adapterVersion=0.8.0、capabilityRevision=8。024 SQLite/PostgreSQL 配对迁移新增一张 `ac_tool_effects` 表；既有 Run、原接受收据与公开协议保持。
 默认 `EngineEntryMiddleware.awrap_tool_call` 继续拒绝全部工具执行，没有新 HTTP 工具/恢复/审批入口、生产 worker 或启用开关。

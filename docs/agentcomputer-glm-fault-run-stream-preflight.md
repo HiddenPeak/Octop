@@ -1,5 +1,7 @@
 # AgentComputer 中文流、传输故障与可信 Run 本地取消预检（第十八轮）
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 第十六轮分别验证了真实 GLM-5 文本流自然结束和普通 harness 的离线 thread 取消；第十七轮让持久 Run 取消请求能通知同服务器内精确匹配的活动 task。本轮继续补三项相互独立的证据：真实 GLM 中文流自然结束、离线模型流中断，以及隔离可信 Run 经认证取消到 harness 流关闭的完整本地链路。三项均不证明远端模型或工具子进程停止。
 
 ## 范围与输入

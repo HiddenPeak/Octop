@@ -1,5 +1,7 @@
 # AgentComputer 本机纯文本 Task 试用
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 这一切片让 AgentComputer 的“盒子项目”页面创建 Task、提交文本 Turn、列出项目已有 Task 与最近 Run，并查看 Run 状态和最终回答。inhere-box 服务端可读取同一 Task 的多轮原文与结果；本机 GLM 已完成多轮问答，macOS 原生 App 已展示五轮历史。它只面向本机回环地址上的单进程 inhere-box，使用 inhere-box 用户 Bearer 会话。默认关闭；启用时固定一个已配置的模型，并要求 SQLite 控制库和 v2 历史。后续增加了[项目文档与一次受控读取](agentcomputer-project-documents.md)；其他工具、MCP、技能、子代理、任意文件操作、审批续跑和远端设备配对仍未开放。
 
 ## 本机启用

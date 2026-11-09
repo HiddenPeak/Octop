@@ -1,5 +1,7 @@
 # AgentComputer 暂停裁决收据只读回查（第十一轮）
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 本轮扩展已有的 `GET /api/agentcomputer/v1/commands/{commandID}`：除 Project、Task、Turn 和取消命令的原收据外，它还能按原裁决 `commandID` 读回审批或提问的 `RunPauseDecisionReceipt`。这只恢复已持久化的历史事实，不创建暂停、不提交决定，也不驱动引擎继续运行。`adapterVersion=0.11.0`、`capabilityRevision=11`，复用 schema25；`commandReceipts` 仍可查询，`approvals`、`questions`、`runs` 等生产执行能力仍不可用。
 
 ## 查询契约

@@ -1,5 +1,7 @@
 # AgentComputer HTTP 操作的服务关闭等待（第二十二轮）
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 第二十一轮让显式登记的可信 Run 派发任务在服务关闭前完成持久对账。本轮补齐另一条生命周期：AgentComputer HTTP 请求断开后，其数据库线程或项目准备过程仍可能继续。服务不能先关闭数据库和 daemon 所有权锁。
 
 ## 接线与顺序

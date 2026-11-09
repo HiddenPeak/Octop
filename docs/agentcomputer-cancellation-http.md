@@ -1,5 +1,7 @@
 # AgentComputer 精确 Run 取消命令与状态查询（第十轮）
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 本轮把第九轮的持久取消内核接到认证 HTTP。请求只作用于路径中的一个 `runID`；不通过 inhere-box thread 的“当前回合”寻找目标，也不调用线程级取消。`adapterVersion=0.10.0`、`capabilityRevision=10`，数据库仍为 schema25。当前没有生产 Run 创建和 Run 专属引擎停止证明，所以 `cancellation` 声明为 `supported=true`、`available=false`、`reasonCode=executionUnavailable`；`runs`、`tasks`、审批和提问的客户端可用性仍关闭。
 
 ## 命令与收据

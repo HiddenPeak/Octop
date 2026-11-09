@@ -1,5 +1,7 @@
 # AgentComputer 受托 Run 的原生历史 Turn 绑定
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 本轮把内部受托引擎入口的业务 `turnID` 用作 inhere-box `HistoryArchive` 中的原生 Turn ID。它解决的是**身份关联和本地流内容落盘**：同一 Task 的 inhere-box 线程历史中，用户消息与已捕获的模型输出归属于这个固定 ID。此入口仍只供可信内部派发使用；项目 `ready`、生产 worker、公开 Task/Run 执行和远端停止证明均未开放。
 
 ## 写入顺序与边界

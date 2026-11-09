@@ -968,7 +968,7 @@ def resolve_model_ref(services: SharedServices) -> str | None:
     provider, model = services.settings_repo.get_active_model()
     ref = f"{provider}/{model}" if provider and model else None
     if not ref or not providers.is_model_ref_usable(ref):
-        configured = services.config.agentcomputer_text_model_ref
+        configured = services.config.task_fallback_model_ref
         ref = (
             configured
             if configured and providers.is_model_ref_usable(configured)

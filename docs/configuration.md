@@ -71,6 +71,7 @@ on each start. Schema (`InhereBoxConfig` in `inhere-box/config.py`):
   "enable_dashboard": true,
   "enable_api_docs": false,
   "bonjour_enabled": true,
+  "task_fallback_model_ref": "",
   "require_setup_password": true,
   "max_upload_mb": 100,
   "database": {
@@ -103,6 +104,12 @@ Notes:
   scheduling, and harness. Legacy `cron_timezone` in `config.json` and
   `INHERE_BOX_CRON_TIMEZONE` are still accepted; the new key/env wins when both
   are set.
+- `task_fallback_model_ref` is an optional `provider/model` for ordinary Task
+  model selection. When no turn or expert model is selected and the active model
+  is missing or unusable, the box tries this setting before the first available
+  model. An empty value disables this override. Existing `config.json` files
+  may still use `agentcomputer_text_model_ref`. If both keys are present,
+  `task_fallback_model_ref` takes precedence, including when explicitly empty.
 - `database.password`: when the wizard configures PostgreSQL via discrete
   fields, this **may** be written into `config.json` (convenient for local
   first-run). In production, prefer using only `INHERE_BOX_DATABASE_PASSWORD` or

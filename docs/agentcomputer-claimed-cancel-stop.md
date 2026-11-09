@@ -1,5 +1,7 @@
 # AgentComputer 已领取但未开始派发的 Run 取消（第二十轮）
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 第十九轮保证持久取消后及时排队精确 Run 本地信号。本轮只扩展一个可证明尚未进入引擎的终态：Run 已被可信 worker 领取，但派发事务还没有写入 `dispatch_started_at`。这与已开始派发或已获引擎回执的 Run 不同；后两者仍只有 `cancelRequested` 事实，不能据本地信号释放活动占用。
 
 ## 判定与原子提交

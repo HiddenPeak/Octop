@@ -1,5 +1,7 @@
 # AgentComputer Turn 登记与 Run 查询：第五轮
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 第五轮以 `feature/agentcomputer-foundation @ bdff37f` 为开工基线，复用 schema 22，无新增 023。新增受执行能力门禁保护的 Turn POST、本人只读 Run GET，并加强原 Turn 接收收据与完整持久图的核验。AgentComputer Swift/UI 本轮未改。
 
 当前协议为 protocolVersion=1、adapterVersion=0.5.0、capabilityRevision=5。projects、tasks、runs 均为 supported=true/available=false，reasonCode=executionUnavailable；supportedPermissionModes=[]。commandReceipts 仅表示已有收据查询可用。模型派发、工具、审批、问答、取消、公开事件流与恢复 fencing 没有因此开放。

@@ -1,5 +1,7 @@
 # AgentComputer 审批与提问身份只读查询（第十四轮）
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 本轮增加 `GET /api/agentcomputer/v1/approvals/{approvalID}` 与 `GET /api/agentcomputer/v1/questions/{questionID}`。未来客户端持有明确 UUID 时，可在深链进入或断线重连后查询**本人已保存的暂停状态**，再核对所属 Run；当前尚未接入 AgentComputer 的 Swift 深链或重连界面。接口不列出所有审批或问题，不返回待审批动作/原始问题，也不创建暂停、提交裁决或恢复引擎。`adapterVersion=0.13.0`、`capabilityRevision=13`，复用 schema25；`approvals` 与 `questions` 因内部持久内核和本人状态/收据查询标为 `supported=true`，但完整裁决及续跑能力仍为 `available=false`、`reasonCode=executionUnavailable`。`runs` 同样不可用于生产执行，`supportedPermissionModes=[]`。
 
 ## 查询契约

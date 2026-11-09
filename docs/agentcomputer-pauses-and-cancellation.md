@@ -1,5 +1,7 @@
 # AgentComputer 持久暂停与精确 Run 取消（第九轮）
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 这一轮新增 `025_agentcomputer_pauses.sql` 与对应 PostgreSQL 迁移，保存审批、提问和取消请求。它们是受信内部运行边界；当前安装没有生产 Run 执行入口、Run 专属停止句柄或客户端写入端点。`adapterVersion=0.9.0`、`capabilityRevision=9` 继续如实声明 `approvals`、`questions`、`cancellation` 不可用，`supportedPermissionModes=[]`。现有 inhere-box 普通聊天与专家入口不由这些记录驱动。
 
 ## 固定暂停事实

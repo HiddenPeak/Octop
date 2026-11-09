@@ -1,5 +1,7 @@
 # AgentComputer 可信派发任务的服务关闭等待（第二十一轮）
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 第二十轮解决已领取但尚未开始派发的 Run 安全停止。本轮处理另一个边界：可信派发任务从数据库写入 `dispatching`、交给引擎，到异常后持久收紧为 `interrupted/reconciliationRequired`，服务关闭不能在这段工作仍使用数据库时先关闭连接池或释放 daemon 所有权锁。
 
 ## 生命周期和关闭顺序

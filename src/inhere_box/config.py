@@ -139,7 +139,7 @@ class InhereBoxConfig:
     enable_api_docs: bool = False
     bonjour_enabled: bool = True
     history_v2_enabled: bool = False
-    agentcomputer_text_model_ref: str = ""
+    task_fallback_model_ref: str = ""
     require_setup_password: bool = True
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     # False when config.json omits ``database`` (use PathLayout.db unless env overrides).
@@ -457,6 +457,10 @@ def load_config(path: Path) -> InhereBoxConfig:
     if "default_timezone" not in raw and "cron_timezone" in raw:
         merged["default_timezone"] = raw["cron_timezone"]
     merged.pop("cron_timezone", None)
+    # Match against the file so the generated default cannot mask the legacy key.
+    if "task_fallback_model_ref" not in raw and "agentcomputer_text_model_ref" in raw:
+        merged["task_fallback_model_ref"] = raw["agentcomputer_text_model_ref"]
+    fallback_model_ref = merged["task_fallback_model_ref"]
 
     merged_db = {
         **file_defaults["database"],
@@ -654,10 +658,8 @@ def load_config(path: Path) -> InhereBoxConfig:
             env_get("INHERE_BOX_HISTORY_V2_ENABLED", str(merged.get("history_v2_enabled", False))),
             False,
         ),
-        agentcomputer_text_model_ref=(
-            str(merged["agentcomputer_text_model_ref"]).strip()
-            if isinstance(merged.get("agentcomputer_text_model_ref"), str)
-            else ""
+        task_fallback_model_ref=(
+            fallback_model_ref.strip() if isinstance(fallback_model_ref, str) else ""
         ),
         require_setup_password=bool(merged["require_setup_password"]),
         database=parse_database_config(merged_db),

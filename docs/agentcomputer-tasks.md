@@ -1,5 +1,7 @@
 # AgentComputer Task 与线程映射：第四轮
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 本轮从 feature/agentcomputer-foundation @ ab454c54 开发，复用已交付的 schema 22。内部 Task 登记与只读查询已实现，真实项目 ready、Task 创建 HTTP、Turn 提交和引擎派发继续等待执行门禁。AgentComputer 客户端本轮仅同步规划，Swift/UI 未改。
 
 ## 1. 身份和内部命令

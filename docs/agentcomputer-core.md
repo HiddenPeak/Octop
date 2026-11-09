@@ -1,5 +1,7 @@
 # AgentComputer 数据层与命令收据：第二轮
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 本轮以 `feature/agentcomputer-foundation @ a6015dd` 为基线，建立 schema 21 的六张控制表、同事务接收内核和本人收据查询。当前只能通过确定性 Fixture 调用接收内核；HTTP、IM、Cron 和 CLI 没有连接到该内核。查询能力不表示模型、工具、项目准备或任务执行已可用。
 
 总体计划与本地启动方式见 [集成入口](agentcomputer-integration.md)。这一轮对应 M1-01 的命令契约、M1-02 的数据层和 M1-05 的部分事务规则；项目准备、线程创建、引擎派发、审批、取消、事件订阅和恢复仍需后续步骤完成。

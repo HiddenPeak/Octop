@@ -1,5 +1,7 @@
 # AgentComputer 项目文档与受控读取
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 当前本机 Task 可通过一次 `read_project_document` 工具调用读取所属项目的文本资料。这个切片用于把 Project 资料接入模型回答；它只支持读取，不允许模型写文件、运行终端命令或访问任意工作区路径。原纯文本 Task 不需要工具调用，仍按原完成证据验证。
 
 ## 使用流程

@@ -1,5 +1,7 @@
 # AgentComputer 精确 Run 的本地取消信号（第十七轮）
 
+> **历史记录 · v1 已退役。** 盒子于 2026-10-15 移除 `/api/agentcomputer/v1` 及专用 Bridge 转发。本文保留当时的实现和验证记录。现行项目、任务和实时会话请查阅[统一 Task 接线](agentcomputer-unified-conversations-handoff.md)。
+
 第十轮已经允许本人对明确的 Run 提交持久取消请求，但已交接引擎的 Run 只会留下 `cancelRequested`，此前没有把该请求送到仍在执行的本地调用。本轮增加一个按 Run 身份登记的进程内信号通道：请求先在数据库提交，再尝试取消同一 `InhereBoxServer` 中匹配的 `asyncio.Task`。可信调用登记句柄时，这条通道可以缩短本地执行继续运行的窗口；HTTP 收据仍只证明持久请求已被接受。
 
 ## 范围与顺序
