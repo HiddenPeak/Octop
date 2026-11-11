@@ -80,7 +80,9 @@ async def start_stream(env, action_timeline_enabled):
     assert created.status_code == 202, created.text
     await asyncio.wait_for(started.wait(), 5)
     session, ws = await connected(client, auth)
-    await command(ws, "task.subscribe", "watch-public-output", task_id=created.json()["task_id"])
+    await command(
+        ws, "task.open", "watch-public-output", task_id=created.json()["task_id"], resume=True
+    )
     return created.json()["task_id"], session, ws
 
 
@@ -232,7 +234,7 @@ async def test_public_prelude_is_visible_before_tool_intent_in_every_plan_phase(
         )
         assert created.status_code == 202, created.text
         task_id = created.json()["task_id"]
-        await command(ws, "task.subscribe", "watch-public-prelude", task_id=task_id)
+        await command(ws, "task.open", "watch-public-prelude", task_id=task_id, resume=True)
         subscribed.set()
         await asyncio.wait_for(paused.wait(), 5)
         live = await visible_output(client, auth, task_id, prelude, reasoning="")

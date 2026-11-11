@@ -82,7 +82,10 @@ async def test_push_failure_closes_before_queued_command(monkeypatch, caplog):
         "websocket.send",
         "websocket.close",
     ]
-    assert json.loads(outgoing[1]["text"]) == {"type": "ready", "protocol_version": 3}
+    assert json.loads(outgoing[1]["text"]) == {
+        "type": "ready",
+        "protocol_version": 3,
+    }
     failure = json.loads(outgoing[2]["text"])
     assert failure["type"] == "error" and failure["status"] == 503
     assert failure["error"]["code"] == "CONTROL_PLANE_BUSY"

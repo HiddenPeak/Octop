@@ -47,17 +47,28 @@ def test_unified_task_proxy_has_explicit_method_and_path_policy(method, path, al
 async def test_task_socket_relay_routes_to_peer_asgi_and_strips_session_token(path):
     scopes = []
     outbound = []
+    task_socket = path == "/api/project-tasks/ws"
+    ready = {"type": "ready", "protocol_version": 3}
+    subscription = {"type": "task.open", "task_id": "task_same", "id": "open-unique"}
+    summary = {
+        "type": "task.summary",
+        "data": {"task": {"task_id": "task_same"}, "cursor": "next-cursor", "history_revision": 2},
+    }
+    if task_socket:
+        subscription.update(open_id="770ca13d-e6af-4e3c-bf36-fd4eef74a7c1", cursor="task-cursor")
 
     async def peer_app(scope, receive, send):
         scopes.append(scope)
         assert (await receive())["type"] == "websocket.connect"
         await send({"type": "websocket.accept"})
-        await send({"type": "websocket.send", "text": '{"type":"ready","protocol_version":3}'})
+        await send({"type": "websocket.send", "text": json.dumps(ready)})
         await send(
             {"type": "websocket.send", "text": '{"type":"session","access_token":"peer-secret"}'}
         )
         inbound = await receive()
         await send({"type": "websocket.send", "text": inbound["text"]})
+        if task_socket:
+            await send({"type": "websocket.send", "text": json.dumps(summary)})
         await send({"type": "websocket.close", "code": 1000})
 
     class Manager:
@@ -111,9 +122,7 @@ async def test_task_socket_relay_routes_to_peer_asgi_and_strips_session_token(pa
             pass
 
     socket = Socket()
-    await socket.inputs.put(
-        {"type": "task.subscribe", "task_id": "task_same", "id": "subscribe-unique"}
-    )
+    await socket.inputs.put(subscription)
     allowed_query = {
         "expected_scope_revision": "scope-revision",
         "session_id": "terminal-session",
@@ -138,7 +147,7 @@ async def test_task_socket_relay_routes_to_peer_asgi_and_strips_session_token(pa
         ),
         3,
     )
-    assert [frame["type"] for frame in socket.frames] == ["ready", "task.subscribe"]
+    assert socket.frames == [ready, subscription, *([summary] if task_socket else [])]
     assert "peer-secret" not in str(socket.frames)
     opened = [frame for frame in outbound if frame["type"] == "task-stream.open"]
     assert len(opened) == 1 and opened[0]["query"] == allowed_query
@@ -167,7 +176,8 @@ async def test_task_socket_relay_routes_to_peer_asgi_and_strips_session_token(pa
     "kind,allowed",
     [
         ("task.create", True),
-        ("task.subscribe", True),
+        ("task.open", True),
+        ("task.subscribe", False),
         ("tool.result", True),
         ("ping", True),
         ("resident.subscribe", False),

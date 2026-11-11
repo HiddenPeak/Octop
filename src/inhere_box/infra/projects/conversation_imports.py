@@ -234,14 +234,19 @@ def import_conversation(
             tasks.insert(conn, task)
         if action != "unchanged":
             new_manifest = []
+            # Reimports already serialize by owner. Stamp all rewritten rows
+            # in this transaction with the same monotonic history revision.
+            history_revision = turns.history_revision(conn, task.task_id) + 1 if rows else 0
             for index, turn in enumerate(body.turns):
                 old = rows[index] if index < len(rows) else None
                 turn_id = old.turn_id if old else "turn_" + new_ulid()
                 row = _row(services, conn, owner_id, task, body, turn, turn_id, old)
                 if old is None:
                     turns.insert_imported(conn, row)
-                else:
-                    turns.update_imported(conn, row)
+                # A new source timestamp alone does not rewrite an existing turn
+                # whose source never supplied an assistant/completion timestamp.
+                elif replace(row, updated_at=old.updated_at) != old:
+                    turns.update_imported(conn, row, history_revision=history_revision)
                 new_manifest.append(_manifest(turn, turn_id))
             manifest["turns"] = new_manifest
         # An old retry must not roll back newer source titles/revisions. Metadata-only

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type TaskDetail, type TaskTurn } from "../../api/modules/projects";
 import { apiErrorMessage, parseApiError } from "../../utils/apiError";
+import { randomUUID } from "../../utils/randomUUID";
 
 const terminal = (turn: TaskTurn) =>
   turn.status === "completed" ||
@@ -74,11 +75,14 @@ function mergeSnapshot(
     approval_policy: approvalPolicy(old, incoming),
     // Fresh snapshots replace the loaded range; revisions still protect each turn.
     turns: mergeTurns(
-      base === old
-        ? old.turns
-        : old.turns.filter((turn) => incomingIDs.has(turn.turn_id)),
+      old.history_revision === incoming.history_revision
+        ? old.turns.filter((turn) => incomingIDs.has(turn.turn_id))
+        : [],
       incoming.turns,
     ),
+    event_cursor: incoming.event_cursor,
+    next_page_cursor: incoming.next_page_cursor,
+    history_revision: incoming.history_revision,
   };
 }
 
@@ -99,6 +103,13 @@ export function useTaskConversation(
   current.current = detail;
   selected.current = { taskID, projectID };
   const historyRequest = useRef<object | null>(null);
+  const entry = useRef<{
+    taskID: string | null;
+    projectID: string | null;
+    api: typeof projectTasksApi;
+    openID: string;
+    openAttemptsRemaining: number;
+  } | null>(null);
 
   const applyWrite = useCallback((incoming: TaskDetail) => {
     setDetail((old) => {
@@ -111,6 +122,7 @@ export function useTaskConversation(
         turns: mergeTurns(old.turns, incoming.turns),
         next_page_cursor: old.next_page_cursor,
         event_cursor: old.event_cursor,
+        history_revision: old.history_revision,
       };
     });
   }, []);
@@ -142,7 +154,21 @@ export function useTaskConversation(
     let running = false;
     let stopped = false;
     let cursor: string | null = null;
-    let opened = false;
+    if (
+      !entry.current ||
+      entry.current.taskID !== taskID ||
+      entry.current.projectID !== projectID ||
+      entry.current.api !== projectTasksApi
+    ) {
+      entry.current = {
+        taskID,
+        projectID,
+        api: projectTasksApi,
+        openID: randomUUID(),
+        openAttemptsRemaining: 2,
+      };
+    }
+    const currentEntry = entry.current;
     let controller: AbortController | null = null;
     let timer: number | undefined;
     let delay = 1000;
@@ -165,47 +191,60 @@ export function useTaskConversation(
       running = true;
       controller = new AbortController();
       try {
-        if (!cursor) {
-          let snapshot: TaskDetail;
-          if (opened) snapshot = await projectTasksApi.get(taskID);
-          else {
-            // A lost receipt may follow a successful admission. Recover by reading.
-            opened = true;
-            snapshot = await projectTasksApi.open(taskID);
-          }
-          if (disposed) return;
-          if (snapshot.project_id !== projectID)
-            throw new Error(t("projects.tasks.wrongProject"));
-          // A reset replaces the loaded range rather than keeping an unknown gap.
-          historyRequest.current = null;
-          setLoadingHistory(false);
-          setDetail((old) => mergeSnapshot(old, snapshot));
-          cursor = snapshot.event_cursor;
-          setLoading(false);
-          setError("");
-        }
-        if (disposed || controller.signal.aborted || !cursor) return;
+        const openID =
+          currentEntry.openAttemptsRemaining > 0
+            ? currentEntry.openID
+            : undefined;
+        if (openID) currentEntry.openAttemptsRemaining -= 1;
         await projectTasksApi.events(
           taskID,
           cursor,
           (event) => {
             if (disposed || controller?.signal.aborted) return;
+            const task =
+              event.type === "snapshot" ? event.data : event.data.task;
+            if (task.task_id !== taskID || task.project_id !== projectID)
+              throw new Error(t("projects.tasks.wrongProject"));
             if (event.type === "snapshot") {
+              historyRequest.current = null;
+              setLoadingHistory(false);
               setDetail((old) => mergeSnapshot(old, event.data));
               cursor = event.data.event_cursor;
+              setLoading(false);
             } else {
-              const { task, turn } = event.data;
-              setDetail((old) =>
-                old && old.task_id === task.task_id
-                  ? {
-                      ...old,
-                      ...(task.list_revision >= old.list_revision ? task : {}),
-                      approval_policy: approvalPolicy(old, task),
-                      turns: mergeTurns(old.turns, [turn]),
-                    }
-                  : old,
-              );
+              const { history_revision } = event.data;
               cursor = event.data.cursor;
+              const turn = event.type === "turn" ? event.data.turn : null;
+              const historical = event.type === "turn" && event.data.historical;
+              if (historical) {
+                historyRequest.current = null;
+                setLoadingHistory(false);
+              }
+              setDetail((old) => {
+                if (!old || old.task_id !== task.task_id) return old;
+                let turns = old.turns;
+                if (turn) {
+                  if (historical || task.import_source) {
+                    const loaded = turns.some(
+                      (row) => row.turn_id === turn.turn_id,
+                    );
+                    if (loaded)
+                      turns = turns.map((row) =>
+                        row.turn_id === turn.turn_id ? turn : row,
+                      );
+                    else if (!historical) turns = mergeTurns(turns, [turn]);
+                  } else turns = mergeTurns(turns, [turn]);
+                }
+                return {
+                  ...old,
+                  ...(task.list_revision >= old.list_revision ? task : {}),
+                  approval_policy: approvalPolicy(old, task),
+                  turns,
+                  next_page_cursor: old.next_page_cursor,
+                  event_cursor: event.data.cursor,
+                  history_revision,
+                };
+              });
             }
             delay = 1000;
             setReconnecting(false);
@@ -213,11 +252,13 @@ export function useTaskConversation(
           },
           controller.signal,
           () => {
+            currentEntry.openAttemptsRemaining = 0;
             if (!disposed) {
               setReconnecting(false);
               setError("");
             }
           },
+          openID,
         );
         if (controller.signal.aborted) return;
         setReconnecting(false);
@@ -226,6 +267,7 @@ export function useTaskConversation(
         if (disposed || controller.signal.aborted) return;
         const code = parseApiError(err)?.code;
         if (code === "PROJECT_SYNC_RESET") cursor = null;
+        else if (code) currentEntry.openAttemptsRemaining = 0;
         stopped =
           code === "NOT_FOUND" ||
           code === "FORBIDDEN" ||
@@ -280,7 +322,10 @@ export function useTaskConversation(
       )
         return;
       setDetail((old) =>
-        old && old.task_id === taskID
+        old &&
+        old.task_id === taskID &&
+        old.next_page_cursor === pageCursor &&
+        old.history_revision === page.history_revision
           ? {
               ...old,
               turns: mergeTurns(page.turns, old.turns),

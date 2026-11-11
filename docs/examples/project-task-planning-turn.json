@@ -280,6 +280,7 @@
         "step_panel_enabled": true
       }
     },
-    "cursor": "opaque_example_cursor"
+    "cursor": "opaque_example_cursor",
+    "history_revision": 0
   }
 }

@@ -159,7 +159,8 @@ async def test_real_tools_stream_and_restore_immutable_attachments(
         )["data"]
         await ws.send_json(
             {
-                "type": "task.subscribe",
+                "type": "task.open",
+                "resume": True,
                 "id": "subscribe-artifacts-001",
                 "task_id": created["task_id"],
                 "cursor": created["event_cursor"],
@@ -183,7 +184,12 @@ async def test_real_tools_stream_and_restore_immutable_attachments(
         await session.__aexit__(None, None, None)
         session, ws = await connected(client, auth)
         await ws.send_json(
-            {"type": "task.subscribe", "id": "restore-artifacts-001", "task_id": created["task_id"]}
+            {
+                "type": "task.open",
+                "resume": True,
+                "id": "restore-artifacts-001",
+                "task_id": created["task_id"],
+            }
         )
         snapshot = await until(ws, lambda f: f["type"] == "snapshot")
         assert snapshot["data"]["turns"][0]["artifacts"] == attached
@@ -425,7 +431,8 @@ async def test_public_text_is_live_before_delivery_correction_and_does_not_prove
         )["data"]
         await ws.send_json(
             {
-                "type": "task.subscribe",
+                "type": "task.open",
+                "resume": True,
                 "id": "watch-corrected-delivery",
                 "task_id": created["task_id"],
             }

@@ -185,6 +185,7 @@ async def test_task_multi_turn_idempotency_and_latest_project_configuration(task
     assert again.json()["task_id"] == task["task_id"]
     done = await settled(client, auth, task["task_id"])
     assert done["turns"][0]["reply"] == "Reply 1"
+    assert done["turns"][0]["project_instructions"] == {"revision": 1, "body": "First instructions"}
     assert done["turns"][0]["status"] == "completed"
     assert done["status"] == "completed"
     conflict = await client.post(base, headers=auth, json={**first, "prompt": "different"})
@@ -204,6 +205,10 @@ async def test_task_multi_turn_idempotency_and_latest_project_configuration(task
     assert sent.status_code == 202, sent.text
     done = await settled(client, auth, task["task_id"])
     assert len(done["turns"]) == 2 and done["turns"][1]["project_revision"] == 2
+    assert [turn["project_instructions"] for turn in done["turns"]] == [
+        {"revision": 1, "body": "First instructions"},
+        {"revision": 2, "body": "Updated instructions"},
+    ]
     assert done["turns"][1]["reply"] == "Reply 2"
     assert calls[1][1] == [
         {"role": "user", "content": first["prompt"]},
@@ -233,7 +238,8 @@ async def test_standalone_tasks_and_owner_isolation(task_env):
         )
     ).json()
     assert task["project_id"] is None
-    await settled(client, auth, task["task_id"])
+    done = await settled(client, auth, task["task_id"])
+    assert done["turns"][0]["project_instructions"] is None
     assert [
         t["task_id"] for t in (await client.get("/api/project-tasks", headers=auth)).json()["items"]
     ] == [task["task_id"]]
@@ -271,6 +277,9 @@ async def test_task_web_search_persists_and_each_turn_keeps_its_snapshot(task_en
     assert created.status_code == 202, created.text
     first = await settled(client, auth, created.json()["task_id"])
     base = f"/api/project-tasks/{first['task_id']}"
+    assert first["turns"][0]["project_instructions"] == (
+        {"revision": 1, "body": ""} if in_project else None
+    )
     assert first["web_search_enabled"] is first["turns"][0]["web_search_enabled"] is True
     assert json.loads(calls[0][0].configuration_json)["web_search_enabled"] is True
     assert "web_search_enabled" not in first["turns"][0]["options"]
@@ -1122,9 +1131,13 @@ async def test_conversation_history_pages_are_bounded_and_scoped(task_env, monke
     # Catch up a disconnected reader over multiple bounded stream batches.
     event_cursor = task.event_cursor
     replayed = []
-    while batch := tasks.updates(services, owner, task.task_id, event_cursor):
-        replayed.extend(update.turn.turn_id for update in batch)
-        event_cursor = batch[-1].cursor
+    while True:
+        batch = tasks.stream_updates(services, owner, task.task_id, event_cursor)
+        assert all(isinstance(update, tasks.TaskUpdate) for update in batch.updates)
+        replayed.extend(update.turn.turn_id for update in batch.updates)
+        if not batch.has_more:
+            break
+        event_cursor = batch.cursor
     assert len(replayed) == len(set(replayed)) == 125
     for params in ({"limit": 101}, {"limit": 0}, {"page_cursor": ""}):
         assert (await client.get(base, headers=auth, params=params)).status_code == 422
@@ -1134,9 +1147,9 @@ async def test_conversation_history_pages_are_bounded_and_scoped(task_env, monke
         response = await client.get(base, headers=auth, params={"page_cursor": token})
         assert response.status_code == 409
     assert (
-        tasks.updates(
+        tasks.stream_updates(
             services, owner, task.task_id, tasks.detail(services, owner, task.task_id).event_cursor
-        )
+        ).updates
         == []
     )
 
@@ -1297,9 +1310,8 @@ async def test_task_sse_resumes_persisted_state_and_rejects_foreign_cursors(task
     services.project_task_turn_repo.progress(
         claimed.turn_id, "stream-worker", "Live partial", "read_file", now_ms() + 1
     )
-    assert (
-        tasks.updates(services, owner, first.task_id, cursor) == []
-    )  # Lease heartbeat is not an event.
+    # Lease heartbeat is not an event.
+    assert tasks.stream_updates(services, owner, first.task_id, cursor).updates == []
     with services.db.transaction() as conn:
         services.project_task_turn_repo.finish(
             conn, claimed.turn_id, "stream-worker", "completed", "Live final", "", now_ms()
@@ -1318,9 +1330,29 @@ async def test_task_sse_resumes_persisted_state_and_rejects_foreign_cursors(task
     ]
     assert [p["turn"]["status"] for p in payloads] == ["completed", "queued"]
     assert payloads[0]["turn"]["reply"] == "Live final"
-    assert tasks.updates(services, owner, first.task_id, payloads[-1]["cursor"]) == []
+    cursor = payloads[-1]["cursor"]
+    assert tasks.stream_updates(services, owner, first.task_id, cursor).updates == []
     snapshot = await client.get(base + "/events", headers=auth)
     assert "event: snapshot" in snapshot.text
+    snapshot_data = json.loads(
+        next(line[6:] for line in snapshot.text.splitlines() if line.startswith("data: "))
+    )
+    assert snapshot_data["history_revision"] == 0
+    assert snapshot_data["event_cursor"] == cursor
+
+    renamed = await client.patch(
+        base,
+        headers=auth,
+        json={"expected_revision": payloads[-1]["task"]["list_revision"], "title": "Stream title"},
+    )
+    assert renamed.status_code == 200
+    metadata = await client.get(base + "/events", headers={**auth, "Last-Event-ID": cursor})
+    assert "event: task.summary" in metadata.text and "event: turn" not in metadata.text
+    summary = json.loads(
+        next(line[6:] for line in metadata.text.splitlines() if line.startswith("data: "))
+    )
+    assert summary["task"]["title"] == "Stream title" and summary["history_revision"] == 0
+    assert f"id: {summary['cursor']}" in metadata.text
     other = send(services, owner, TaskMessage(request_id="stream-other", prompt="Other"))
     for token in (other.event_cursor, first.next_page_cursor or "bad", cursor + "x"):
         invalid = await client.get(base + "/events", headers=auth, params={"cursor": token})
@@ -1354,8 +1386,11 @@ async def test_task_rename_archive_restore_and_filtered_sync(task_env):
         )
     ).json()
     assert renamed["title"] == "A better title" and renamed["turns"] == done["turns"]
-    changes = tasks.updates(server.services, owner, created["task_id"], done["event_cursor"])
-    assert len(changes) == 1 and changes[0].task.title == "A better title"
+    changes = tasks.stream_updates(
+        server.services, owner, created["task_id"], done["event_cursor"]
+    ).updates
+    assert len(changes) == 1 and isinstance(changes[0], tasks.TaskSummaryUpdate)
+    assert changes[0].task.title == "A better title"
     response = await client.patch(
         base, headers=auth, json={"expected_revision": done["list_revision"], "title": "Stale edit"}
     )

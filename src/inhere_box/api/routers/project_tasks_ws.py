@@ -11,7 +11,16 @@ from functools import partial
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from pydantic import Field, StringConstraints, TypeAdapter, ValidationError
+from pydantic import (
+    ConfigDict,
+    Field,
+    StrictBool,
+    StringConstraints,
+    TypeAdapter,
+    ValidationError,
+    model_validator,
+)
+from pydantic.json_schema import SkipJsonSchema
 
 from inhere_box.api.common.box_auth import require_box_command
 from inhere_box.api.common.task_websocket_logging import Scope, TaskWebSocketLog
@@ -44,6 +53,7 @@ from inhere_box.infra.projects.client_tool_models import (
     ClientToolResult,
     ClientToolReviewRequest,
 )
+from inhere_box.infra.projects.cursors import cursor_codec
 from inhere_box.infra.projects.interaction_models import InteractionResponse, TaskControl
 from inhere_box.infra.projects.models import ProjectModel, Reference
 from inhere_box.infra.utils.locale import resolve_locale, resolve_request_locale
@@ -54,6 +64,16 @@ _UPDATE_SECONDS = 0.5
 _TOOL_RECHECK_SECONDS = 5.0
 _MAX_SUBSCRIPTIONS = 32
 _MAX_FRAME_BYTES = 512 * 1024
+EventCursor = Annotated[str, StringConstraints(min_length=1, max_length=4096)]
+OpenID = Annotated[
+    str,
+    StringConstraints(
+        strict=True,
+        min_length=36,
+        max_length=36,
+        pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+    ),
+]
 
 
 class AuthenticateFrame(ProjectModel):
@@ -110,15 +130,38 @@ class InteractionFrame(CommandFrame):
     data: InteractionResponse
 
 
-class SubscribeFrame(CommandFrame):
-    type: Literal["task.subscribe"]
-    task_id: Reference
-    cursor: Annotated[str, StringConstraints(min_length=1, max_length=4096)] | None = None
-
-
 class OpenFrame(CommandFrame):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "if": {"properties": {"resume": {"const": True}}, "required": ["resume"]},
+            "then": {"not": {"required": ["open_id"]}},
+            "else": {"required": ["open_id"]},
+        }
+    )
+
     type: Literal["task.open"]
-    task_id: Reference = Field(description="用户明确进入详情的任务；按需补生成缺少的语义标题。")
+    task_id: Reference = Field(description="要打开并观察正文的任务。")
+    cursor: EventCursor | None = Field(
+        default=None, description="实时续接游标。已有观察时，显式打开使用该观察已应用的游标。"
+    )
+    resume: StrictBool = Field(
+        default=False, description="恢复观察时传 true。默认表示用户明确进入，并按需补生成标题。"
+    )
+    open_id: OpenID | SkipJsonSchema[None] = Field(
+        default_factory=lambda: None,
+        description="本次显式打开的 UUID。重试复用同一个值，恢复观察时省略。",
+    )
+
+    @model_validator(mode="after")
+    def validate_open_id(self) -> OpenFrame:
+        if self.resume:
+            if "open_id" in self.model_fields_set:
+                raise ValueError("resume must omit open_id")
+        elif self.open_id is None:
+            raise ValueError("explicit task.open requires open_id")
+        else:
+            self.open_id = self.open_id.lower()
+        return self
 
 
 class UnsubscribeFrame(CommandFrame):
@@ -193,7 +236,6 @@ ConversationCommand = Annotated[
     | ApprovalPolicyFrame
     | InteractionFrame
     | OpenFrame
-    | SubscribeFrame
     | UnsubscribeFrame
     | ResidentSubscribeFrame
     | ResidentUnsubscribeFrame
@@ -328,6 +370,78 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
             stop()
         pending_updates.discard(("task", task_id))
 
+    def require_subscription_slot(task_id: str) -> None:
+        if (
+            task_id not in subscriptions
+            and len(subscriptions) + len(resident_subscriptions) >= _MAX_SUBSCRIPTIONS
+        ):
+            raise InhereBoxError.localized(ErrorCode.TASK_FRAME_INVALID)
+
+    def watched_cursor_covered(task_id: str, supplied_cursor: str, active_cursor: str) -> bool:
+        """Whether the active watch already reaches a cursor the client has applied."""
+        codec = cursor_codec(services, user.id, f"conversation:{task_id}:events")
+        supplied = codec.decode(supplied_cursor, "task_events")
+        if supplied_cursor == active_cursor:
+            return True
+        active = codec.decode(active_cursor, "task_events")
+        # Zero history_position means that revision is fully applied.
+        supplied_history = (
+            supplied.history_revision,
+            supplied.history_position == 0,
+            supplied.history_position,
+        )
+        active_history = (
+            active.history_revision,
+            active.history_position == 0,
+            active.history_position,
+        )
+        # A cursor from a newer REST read can lead the pushed watch; catch up from it.
+        return (
+            supplied.position <= active.position
+            and supplied.summary_revision <= active.summary_revision
+            and supplied_history <= active_history
+        )
+
+    async def send_task_updates(task_id: str, cursor: str, *, catch_up: bool = False) -> str:
+        watermark = None
+        while True:
+            batch = await asyncio.to_thread(
+                tasks.stream_updates, services, user.id, task_id, cursor, watermark=watermark
+            )
+            for update in batch.updates:
+                if isinstance(update, tasks.TaskSummaryUpdate):
+                    kind, data = "task.summary", update.model_dump(mode="json")
+                else:
+                    kind = "turn"
+                    data = update.model_dump(
+                        mode="json", exclude={"historical"} if update.historical is None else None
+                    )
+                await websocket.send_json({"type": kind, "data": data})
+            cursor = batch.cursor
+            if not batch.has_more:
+                return cursor
+            if not catch_up:
+                queue_update(task_id)
+                return cursor
+            watermark = batch.watermark
+
+    async def subscribe_task(task_id: str, cursor: str | None) -> None:
+        if cursor is None:
+            snapshot = await asyncio.to_thread(tasks.detail, services, user.id, task_id)
+            await websocket.send_json(
+                {"type": "snapshot", "data": snapshot.model_dump(mode="json")}
+            )
+            cursor = snapshot.event_cursor
+        assert cursor is not None
+        cursor = await send_task_updates(task_id, cursor, catch_up=True)
+        subscriptions[task_id] = cursor
+        stop_watching(task_id)
+        worker = server.project_task_worker
+        if worker is not None:
+            update_watches[task_id] = worker.watch_updates(task_id, partial(queue_update, task_id))
+        # Cover commits after the catch-up watermark or before registering the watch.
+        queue_update(task_id)
+
     def queue_resident_update(scope: tuple[str, str]) -> None:
         pending_updates.add(("resident", *scope))
 
@@ -414,19 +528,13 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                             continue
                         stage = "subscription_updates"
                         try:
-                            updates = await asyncio.to_thread(
-                                tasks.updates, services, user.id, task_id, cursor
-                            )
+                            cursor = await send_task_updates(task_id, cursor)
                         except InhereBoxError as exc:
                             subscriptions.pop(task_id, None)
                             stop_watching(task_id)
                             await error(exc, stage=stage, scope="subscription", task_id=task_id)
                             continue
-                        for update in updates:
-                            await websocket.send_json(
-                                {"type": "turn", "data": update.model_dump(mode="json")}
-                            )
-                            subscriptions[task_id] = update.cursor
+                        subscriptions[task_id] = cursor
                     for scope, cursor in list(resident_subscriptions.items()):
                         if not poll and ("resident", *scope) not in changed:
                             continue
@@ -657,46 +765,31 @@ async def _task_websocket(websocket: WebSocket, diagnostics: TaskWebSocketLog) -
                             services.client_tool_updates.notify((user.id, client_id))
                         result = receipt.model_dump(mode="json")
                     elif isinstance(frame, OpenFrame):
-                        worker = _task_worker(server)
-                        detail = await asyncio.to_thread(
-                            title.open_task, services, user.id, frame.task_id
+                        require_subscription_slot(frame.task_id)
+                        active_cursor = (
+                            subscriptions.get(frame.task_id) if not frame.resume else None
                         )
-                        worker.title_worker.wake()
-                        result = detail.model_dump(mode="json")
-                    elif isinstance(frame, SubscribeFrame):
-                        if (
-                            frame.task_id not in subscriptions
-                            and len(subscriptions) + len(resident_subscriptions)
-                            >= _MAX_SUBSCRIPTIONS
-                        ):
-                            raise InhereBoxError.localized(ErrorCode.TASK_FRAME_INVALID)
-                        cursor = frame.cursor
-                        if cursor is None:
-                            snapshot = await asyncio.to_thread(
-                                tasks.detail, services, user.id, frame.task_id
+                        covered = (
+                            frame.cursor is not None
+                            and active_cursor is not None
+                            and await asyncio.to_thread(
+                                watched_cursor_covered, frame.task_id, frame.cursor, active_cursor
                             )
-                            await websocket.send_json(
-                                {"type": "snapshot", "data": snapshot.model_dump(mode="json")}
-                            )
-                            cursor = snapshot.event_cursor
-                        assert cursor is not None
-                        updates = await asyncio.to_thread(
-                            tasks.updates, services, user.id, frame.task_id, cursor
                         )
-                        for update in updates:
-                            await websocket.send_json(
-                                {"type": "turn", "data": update.model_dump(mode="json")}
+                        if not frame.resume:
+                            assert frame.open_id is not None
+                            worker = _task_worker(server)
+                            admitted = await asyncio.to_thread(
+                                title.admit_open_title,
+                                services,
+                                user.id,
+                                frame.task_id,
+                                frame.open_id,
                             )
-                            cursor = update.cursor
-                        subscriptions[frame.task_id] = cursor
-                        stop_watching(frame.task_id)
-                        worker = server.project_task_worker
-                        if worker is not None:
-                            update_watches[frame.task_id] = worker.watch_updates(
-                                frame.task_id, partial(queue_update, frame.task_id)
-                            )
-                        # Cover commits between the initial read and registering the watch.
-                        queue_update(frame.task_id)
+                            if admitted:
+                                worker.title_worker.wake()
+                        if not covered:
+                            await subscribe_task(frame.task_id, frame.cursor)
                     elif isinstance(frame, UnsubscribeFrame):
                         subscriptions.pop(frame.task_id, None)
                         stop_watching(frame.task_id)

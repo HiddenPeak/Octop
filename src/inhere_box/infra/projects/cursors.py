@@ -16,7 +16,7 @@ from inhere_box.infra.db.services import SharedServices
 from inhere_box.infra.errors import ErrorCode, InhereBoxError
 from inhere_box.infra.projects.models import ProjectModel
 
-CursorKind = Literal["sync", "history", "delta", "conversation"]
+CursorKind = Literal["sync", "history", "delta", "conversation", "task_events"]
 
 
 class Cursor(ProjectModel):
@@ -24,6 +24,9 @@ class Cursor(ProjectModel):
     cutoff: int = Field(default=0, ge=0)
     after: str = Field(default="", max_length=256)
     updated_at: int = Field(default=0, ge=0)
+    summary_revision: int = Field(default=0, ge=0)
+    history_revision: int = Field(default=0, ge=0)
+    history_position: int = Field(default=0, ge=0)
 
 
 def cursor_reset() -> InhereBoxError:
@@ -50,6 +53,19 @@ class CursorCodec:
         elif kind in {"history", "conversation"}:
             point = cursor.updated_at if kind == "history" else cursor.position
             raw = point.to_bytes(8, "big") + cursor.after.encode()
+        elif kind == "task_events":
+            raw = (
+                b"".join(
+                    point.to_bytes(8, "big")
+                    for point in (
+                        cursor.position,
+                        cursor.summary_revision,
+                        cursor.history_revision,
+                        cursor.history_position,
+                    )
+                )
+                + cursor.after.encode()
+            )
         else:
             raw = (
                 cursor.position.to_bytes(8, "big")
@@ -77,6 +93,8 @@ class CursorCodec:
                     raise ValueError("cursor size")
                 return Cursor(position=int.from_bytes(raw, "big"))
             offset = 8 if kind in {"history", "conversation"} else 16
+            if kind == "task_events":
+                offset = 32
             if len(raw) < offset:
                 raise ValueError("cursor size")
             after = raw[offset:].decode()
@@ -84,6 +102,14 @@ class CursorCodec:
                 return Cursor(updated_at=int.from_bytes(raw[:8], "big"), after=after)
             if kind == "conversation":
                 return Cursor(position=int.from_bytes(raw[:8], "big"), after=after)
+            if kind == "task_events":
+                return Cursor(
+                    position=int.from_bytes(raw[:8], "big"),
+                    summary_revision=int.from_bytes(raw[8:16], "big"),
+                    history_revision=int.from_bytes(raw[16:24], "big"),
+                    history_position=int.from_bytes(raw[24:32], "big"),
+                    after=after,
+                )
             return Cursor(
                 position=int.from_bytes(raw[:8], "big"),
                 cutoff=int.from_bytes(raw[8:16], "big"),

@@ -438,7 +438,9 @@ async def test_new_turns_freeze_both_defaults_and_history_and_ws_keep_them(
     # Both REST history and WebSocket catch-up expose the persisted per-turn choice.
     session, ws = await connected(client, auth)
     try:
-        await ws.send_json({"type": "task.subscribe", "id": "history-view", "task_id": task_id})
+        await ws.send_json(
+            {"type": "task.open", "resume": True, "id": "history-view", "task_id": task_id}
+        )
         snapshot = await until(ws, lambda frame: frame["type"] == "snapshot")
         assert [turn["presentation"] for turn in snapshot["data"]["turns"]] == [
             turn["presentation"] for turn in detail["turns"]

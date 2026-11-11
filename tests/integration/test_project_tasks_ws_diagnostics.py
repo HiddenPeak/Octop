@@ -98,7 +98,10 @@ async def test_diagnostics_correlate_header_auth_and_peer_disconnect(env, diagno
             "X-Request-ID": proxy_request_id,
         },
     ) as ws:
-        assert await ws.receive_json() == {"type": "ready", "protocol_version": 3}
+        assert await ws.receive_json() == {
+            "type": "ready",
+            "protocol_version": 3,
+        }
         await ws.send_json({"type": "ping", "id": "diagnostic-ping"})
         assert (await next_frame(ws, "result"))["id"] == "diagnostic-ping"
 
@@ -315,21 +318,23 @@ async def test_subscription_error_omits_task_identity_and_keeps_connection(
     monkeypatch.setattr(
         project_tasks_ws.tasks,
         "detail",
-        lambda *_args: SimpleNamespace(event_cursor="test-cursor", model_dump=lambda **_kw: {}),
+        lambda *_args, **_kwargs: SimpleNamespace(
+            event_cursor="test-cursor", model_dump=lambda **_kw: {}
+        ),
     )
     calls = 0
 
-    def updates(*_args):
+    def updates(*_args, **_kwargs):
         nonlocal calls
         calls += 1
         if calls == 1:
-            return []
+            return SimpleNamespace(updates=[], cursor="test-cursor", has_more=False)
         raise InhereBoxError(ErrorCode.NOT_FOUND, _SECRET)
 
-    monkeypatch.setattr(project_tasks_ws.tasks, "updates", updates)
+    monkeypatch.setattr(project_tasks_ws.tasks, "stream_updates", updates)
     async with ws_connect(client._inhere_box_app, "/api/project-tasks/ws", headers=auth) as ws:
         assert (await ws.receive_json())["type"] == "ready"
-        await ws.send_json({"type": "task.subscribe", "id": _SECRET, "task_id": _SECRET})
+        await ws.send_json({"type": "task.open", "resume": True, "id": _SECRET, "task_id": _SECRET})
         assert (await next_frame(ws, "result"))["id"] == _SECRET
         failure = await next_frame(ws, "error")
         assert failure["status"] == 404 and failure["task_id"] == _SECRET

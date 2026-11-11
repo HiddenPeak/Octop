@@ -408,6 +408,11 @@ class TaskCreate(ProjectTaskCreate):
     project_id: str | None = Field(default=None, description="所属独立项目；null 创建无项目任务。")
 
 
+class TaskProjectInstructions(ProjectModel):
+    revision: Annotated[StrictInt, Field(ge=1)]
+    body: str = Field(max_length=32768)
+
+
 class TaskTurn(ProjectModel):
     presentation: TaskPresentation = Field(
         description="本轮入队时冻结的展示配置，供网页和 APP 按轮展示使用；旧记录采用固定兼容值，不读取当前全局设置。"
@@ -496,6 +501,10 @@ class TaskTurn(ProjectModel):
     input_tokens: int = Field(description="本轮模型输入 Token 数，独立于专家用量记录。")
     output_tokens: int = Field(description="本轮模型输出 Token 数。")
     project_revision: int | None = Field(description="本轮开始时采用的项目配置版本。")
+    project_instructions: TaskProjectInstructions | None = Field(
+        default=None,
+        description="本轮已保存的项目行动指南。空正文表示当时未配置指令，null 表示没有记录。",
+    )
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None = Field(
@@ -557,6 +566,7 @@ class TaskConfigurationEvent(ProjectModel):
 
 class TaskDetail(TaskSummary):
     configuration_events: list[TaskConfigurationEvent] = Field(default_factory=list)
+    history_revision: int = Field(ge=0, description="当前正文页已覆盖的历史重写版本。")
     turns: list[TaskTurn]
     next_page_cursor: str | None = Field(
         default=None, description="读取更早轮次的游标；每页按时间正序。"
@@ -583,6 +593,31 @@ class TaskUpdate(ProjectModel):
     task: TaskSummary
     turn: TaskTurn
     cursor: str
+    history_revision: int = Field(ge=0)
+    historical: bool | None = Field(
+        default=None, description="为 true 时替换已加载的旧轮，不能把未加载旧轮插入当前范围。"
+    )
+
+
+class TaskSummaryUpdate(ProjectModel):
+    task: TaskSummary
+    cursor: str
+    history_revision: int = Field(ge=0)
+
+
+@dataclass(frozen=True)
+class TaskStreamWatermark:
+    tail_position: int
+    history_revision: int
+    task: TaskSummary
+
+
+@dataclass(frozen=True)
+class TaskStreamBatch:
+    updates: list[TaskUpdate | TaskSummaryUpdate]
+    has_more: bool
+    cursor: str
+    watermark: TaskStreamWatermark
 
 
 def now_ms() -> int:
@@ -619,6 +654,8 @@ def summary(row: ProjectTaskRow, policy: TaskApprovalPolicy) -> TaskSummary:
 
 def turn_view(t: ProjectTaskTurnRow, attachments: list[TaskArtifact] | None = None) -> TaskTurn:
     configuration = json.loads(t.configuration_json)
+    project_revision = configuration.get("revision")
+    instructions = configuration.get("instructions")
     expert = configuration.get("expert_profile") or {}
     origin = configuration.get("branch_origin") or {}
     blocks = [TaskContentBlock.model_validate(block) for block in json.loads(t.content_blocks_json)]
@@ -714,7 +751,13 @@ def turn_view(t: ProjectTaskTurnRow, attachments: list[TaskArtifact] | None = No
         retry_of_turn_id=configuration.get("retry_of_turn_id"),
         input_tokens=t.input_tokens,
         output_tokens=t.output_tokens,
-        project_revision=configuration.get("revision"),
+        project_revision=project_revision,
+        project_instructions=TaskProjectInstructions(revision=project_revision, body=instructions)
+        if configuration.get("project_id")
+        and type(project_revision) is int
+        and project_revision > 0
+        and isinstance(instructions, str)
+        else None,
         created_at=_datetime(t.created_at),
         updated_at=_datetime(t.updated_at),
         started_at=_datetime(t.started_at) if t.started_at is not None else None,
@@ -725,11 +768,9 @@ def turn_view(t: ProjectTaskTurnRow, attachments: list[TaskArtifact] | None = No
     )
 
 
-def _fingerprint(turn: TaskTurn, list_revision: int) -> str:
+def _turn_digest(turn: TaskTurn) -> str:
     # Lease heartbeats alone do not change the public conversation state.
-    return hashlib.sha256(
-        (str(list_revision) + ":" + turn.model_dump_json(exclude={"updated_at"})).encode()
-    ).hexdigest()
+    return hashlib.sha256(turn.model_dump_json(exclude={"updated_at"}).encode()).hexdigest()
 
 
 def creation_receipt(
@@ -799,10 +840,20 @@ def detail(
         turns = services.project_task_turn_repo.page(conn, task_id, limit + 1, before)
         attachments = artifacts.for_turns(services, conn, task_id, [turn.turn_id for turn in turns])
         configuration_events = services.project_task_repo.configuration_events(conn, task_id)
+        history_revision = services.project_task_turn_repo.history_revision(conn, task_id)
     more = len(turns) > limit
     turns = turns[-limit:]
     views = [turn_view(t, attachments.get(t.turn_id)) for t in turns]
-    stream = cursor_codec(services, owner_id, f"conversation:{task_id}:events")
+    event_cursor = None
+    if page_cursor is None:
+        stream = cursor_codec(services, owner_id, f"conversation:{task_id}:events")
+        event_cursor = stream.encode(
+            "task_events",
+            position=turns[-1].pk if turns else 0,
+            after=_turn_digest(views[-1]) if views else "",
+            summary_revision=row.list_revision,
+            history_revision=history_revision,
+        )
     return TaskDetail(
         **summary(row, policy).model_dump(),
         configuration_events=[
@@ -817,46 +868,133 @@ def detail(
         ],
         turns=views,
         next_page_cursor=(codec.encode("conversation", position=turns[0].pk) if more else None),
-        event_cursor=(
-            stream.encode(
-                "conversation",
-                position=turns[-1].pk if turns else 0,
-                after=_fingerprint(views[-1], row.list_revision) if views else "",
-            )
-            if page_cursor is None
-            else None
-        ),
+        event_cursor=event_cursor,
+        history_revision=history_revision,
     )
 
 
-def updates(
-    services: SharedServices, owner_id: int, task_id: str, event_cursor: str
-) -> list[TaskUpdate]:
+def stream_updates(
+    services: SharedServices,
+    owner_id: int,
+    task_id: str,
+    event_cursor: str,
+    *,
+    watermark: TaskStreamWatermark | None = None,
+    limit: int = 50,
+) -> TaskStreamBatch:
+    """Read bounded turn and metadata updates with independently advancing positions."""
     codec = cursor_codec(services, owner_id, f"conversation:{task_id}:events")
-    cursor = codec.decode(event_cursor, "conversation")
+    state = codec.decode(event_cursor, "task_events")
+    turns = services.project_task_turn_repo
     with services.db.read_snapshot() as conn:
         task = services.project_task_repo.get_in_transaction(conn, task_id, owner_id)
         if task is None:
             raise InhereBoxError.localized(ErrorCode.NOT_FOUND)
-        policy = approval_policy.in_transaction(conn, services, owner_id)
-        rows = services.project_task_turn_repo.since(conn, task_id, cursor.position, 50)
-        attachments = artifacts.for_turns(services, conn, task_id, [turn.turn_id for turn in rows])
-    if cursor.position and (not rows or rows[0].pk != cursor.position):
-        raise cursor_reset()
-    result = []
-    for row in rows:
-        view = turn_view(row, attachments.get(row.turn_id))
-        fingerprint = _fingerprint(view, task.list_revision)
-        if row.pk == cursor.position and fingerprint == cursor.after:
-            continue
+        if watermark is None:
+            policy = approval_policy.in_transaction(conn, services, owner_id)
+            watermark = TaskStreamWatermark(
+                tail_position=turns.latest_position(conn, task_id),
+                history_revision=turns.history_revision(conn, task_id),
+                task=summary(task, policy),
+            )
+        if (
+            state.position > watermark.tail_position
+            or state.history_revision > watermark.history_revision
+        ):
+            raise cursor_reset()
+
+        historical = turns.history_since(
+            conn,
+            task_id,
+            before=state.position,
+            revision=state.history_revision,
+            position=state.history_position,
+            through=watermark.history_revision,
+            limit=limit + 1,
+        )
+        remaining = max(0, limit - len(historical))
+        live = turns.since(
+            conn, task_id, state.position, remaining + 1, through=watermark.tail_position
+        )
+        if state.position and (not live or live[0].pk != state.position):
+            raise cursor_reset()
+        attachments = artifacts.for_turns(
+            services, conn, task_id, [row.turn_id for row in [*historical[:limit], *live]]
+        )
+
+    task_view = watermark.task
+    position = state.position
+    digest = state.after
+    history_revision = state.history_revision
+    history_position = state.history_position
+    result: list[TaskUpdate | TaskSummaryUpdate] = []
+
+    def encode() -> str:
+        return codec.encode(
+            "task_events",
+            position=position,
+            after=digest,
+            summary_revision=task_view.list_revision,
+            history_revision=history_revision,
+            history_position=history_position,
+        )
+
+    def complete_history_revision() -> int:
+        return history_revision - int(history_position > 0)
+
+    for index, row in enumerate(historical[:limit]):
+        next_row = historical[index + 1] if index + 1 < len(historical) else None
+        history_revision = row.history_revision
+        history_position = (
+            row.pk if next_row and next_row.history_revision == history_revision else 0
+        )
+        if next_row is None:
+            history_revision = watermark.history_revision
         result.append(
             TaskUpdate(
-                task=summary(task, policy),
-                turn=view,
-                cursor=codec.encode("conversation", position=row.pk, after=fingerprint),
+                task=task_view,
+                turn=turn_view(row, attachments.get(row.turn_id)),
+                cursor=encode(),
+                historical=True,
+                history_revision=complete_history_revision(),
             )
         )
-    return result
+    if len(historical) > limit:
+        return TaskStreamBatch(result, True, result[-1].cursor, watermark)
+
+    history_revision = watermark.history_revision
+    history_position = 0
+    for row in live:
+        view = turn_view(row, attachments.get(row.turn_id))
+        next_digest = _turn_digest(view)
+        if row.pk == position and next_digest == digest:
+            continue
+        if len(result) == limit:
+            return TaskStreamBatch(result, True, result[-1].cursor, watermark)
+        position, digest = row.pk, next_digest
+        result.append(
+            TaskUpdate(
+                task=task_view,
+                turn=view,
+                cursor=encode(),
+                history_revision=history_revision,
+            )
+        )
+    if not result and (
+        task_view.list_revision != state.summary_revision
+        or history_revision != state.history_revision
+        or state.history_position
+    ):
+        result.append(
+            TaskSummaryUpdate(task=task_view, cursor=encode(), history_revision=history_revision)
+        )
+
+    return TaskStreamBatch(
+        result,
+        position < watermark.tail_position,
+        result[-1].cursor if result else event_cursor,
+        watermark,
+    )
 
 
 def _reasoning_configuration(

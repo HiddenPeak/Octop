@@ -39,6 +39,26 @@ class ProjectTaskTitleRepo:
         self._db = db
 
     @staticmethod
+    def record_open(
+        conn: Any, owner_id: int, task_id: str, open_id: str, opened_at: int, *, keep: int
+    ) -> bool:
+        result = conn.execute(
+            "INSERT INTO project_task_open_receipts(task_id,owner_id,open_id,opened_at) "
+            "VALUES (?,?,?,?) ON CONFLICT(task_id,owner_id,open_id) DO NOTHING",
+            (task_id, owner_id, open_id, opened_at),
+        )
+        if result.rowcount != 1:
+            return False
+        # Retries reuse a recent open ID; older receipts only grow storage.
+        conn.execute(
+            "DELETE FROM project_task_open_receipts WHERE task_id=? AND owner_id=? "
+            "AND open_id NOT IN (SELECT open_id FROM project_task_open_receipts "
+            "WHERE task_id=? AND owner_id=? ORDER BY opened_at DESC, open_id DESC LIMIT ?)",
+            (task_id, owner_id, task_id, owner_id, keep),
+        )
+        return True
+
+    @staticmethod
     def enqueue(
         conn: Any, task_id: str, *, title_revision: int = 1, attempt_limit: int = 2
     ) -> None:

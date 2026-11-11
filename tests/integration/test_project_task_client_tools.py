@@ -212,7 +212,7 @@ async def test_real_harness_waits_for_client_and_receives_actual_result(
     session, ws = await connected(client, auth)
     try:
         task, call = await start_call(ws)
-        await command(ws, "task.subscribe", "subscribe-tool-001", task_id=task["task_id"])
+        await command(ws, "task.open", "subscribe-tool-001", task_id=task["task_id"], resume=True)
         live = (await client.get(f"/api/project-tasks/{task['task_id']}", headers=auth)).json()
         assert live["status"] in {"running", "waiting_client_tool"}
         assert len(observed) == 1  # No second model request before a tool result.

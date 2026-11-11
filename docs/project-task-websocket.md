@@ -34,11 +34,11 @@
 1. 使用现有 inhere-box 登录流程取得 access token，连接 `/api/project-tasks/ws`。
 2. 完成鉴权，收到 ready 后才发送业务命令。
 3. 用 task.create 发送首条消息，通过命令 id 匹配 result，保存返回的 task_id。
-4. 用创建响应的 event_cursor 发送 task.subscribe。创建成功不会自动订阅。
+4. 用创建响应的 `event_cursor` 和 `resume:true` 发送 `task.open`，建立观察。
 5. 在唯一的接收循环中处理全部事件，再按任务 ID 分发。
 6. 用 task.message 继续同一任务。断线后重新鉴权、重新订阅，不自动重发用户消息。
 
-打开已有任务详情时，先发送 task.open 获取 TaskDetail，再用返回的 event_cursor 订阅。它表示用户明确进入任务，只在本次进入时发送；列表预加载、历史分页和断线恢复不发送 task.open。
+用户明确进入已有任务时发送带 `open_id` 的 `task.open`，一次完成打开和观察。断线恢复也发送 `task.open`，并带上 `resume:true` 和最后已应用的游标。
 
 任务完成通过 `turn.status=completed` 表达，没有单独的 done 消息。一轮结束不会关闭连接，后续追问继续沿用 task_id。
 
@@ -111,6 +111,7 @@ heartbeat 不需要回复。下文的 ping 命令用于主动检查请求与回�
 | 字段 | 含义 | 客户端规则 |
 | --- | --- | --- |
 | 命令 id | 匹配本次命令与 result/error | 同一连接的在途命令使用不同值；8–128 位字母、数字、短横线或下划线，推荐 UUID 字符串 |
+| open_id | 用户明确打开任务的持久化幂等标识 | 每次用户明确打开使用新 UUID，重传复用原值；36 字符，带短横线，大小写均可 |
 | data.request_id | 消息的持久化幂等标识 | 同一消息重试复用；新消息和新的手动重试使用新值；格式与命令 id 相同 |
 | task_id | 多轮任务会话 | 不透明字符串，原样保存，不转为 UUID；命令顶层字段长度 1–256 字符 |
 | turn_id | 一条用户消息对应的一轮执行 | 停止和重试时指定，不能只传“当前任务”而省略轮次 |
@@ -174,43 +175,31 @@ data 顶层可传 `web_search_enabled:true/false`，默认 true，用户显式�
 
 中断时先读取 `turn.recovery`：`can_resume=true` 才允许尝试继续；`needs_reconciliation=true` 时先核对已派发但结果未知的操作，不重新派发。服务端仍在恢复和执行前核验断点及当前权限。原审批超时记录保持拒绝，尚未执行的超时动作只在明确恢复时新建审批；用户显式拒绝不被清除。`task.retry` 是新轮“重新执行”，只有原轮无法续接时才作为后备，并明确提示可能重复操作；原轮仍处于 `interrupted` 时先由用户明确 `task.cancel`，确认取消终态后才能重试。当前没有“重试此步”命令。
 
-### 打开任务 task.open
+### 打开与恢复观察 task.open
 
 ```json
-{"type":"task.open","id":"command-open-001","task_id":"task_example"}
+{"type":"task.open","id":"command-open-001","task_id":"task_example","open_id":"770ca13d-e6af-4e3c-bf36-fd4eef74a7c1"}
 ```
 
-成功 result.data 为最近一页 TaskDetail，与详情 GET 的数据形状相同。命令表示本次进入该任务，并按需排队生成语义标题，不创建轮次、不重放原消息或工具，也不自动订阅。客户端随后用 result.data.event_cursor 发送 task.subscribe，接收后台标题更新。
+命令建立该任务的正文观察。省略 `resume` 或传 `false` 表示用户明确进入任务，必须传 `open_id`，服务端按需排队生成语义标题。创建后的首次观察、断线重连和游标重置传 `resume:true`，此时必须省略 `open_id`。
+
+持有同一任务已应用的正文与游标时，携带 `cursor` 只补齐变化。省略或传 `null` 时先返回最近一页 `snapshot`，再补齐期间的变化。
+
+```json
+{"type":"task.open","id":"command-resume-001","task_id":"task_example","resume":true,"cursor":"opaque_event_cursor"}
+```
+
+命令先发送初始正文事件，补齐到本次捕获的同步位置后返回 `{"type":"result","id":"command-resume-001","data":null}`。之后的新变化由同一订阅推送。客户端在发送命令前登记接收方，暂存本次追平的数据和游标，收到成功回执后一起应用。没有新状态时也会返回回执。
 
 已有模型生成标题或手动标题时不重新命名；旧任务只有仍保留首条消息前 80 字符的默认标题、且没有新版本手动改名记录时，才首次补生成。只处理打开的这一项，不扫描其他历史任务。标题请求使用首轮已保存的模型，仍受用户配额约束，失败不影响对话读取。
 
-排队中、执行中和已完成的标题不会因重复打开而重复请求。打开旧任务首次最多尝试一次；失败后冷却至少 10 分钟，冷却结束后的下一次 task.open 才允许再尝试一次，不在后台持续重试。新任务创建时原有的最多两次初始尝试保留。累计尝试次数和 Token 用量不清零，过期执行的迟到结果不能覆盖新尝试。生成结果不改变任务活动时间；生成期间用户改名仍优先保留用户标题。
+服务端按账号、任务和 `open_id` 记录已处理的打开意图。即使当时无需排队，重传也只完成观察和回执，不再尝试生成标题。每个账号和任务只保留最近 16 次打开的标识，更早的标识自动清理；任务或账号删除时一并删除。
 
-APP 应将 task.open 与真实的进入详情动作绑定。停留页面、恢复前台和断线重连仅恢复 task.subscribe；不得把后台订阅或批量预加载当作打开。task.open 的冷却与去重由服务端统一判断，客户端无需根据标题文本猜测是否已生成。
+排队中、执行中和已完成的标题不会因打开而重复请求。打开旧任务首次最多尝试一次；失败后冷却至少 10 分钟，冷却结束后新的用户打开意图才允许再尝试一次。新任务创建时原有的最多两次初始尝试保留。累计尝试次数和 Token 用量不清零，过期执行的迟到结果不能覆盖新尝试。生成结果不改变任务活动时间；生成期间用户改名仍优先保留用户标题。
 
-task.open 回执丢失时，生成请求可能已入队；本次进入的自动恢复应通过详情 GET 获取快照再订阅，不自动重发 task.open。再次明确进入任务时才能重新发送。
+连接中断后以 `resume:true` 恢复观察。明确打开的回执仍未确认时，可以用新命令 `id` 和同一 `open_id` 重传该意图。收到 `PROJECT_SYNC_RESET` 时放弃该次未确认的增量，重新发送 `resume:true` 并省略游标，取得新基线。
 
-### 订阅任务 task.subscribe
-
-有实时游标时：
-
-```json
-{"type":"task.subscribe","id":"command-watch-001","task_id":"task_example","cursor":"opaque_event_cursor"}
-```
-
-没有缓存或需要重建时：
-
-```json
-{"type":"task.subscribe","id":"command-snapshot-001","task_id":"task_example"}
-```
-
-带 cursor 时补齐该位置之后各轮的最新状态。省略或传 null 时先返回最近一页 snapshot，再补齐期间的变化。成功 result.data 为 null；没有新状态也会返回回执。
-
-订阅只恢复数据观察，不检查或重试标题；需要按需补标题时，用户进入详情应先发送 task.open。
-
-**snapshot/turn 可以先于订阅命令的 result 到达。** 发送订阅前登记事件接收方；不要等回执才开始读取，也不要在等待某个回执时丢弃其他帧。
-
-每条连接每个 task_id 只有一个服务端订阅，重复订阅会更新其基线。多个本地界面观察同一任务时，在连接管理层合并观察者，最后一个观察者离开时再取消订阅。
+每条连接每个 task_id 只有一个服务端订阅。已有观察时，显式打开可带该观察最后已应用的游标。服务端核对游标的账号、任务、用途和位置，处理标题入队后直接返回回执，沿现有基线继续推送。游标领先现有观察时（例如来自刚完成的 REST 读取或修改），服务端改从该游标追平并以它为新基线。已发出但客户端尚未应用的事件可能使服务端游标更靠后。独立打开需要自己的初始正文时，省略游标获取快照，或用 `resume:true` 建立其他基线。多个本地界面共用一个观察时，在连接管理层合并观察者，最后一个离开时再取消订阅。
 
 ### 取消订阅 task.unsubscribe
 
@@ -234,13 +223,16 @@ task.open 回执丢失时，生成请求可能已入队；本次进入的自动�
 
 | type | 主要字段 | 处理方式 |
 | --- | --- | --- |
-| ready | protocol_version | 鉴权完成，开始发送业务命令 |
+| ready | protocol_version、可选 session_replace | 鉴权完成，开始发送命令 |
 | result | id、data | 完成匹配命令，不结束接收循环 |
 | snapshot | data: TaskDetail | 建立或重建最近一页正文与实时基线 |
 | turn | data: TaskUpdate | 按任务与轮次合并完整状态，应用后保存 cursor |
+| task.summary | data: TaskSummaryUpdate | 更新任务摘要及游标，保留已有轮次 |
 | error | status、error，可能带 id 或 task_id | 按第 9 节区分命令、订阅和连接错误 |
 | session | access_token | 保存续期凭据 |
 | heartbeat | 无 | 保持连接活跃，不改变任务状态或游标 |
+
+`snapshot.data.history_revision` 是快照所对应的历史修订号。`turn.data` 与 `task.summary.data` 携带同一流的 `history_revision` 和新 `cursor`。只改摘要时发送 `task.summary`，其 `data` 含 `task`、`cursor`、`history_revision`。服务端重发过去已存在的旧轮时，`turn.data.historical:true` 标记历史修订。客户端按轮次 ID 更新已加载的旧轮，并使用历史修订号防止正在返回的旧页覆盖新版本。
 
 ### 创建回执
 
@@ -686,7 +678,7 @@ APP 按 task_id/turn_id 保存 `reasoning: string`，与 reply 分开。无可�
 | --- | --- |
 | WebSocket turn 实时推送 | data.turn.reasoning |
 | WebSocket snapshot | data.turns[].reasoning |
-| task.create / task.open / task.message / task.retry / task.cancel 的 result | data.turns[].reasoning |
+| task.create / task.message / task.retry / task.cancel 的 result | data.turns[].reasoning |
 | REST 详情或历史分页 | turns[].reasoning |
 
 reasoning 与 reply 一样使用累计文本，通过已有 turn 事件更新。持续增长的文本按约 100ms 的窗口合并保存，提交后立即唤醒本进程内订阅该任务的连接；其他进程写入或未发通知的变化仍由约 500ms 的轮询兜底。没有内容变化时，租约心跳仍约每 500ms 保存；审批策略和客户端工具检查也保持原有轮询节奏。上述窗口是服务端调度配置，实际接收间隔还取决于模型、数据库和网络。仅思考增长也会产生新游标，不递增任务列表版本。APP 分别保留两类文本中已收到的较长内容，再按第 6 节合并状态；不能因为一个字段较短就丢弃整条 turn，否则可能漏掉另一字段增长或终态。应用完事件后保存 cursor。
@@ -716,11 +708,11 @@ APP 从 `GET /api/project-tasks/resources` 的选中模型读取该能力，只�
 ### 恢复已有任务
 
 1. 保留最后确认的正文和同步位置，标记连接中断，不把任务标为失败或完成。
-2. 重连后等待 ready，分别发送 task.subscribe，携带各任务最后应用的 cursor。
+2. 重连后等待 ready，分别发送带 `resume:true` 的 `task.open`，携带各任务最后已应用的游标。
 3. 合并收到的完整状态，可能直接从 running 跳到 completed；离线期间的中间文字和工具活动不会逐一重放。
 4. PROJECT_SYNC_RESET 只重建受影响任务：清除实时基线，不带 cursor 订阅取得 snapshot，其他任务继续。
 
-游标绑定实例、账号、任务和用途。列表 sync_cursor、历史 page_cursor、实时 event_cursor 互不通用。游标失效不表示需要重新执行任务。
+游标绑定实例、账号、任务和用途。列表 sync_cursor、历史 page_cursor、实时 event_cursor 互不通用。游标失效后重建该任务的显示基线。
 
 REST 首次详情默认最近 50 轮，最多 100 轮；历史页 event_cursor 为 null。用 `GET /api/project-tasks/{task_id}?page_cursor=...` 读取更早轮次，实时位置保持不变。
 
@@ -840,8 +832,8 @@ func observeExampleTask(endpoint: URL, accessToken: String) async throws {
                 throw URLError(.cannotParseResponse)
             }
             try await send([
-                "type": "task.subscribe", "id": "command-watch-001",
-                "task_id": taskID, "cursor": cursor
+                "type": "task.open", "id": "command-watch-001",
+                "task_id": taskID, "resume": true, "cursor": cursor
             ])
         case "turn":
             // 两个字段都是累计全文，reply 为空时也要处理思考更新。
@@ -916,7 +908,7 @@ sequenceDiagram
 {"type":"client.attach","id":"attach-command-001","client_id":"mac-install-001"}
 ```
 
-成功返回 result.data=null。每条连接只能绑定一个 client_id；重复绑定同值成功，改成其他值返回 TASK_FRAME_INVALID。可使用同一连接订阅多个任务并执行这些任务的客户端工具。绑定独立于 task.subscribe：关闭任务页面不应关闭仍承担工具执行的共享连接。
+成功返回 result.data=null。每条连接只能绑定一个 client_id；重复绑定同值成功，改成其他值返回 TASK_FRAME_INVALID。可使用同一连接订阅多个任务并执行这些任务的客户端工具。绑定独立于任务正文观察：关闭任务页面不应关闭仍承担工具执行的共享连接。
 
 client_id 是当前登录用户下的**路由标识**，不是独立的设备认证凭据。相同账号的连接可以声明同一个 client_id；服务端通过原子领取防止它们同时得到不同的执行授权。需要设备级可信身份时，应另行设计设备注册和认证，不能把 client_id 当密钥。
 
@@ -998,7 +990,7 @@ call_id 为服务端生成的不透明标识，客户端以它做持久化去重
 
 ### 12.5 断线与本地执行记录
 
-重连后重新鉴权并 client.attach；服务端重新下发尚未结束的 pending/claimed 调用，call_id、expires_at 和已固定的 execution_expires_at 保持不变。已结束调用不会作为新的执行请求回放。task.subscribe 的 cursor 只管文字状态，与工具恢复独立。
+重连后重新鉴权并 client.attach；服务端重新下发尚未结束的 pending/claimed 调用，call_id、expires_at 和已固定的 execution_expires_at 保持不变。已结束调用不会作为新的执行请求回放。task.open 的 cursor 只管文字状态，与工具恢复独立。
 
 本地执行记录至少保存：账号与服务端地址、client_id、三个调用标识、领取 request_id、claim_token、执行是否开始/完成、固定的 output/is_error，以及服务端确认状态。按下面顺序恢复：
 
@@ -1073,7 +1065,7 @@ publish_workspace_archive 的 paths 是 1–100 个互不重复的相对文件�
 | created_at | 服务端生成的 UTC ISO 8601 时间 |
 | business_category | 必返回的后缀分类：document/presentation/spreadsheet/image/other，分别显示文本和PDF、幻灯片、表格、图片、其他；历史成果按相同规则回填 |
 
-客户端按 task_id、turn_id 合并完整轮次，按 artifact_id 渲染附件；数组顺序为发布顺序。task.subscribe 的 cursor 同时覆盖文字和附件状态。重新连接或加载历史后使用服务端 artifacts 恢复文件卡，不从 Markdown 文件路径、工具活动文字或 source_path 推断附件，也不追加重复卡片。服务端工具失败或模型仅提到文件名时，不产生附件。
+客户端按 task_id、turn_id 合并完整轮次，按 artifact_id 渲染附件；数组顺序为发布顺序。task.open 的 cursor 同时覆盖文字和附件状态。重新连接或加载历史后使用服务端 artifacts 恢复文件卡，不从 Markdown 文件路径、工具活动文字或 source_path 推断附件，也不追加重复卡片。服务端工具失败或模型仅提到文件名时，不产生附件。
 
 跨任务资料库使用 `GET /api/project-tasks/artifacts?business_category=document` 等筛选；默认 `all` 对应全部，包含其他类别。列表和详情保留详细格式 `file_kind` 及原 `kind` 筛选。分类与搜索、来源、格式和归档状态在服务端求交后分页，并绑定 `artifact-library-v3` 分页游标；v1/v2 旧游标及切换类别后复用游标返回 `409 PROJECT_SYNC_RESET`。完整契约见[资料库说明](project-task-artifact-library.md#资料分类)。
 
@@ -1122,7 +1114,7 @@ Authorization: Bearer <access token>
 
 结果为最新 TaskDetail。expected_revision 来自账号全局 approval_policy.revision；成功写入增加全局版本及本人全部任务的列表版本。同一 request_id 全账号幂等，重传完整原载荷，异体返回 TASK_REQUEST_CONFLICT；新请求版本冲突返回 TASK_APPROVAL_POLICY_CONFLICT。切换影响全部已有/运行/未来任务的后续动作，不改变已有人工卡、调用或轮次的冻结模式。REST 等价入口为 PUT /api/project-tasks/{task_id}/approval-policy；无任务时用 GET/PUT /api/project-tasks/approval-policy，PUT 返回策略对象。
 
-服务器另发送独立全局事件 `{"type":"approval.policy","data":{"mode":"ask_for_approval","revision":1,"updated_at":"2026-10-19T00:00:00Z"}}`。连接首次轮询及策略变化时推送，不需要 task.subscribe，New Task 页也可实时观察；ready 保持原样。所有 TaskSummary/Detail 读取相同账号权威；旧 Task 列不再决定模式。045 迁移将账号初值设为询问，revision 高于其全部旧 Task 版本；动作与轮次快照保留。
+服务器另发送独立全局事件 `{"type":"approval.policy","data":{"mode":"ask_for_approval","revision":1,"updated_at":"2026-10-19T00:00:00Z"}}`。连接首次轮询及策略变化时推送，无需打开任务，New Task 页也可实时观察；ready 保持原样。所有 TaskSummary/Detail 读取相同账号权威；旧 Task 列不再决定模式。045 迁移将账号初值设为询问，revision 高于其全部旧 Task 版本；动作与轮次快照保留。
 
 资源接口增加 approval={allowed_modes,reviewer_ready,execution_profile:"host_process"}，allowed_modes 固定返回 ask_for_approval、approve_for_me 和 full_access，三种模式始终可选。reviewer_ready 仅供状态展示，未就绪不限制选择帮我审批；实际审查不可用时转人工。管理员通过 GET/PUT /api/admin/security/task-approvals 仅保存 require_human_tools，无需配置可用模式。网页完全访问确认说明服务端主机进程权限；本机权限须另行授予。实际范围与边界见[审批模式文档](project-task-approval-modes.md)。
 
@@ -1189,7 +1181,7 @@ TaskTurn 的 `attachments` 为上述元数据数组，无附件时为 `[]`；`ar
 
 使用 `GET preview_url` 并携带当前账号 Bearer token 获取原始内容。视觉图片返回 `Content-Disposition: inline`，其他文件返回 `attachment`；响应包含 Content-Type、`Cache-Control: private, no-store`、`X-Content-Type-Options: nosniff` 和受限 CSP。浏览器先鉴权获取 Blob，再创建预览或下载 URL；不要把 token 加入 URL。退出或切换账号时清理 Blob URL。
 
-断线只恢复 task.subscribe，无需重新上传或重发消息。失败、停止和手动重试都保留已提交附件。服务端仅在模型调用前临时构造图片 image_url data URI；上下文和原生检查点持久化 `task-image://<attachment_id>` 引用，恢复后按当前任务和账号重新鉴权读取原图。
+断线后以 task.open resume:true 恢复观察，继续使用原附件和消息。失败、停止和手动重试都保留已提交附件。服务端仅在模型调用前临时构造图片 image_url data URI；上下文和原生检查点持久化 `task-image://<attachment_id>` 引用，恢复后按当前任务和账号重新鉴权读取原图。
 
 长对话压缩后，模型可以通过 `read_task_image(attachment_id?)` 重新查看历史图片：省略 ID 时仅列出当前任务视觉图片，指定 ID 时将该图加入下一次模型请求。普通文件不由这个工具读取，使用文件清单中的工作区路径。工具结果与持久化历史仍只含引用和元数据，不自动发布输出附件。
 ## 可选执行引擎（2026-10-27 增量）

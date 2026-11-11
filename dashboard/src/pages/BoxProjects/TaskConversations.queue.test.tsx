@@ -31,7 +31,6 @@ vi.mock("../../api/modules/projects", async (importOriginal) => ({
     list: vi.fn(),
     sync: vi.fn(),
     get: vi.fn(),
-    open: vi.fn(),
     create: vi.fn(),
     send: vi.fn(),
     cancel: vi.fn(),
@@ -75,6 +74,7 @@ vi.mock("react-i18next", () => {
 });
 
 const api = vi.mocked(projectTasksApi, true);
+const openSnapshot = vi.fn<(taskID: string) => Promise<TaskDetail>>();
 afterEach(() => act(() => Modal.destroyAll()));
 const timestamp = "2026-10-15T00:00:00Z";
 const policy = {
@@ -210,15 +210,22 @@ beforeEach(() => {
     next_page_cursor: null,
     changes: [],
   });
-  api.open.mockImplementation(async (id) => snapshots.get(id)!);
+  openSnapshot.mockImplementation(async (id) => snapshots.get(id)!);
   api.get.mockImplementation(async (id) => snapshots.get(id)!);
-  api.events.mockImplementation((taskID, _cursor, receive, signal, onOpen) => {
-    subscriptions.push({ taskID, receive, signal });
-    onOpen?.();
-    return new Promise<void>((resolve) =>
-      signal.addEventListener("abort", () => resolve(), { once: true }),
-    );
-  });
+  api.events.mockImplementation(
+    async (taskID, cursor, receive, signal, onOpen) => {
+      if (cursor === null) {
+        const snapshot = await openSnapshot(taskID);
+        if (signal.aborted) return;
+        receive({ type: "snapshot", data: snapshot });
+      }
+      subscriptions.push({ taskID, receive, signal });
+      onOpen?.();
+      return new Promise<void>((resolve) =>
+        signal.addEventListener("abort", () => resolve(), { once: true }),
+      );
+    },
+  );
   api.send.mockImplementation(async (id, body) => accept(id, body));
   api.cancel.mockImplementation(async (id) => {
     const current = snapshots.get(id)!;
@@ -572,7 +579,7 @@ describe("项目任务消息队列", () => {
     await mount();
     await enqueue("原任务后台追问");
     await userEvent.click(screen.getByRole("button", { name: /另一项任务/ }));
-    await waitFor(() => expect(api.open).toHaveBeenCalledWith("task_b"));
+    await waitFor(() => expect(openSnapshot).toHaveBeenCalledWith("task_b"));
     await waitFor(() => expect(composer()).toBeEnabled());
     expect(screen.queryByLabelText("排队中的消息")).not.toBeInTheDocument();
     await enqueue("新任务队列");
@@ -611,7 +618,7 @@ describe("项目任务消息队列", () => {
     await userEvent.click(within(queue()).getByTitle("取回编辑"));
     const modal = await reclaimDialog();
     await userEvent.click(screen.getByRole("button", { name: /另一项任务/ }));
-    await waitFor(() => expect(api.open).toHaveBeenCalledWith("task_b"));
+    await waitFor(() => expect(openSnapshot).toHaveBeenCalledWith("task_b"));
     await waitFor(() => expect(composer()).toBeEnabled());
     fireEvent.change(composer(), { target: { value: "新任务草稿" } });
     await userEvent.click(
@@ -636,7 +643,7 @@ describe("项目任务消息队列", () => {
       turns: [{ ...old.turns[0], status: "completed", reply: "最新终态回复" }],
     };
     let finishOpen!: (value: TaskDetail) => void;
-    api.open.mockReturnValueOnce(
+    openSnapshot.mockReturnValueOnce(
       new Promise((resolve) => {
         finishOpen = resolve;
       }),
@@ -659,7 +666,7 @@ describe("项目任务消息队列", () => {
       </MemoryRouter>
     );
     const view = render(page(shared));
-    await waitFor(() => expect(api.open).toHaveBeenCalledWith("task_a"));
+    await waitFor(() => expect(openSnapshot).toHaveBeenCalledWith("task_a"));
     await act(async () => finishOpen(old));
     expect(await screen.findByText("最新终态回复")).toBeInTheDocument();
     expect(

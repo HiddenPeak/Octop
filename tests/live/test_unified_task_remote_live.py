@@ -130,7 +130,7 @@ async def test_live_remote_task_uses_peer_model_workspace_and_saved_state(live_t
                 local.client._inhere_box_app, prefix + "/project-tasks/ws", headers=local.auth
             ) as ws:
                 ready = await ws.receive_json()
-                assert ready == {"type": "ready", "protocol_version": 3}
+                assert ready["type"] == "ready" and ready["protocol_version"] == 3
                 await ws.send_json({"type": "task.create", "id": "remote-create", "data": payload})
                 async with asyncio.timeout(60):
                     while True:
@@ -143,7 +143,7 @@ async def test_live_remote_task_uses_peer_model_workspace_and_saved_state(live_t
                             task_id = frame["data"]["task_id"]
                             break
                 await ws.send_json(
-                    {"type": "task.subscribe", "id": "remote-watch", "task_id": task_id}
+                    {"type": "task.open", "resume": True, "id": "remote-watch", "task_id": task_id}
                 )
                 deadline = time.monotonic() + 240
                 while time.monotonic() < deadline:

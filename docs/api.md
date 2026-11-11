@@ -115,7 +115,7 @@ Task 是一段持久的多轮对话。发送首条消息时创建 Task；后续�
 
 新任务先显示首条消息的首个有效行（最多 60 字符），再由服务端内置的 `TaskTitleAgent` 异步概括标题。标题请求沿用首轮模型，只接收最多 4,000 字符的首条消息，不加载工具、Skill、项目行动指南或工作目录；主回答开始输出后才安排标题请求，不阻塞创建和主回答。生成标题通过现有列表同步和会话事件更新，不改变任务活动时间。手动改名后不再自动覆盖，追问不重复命名。新任务首次最多尝试两次，超时或失败保留临时标题，待处理记录支持重启后恢复。标题请求的已报告 Token 用量独立保存并计入所属用户累计配额。
 
-客户端进入任务详情时发送 WebSocket `task.open`，返回最近一页 TaskDetail，并按需补生成默认截取的旧标题；随后发送 `task.subscribe` 观察变化。列表读取、详情 GET、分页、普通订阅和断线恢复不触发标题补生成。打开时只为当前任务排队一次；失败冷却至少 10 分钟，之后再次打开才给予一次新的尝试，累计尝试次数和用量保留。已生成或手动修改的标题不会重命名，不扫描或批量回填未打开的历史任务。
+客户端进入任务详情时发送带新 UUID `open_id` 的 WebSocket `task.open`，同时建立正文观察并按需补生成默认截取的旧标题。重传同一次打开时复用 `open_id`。恢复观察时带 `resume:true` 并省略 `open_id`。列表读取、详情 GET、分页和恢复观察不触发标题补生成。失败冷却至少 10 分钟，之后用户再次进入任务才给予一次新的尝试，累计尝试次数和用量保留。已生成或手动修改的标题不会重命名，不扫描或批量回填未打开的历史任务。
 
 | 方法 | 路径 | 用途 |
 |---|---|---|
@@ -155,7 +155,7 @@ Task 是一段持久的多轮对话。发送首条消息时创建 Task；后续�
 
 ### 任务审批模式与远端 Reviewer
 
-TaskSummary/TaskDetail 返回当前账号全部任务共用的 `approval_policy={mode,revision,updated_at}`，轮次保留 `approval_policy_at_start`。`GET /api/project-tasks/approval-policy` 读取、`PUT /api/project-tasks/approval-policy` 提交 `{request_id,expected_revision,mode}` 并返回策略对象，无任务时也可用。原 `PUT /api/project-tasks/{task_id}/approval-policy` 和 `task.approval.set` 验证任务归属后也修改全局模式，返回 TaskDetail。全部项目、已有/运行/新任务统一生效，三种模式始终可选，新账号默认询问。创建顶层旧 `approval_mode` 已忽略，不可覆盖或重置全局。版本和幂等键为账号范围；网络重试复用原请求。新请求版本冲突返回 `TASK_APPROVAL_POLICY_CONFLICT`。切换不放行已有人工卡，不改动作/轮次旧快照、强制人工规则或本机资源授权。WebSocket 独立推送 `approval.policy` 事件，首次轮询及全局变化发送，不要求 task.subscribe。
+TaskSummary/TaskDetail 返回当前账号全部任务共用的 `approval_policy={mode,revision,updated_at}`，轮次保留 `approval_policy_at_start`。`GET /api/project-tasks/approval-policy` 读取、`PUT /api/project-tasks/approval-policy` 提交 `{request_id,expected_revision,mode}` 并返回策略对象，无任务时也可用。原 `PUT /api/project-tasks/{task_id}/approval-policy` 和 `task.approval.set` 验证任务归属后也修改全局模式，返回 TaskDetail。全部项目、已有/运行/新任务统一生效，三种模式始终可选，新账号默认询问。创建顶层旧 `approval_mode` 已忽略，不可覆盖或重置全局。版本和幂等键为账号范围；网络重试复用原请求。新请求版本冲突返回 `TASK_APPROVAL_POLICY_CONFLICT`。切换不放行已有人工卡，不改动作/轮次旧快照、强制人工规则或本机资源授权。WebSocket 独立推送 `approval.policy` 事件，首次轮询及全局变化时发送。
 
 `GET /api/project-tasks/resources` 增加 `approval={allowed_modes,reviewer_ready,execution_profile:"host_process"}`，`allowed_modes` 固定返回三种模式。`reviewer_ready` 仅供状态展示，不限制选择帮我审批；执行时 Reviewer 不可用则转人工。管理员通过 `GET/PUT /api/admin/security/task-approvals` 仅保存 `{require_human_tools}`，无需配置可用模式。网页在选择完全访问前说明服务端命令使用 inhere-box 主机进程权限；本机权限仍由执行电脑授予。
 
@@ -516,7 +516,7 @@ options 还接受 reasoning_mode（auto/enabled/disabled）和 reasoning_effort�
 | `task.message` | `task_id`、`data: TaskMessage` | TaskDetail |
 | `task.retry` | `task_id`、`turn_id`、`data: TaskRetry` | TaskDetail |
 | `task.cancel` | `task_id`、`data: {turn_id}` | TaskDetail |
-| `task.subscribe` | `task_id`、可选 cursor | null；另外推送 snapshot/turn |
+| `task.open` | `task_id`、可选 `cursor`、可选 `resume`（默认 false）；明确打开必填 UUID `open_id`，`resume:true` 必须省略 | null；初始事件先于回执 |
 | `task.unsubscribe` | `task_id` | null |
 | `ping` | 无 | null |
 | `client.attach` | `client_id`；连接内不可切换 | null；随后推送该执行端的未结束调用 |
@@ -534,13 +534,13 @@ options 还接受 reasoning_mode（auto/enabled/disabled）和 reasoning_effort�
 
 命令成功返回 `{"type":"result","id":"command-create-001","data":{...TaskDetail}}`。这表示消息已经保存和排队，不表示生成完成。创建、追问和重试复用当前任务服务，每轮使用最新项目配置及 options。后台最多使用 4 个并发执行槽处理不同 Task，同一 Task 只允许一个活动轮次；等待客户端工具时保存检查点并释放执行槽。订阅多个任务只增加观察范围，不改变执行并发上限，也不会创建专家。
 
-取到 task_id 后订阅；可直接使用创建响应或 REST 首页的 event_cursor：
+取到 task_id 后可用创建响应或 REST 首页的 event_cursor 开始观察：
 
 ```json
-{"type":"task.subscribe","id":"command-watch-001","task_id":"task_example","cursor":"opaque_event_cursor"}
+{"type":"task.open","id":"command-watch-001","task_id":"task_example","resume":true,"cursor":"opaque_event_cursor"}
 ```
 
-不带 cursor 时先返回 `{"type":"snapshot","data":TaskDetail}`（最近一页），随后推送 `{"type":"turn","data":{"task":TaskSummary,"turn":TaskTurn,"cursor":"..."}}`。订阅时先补齐游标之后的变化，再返回订阅命令的 result；不同任务事件可以交错到达，客户端按 task_id/turn_id 分发。snapshot 与 turn 是完整状态，按 sequence 稳定排序，按 list_revision 防止旧摘要覆盖新状态；reply 和 reasoning 分别是累计全文，不能当新增文字重复追加。即使 reply 为空或 list_revision 未变，也要处理 data.turn.reasoning 的思考更新。正文和思考会在生成过程中持续推送，无需客户端反复 GET。
+不带 cursor 时先返回 `{"type":"snapshot","data":TaskDetail}`（最近一页）。`turn.data` 包含 `task`、`turn`、`cursor` 和 `history_revision`，历史轮修订另带 `historical:true`。摘要单独变化时发送 `task.summary`，其 data 包含 `task`、`cursor` 和 `history_revision`。服务端先补齐到本次捕获的同步位置，再返回打开命令的 result。客户端按 task_id/turn_id 分发、按 sequence 排序、按 list_revision 合并摘要。reply 和 reasoning 分别是累计全文。即使 reply 为空或 list_revision 未变，也要处理 data.turn.reasoning 的思考更新。正文和思考会在生成过程中持续推送。
 
 每条连接最多订阅 32 个不同任务，客户端发往服务端的单帧上限 512 KiB；超限帧以 1009 关闭。客户端只订阅当前打开的正文，其他任务的侧栏摘要仍通过列表增量同步。无关任务不会自动把全部正文发到连接。
 
@@ -548,13 +548,13 @@ options 还接受 reasoning_mode（auto/enabled/disabled）和 reasoning_effort�
 
 ### 断线续接和错误
 
-断线只停止观察，不取消任务。客户端保存每个任务最近应用的 cursor，重新认证后分别 task.subscribe 续接，补齐离线期间各轮的最新持久状态；不重新发送用户消息、不重放工具操作。一次轮次 completed 不代表连接或 Task 结束，后续追问继续沿用 task_id 和连接。加载更早历史仍使用 REST，不推进实时游标。
+断线后任务继续执行。客户端保存每个任务最近应用的 cursor，重新认证后分别用带 `resume:true` 的 `task.open` 续接，补齐离线期间各轮的最新持久状态。轮次完成后，追问继续沿用 task_id 和连接。加载更早历史仍使用 REST，历史页不推进实时游标。
 
 业务错误返回 `{"type":"error","id":"<command id>","status":409,"error":{"code":"...","message":"...","details":{}}}`。订阅推送错误携带 task_id，移除该任务订阅，不影响其他任务。游标失效返回 PROJECT_SYNC_RESET，需丢弃该任务旧实时基线，重新获取最近一页；跨用户/任务游标同样无效。格式错误为 TASK_FRAME_INVALID；无法解析命令 id 时错误没有 id，禁止回显无效请求正文或 token。
 
 网页在当前任务订阅断开时按退避重连；切到后台或离线时解除订阅，回前台恢复。连接和命令等待都有超时，网络故障时挂起的发送不会自动重放；保留 request_id 后由用户显式重试。较旧的写入回执、历史页不能覆盖已经收到的终态。
 
-已有 `GET /api/project-tasks/{task_id}/events` SSE 保持原来的状态和游标语义，供已有调用方使用；工具领取和回传使用 WebSocket。正式网页的实时订阅与发送已切到 WebSocket。
+`GET /api/project-tasks/{task_id}/events` SSE 使用与 WebSocket 相同的 `event_cursor`，发送 `snapshot`、`turn` 和 `task.summary`。历史轮修订和游标失效规则也相同。工具领取和回传使用 WebSocket。
 
 ### 错误和网络重试
 

@@ -118,9 +118,7 @@ describe("shared task WebSocket", () => {
     };
     ws.receive({ type: "approval.policy", data: policy });
     expect(receive).toHaveBeenCalledExactlyOnceWith(policy);
-    expect(ws.sent.some((frame) => frame.type === "task.subscribe")).toBe(
-      false,
-    );
+    expect(ws.sent.some((frame) => frame.type === "task.open")).toBe(false);
     await vi.advanceTimersByTimeAsync(2000);
     expect(ws.readyState).toBe(1);
     controller.abort();
@@ -166,8 +164,9 @@ describe("shared task WebSocket", () => {
       token: "user-token",
       locale: "zh",
     });
-    for (const frame of ws.sent.filter((f) => f.type === "task.subscribe"))
+    for (const frame of ws.sent.filter((f) => f.type === "task.open"))
       ws.receive({ type: "result", id: frame.id, data: null });
+    await flush();
     const update = {
       type: "turn",
       data: {
@@ -226,7 +225,7 @@ describe("shared task WebSocket", () => {
     const receiveB = vi.fn();
     const second = connection.events("task_b", "old_b", receiveB, b.signal);
     const ws = await ready();
-    for (const frame of ws.sent.filter((f) => f.type === "task.subscribe"))
+    for (const frame of ws.sent.filter((f) => f.type === "task.open"))
       ws.receive({ type: "result", id: frame.id, data: null });
     ws.receive({
       type: "error",
@@ -242,6 +241,28 @@ describe("shared task WebSocket", () => {
     await second;
   });
 
+  it("sends the logical open ID separately from the command receipt ID", async () => {
+    const connection = new ProjectTaskSocket();
+    const controller = new AbortController();
+    const openID = "be4c153b-2954-435d-a1e3-f6ed646e217e";
+    const stream = connection.events(
+      "task_a",
+      null,
+      vi.fn(),
+      controller.signal,
+      undefined,
+      openID,
+    );
+    const ws = await ready();
+    const frame = ws.sent.find((item) => item.type === "task.open")!;
+    expect(frame).toMatchObject({ task_id: "task_a", open_id: openID });
+    expect(frame.id).not.toBe(openID);
+    expect(frame.resume).toBeUndefined();
+    ws.result("task.open");
+    controller.abort();
+    await stream;
+  });
+
   it("renews tokens and drops an old account connection before delivering data", async () => {
     const connection = new ProjectTaskSocket();
     const controller = new AbortController();
@@ -254,7 +275,7 @@ describe("shared task WebSocket", () => {
     );
     const failed = expect(stream).rejects.toThrow();
     const ws = await ready();
-    ws.result("task.subscribe");
+    ws.result("task.open");
     ws.receive({ type: "session", access_token: "renewed-token" });
     expect(auth.token).toBe("renewed-token");
     auth.token = "another-account-token";
@@ -276,7 +297,7 @@ describe("shared task WebSocket", () => {
       controller.signal,
     );
     const ws = await ready();
-    ws.result("task.subscribe");
+    ws.result("task.open");
     const mutation = connection.command("task.message", {
       task_id: "task_a",
       data: { request_id: "stable-message", prompt: "Hello" },
@@ -307,7 +328,10 @@ describe("shared task WebSocket", () => {
 
 it("rejects incompatible task protocol versions before sending commands", async () => {
   const connection = new ProjectTaskSocket();
-  const pending = connection.command("task.open", { task_id: "a" });
+  const pending = connection.command("task.open", {
+    task_id: "a",
+    resume: true,
+  });
   const rejected = expect(pending).rejects.toThrow("protocolMismatch");
   await flush();
   const ws = FakeSocket.instances.at(-1)!;
@@ -330,7 +354,8 @@ it("keeps remote socket authentication and peer session refresh separate from th
     type: "authenticate",
     token: "user-token",
   });
-  ws.result("task.subscribe");
+  ws.result("task.open");
+  await flush();
   ws.receive({ type: "session", access_token: "peer-secret" });
   expect(auth.token).toBe("user-token");
   ws.receive({ type: "snapshot", data: { task_id: "same_id" } });

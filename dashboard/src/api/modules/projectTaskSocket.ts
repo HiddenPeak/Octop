@@ -200,12 +200,16 @@ export class ProjectTaskSocket {
             return;
           }
           for (const reader of this.approvalListeners) reader.receive(policy);
-        } else if (frame.type === "turn" || frame.type === "snapshot") {
+        } else if (
+          frame.type === "turn" ||
+          frame.type === "snapshot" ||
+          frame.type === "task.summary"
+        ) {
           const update = frame as TaskEvent;
           const taskID =
-            update.type === "turn"
-              ? update.data.task.task_id
-              : update.data.task_id;
+            update.type === "snapshot"
+              ? update.data.task_id
+              : update.data.task.task_id;
           for (const reader of this.listeners.get(taskID) ?? [])
             reader.receive(update);
         }
@@ -276,10 +280,11 @@ export class ProjectTaskSocket {
 
   async events(
     taskID: string,
-    cursor: string,
+    cursor: string | null,
     receive: (event: TaskEvent) => void,
     signal: AbortSignal,
     onOpen?: () => void,
+    openID?: string,
   ): Promise<void> {
     if (signal.aborted) return;
     await this.connect();
@@ -309,13 +314,35 @@ export class ProjectTaskSocket {
         else resolve();
       };
       const abort = () => finish();
-      const listener: Listener = { receive, reject: (error) => finish(error) };
+      let initial: TaskEvent[] | null = [];
+      const deliver = (event: TaskEvent) => {
+        if (finished) return;
+        try {
+          receive(event);
+        } catch (error) {
+          finish(error instanceof Error ? error : disconnected());
+        }
+      };
+      const listener: Listener = {
+        receive: (event) => {
+          if (initial) initial.push(event);
+          else deliver(event);
+        },
+        reject: (error) => finish(error),
+      };
       const readers = this.listeners.get(taskID) ?? new Set<Listener>();
       readers.add(listener);
       this.listeners.set(taskID, readers);
       signal.addEventListener("abort", abort, { once: true });
-      void this.command("task.subscribe", { task_id: taskID, cursor }).then(
+      void this.command("task.open", {
+        task_id: taskID,
+        cursor,
+        ...(openID ? { open_id: openID } : { resume: true }),
+      }).then(
         () => {
+          const frames = initial;
+          initial = null;
+          for (const event of frames ?? []) deliver(event);
           if (!finished) onOpen?.();
         },
         (error: Error) => finish(error),

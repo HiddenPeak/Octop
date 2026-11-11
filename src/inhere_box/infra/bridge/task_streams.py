@@ -20,7 +20,6 @@ _MAIN_COMMANDS = frozenset(
         "task.resume",
         "task.approval.set",
         "task.interaction.respond",
-        "task.subscribe",
         "task.open",
         "task.unsubscribe",
         "ping",

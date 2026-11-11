@@ -17,7 +17,10 @@ async def connected(client, auth):
     session = ws_connect(client._inhere_box_app, "/api/project-tasks/ws")
     ws = await session.__aenter__()
     await ws.send_json({"type": "authenticate", "token": ws_token(auth)})
-    assert await ws.receive_json() == {"type": "ready", "protocol_version": 3}
+    assert await ws.receive_json() == {
+        "type": "ready",
+        "protocol_version": 3,
+    }
     return session, ws
 
 
@@ -88,16 +91,27 @@ async def test_slow_submission_does_not_block_another_tasks_live_updates(ws_env,
             data={"request_id": "streaming-request", "prompt": "Streaming"},
         )
         task_id = first["data"]["task_id"]
-        await command(ws, "task.subscribe", "watch-first", task_id=task_id)
-        await asyncio.wait_for(
-            until(
-                ws,
-                lambda frame: (
-                    frame["type"] == "turn" and frame["data"]["turn"]["reply"] == "实时中文"
-                ),
-            ),
-            5,
+        await ws.send_json(
+            {
+                "type": "task.open",
+                "id": "watch-first",
+                "task_id": task_id,
+                "resume": True,
+                "cursor": first["data"]["event_cursor"],
+            }
         )
+        acknowledged = reply_seen = False
+
+        def opened(frame):
+            nonlocal acknowledged, reply_seen
+            if frame.get("id") == "watch-first":
+                assert frame["type"] == "result" and frame["data"] is None
+                acknowledged = True
+            elif frame["type"] == "turn" and frame["data"]["turn"]["reply"] == "实时中文":
+                reply_seen = True
+            return acknowledged and reply_seen
+
+        await asyncio.wait_for(until(ws, opened), 5)
         await ws.send_json(
             {
                 "type": "task.create",
@@ -154,7 +168,7 @@ async def test_ws_streams_tasks_concurrently_and_cancels_exact_turn(ws_env, monk
         first = result["data"]
         same = await command(ws, "task.create", "create-again", data=payload)
         assert same["data"]["task_id"] == first["task_id"]
-        await command(ws, "task.subscribe", "watch-first", task_id=first["task_id"])
+        await command(ws, "task.open", "watch-first", task_id=first["task_id"], resume=True)
         # Publish after subscription is acknowledged to exercise a new live frame.
         subscribed.set()
         live = await until(
@@ -174,7 +188,12 @@ async def test_ws_streams_tasks_concurrently_and_cancels_exact_turn(ws_env, monk
         await asyncio.wait_for(second_streamed.wait(), 5)
         assert len(calls) == 2
         await ws.send_json(
-            {"type": "task.subscribe", "id": "watch-second", "task_id": second["task_id"]}
+            {
+                "type": "task.open",
+                "resume": True,
+                "id": "watch-second",
+                "task_id": second["task_id"],
+            }
         )
         snapshot = await until(
             ws,
@@ -250,7 +269,7 @@ async def test_ws_disconnect_keeps_execution_and_resumes_without_replaying(ws_en
             data={"request_id": "durable-message", "prompt": "Durable"},
         )
     )["data"]
-    await command(ws, "task.subscribe", "watch-first", task_id=first["task_id"])
+    await command(ws, "task.open", "watch-first", task_id=first["task_id"], resume=True)
     subscribed.set()
     live = await until(
         ws, lambda f: f["type"] == "turn" and f["data"]["turn"]["reply"] == "实时中文"
@@ -269,7 +288,8 @@ async def test_ws_disconnect_keeps_execution_and_resumes_without_replaying(ws_en
     try:
         await ws.send_json(
             {
-                "type": "task.subscribe",
+                "type": "task.open",
+                "resume": True,
                 "id": "resume-first",
                 "task_id": first["task_id"],
                 "cursor": live["data"]["cursor"],
@@ -354,7 +374,7 @@ async def test_ws_service_recovery_restores_task_with_same_token_without_replayi
     session, ws = await connected(client, auth)
     try:
         await ws.send_json(
-            {"type": "task.subscribe", "id": "recover-task", "task_id": first["task_id"]}
+            {"type": "task.open", "resume": True, "id": "recover-task", "task_id": first["task_id"]}
         )
         recovered = (await until(ws, lambda frame: frame["type"] == "snapshot"))["data"]
         assert recovered["task_id"] == first["task_id"]
@@ -384,10 +404,11 @@ async def test_ws_scopes_commands_and_cursors_without_dropping_other_tasks(ws_en
     try:
         invalid = await command(
             ws,
-            "task.subscribe",
+            "task.open",
             "bad-cursor-test",
             task_id=first["task_id"],
             cursor="bad-cursor",
+            resume=True,
         )
         assert invalid["status"] == 409 and invalid["error"]["code"] == "PROJECT_SYNC_RESET"
         assert (await command(ws, "ping", "connection-alive"))["type"] == "result"
@@ -398,7 +419,7 @@ async def test_ws_scopes_commands_and_cursors_without_dropping_other_tasks(ws_en
         foreign_session, foreign_ws = await connected(client, alice)
         try:
             for kind, fields in (
-                ("task.subscribe", {}),
+                ("task.open", {"resume": True}),
                 ("task.message", {"data": {"request_id": "foreign-message", "prompt": "No"}}),
                 ("task.cancel", {"data": {"turn_id": first["active_turn_id"]}}),
             ):
@@ -597,5 +618,5 @@ async def test_task_docs_render_rest_schemas_and_websocket_entry(env, monkeypatc
         schema = (await client.get("/api/openapi.json")).json()
         tag = next(tag for tag in schema["tags"] if tag["name"] == "projects")
         assert "task.open" in tag["description"]
-        assert "task.subscribe" in tag["description"]
+        assert "resume" in tag["description"]
         assert schema["components"]["schemas"]["TaskMessage"]["properties"]["prompt"]

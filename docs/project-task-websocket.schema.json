@@ -497,6 +497,21 @@
     },
     "OpenFrame": {
       "additionalProperties": false,
+      "else": {
+        "required": [
+          "open_id"
+        ]
+      },
+      "if": {
+        "properties": {
+          "resume": {
+            "const": true
+          }
+        },
+        "required": [
+          "resume"
+        ]
+      },
       "properties": {
         "id": {
           "description": "关联本次命令响应；网络重发使用新的命令 ID。",
@@ -510,10 +525,39 @@
           "type": "string"
         },
         "task_id": {
-          "description": "用户明确进入详情的任务；按需补生成缺少的语义标题。",
+          "description": "要打开并观察正文的任务。",
           "maxLength": 256,
           "minLength": 1,
           "title": "Task Id",
+          "type": "string"
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "实时续接游标。已有观察时，显式打开使用该观察已应用的游标。",
+          "title": "Cursor"
+        },
+        "resume": {
+          "default": false,
+          "description": "恢复观察时传 true。默认表示用户明确进入，并按需补生成标题。",
+          "title": "Resume",
+          "type": "boolean"
+        },
+        "open_id": {
+          "description": "本次显式打开的 UUID。重试复用同一个值，恢复观察时省略。",
+          "maxLength": 36,
+          "minLength": 36,
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "title": "Open Id",
           "type": "string"
         }
       },
@@ -522,6 +566,13 @@
         "type",
         "task_id"
       ],
+      "then": {
+        "not": {
+          "required": [
+            "open_id"
+          ]
+        }
+      },
       "title": "OpenFrame",
       "type": "object"
     },
@@ -894,49 +945,6 @@
         "name"
       ],
       "title": "SkillHubBinding",
-      "type": "object"
-    },
-    "SubscribeFrame": {
-      "additionalProperties": false,
-      "properties": {
-        "id": {
-          "description": "关联本次命令响应；网络重发使用新的命令 ID。",
-          "pattern": "^[A-Za-z0-9_-]{8,128}$",
-          "title": "Id",
-          "type": "string"
-        },
-        "type": {
-          "const": "task.subscribe",
-          "title": "Type",
-          "type": "string"
-        },
-        "task_id": {
-          "maxLength": 256,
-          "minLength": 1,
-          "title": "Task Id",
-          "type": "string"
-        },
-        "cursor": {
-          "anyOf": [
-            {
-              "maxLength": 4096,
-              "minLength": 1,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Cursor"
-        }
-      },
-      "required": [
-        "id",
-        "type",
-        "task_id"
-      ],
-      "title": "SubscribeFrame",
       "type": "object"
     },
     "TaskCancel": {
@@ -1753,7 +1761,6 @@
           "task.pause": "#/$defs/PauseFrame",
           "task.resume": "#/$defs/PauseFrame",
           "task.retry": "#/$defs/RetryFrame",
-          "task.subscribe": "#/$defs/SubscribeFrame",
           "task.unsubscribe": "#/$defs/UnsubscribeFrame",
           "tool.claim": "#/$defs/ToolClaimFrame",
           "tool.get": "#/$defs/ToolGetFrame",
@@ -1787,9 +1794,6 @@
         },
         {
           "$ref": "#/$defs/OpenFrame"
-        },
-        {
-          "$ref": "#/$defs/SubscribeFrame"
         },
         {
           "$ref": "#/$defs/UnsubscribeFrame"
@@ -3755,6 +3759,27 @@
       "title": "TaskPresentation",
       "type": "object"
     },
+    "TaskProjectInstructions": {
+      "additionalProperties": false,
+      "properties": {
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "body": {
+          "maxLength": 32768,
+          "title": "Body",
+          "type": "string"
+        }
+      },
+      "required": [
+        "revision",
+        "body"
+      ],
+      "title": "TaskProjectInstructions",
+      "type": "object"
+    },
     "TaskRecovery": {
       "additionalProperties": false,
       "properties": {
@@ -4208,6 +4233,18 @@
           "description": "本轮开始时采用的项目配置版本。",
           "title": "Project Revision"
         },
+        "project_instructions": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskProjectInstructions"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "本轮已保存的项目行动指南。空正文表示当时未配置指令，null 表示没有记录。"
+        },
         "created_at": {
           "format": "date-time",
           "title": "Created At",
@@ -4457,6 +4494,12 @@
           "title": "Configuration Events",
           "type": "array"
         },
+        "history_revision": {
+          "description": "当前正文页已覆盖的历史重写版本。",
+          "minimum": 0,
+          "title": "History Revision",
+          "type": "integer"
+        },
         "turns": {
           "items": {
             "$ref": "#/$defs/TaskTurn"
@@ -4503,6 +4546,7 @@
         "approval_policy",
         "created_at",
         "updated_at",
+        "history_revision",
         "turns"
       ],
       "title": "TaskDetail",
@@ -4681,6 +4725,30 @@
       "title": "TaskSummary",
       "type": "object"
     },
+    "TaskSummaryUpdate": {
+      "additionalProperties": false,
+      "properties": {
+        "task": {
+          "$ref": "#/$defs/TaskSummary"
+        },
+        "cursor": {
+          "title": "Cursor",
+          "type": "string"
+        },
+        "history_revision": {
+          "minimum": 0,
+          "title": "History Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "task",
+        "cursor",
+        "history_revision"
+      ],
+      "title": "TaskSummaryUpdate",
+      "type": "object"
+    },
     "TaskUpdate": {
       "additionalProperties": false,
       "properties": {
@@ -4693,12 +4761,31 @@
         "cursor": {
           "title": "Cursor",
           "type": "string"
+        },
+        "history_revision": {
+          "minimum": 0,
+          "title": "History Revision",
+          "type": "integer"
+        },
+        "historical": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "为 true 时替换已加载的旧轮，不能把未加载旧轮插入当前范围。",
+          "title": "Historical"
         }
       },
       "required": [
         "task",
         "turn",
-        "cursor"
+        "cursor",
+        "history_revision"
       ],
       "title": "TaskUpdate",
       "type": "object"
@@ -5679,6 +5766,23 @@
       ],
       "additionalProperties": true
     },
+    "TaskSummaryEvent": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "task.summary"
+        },
+        "data": {
+          "$ref": "#/$defs/TaskSummaryUpdate"
+        }
+      },
+      "required": [
+        "type",
+        "data"
+      ],
+      "additionalProperties": true
+    },
     "ResidentTimelineSnapshotEvent": {
       "type": "object",
       "properties": {
@@ -5851,6 +5955,9 @@
         },
         {
           "$ref": "#/$defs/TurnEvent"
+        },
+        {
+          "$ref": "#/$defs/TaskSummaryEvent"
         },
         {
           "$ref": "#/$defs/ResidentTimelineSnapshotEvent"

@@ -80,7 +80,8 @@ async def test_title_is_async_synced_accounted_and_generated_once(
     try:
         await ws.send_json(
             {
-                "type": "task.subscribe",
+                "type": "task.open",
+                "resume": True,
                 "id": "watch-title",
                 "task_id": done["task_id"],
                 "cursor": done["event_cursor"],
@@ -94,7 +95,8 @@ async def test_title_is_async_synced_accounted_and_generated_once(
         event = await until(
             ws,
             lambda frame: (
-                frame["type"] == "turn" and frame["data"]["task"]["title"] == updated["title"]
+                frame["type"] == "task.summary"
+                and frame["data"]["task"]["title"] == updated["title"]
             ),
         )
         assert event["data"]["task"]["list_revision"] == updated["list_revision"]
@@ -108,10 +110,8 @@ async def test_title_is_async_synced_accounted_and_generated_once(
         await client.get(base + "/sync", headers=auth, params={"sync_cursor": page["sync_cursor"]})
     ).json()
     assert changes["changes"][0]["data"]["title"] == updated["title"]
-    assert (
-        tasks.updates(server.services, owner, done["task_id"], done["event_cursor"])[0].task.title
-        == updated["title"]
-    )
+    updates = tasks.stream_updates(server.services, owner, done["task_id"], done["event_cursor"])
+    assert [update.task.title for update in updates.updates] == [updated["title"]]
     assert saved_job(server, done["task_id"])["input_tokens"] == 9
     assert server.services.usage_repo.total_tokens_for_user(owner) == 12
     again = await client.post(base, headers=auth, json=request)
@@ -309,25 +309,36 @@ async def test_only_explicit_open_admits_legacy_title_and_pushes_the_result(titl
     ).status_code == 200
     session, ws = await connected(client, auth)
     try:
-        await command(ws, "task.subscribe", "subscribe-readonly", task_id=opened.task_id)
+        await command(ws, "task.open", "resume-readonly", task_id=opened.task_id, resume=True)
         with server.services.db.connect() as conn:
             assert conn.execute("SELECT COUNT(*) FROM project_task_titles").fetchone()[0] == 0
-        first = await command(ws, "task.open", "explicit-open-first", task_id=opened.task_id)
-        assert first["data"]["task_id"] == opened.task_id
-        await command(ws, "task.open", "duplicate-open-first", task_id=opened.task_id)
+        open_id = str(uuid4())
+        first = await command(
+            ws, "task.open", "explicit-open-first", task_id=opened.task_id, open_id=open_id
+        )
+        assert first["type"] == "result" and first["data"] is None
+        await command(
+            ws, "task.open", "duplicate-open-first", task_id=opened.task_id, open_id=open_id
+        )
         job = saved_job(server, opened.task_id)
         assert job["status"] == "pending" and job["attempt_limit"] == 1
         await server.project_task_worker.title_worker.start()
         await asyncio.wait_for(entered.wait(), 5)
-        await command(ws, "task.open", "inflight-open-first", task_id=opened.task_id)
+        await command(
+            ws, "task.open", "inflight-open-first", task_id=opened.task_id, open_id=str(uuid4())
+        )
         assert saved_job(server, opened.task_id)["attempts"] == 1
         release.set()
         frame = await until(
             ws,
-            lambda f: f["type"] == "turn" and f["data"]["task"]["title"] == "修复项目登录失败",
+            lambda f: (
+                f["type"] == "task.summary" and f["data"]["task"]["title"] == "修复项目登录失败"
+            ),
         )
         assert frame["data"]["task"]["list_revision"] == opened.list_revision + 1
-        await command(ws, "task.open", "completed-open-first", task_id=opened.task_id)
+        await command(
+            ws, "task.open", "completed-open-first", task_id=opened.task_id, open_id=str(uuid4())
+        )
         assert len(calls) == 1
         after = tasks.detail(server.services, owner, opened.task_id)
         assert after.turns == opened.turns and after.updated_at == opened.updated_at
@@ -339,7 +350,8 @@ async def test_only_explicit_open_admits_legacy_title_and_pushes_the_result(titl
         await session.__aexit__(None, None, None)
 
 
-async def test_open_checks_ownership_and_does_not_accept_subscription_fields(title_env):
+@pytest.mark.parametrize("resume", [False, True])
+async def test_open_checks_ownership_for_entry_and_resume(title_env, resume):
     from tests.integration.test_project_tasks_ws import command, connected
 
     client, server, auth = title_env
@@ -350,20 +362,228 @@ async def test_open_checks_ownership_and_does_not_accept_subscription_fields(tit
     alice = await create_user(client, auth, username="title-reader")
     session, ws = await connected(client, alice)
     try:
-        response = await command(ws, "task.open", "forbidden-task-open", task_id=task.task_id)
-        assert response["status"] == 404
-    finally:
-        await session.__aexit__(None, None, None)
-    session, ws = await connected(client, auth)
-    try:
+        fields = {} if resume else {"open_id": str(uuid4())}
         response = await command(
-            ws, "task.open", "invalid-open-frame", task_id=task.task_id, cursor="not-an-open-field"
+            ws, "task.open", "forbidden-task-open", task_id=task.task_id, resume=resume, **fields
         )
-        assert response["error"]["code"] == "TASK_FRAME_INVALID"
+        assert response["status"] == 404
     finally:
         await session.__aexit__(None, None, None)
     with server.services.db.connect() as conn:
         assert conn.execute("SELECT COUNT(*) FROM project_task_titles").fetchone()[0] == 0
+
+
+async def test_open_combines_snapshot_or_summary_with_subscription(title_env, monkeypatch):
+    from jsonschema import Draft202012Validator
+    from scripts.export_task_websocket_schema import export_schema
+
+    from tests.integration.test_project_tasks_ws import connected
+
+    client, server, auth = title_env
+    await server.project_task_worker.close()
+    server.project_task_worker = runtime.ProjectTaskWorker(server.services)
+    owner = await resolve_user_id(client, auth, "admin")
+    task = historical_task(server, owner, "combined-open-task")
+    admissions = []
+    admit_open_title = title.admit_open_title
+
+    def admit(services, owner_id, task_id, open_id):
+        admissions.append(task_id)
+        return admit_open_title(services, owner_id, task_id, open_id)
+
+    monkeypatch.setattr(title, "admit_open_title", admit)
+    schema = export_schema()
+    validator = Draft202012Validator({"$defs": schema["$defs"], "$ref": "#/$defs/ServerEvent"})
+
+    async def collect(ws, command_id, **fields):
+        await ws.send_json(
+            {"type": "task.open", "id": command_id, "task_id": task.task_id, **fields}
+        )
+        updates = []
+        for _ in range(100):
+            frame = await ws.receive_json(timeout=5)
+            if frame.get("id") == command_id:
+                validator.validate(frame)
+                return updates, frame
+            if frame["type"] in {"snapshot", "turn", "task.summary"}:
+                validator.validate(frame)
+                updates.append(frame)
+        pytest.fail("expected command receipt")
+
+    session, ws = await connected(client, auth)
+    try:
+        frames, receipt = await collect(ws, "open-cold", open_id=str(uuid4()))
+        assert receipt == {"type": "result", "id": "open-cold", "data": None}
+        assert [frame["type"] for frame in frames] == ["snapshot"]
+        baseline = frames[0]["data"]
+        assert baseline["task_id"] == task.task_id and baseline["event_cursor"]
+        assert baseline["history_revision"] >= 0
+        assert [turn["turn_id"] for turn in baseline["turns"]] == [
+            turn.turn_id for turn in task.turns
+        ]
+        assert admissions == [task.task_id]
+        assert saved_job(server, task.task_id)["status"] == "pending"
+    finally:
+        await session.__aexit__(None, None, None)
+
+    rename = await client.patch(
+        f"/api/project-tasks/{task.task_id}",
+        headers=auth,
+        json={"expected_revision": baseline["list_revision"], "title": "New title without a turn"},
+    )
+    assert rename.status_code == 200, rename.text
+
+    session, ws = await connected(client, auth)
+    try:
+        frames, receipt = await collect(
+            ws, "open-warm", cursor=baseline["event_cursor"], open_id=str(uuid4())
+        )
+        assert receipt == {"type": "result", "id": "open-warm", "data": None}
+        assert [frame["type"] for frame in frames] == ["task.summary"]
+        update = frames[0]["data"]
+        assert update["task"]["title"] == "New title without a turn"
+        assert update["task"]["list_revision"] == rename.json()["list_revision"]
+        assert update["history_revision"] == baseline["history_revision"]
+        assert update["cursor"] != baseline["event_cursor"]
+        assert admissions == [task.task_id, task.task_id]
+    finally:
+        await session.__aexit__(None, None, None)
+
+    session, ws = await connected(client, auth)
+    try:
+        frames, receipt = await collect(ws, "resume-open", resume=True, cursor=update["cursor"])
+        assert frames == []
+        assert receipt == {"type": "result", "id": "resume-open", "data": None}
+
+        frames, rejected = await collect(ws, "bad-resume", resume=True, cursor="invalid-cursor")
+        assert frames == []
+        assert rejected["error"]["code"] == "PROJECT_SYNC_RESET"
+        frames, receipt = await collect(ws, "reset-resume", resume=True)
+        assert [frame["type"] for frame in frames] == ["snapshot"]
+        assert frames[0]["data"]["title"] == update["task"]["title"]
+        assert receipt == {"type": "result", "id": "reset-resume", "data": None}
+        assert admissions == [task.task_id, task.task_id]
+    finally:
+        await session.__aexit__(None, None, None)
+
+
+async def test_open_acks_the_captured_batches_before_later_turns(title_env, monkeypatch):
+    from tests.integration.test_project_tasks_ws import connected, until
+
+    client, server, auth = title_env
+    await server.project_task_worker.close()
+    server.project_task_worker = runtime.ProjectTaskWorker(server.services)
+    services = server.services
+    owner = await resolve_user_id(client, auth, "admin")
+    task = historical_task(server, owner, "catchup-open-task")
+    baseline = tasks.detail(services, owner, task.task_id)
+
+    def append(label):
+        result = tasks.send(
+            services,
+            owner,
+            tasks.TaskMessage(request_id=f"catchup-{label}", prompt=label),
+            task_id=task.task_id,
+        )
+        turn_id = result.active_turn_id
+        assert turn_id is not None
+        with services.db.transaction() as conn:
+            conn.execute(
+                "UPDATE project_task_turns SET status='completed', reply=? WHERE turn_id=?",
+                (label, turn_id),
+            )
+            services.project_task_repo.finish(conn, task.task_id, turn_id, tasks.now_ms())
+        return turn_id
+
+    expected = [append("first"), append("second")]
+    boundary = tasks.detail(services, owner, task.task_id).list_revision
+    late = []
+    stream_updates = tasks.stream_updates
+
+    def read_one_batch(*args, watermark=None):
+        batch = stream_updates(*args, watermark=watermark, limit=1)
+        if watermark is None and not late:
+            assert batch.has_more
+            late.append(append("after-watermark"))
+        return batch
+
+    monkeypatch.setattr(tasks, "stream_updates", read_one_batch)
+    session, ws = await connected(client, auth)
+    try:
+        command_id = "open-catchup"
+        await ws.send_json(
+            {
+                "type": "task.open",
+                "id": command_id,
+                "task_id": task.task_id,
+                "cursor": baseline.event_cursor,
+                "open_id": str(uuid4()),
+            }
+        )
+
+        def catchup_frame(frame):
+            return (
+                frame["type"] in {"snapshot", "turn", "task.summary"}
+                or frame.get("id") == command_id
+            )
+
+        for turn_id in expected:
+            event = await until(ws, catchup_frame)
+            assert event["type"] == "turn"
+            assert event["data"]["turn"]["turn_id"] == turn_id
+            assert event["data"]["task"]["list_revision"] == boundary
+        assert await until(ws, catchup_frame) == {"type": "result", "id": command_id, "data": None}
+        push = await until(ws, catchup_frame)
+        assert push["type"] == "turn" and [push["data"]["turn"]["turn_id"]] == late
+        assert push["data"]["task"]["list_revision"] > boundary
+    finally:
+        await session.__aexit__(None, None, None)
+
+
+async def test_removed_task_open_variants_are_rejected(title_env):
+    from jsonschema import Draft202012Validator
+    from scripts.export_task_websocket_schema import export_schema
+
+    from tests.integration.test_project_tasks_ws import command, connected
+
+    client, server, auth = title_env
+    await server.project_task_worker.close()
+    server.project_task_worker = runtime.ProjectTaskWorker(server.services)
+    owner = await resolve_user_id(client, auth, "admin")
+    task = historical_task(server, owner, "invalid-open-task")
+    valid_id = str(uuid4())
+    schema = export_schema()
+    validator = Draft202012Validator({"$defs": schema["$defs"], "$ref": "#/$defs/OpenFrame"})
+    base_frame = {"id": "test-open-frame", "task_id": task.task_id}
+    session, ws = await connected(client, auth)
+    try:
+        for kind, fields in (
+            ("task.subscribe", {}),
+            ("task.open", {"include_turns": False, "open_id": valid_id}),
+            ("task.open", {"subscribe": True, "open_id": valid_id}),
+            ("task.open", {"sync_version": 2, "open_id": valid_id}),
+            ("task.open", {"resume": "true", "open_id": valid_id}),
+            ("task.open", {}),
+            ("task.open", {"resume": False}),
+            ("task.open", {"open_id": None}),
+            ("task.open", {"open_id": uuid4().hex}),
+            ("task.open", {"open_id": f"{valid_id}\n"}),
+            ("task.open", {"resume": True, "open_id": valid_id}),
+            ("task.open", {"resume": True, "open_id": None}),
+        ):
+            assert not validator.is_valid({**base_frame, "type": kind, **fields})
+            response = await command(ws, kind, "invalid-open", task_id=task.task_id, **fields)
+            assert response["error"]["code"] == "TASK_FRAME_INVALID"
+        for fields in (
+            {"open_id": valid_id},
+            {"resume": False, "open_id": valid_id.upper()},
+            {"resume": True},
+        ):
+            validator.validate({**base_frame, "type": "task.open", **fields})
+        with server.services.db.connect() as conn:
+            assert conn.execute("SELECT COUNT(*) FROM project_task_titles").fetchone()[0] == 0
+    finally:
+        await session.__aexit__(None, None, None)
 
 
 async def test_two_clients_opening_the_same_task_admit_one_job(title_env):
@@ -374,21 +594,143 @@ async def test_two_clients_opening_the_same_task_admit_one_job(title_env):
     server.project_task_worker = runtime.ProjectTaskWorker(server.services)
     owner = await resolve_user_id(client, auth, "admin")
     task = historical_task(server, owner, "concurrent-open-task")
+    open_id = str(uuid4())
     first_session, first_ws = await connected(client, auth)
     second_session, second_ws = await connected(client, auth)
     try:
         results = await asyncio.gather(
-            command(first_ws, "task.open", "first-client-open", task_id=task.task_id),
-            command(second_ws, "task.open", "second-client-open", task_id=task.task_id),
+            command(
+                first_ws, "task.open", "first-client-open", task_id=task.task_id, open_id=open_id
+            ),
+            command(
+                second_ws,
+                "task.open",
+                "second-client-open",
+                task_id=task.task_id,
+                open_id=open_id.upper(),
+            ),
         )
-        assert all(result["data"]["task_id"] == task.task_id for result in results)
+        assert all(result["type"] == "result" and result["data"] is None for result in results)
         with server.services.db.connect() as conn:
             assert conn.execute("SELECT COUNT(*) FROM project_task_titles").fetchone()[0] == 1
+            receipts = conn.execute("SELECT open_id FROM project_task_open_receipts").fetchall()
+            assert [row[0] for row in receipts] == [open_id]
         job = saved_job(server, task.task_id)
         assert job["attempts"] == 0 and job["attempt_limit"] == 1
     finally:
         await first_session.__aexit__(None, None, None)
         await second_session.__aexit__(None, None, None)
+
+
+async def test_open_id_stays_consumed_after_cooldown_and_across_connections(title_env, monkeypatch):
+    from tests.integration.test_project_tasks_ws import command, connected
+
+    client, server, auth = title_env
+    await server.project_task_worker.close()
+    server.project_task_worker = runtime.ProjectTaskWorker(server.services)
+    services = server.services
+    owner = await resolve_user_id(client, auth, "admin")
+    task = historical_task(server, owner, "retry-lost-open-ack")
+    clock = [tasks.now_ms()]
+    monkeypatch.setattr(title, "now_ms", lambda: clock[0])
+    repo = services.project_task_title_repo
+    admitted_id, cooling_id, new_id = (str(uuid4()) for _ in range(3))
+
+    async def open_task(ws, command_id, open_id):
+        result = await command(ws, "task.open", command_id, task_id=task.task_id, open_id=open_id)
+        assert result == {"type": "result", "id": command_id, "data": None}
+
+    session, ws = await connected(client, auth)
+    try:
+        await open_task(ws, "first-attempt", admitted_id)
+        attempt = repo.claim("title-worker", clock[0])
+        assert attempt is not None and attempt.attempts == 1
+        repo.finish(attempt, None, 0, 0, clock[0])
+        await open_task(ws, "during-cooldown", cooling_id)
+        failed = saved_job(server, task.task_id)
+        assert failed["status"] == "failed"
+    finally:
+        await session.__aexit__(None, None, None)
+
+    clock[0] = failed["lease_until"]
+    session, ws = await connected(client, auth)
+    try:
+        await open_task(ws, "retry-first-attempt", admitted_id.upper())
+        await open_task(ws, "retry-cooldown-open", cooling_id)
+        assert saved_job(server, task.task_id) == failed
+        await open_task(ws, "new-user-entry", new_id)
+        job = saved_job(server, task.task_id)
+        assert job["status"] == "pending" and job["attempts"] == 1
+    finally:
+        await session.__aexit__(None, None, None)
+
+    def receipts():
+        with services.db.connect() as conn:
+            return {
+                row[0]
+                for row in conn.execute(
+                    "SELECT open_id FROM project_task_open_receipts WHERE task_id=? AND owner_id=?",
+                    (task.task_id, owner),
+                ).fetchall()
+            }
+
+    assert receipts() == {admitted_id, cooling_id, new_id}
+    tasks.delete(services, owner, task.task_id)
+    assert receipts() == set()
+
+
+async def test_open_receipts_keep_only_recent_open_ids(title_env, monkeypatch):
+    client, server, auth = title_env
+    await server.project_task_worker.close()
+    services = server.services
+    owner = await resolve_user_id(client, auth, "admin")
+    task = historical_task(server, owner, "bounded-open-receipts")
+    clock = [tasks.now_ms()]
+    monkeypatch.setattr(title, "now_ms", lambda: clock[0])
+    monkeypatch.setattr(title, "_OPEN_RECEIPTS_KEPT", 3)
+    open_ids = [str(uuid4()) for _ in range(5)]
+    for open_id in open_ids:
+        clock[0] += 1
+        assert title.admit_open_title(services, owner, task.task_id, open_id)
+
+    with services.db.connect() as conn:
+        kept = {
+            row[0]
+            for row in conn.execute(
+                "SELECT open_id FROM project_task_open_receipts WHERE task_id=? AND owner_id=?",
+                (task.task_id, owner),
+            ).fetchall()
+        }
+    assert kept == set(open_ids[-3:])
+    assert not title.admit_open_title(services, owner, task.task_id, open_ids[-1])
+
+
+async def test_open_receipt_rolls_back_with_title_admission(title_env, monkeypatch):
+    client, server, auth = title_env
+    await server.project_task_worker.close()
+    services = server.services
+    owner = await resolve_user_id(client, auth, "admin")
+    task = historical_task(server, owner, "rollback-open-receipt")
+    open_id = str(uuid4())
+
+    def enqueue_failed(*args, **kwargs):
+        raise RuntimeError("admission failed")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(services.project_task_title_repo, "enqueue", enqueue_failed)
+        with pytest.raises(RuntimeError, match="admission failed"):
+            title.admit_open_title(services, owner, task.task_id, open_id)
+
+    with services.db.connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM project_task_open_receipts").fetchone()[0] == 0
+        assert (
+            conn.execute(
+                "SELECT title_source FROM project_tasks WHERE task_id=?", (task.task_id,)
+            ).fetchone()[0]
+            == "manual"
+        )
+    assert title.admit_open_title(services, owner, task.task_id, open_id)
+    assert saved_job(server, task.task_id)["status"] == "pending"
 
 
 @pytest.mark.parametrize("manual_kind", ["old_custom", "new_same_text", "generated"])
@@ -415,7 +757,8 @@ async def test_open_preserves_manual_and_generated_titles(title_env, manual_kind
                 ),
             )
         task = tasks.detail(server.services, owner, task.task_id)
-    opened = title.open_task(server.services, owner, task.task_id)
+    title.admit_open_title(server.services, owner, task.task_id, str(uuid4()))
+    opened = tasks.detail(server.services, owner, task.task_id)
     assert opened.title == task.title and opened.list_revision == task.list_revision
     with server.services.db.connect() as conn:
         assert conn.execute("SELECT COUNT(*) FROM project_task_titles").fetchone()[0] == 0
@@ -432,7 +775,7 @@ async def test_failed_title_requires_cooldown_and_new_open_without_resetting_att
     clock = [tasks.now_ms()]
     monkeypatch.setattr(title, "now_ms", lambda: clock[0])
     repo = server.services.project_task_title_repo
-    title.open_task(server.services, owner, task.task_id)
+    title.admit_open_title(server.services, owner, task.task_id, str(uuid4()))
     attempt = repo.claim("same-namer", clock[0])
     assert attempt is not None
     repo.finish(attempt, None, 4, 1, clock[0])
@@ -445,19 +788,19 @@ async def test_failed_title_requires_cooldown_and_new_open_without_resetting_att
     cooldown_ends = saved_job(server, task.task_id)["lease_until"]
     assert cooldown_ends == clock[0] + 600_000
     clock[0] = cooldown_ends - 1
-    title.open_task(server.services, owner, task.task_id)
+    title.admit_open_title(server.services, owner, task.task_id, str(uuid4()))
     assert saved_job(server, task.task_id)["status"] == "failed"
     clock[0] = cooldown_ends
     assert repo.claim("same-namer", clock[0]) is None  # Time alone must not trigger a request.
-    title.open_task(server.services, owner, task.task_id)
-    title.open_task(server.services, owner, task.task_id)
+    title.admit_open_title(server.services, owner, task.task_id, str(uuid4()))
+    title.admit_open_title(server.services, owner, task.task_id, str(uuid4()))
     replacement = repo.claim("same-namer", clock[0])
     assert replacement is not None and replacement.attempts == attempt.attempts + 1
     assert replacement.attempt_limit == replacement.attempts
     repo.finish(attempt, "Stale title", 100, 100, clock[0])
     assert tasks.detail(server.services, owner, task.task_id).title == task.title
     repo.finish(replacement, "Recovered title", 3, 1, clock[0])
-    title.open_task(server.services, owner, task.task_id)
+    title.admit_open_title(server.services, owner, task.task_id, str(uuid4()))
     assert tasks.detail(server.services, owner, task.task_id).title == "Recovered title"
     assert repo.claim("same-namer", clock[0] + 1_000_000) is None
     assert server.services.usage_repo.total_tokens_for_user(owner) == (9 if legacy else 14)
@@ -471,17 +814,17 @@ async def test_interrupted_lazy_title_waits_for_cooldown_and_new_open(title_env,
     clock = [tasks.now_ms()]
     monkeypatch.setattr(title, "now_ms", lambda: clock[0])
     repo = server.services.project_task_title_repo
-    title.open_task(server.services, owner, task.task_id)
+    title.admit_open_title(server.services, owner, task.task_id, str(uuid4()))
     first = repo.claim("dead-worker", clock[0])
     assert first is not None and first.attempts == 1
     clock[0] += 60_001
     assert repo.claim("replacement-worker", clock[0]) is None
     assert saved_job(server, task.task_id)["status"] == "failed"
-    title.open_task(server.services, owner, task.task_id)
+    title.admit_open_title(server.services, owner, task.task_id, str(uuid4()))
     assert saved_job(server, task.task_id)["status"] == "failed"
     clock[0] += 600_000
     assert repo.claim("replacement-worker", clock[0]) is None
-    title.open_task(server.services, owner, task.task_id)
+    title.admit_open_title(server.services, owner, task.task_id, str(uuid4()))
     replacement = repo.claim("replacement-worker", clock[0])
     assert replacement is not None and replacement.attempts == 2
     repo.finish(first, "Late stale title", 99, 99, clock[0])

@@ -8,6 +8,7 @@ import time
 from collections import Counter
 from types import SimpleNamespace
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 
@@ -80,9 +81,11 @@ async def test_live_batches_broadcast_without_polling_and_release_watches(
     session_b, ws_b = await connected(client, auth)
     try:
         for ws, key in ((ws_a, "watch-batches-a"), (ws_b, "watch-batches-b")):
-            assert (await command(ws, "task.subscribe", key, task_id=task_id))["type"] == "result"
+            assert (await command(ws, "task.open", key, task_id=task_id, resume=True))[
+                "type"
+            ] == "result"
         assert len(worker._update_listeners[task_id]) == 2
-        await command(ws_a, "task.subscribe", "watch-batches-again", task_id=task_id)
+        await command(ws_a, "task.open", "watch-batches-again", task_id=task_id, resume=True)
         assert len(worker._update_listeners[task_id]) == 2
 
         reply, reasoning, received = "", "", []
@@ -136,13 +139,13 @@ async def test_output_notifications_only_read_the_changed_task(delivery_env, mon
     active_id = (await create_task(client, auth, "active"))["task_id"]
 
     reads = Counter()
-    original_updates = tasks.updates
+    original_updates = tasks.stream_updates
 
-    def updates(services, owner, task_id, cursor):
+    def updates(services, owner, task_id, cursor, *, watermark):
         reads[task_id] += 1
-        return original_updates(services, owner, task_id, cursor)
+        return original_updates(services, owner, task_id, cursor, watermark=watermark)
 
-    monkeypatch.setattr(tasks, "updates", updates)
+    monkeypatch.setattr(tasks, "stream_updates", updates)
     policy = Mock(wraps=project_tasks_ws.approval_policy.current)
     tools = Mock(wraps=project_tasks_ws.client_tools.open_calls)
     monkeypatch.setattr(project_tasks_ws.approval_policy, "current", policy)
@@ -151,7 +154,7 @@ async def test_output_notifications_only_read_the_changed_task(delivery_env, mon
     try:
         await command(ws, "client.attach", "attach-delivery-client", client_id="delivery-client")
         for task_id in (static_id, active_id):
-            await command(ws, "task.subscribe", "subscribe-" + task_id, task_id=task_id)
+            await command(ws, "task.open", "subscribe-" + task_id, task_id=task_id, resume=True)
         # Each subscription reads once in the command and once after installing its watch.
         await wait_for(lambda: reads[static_id] >= 2 and reads[active_id] >= 2)
         baseline = reads[static_id], policy.call_count, tools.call_count
@@ -183,7 +186,7 @@ async def test_idle_output_keeps_the_lease_write_interval(delivery_env, monkeypa
     task_id = (await create_task(client, auth, "idle"))["task_id"]
     session, ws = await connected(client, auth)
     try:
-        await command(ws, "task.subscribe", "subscribe-idle-turn", task_id=task_id)
+        await command(ws, "task.open", "subscribe-idle-turn", task_id=task_id, resume=True)
         queue.put_nowait({"type": "token", "content": "已保存首段"})
         await next_turn(ws, task_id, reply="已保存首段")
         progress = Mock(wraps=server.services.project_task_turn_repo.progress)
@@ -245,6 +248,123 @@ async def write_reply(server, turn, reply):
     )
 
 
+async def test_explicit_open_keeps_active_watch_and_cursor(env_with_provider, monkeypatch):
+    client, server, auth = env_with_provider
+    monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 3600)
+    turn = await external_turn(client, server, auth)
+    worker = server.project_task_worker = runtime.ProjectTaskWorker(server.services)
+    read_cursors = []
+    stream_updates = tasks.stream_updates
+
+    def updates(services, owner, task_id, cursor, *, watermark):
+        read_cursors.append(cursor)
+        return stream_updates(services, owner, task_id, cursor, watermark=watermark)
+
+    monkeypatch.setattr(tasks, "stream_updates", updates)
+    admit_title = Mock(wraps=project_tasks_ws.title.admit_open_title)
+    monkeypatch.setattr(project_tasks_ws.title, "admit_open_title", admit_title)
+    session, ws = await connected(client, auth)
+    try:
+        await ws.send_json(
+            {"type": "task.open", "id": "watch-existing", "task_id": turn.task_id, "resume": True}
+        )
+        snapshot = await until(ws, lambda frame: frame["type"] == "snapshot")
+        await until(ws, lambda frame: frame.get("id") == "watch-existing")
+        await wait_for(lambda: len(read_cursors) >= 2)
+        older = snapshot["data"]["event_cursor"]
+        listener = next(iter(worker._update_listeners[turn.task_id]))
+
+        await write_reply(server, turn, "first pushed reply")
+        worker._notify_update(turn.task_id)
+        first = await until(ws, lambda frame: frame["type"] == "turn")
+        current = first["data"]["cursor"]
+        assert current != older
+        before = list(read_cursors)
+        open_id = str(uuid4())
+
+        for index, cursor in enumerate((older, current)):
+            command_id = f"explicit-open-{index}"
+            await ws.send_json(
+                {
+                    "type": "task.open",
+                    "id": command_id,
+                    "task_id": turn.task_id,
+                    "cursor": cursor,
+                    "open_id": open_id,
+                }
+            )
+            assert await ws.receive_json(timeout=5) == {
+                "type": "result",
+                "id": command_id,
+                "data": None,
+            }
+        assert admit_title.call_count == 2
+        with server.services.db.connect() as conn:
+            receipts = conn.execute("SELECT open_id FROM project_task_open_receipts").fetchall()
+            assert [row[0] for row in receipts] == [open_id]
+        assert read_cursors == before
+        assert worker._update_listeners[turn.task_id] == {listener}
+
+        invalid = await command(
+            ws,
+            "task.open",
+            "invalid-watched-cursor",
+            task_id=turn.task_id,
+            cursor="invalid-cursor",
+            open_id=str(uuid4()),
+        )
+        assert invalid["error"]["code"] == "PROJECT_SYNC_RESET"
+        assert admit_title.call_count == 2
+        assert read_cursors == before
+        assert worker._update_listeners[turn.task_id] == {listener}
+
+        await write_reply(server, turn, "second pushed reply")
+        worker._notify_update(turn.task_id)
+        await next_turn(ws, turn.task_id, reply="second pushed reply")
+        assert read_cursors[-1] == current
+
+        await ws.send_json(
+            {
+                "type": "task.open",
+                "id": "rebase-existing",
+                "task_id": turn.task_id,
+                "resume": True,
+                "cursor": older,
+            }
+        )
+        await next_turn(ws, turn.task_id, reply="second pushed reply")
+        assert (await until(ws, lambda frame: frame.get("id") == "rebase-existing"))["data"] is None
+        assert worker._update_listeners[turn.task_id] != {listener}
+        assert admit_title.call_count == 2
+
+        # A cursor from a newer REST read leads the pushed watch; catch up from it.
+        ahead = await client.patch(
+            f"/api/project-tasks/{turn.task_id}",
+            headers=auth,
+            json={
+                "expected_revision": first["data"]["task"]["list_revision"],
+                "title": "Title with an unpushed revision",
+            },
+        )
+        assert ahead.status_code == 200, ahead.text
+        ahead_cursor = ahead.json()["event_cursor"]
+        await ws.send_json(
+            {
+                "type": "task.open",
+                "id": "ahead-watched-cursor",
+                "task_id": turn.task_id,
+                "cursor": ahead_cursor,
+                "open_id": str(uuid4()),
+            }
+        )
+        accepted = await until(ws, lambda frame: frame.get("id") == "ahead-watched-cursor")
+        assert accepted == {"type": "result", "id": "ahead-watched-cursor", "data": None}
+        assert admit_title.call_count == 3
+        assert ahead_cursor in read_cursors
+    finally:
+        await session.__aexit__(None, None, None)
+
+
 async def test_fallback_delivers_commits_without_a_local_notification(
     env_with_provider, monkeypatch
 ):
@@ -253,7 +373,7 @@ async def test_fallback_delivers_commits_without_a_local_notification(
     turn = await external_turn(client, server, auth)
     session, ws = await connected(client, auth)
     try:
-        await command(ws, "task.subscribe", "subscribe-external-turn", task_id=turn.task_id)
+        await command(ws, "task.open", "subscribe-external-turn", task_id=turn.task_id, resume=True)
         await write_reply(server, turn, "其他进程保存的正文")
         await next_turn(ws, turn.task_id, reply="其他进程保存的正文")
     finally:
@@ -267,14 +387,14 @@ async def test_notification_during_a_read_is_retained_for_the_next_read(
     client, server, auth = env_with_provider
     monkeypatch.setattr(project_tasks_ws, "_UPDATE_SECONDS", 3600)
     turn = await external_turn(client, server, auth)
-    original_updates = tasks.updates
+    original_updates = tasks.stream_updates
     read_started, release_read = threading.Event(), threading.Event()
     reads = 0
     intercept = False
 
-    def updates(*args):
+    def updates(*args, **kwargs):
         nonlocal reads, intercept
-        result = original_updates(*args)
+        result = original_updates(*args, **kwargs)
         reads += 1
         if intercept:
             intercept = False
@@ -282,10 +402,10 @@ async def test_notification_during_a_read_is_retained_for_the_next_read(
             assert release_read.wait(5), "test did not release the first database read"
         return result
 
-    monkeypatch.setattr(tasks, "updates", updates)
+    monkeypatch.setattr(tasks, "stream_updates", updates)
     session, ws = await connected(client, auth)
     try:
-        await command(ws, "task.subscribe", "subscribe-race-turn", task_id=turn.task_id)
+        await command(ws, "task.open", "subscribe-race-turn", task_id=turn.task_id, resume=True)
         await wait_for(lambda: reads >= 2)
         await write_reply(server, turn, "第一批")
         intercept = True

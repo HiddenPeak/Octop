@@ -217,7 +217,10 @@ async def test_cookie_task_socket_checks_origin_and_closes_on_logout(browser_box
     )
     try:
         await socket.connect(timeout=3)
-        assert await socket.receive_json(timeout=3) == {"type": "ready", "protocol_version": 3}
+        assert await socket.receive_json(timeout=3) == {
+            "type": "ready",
+            "protocol_version": 3,
+        }
         await socket.send_json({"type": "ping", "id": "cookie-ping"})
         result = await socket.receive_json(timeout=3)
         assert result["type"] == "result" and result["id"] == "cookie-ping"

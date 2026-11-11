@@ -330,10 +330,11 @@ async def test_global_policy_push_without_task_subscription_and_other_task_updat
         for task in created:
             await command(
                 first_ws,
-                "task.subscribe",
+                "task.open",
                 "subscribe-" + task["task_id"],
                 task_id=task["task_id"],
                 cursor=task["event_cursor"],
+                resume=True,
             )
         body = {
             "request_id": "global-socket-write",
@@ -361,7 +362,8 @@ async def test_global_policy_push_without_task_subscription_and_other_task_updat
             event = await until(
                 first_ws,
                 lambda frame: (
-                    frame["type"] == "turn" and frame["data"]["task"]["approval_policy"] == policy
+                    frame["type"] == "task.summary"
+                    and frame["data"]["task"]["approval_policy"] == policy
                 ),
             )
             received.add(event["data"]["task"]["task_id"])

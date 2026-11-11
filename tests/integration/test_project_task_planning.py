@@ -150,7 +150,8 @@ async def test_real_plan_progress_and_tool_results_restore_without_duplicates(
         )["data"]
         await ws.send_json(
             {
-                "type": "task.subscribe",
+                "type": "task.open",
+                "resume": True,
                 "id": "planning-watch",
                 "task_id": created["task_id"],
                 "cursor": created["event_cursor"],
@@ -274,7 +275,8 @@ async def test_real_plan_progress_and_tool_results_restore_without_duplicates(
     try:
         await ws.send_json(
             {
-                "type": "task.subscribe",
+                "type": "task.open",
+                "resume": True,
                 "id": "planning-resume",
                 "task_id": done["task_id"],
                 "cursor": cursor,
@@ -291,7 +293,8 @@ async def test_real_plan_progress_and_tool_results_restore_without_duplicates(
         await until(ws, lambda frame: frame.get("id") == "planning-resume")
         await ws.send_json(
             {
-                "type": "task.subscribe",
+                "type": "task.open",
+                "resume": True,
                 "id": "planning-current",
                 "task_id": done["task_id"],
                 "cursor": restored["data"]["cursor"],

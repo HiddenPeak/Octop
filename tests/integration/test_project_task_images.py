@@ -120,7 +120,12 @@ async def test_image_only_create_and_followup_restore_input_metadata(
         assert_durable_references(server, task["task_id"], image["attachment_id"])
         if session is not None:
             await ws.send_json(
-                {"type": "task.subscribe", "id": "image-watch-001", "task_id": task["task_id"]}
+                {
+                    "type": "task.open",
+                    "resume": True,
+                    "id": "image-watch-001",
+                    "task_id": task["task_id"],
+                }
             )
             snapshot = await until(ws, lambda frame: frame["type"] == "snapshot")
             assert snapshot["data"]["turns"][0]["attachments"] == [image]

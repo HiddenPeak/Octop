@@ -1248,7 +1248,7 @@ async def _task_events(
     owner_id: int,
     task_id: str,
     cursor: str,
-    pending: list[tasks.TaskUpdate],
+    pending: tasks.TaskStreamBatch,
     snapshot: tasks.TaskDetail | None = None,
 ) -> AsyncIterator[str]:
     started = time.monotonic()
@@ -1259,15 +1259,29 @@ async def _task_events(
     while time.monotonic() - started < _TASK_STREAM_SECONDS:
         if await request.is_disconnected():
             return
-        for update in pending:
-            cursor = update.cursor
-            yield f"id: {cursor}\nevent: turn\ndata: {update.model_dump_json()}\n\n"
+        for update in pending.updates:
+            if isinstance(update, tasks.TaskSummaryUpdate):
+                event, data = "task.summary", update.model_dump_json()
+            else:
+                event = "turn"
+                data = update.model_dump_json(
+                    exclude={"historical"} if update.historical is None else None
+                )
+            yield f"id: {update.cursor}\nevent: {event}\ndata: {data}\n\n"
         if time.monotonic() - heartbeat >= 10:
             yield ": heartbeat\n\n"
             heartbeat = time.monotonic()
-        await asyncio.sleep(0.5)
+        if not pending.has_more:
+            await asyncio.sleep(0.5)
         try:
-            pending = await asyncio.to_thread(tasks.updates, services, owner_id, task_id, cursor)
+            pending = await asyncio.to_thread(
+                tasks.stream_updates,
+                services,
+                owner_id,
+                task_id,
+                pending.cursor,
+                watermark=pending.watermark if pending.has_more else None,
+            )
         except InhereBoxError as exc:
             yield (
                 "event: error\ndata: "
@@ -1281,7 +1295,10 @@ async def _task_events(
     "/{task_id}/events",
     response_class=StreamingResponse,
     summary="订阅任务轮次的实时状态",
-    description="Bearer 鉴权的 SSE。使用首页 event_cursor 或 Last-Event-ID 续接；turn 事件的 data 为 {task: TaskSummary, turn: TaskTurn, cursor: string}，SSE id 与 cursor 一致；snapshot 为 TaskDetail。同一轮中间状态可合并。断线后补齐遗漏轮次的最新状态，不重放工具操作。无游标先返回最近一页 snapshot。游标失效返回 409 PROJECT_SYNC_RESET，需重建首页。连接约 25 秒后结束，可用最后游标重连。",
+    description="Bearer 鉴权的 SSE，使用与 WebSocket 相同的 event_cursor 或 Last-Event-ID 续接。"
+    "无游标先返回最近一页 snapshot（TaskDetail）。turn 返回 TaskUpdate，旧轮修订带 historical=true。"
+    "仅摘要变化返回 task.summary（TaskSummaryUpdate）。SSE id 与数据游标一致。"
+    "游标失效返回 409 PROJECT_SYNC_RESET，需重建首页。连接约 25 秒后结束，可用最后游标重连。",
     responses={200: {"content": {"text/event-stream": {"schema": {"type": "string"}}}}},
 )
 async def task_events(
@@ -1299,7 +1316,7 @@ async def task_events(
         snapshot = await asyncio.to_thread(tasks.detail, services, user.id, task_id)
         position = snapshot.event_cursor
     assert position is not None
-    pending = await asyncio.to_thread(tasks.updates, services, user.id, task_id, position)
+    pending = await asyncio.to_thread(tasks.stream_updates, services, user.id, task_id, position)
     return StreamingResponse(
         _task_events(request, services, user.id, task_id, position, pending, snapshot),
         media_type="text/event-stream",

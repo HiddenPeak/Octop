@@ -79,6 +79,12 @@ def test_task_backup_restores_files_and_live_wal_databases(
     with ExitStack() as stack:
         source, pool = _pool(stack, tmp_path / "source")
         configuration = _seed_task(pool)
+        open_id = "770ca13d-e6af-4e3c-bf36-fd4eef74a7c1"
+        with pool.connect() as conn:
+            conn.execute(
+                "INSERT INTO project_task_open_receipts(task_id,owner_id,open_id) VALUES(?,?,?)",
+                ("task-one", 1, open_id),
+            )
         task = source.root / "project-tasks" / "task-one"
         workspace = task / "workspace"
         workspace.mkdir(parents=True)
@@ -138,10 +144,15 @@ def test_task_backup_restores_files_and_live_wal_databases(
         )
         restored = target.root / "project-tasks" / "task-one"
         with target_pool.connect() as conn:
+            receipt = conn.execute(
+                "SELECT open_id FROM project_task_open_receipts WHERE task_id=? AND owner_id=?",
+                ("task-one", 1),
+            ).fetchone()
             turn = conn.execute(
                 "SELECT checkpoint_id,configuration_json FROM project_task_turns "
                 "WHERE turn_id='turn-one'"
             ).fetchone()
+        assert receipt["open_id"] == open_id
         assert turn["checkpoint_id"] == "saved-checkpoint"
         assert (
             load_snapshot(restored / "turn-one" / "resources", turn["configuration_json"]) == skills

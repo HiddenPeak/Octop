@@ -204,11 +204,13 @@ PATCH /api/project-tasks/task_example
 
 `task.create/message/retry` 的 data 复用对应 REST 请求模型。配置 PATCH、fork、from-thread 和专家记忆管理目前使用 REST；**没有新增 `task.update/task.fork/task.migrate` WS 命令**。
 
-创建后不会自动订阅。明确进入已有详情时发送 `task.open`，用返回 `event_cursor` 发 `task.subscribe`。重连仅重新认证、恢复订阅；不用 task.open 代替恢复，更不能因为断线重发消息。socket 命令 id 只关联本次回执，重传时可换；持久 request_id 保持原值。
+明确进入已有详情时发送带新 UUID `open_id` 的 `task.open`，建立正文观察并按需补生成标题。重传同一次打开时保留 `open_id`。创建后开始观察和断线重连时，发送带 `resume:true` 的 `task.open`，使用最后已应用的 `cursor` 并省略 `open_id`。socket 命令 id 只关联本次回执，重传时可换。消息的持久 request_id 保持原值。
 
-单个 receiver 处理 `result/error/snapshot/turn/session/heartbeat/approval.policy`，声明客户端工具后还接收 `tool.call`，本机 Resident 观察另接收 `resident.timeline.snapshot` 和 `resident.timeline.update`。全局 approval.policy 无需订阅就可能推送；任何异步事件都可能与命令回执交错。`snapshot.data` 是 TaskDetail；`turn.data` 是 `{task,turn,cursor}`。正文为累计状态，不能逐帧追加。内容块、计划、交互按各自版本替换完整数组，摘要按 list_revision；应用事件后再保存 cursor。历史分页不推进实时游标。
+同一连接已在观察任务时，显式进入可带该观察最后已应用的游标，只处理标题入队并保留正在推送的正文基线。独立打开需要快照时省略游标。
 
-订阅成功的 `result.data=null`，不能把它当成详情。遇到 `PROJECT_SYNC_RESET`，只清理对应 Task 的实时 cursor，重新发送不带 cursor 的 task.subscribe 取得 snapshot；不清其他订阅，不重发消息，也不因恢复观察触发 task.open。
+单个 receiver 处理 `result/error/snapshot/turn/task.summary/session/heartbeat/approval.policy`，声明客户端工具后还接收 `tool.call`，本机 Resident 观察另接收 `resident.timeline.snapshot` 和 `resident.timeline.update`。全局 approval.policy 独立于正文观察。初始正文事件可以先于命令回执。`snapshot.data` 是 TaskDetail。`turn.data` 是 `{task,turn,cursor,history_revision,historical?}`，`task.summary.data` 是 `{task,cursor,history_revision}`。正文为累计状态。内容块、计划和交互按各自版本替换，摘要按 list_revision 合并。历史分页按 history_revision 保护已更新的旧轮。
+
+打开命令的 `result.data=null`。收到回执后，一次应用本次追平的正文与游标。遇到 `PROJECT_SYNC_RESET` 时，仅对对应 Task 再发一次带 `resume:true`、省略 cursor 的 `task.open`，取得新的 snapshot。
 
 状态完整枚举为 queued/running/waiting_approval/waiting_answer/waiting_client_tool/paused/interrupted/completed/failed/cancelled。waiting、paused、interrupted 不表示成功结束；pause_requested 只是请求意图，status=paused 才表示已安全暂停。
 

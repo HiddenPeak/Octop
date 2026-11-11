@@ -27,7 +27,6 @@ vi.mock("../../api/modules/projects", async (importOriginal) => ({
     list: vi.fn(),
     sync: vi.fn(),
     get: vi.fn(),
-    open: vi.fn(),
     create: vi.fn(),
     send: vi.fn(),
     cancel: vi.fn(),
@@ -64,6 +63,7 @@ vi.mock("react-i18next", () => {
   return { useTranslation: () => ({ t }) };
 });
 const api = vi.mocked(projectTasksApi, true);
+const openSnapshot = vi.fn<(taskID: string) => Promise<TaskDetail>>();
 
 async function conversationTool(name: string) {
   if (!screen.queryByRole("button", { name, exact: true }))
@@ -225,7 +225,12 @@ beforeEach(() => {
     next_page_cursor: null,
     changes: [],
   });
-  api.events.mockImplementation((_id, _cursor, _onEvent, signal, onOpen) => {
+  api.events.mockImplementation(async (id, cursor, receive, signal, onOpen) => {
+    if (cursor === null) {
+      const snapshot = await openSnapshot(id);
+      if (signal.aborted) return;
+      receive({ type: "snapshot", data: snapshot });
+    }
     onOpen?.();
     return new Promise<void>((resolve) =>
       signal.addEventListener("abort", () => resolve(), { once: true }),
@@ -257,7 +262,7 @@ beforeEach(() => {
   api.setApproval.mockResolvedValue(fixture);
   api.delete.mockResolvedValue(undefined);
   api.retry.mockResolvedValue(fixture);
-  api.open.mockResolvedValue(fixture);
+  openSnapshot.mockResolvedValue(fixture);
   api.get.mockResolvedValue(fixture);
   api.create.mockResolvedValue(fixture);
   api.send.mockResolvedValue(fixture);
@@ -310,7 +315,7 @@ it("creates a standalone task and sends a follow-up over HTTP without randomUUID
     getRandomValues: globalThis.crypto.getRandomValues.bind(globalThis.crypto),
   });
   api.create.mockResolvedValue({ ...fixture, project_id: null });
-  api.open.mockResolvedValue({ ...fixture, project_id: null });
+  openSnapshot.mockResolvedValue({ ...fixture, project_id: null });
   const user = userEvent.setup();
   mount("", null);
   const input = screen.getByRole("textbox", {
@@ -351,7 +356,7 @@ it("creates a standalone task and sends a follow-up over HTTP without randomUUID
 
 it("changes the expert only between turns, retaining the draft and both revisions", async () => {
   const selected = { ...fixture, configuration_revision: 5 };
-  api.open.mockResolvedValue(selected);
+  openSnapshot.mockResolvedValue(selected);
   api.update.mockResolvedValue({
     ...selected,
     list_revision: 2,
@@ -398,7 +403,7 @@ it("explains an unavailable expert without silently changing identity and lets t
     configuration_revision: 5,
     selected_expert_id: "unavailable_expert",
   };
-  api.open.mockResolvedValue(selected);
+  openSnapshot.mockResolvedValue(selected);
   api.update.mockResolvedValue({
     ...selected,
     list_revision: 2,
@@ -438,7 +443,7 @@ it("explains an unavailable expert without silently changing identity and lets t
 });
 
 it("keeps the accepted expert fixed while a turn waits for approval", async () => {
-  api.open.mockResolvedValue({
+  openSnapshot.mockResolvedValue({
     ...fixture,
     selected_expert_id: "expert_a",
     status: "waiting_approval",
@@ -547,7 +552,7 @@ it.each([
 ] as const)(
   "creates a %s branch from inherited history",
   async (operation, label) => {
-    api.open.mockResolvedValue({
+    openSnapshot.mockResolvedValue({
       ...fixture,
       turns: [
         {
@@ -607,7 +612,7 @@ it.each([
 it.each([false, true])(
   "offers the latest inherited answer in conversation tools (has local history: %s)",
   async (hasLocalHistory) => {
-    api.open.mockResolvedValue({
+    openSnapshot.mockResolvedValue({
       ...fixture,
       turns: [
         ...(hasLocalHistory ? [fixture.turns[0]] : []),
@@ -653,7 +658,7 @@ it.each([false, true])(
 it.each(["failed", "cancelled"] as const)(
   "marks %s inherited history without offering execution retry",
   async (status) => {
-    api.open.mockResolvedValue({
+    openSnapshot.mockResolvedValue({
       ...fixture,
       status,
       turns: [
@@ -1004,7 +1009,7 @@ describe("项目任务对话", () => {
   });
 
   it("历史图片通过鉴权接口加载，关闭对话时释放预览 URL", async () => {
-    api.open.mockResolvedValue({
+    openSnapshot.mockResolvedValue({
       ...fixture,
       turns: [
         { ...fixture.turns[0], prompt: "", attachments: [imageAttachment] },
@@ -1029,7 +1034,7 @@ describe("项目任务对话", () => {
     api.attachmentPreview.mockRejectedValueOnce(
       new Error("network unavailable"),
     );
-    api.open.mockResolvedValue({
+    openSnapshot.mockResolvedValue({
       ...fixture,
       turns: [{ ...fixture.turns[0], attachments: [imageAttachment] }],
     });
@@ -1049,7 +1054,7 @@ describe("项目任务对话", () => {
       name: "图示.svg",
       media_type: "image/svg+xml",
     };
-    api.open.mockResolvedValue({
+    openSnapshot.mockResolvedValue({
       ...fixture,
       turns: [
         {
@@ -1086,7 +1091,7 @@ describe("项目任务对话", () => {
   });
 
   it("历史文件下载失败可以重试，关闭对话中止未完成的下载", async () => {
-    api.open.mockResolvedValue({
+    openSnapshot.mockResolvedValue({
       ...fixture,
       turns: [{ ...fixture.turns[0], attachments: [fileAttachment] }],
     });
@@ -1128,7 +1133,7 @@ describe("项目任务对话", () => {
     );
     await waitFor(() => expect(api.events).toHaveBeenCalledTimes(1));
     expect(screen.getByText("已记住蓝鸟")).toBeInTheDocument();
-    expect(api.open).toHaveBeenCalledWith("task_a");
+    expect(openSnapshot).toHaveBeenCalledWith("task_a");
   });
   it("打开历史后发送下一轮，使用同一个任务", async () => {
     const user = userEvent.setup();
@@ -1342,7 +1347,7 @@ describe("项目任务对话", () => {
     { state: "运行中", active_turn_id: "turn_a", archived: false },
     { state: "已归档", active_turn_id: null, archived: true },
   ])("任务$state时禁用手动压缩", async (changes) => {
-    api.open.mockResolvedValue({ ...fixture, ...changes });
+    openSnapshot.mockResolvedValue({ ...fixture, ...changes });
     mount("?task=task_a");
     expect(await conversationTool("压缩记忆")).toBeDisabled();
     expect(api.send).not.toHaveBeenCalled();
@@ -1353,7 +1358,7 @@ describe("项目任务对话", () => {
   ])(
     "压缩维护轮不可暂停但仍可停止，是否维护轮：$compacting",
     async (changes) => {
-      api.open.mockResolvedValue({
+      openSnapshot.mockResolvedValue({
         ...fixture,
         active_turn_id: "turn_a",
         turns: [
@@ -1378,7 +1383,7 @@ describe("项目任务对话", () => {
     },
   );
   it("执行中可以停止，历史回复保留", async () => {
-    api.open.mockResolvedValue({
+    openSnapshot.mockResolvedValue({
       ...fixture,
       active_turn_id: "turn_a",
       turns: [{ ...fixture.turns[0], status: "running" }],
@@ -1399,10 +1404,11 @@ it("选择任务沿用已加载列表，后续只请求增量", async () => {
   expect(api.list).toHaveBeenCalledTimes(1);
   expect(api.events).toHaveBeenCalledWith(
     "task_a",
-    "event_first",
+    null,
     expect.any(Function),
     expect.any(AbortSignal),
     expect.any(Function),
+    expect.any(String),
   );
 });
 
@@ -1452,7 +1458,7 @@ it("一页任务直接显示列表状态，增量更新无需逐个读取详情"
   expect(api.list).toHaveBeenCalledTimes(1);
   expect(api.get).not.toHaveBeenCalled();
   expect(api.events).not.toHaveBeenCalled();
-  expect(api.open).not.toHaveBeenCalled();
+  expect(openSnapshot).not.toHaveBeenCalled();
   fireEvent(document, new Event("visibilitychange"));
   await screen.findByRole("button", { name: /任务 queued 回复中/ });
   expect(api.get).not.toHaveBeenCalled();
@@ -1544,7 +1550,7 @@ it("实时显示回复与终态，迟到的停止响应不能恢复执行中状�
     active_turn_id: "turn_a",
     turns: [{ ...fixture.turns[0], reply: "部分", status: "running" }],
   };
-  api.open.mockResolvedValue(running);
+  openSnapshot.mockResolvedValue(running);
   let finishStop!: (value: TaskDetail) => void;
   api.cancel.mockImplementation(
     () =>
@@ -1589,12 +1595,12 @@ it("实时显示回复与终态，迟到的停止响应不能恢复执行中状�
   expect(
     screen.queryByRole("button", { name: "停止回复" }),
   ).not.toBeInTheDocument();
-  expect(api.open).toHaveBeenCalledTimes(1);
+  expect(openSnapshot).toHaveBeenCalledTimes(1);
   expect(api.get).not.toHaveBeenCalled();
 });
 
 it("加载更早对话保留实时收到的新轮次", async () => {
-  api.open.mockResolvedValueOnce({
+  openSnapshot.mockResolvedValueOnce({
     ...fixture,
     next_page_cursor: "messages_older",
   });
@@ -1682,7 +1688,7 @@ it("失败后手动重试保留原轮次，网络重传沿用重试标识", asyn
       },
     ],
   };
-  api.open.mockResolvedValue(failed);
+  openSnapshot.mockResolvedValue(failed);
   api.retry.mockRejectedValueOnce(new Error("lost response"));
   api.retry.mockResolvedValue({
     ...failed,
@@ -1737,7 +1743,7 @@ it.each([
       [field]: projectFixture[field] + "/after",
       revision: 2,
     };
-    api.open.mockResolvedValue(failed);
+    openSnapshot.mockResolvedValue(failed);
     api.retry.mockResolvedValue(failed);
     const page = (project: Project) => (
       <MemoryRouter initialEntries={["/box-projects/proj_a?task=task_a"]}>
@@ -1782,7 +1788,8 @@ it.each([
 it("断线使用最后收到的游标续接，不重新下载会话历史", async () => {
   let disconnect!: (reason: Error) => void;
   api.events.mockImplementationOnce(
-    (_id, _cursor, _onEvent, _signal, onOpen) => {
+    async (id, _cursor, receive, _signal, onOpen) => {
+      receive({ type: "snapshot", data: await openSnapshot(id) });
       onOpen?.();
       return new Promise((_resolve, reject) => {
         disconnect = reject;
@@ -1805,7 +1812,7 @@ it("断线使用最后收到的游标续接，不重新下载会话历史", asyn
   await act(async () => disconnect(new Error("network offline")));
   await act(async () => vi.advanceTimersByTimeAsync(2000));
   expect(api.events.mock.calls[1][1]).toBe("event_received");
-  expect(api.open).toHaveBeenCalledTimes(1);
+  expect(openSnapshot).toHaveBeenCalledTimes(1);
   expect(api.get).not.toHaveBeenCalled();
 });
 
@@ -1821,22 +1828,23 @@ it("详情恢复前台只恢复订阅，不重复发送打开事件", async () =
     hidden.mockReturnValue(false);
     await act(async () => fireEvent(document, new Event("visibilitychange")));
     await waitFor(() => expect(api.events).toHaveBeenCalledTimes(2));
-    expect(api.open).toHaveBeenCalledTimes(1);
+    expect(openSnapshot).toHaveBeenCalledTimes(1);
     expect(api.get).not.toHaveBeenCalled();
   } finally {
     hidden.mockRestore();
   }
 });
 
-it("打开回执丢失后只读恢复详情，不重复触发标题补生成", async () => {
-  api.open.mockRejectedValueOnce(new Error("lost open receipt"));
+it("打开回执丢失后复用打开 ID 并恢复正文", async () => {
+  openSnapshot.mockRejectedValueOnce(new Error("lost open receipt"));
   vi.useFakeTimers();
   await act(async () => mount("?task=task_a"));
-  expect(api.open).toHaveBeenCalledTimes(1);
+  const openID = api.events.mock.calls[0][5];
+  expect(openID).toEqual(expect.any(String));
   await act(async () => vi.advanceTimersByTimeAsync(2000));
-  expect(api.open).toHaveBeenCalledTimes(1);
-  expect(api.get).toHaveBeenCalledWith("task_a");
-  expect(api.events).toHaveBeenCalledTimes(1);
+  expect(api.events.mock.calls[1][1]).toBeNull();
+  expect(api.events.mock.calls[1][5]).toBe(openID);
+  expect(api.get).not.toHaveBeenCalled();
   expect(screen.getByText("已记住蓝鸟")).toBeInTheDocument();
 });
 
@@ -1861,9 +1869,16 @@ it("切换任务会关闭旧连接，迟到的事件不会串入新会话", asyn
 });
 
 it("实时游标失效时重建最近一页，不沿用失效浏览范围", async () => {
-  api.open.mockResolvedValueOnce({ ...fixture, next_page_cursor: "old_range" });
-  api.events.mockRejectedValueOnce(
-    new Error('409 - {"error":{"code":"PROJECT_SYNC_RESET"}}'),
+  openSnapshot.mockResolvedValueOnce({
+    ...fixture,
+    next_page_cursor: "old_range",
+  });
+  api.events.mockImplementationOnce(
+    async (id, _cursor, receive, _signal, onOpen) => {
+      receive({ type: "snapshot", data: await openSnapshot(id) });
+      onOpen?.();
+      throw new Error('409 - {"error":{"code":"PROJECT_SYNC_RESET"}}');
+    },
   );
   vi.useFakeTimers();
   await act(async () => {
@@ -1871,8 +1886,10 @@ it("实时游标失效时重建最近一页，不沿用失效浏览范围", asyn
   });
   expect(screen.getByText("连接中断，正在重新连接…")).toBeInTheDocument();
   await act(async () => vi.advanceTimersByTimeAsync(2000));
-  expect(api.open.mock.calls).toEqual([["task_a"]]);
-  expect(api.get.mock.calls).toEqual([["task_a"]]);
+  expect(openSnapshot.mock.calls).toEqual([["task_a"], ["task_a"]]);
+  expect(api.events.mock.calls[1][1]).toBeNull();
+  expect(api.events.mock.calls[1][5]).toBeUndefined();
+  expect(api.get).not.toHaveBeenCalled();
   expect(
     screen.queryByRole("button", { name: "加载更早的对话" }),
   ).not.toBeInTheDocument();
@@ -1980,7 +1997,7 @@ it.each(["proj_a", null])(
       next_page_cursor: null,
       sync_cursor: "sync_first",
     });
-    api.open.mockResolvedValue(task);
+    openSnapshot.mockResolvedValue(task);
     const user = userEvent.setup();
     mount("?task=task_a", projectID);
     await user.click(await conversationTool("删除任务"));
@@ -2026,7 +2043,7 @@ it("删除时服务端发现任务忙，显示具体原因并保留任务和对�
 it.each(["queued", "running"] as const)(
   "%s 任务不能删除并显示原因",
   async (status) => {
-    api.open.mockResolvedValue({
+    openSnapshot.mockResolvedValue({
       ...fixture,
       active_turn_id: "turn_a",
       status,
@@ -2130,7 +2147,7 @@ it("本轮选择模型并清空 Skill/MCP，通过消息发送而不修改项目
     ),
   );
   expect(api.update).not.toHaveBeenCalled();
-  await waitFor(() => expect(api.open).toHaveBeenCalledWith("task_a"));
+  await waitFor(() => expect(openSnapshot).toHaveBeenCalledWith("task_a"));
   await user.type(
     screen.getByRole("textbox", { name: "任务消息" }),
     "继续使用同一模型",
@@ -2186,7 +2203,9 @@ it("常驻模型选择用于重试，跟随默认和切换任务不会沿用另�
     next_page_cursor: null,
     sync_cursor: "sync_first",
   });
-  api.open.mockImplementation(async (id) => (id === "task_b" ? other : failed));
+  openSnapshot.mockImplementation(async (id) =>
+    id === "task_b" ? other : failed,
+  );
   api.retry.mockResolvedValue({ ...fixture, list_revision: 2 });
   api.send.mockResolvedValue({ ...fixture, list_revision: 3 });
   const user = userEvent.setup();
@@ -2218,7 +2237,7 @@ it("常驻模型选择用于重试，跟随默认和切换任务不会沿用另�
   await user.click(selector);
   await user.click(await screen.findByText("RM-01 VLM · box/RM-01 VLM"));
   await user.click(screen.getByRole("button", { name: /另一任务/ }));
-  await waitFor(() => expect(api.open).toHaveBeenCalledWith("task_b"));
+  await waitFor(() => expect(openSnapshot).toHaveBeenCalledWith("task_b"));
   expect(
     screen.getByRole("combobox", { name: "本轮模型" }).closest(".ant-select"),
   ).toHaveTextContent("跟随默认");
@@ -2241,7 +2260,7 @@ it("独立展示思考内容并合并实时更新，迟到内容不截断已收�
       },
     ],
   };
-  api.open.mockResolvedValue(running);
+  openSnapshot.mockResolvedValue(running);
   const user = userEvent.setup();
   mount("?task=task_a");
   await waitFor(() => expect(api.events).toHaveBeenCalledTimes(1));
@@ -2307,7 +2326,7 @@ it("摘要与工具按顺序展示，稳定标识保留展开状态，迟到快�
       },
     ],
   };
-  api.open.mockResolvedValue(running);
+  openSnapshot.mockResolvedValue(running);
   const user = userEvent.setup();
   mount("?task=task_a");
   await waitFor(() => expect(api.events).toHaveBeenCalledTimes(1));
@@ -2530,7 +2549,7 @@ it("downloads a published attachment through the authenticated API using its res
       "/api/project-tasks/task_a/artifacts/artifact_report/download",
     created_at: fixture.created_at,
   };
-  api.open.mockResolvedValue({
+  openSnapshot.mockResolvedValue({
     ...fixture,
     turns: [{ ...fixture.turns[0], artifacts: [artifact] }],
   });
@@ -2593,7 +2612,7 @@ it("审批丢回执重试使用原请求；迟到正文不重开已处理卡片"
       },
     ],
   };
-  api.open.mockResolvedValue(waiting);
+  openSnapshot.mockResolvedValue(waiting);
   api.respond.mockRejectedValueOnce(new Error("Lost receipt"));
   api.respond.mockResolvedValueOnce({
     ...waiting,
@@ -2656,7 +2675,7 @@ it("暂停与继续绑定原轮次，暂停意图确认后显示继续", async (
     status: "running",
     turns: [{ ...fixture.turns[0], status: "running" }],
   };
-  api.open.mockResolvedValue(running);
+  openSnapshot.mockResolvedValue(running);
   api.control.mockResolvedValueOnce({
     ...running,
     turns: [
@@ -2717,7 +2736,7 @@ it.each(["paused", "interrupted"] as const)(
         },
       ],
     };
-    api.open.mockResolvedValue(paused);
+    openSnapshot.mockResolvedValue(paused);
     api.control.mockResolvedValue({
       ...paused,
       status: "running",
@@ -2761,7 +2780,7 @@ it.each(["paused", "interrupted"] as const)(
 it("新任务默认开启网络搜索并保存到创建顶层字段，后续消息沿用任务配置", async () => {
   const enabled = { ...fixture, web_search_enabled: true };
   api.create.mockResolvedValue(enabled);
-  api.open.mockResolvedValue(enabled);
+  openSnapshot.mockResolvedValue(enabled);
   api.send.mockResolvedValue(enabled);
   const user = userEvent.setup();
   mount();
@@ -2810,7 +2829,7 @@ it("主动关闭搜索后创建和追问保留关闭状态，切回新任务恢�
       expect.objectContaining({ web_search_enabled: false }),
     ),
   );
-  await waitFor(() => expect(api.open).toHaveBeenCalledWith("task_a"));
+  await waitFor(() => expect(openSnapshot).toHaveBeenCalledWith("task_a"));
   await waitFor(() =>
     expect(screen.getByRole("switch", { name: "网络搜索" })).not.toBeChecked(),
   );
@@ -2844,7 +2863,7 @@ it("任务运行中可保存网络搜索开关，切换任务和重新打开时�
     next_page_cursor: null,
     sync_cursor: "sync_first",
   });
-  api.open
+  openSnapshot
     .mockResolvedValueOnce(running)
     .mockResolvedValueOnce(other)
     .mockResolvedValueOnce(enabled);
@@ -2863,12 +2882,12 @@ it("任务运行中可保存网络搜索开关，切换任务和重新打开时�
   await waitFor(() => expect(toggle).toBeChecked());
   expect(api.send).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: /另一任务/ }));
-  await waitFor(() => expect(api.open).toHaveBeenCalledWith("task_b"));
+  await waitFor(() => expect(openSnapshot).toHaveBeenCalledWith("task_b"));
   await waitFor(() =>
     expect(screen.getByRole("switch", { name: "网络搜索" })).not.toBeChecked(),
   );
   await user.click(screen.getByRole("button", { name: /第一项任务/ }));
-  await waitFor(() => expect(api.open).toHaveBeenCalledTimes(3));
+  await waitFor(() => expect(openSnapshot).toHaveBeenCalledTimes(3));
   await waitFor(() =>
     expect(screen.getByRole("switch", { name: "网络搜索" })).toBeChecked(),
   );
@@ -2879,7 +2898,7 @@ it("网络搜索保存期间阻止发送和重试，冲突后保留实际值并�
     ...fixture,
     turns: [{ ...fixture.turns[0], status: "failed" }],
   };
-  api.open.mockResolvedValue(failed);
+  openSnapshot.mockResolvedValue(failed);
   let reject!: (error: Error) => void;
   api.update.mockReturnValueOnce(
     new Promise((_resolve, no) => {
@@ -2927,7 +2946,7 @@ it("网络搜索保存中切到另一任务再返回，旧请求完成前继续�
     next_page_cursor: null,
     sync_cursor: "sync_first",
   });
-  api.open
+  openSnapshot
     .mockResolvedValueOnce(fixture)
     .mockResolvedValueOnce(other)
     .mockResolvedValueOnce(enabled);
@@ -2943,12 +2962,12 @@ it("网络搜索保存中切到另一任务再返回，旧请求完成前继续�
   await waitFor(() => expect(toggle).toBeEnabled());
   await user.click(toggle);
   await user.click(screen.getByRole("button", { name: /另一任务/ }));
-  await waitFor(() => expect(api.open).toHaveBeenCalledWith("task_b"));
+  await waitFor(() => expect(openSnapshot).toHaveBeenCalledWith("task_b"));
   await waitFor(() =>
     expect(screen.getByRole("switch", { name: "网络搜索" })).toBeEnabled(),
   );
   await user.click(screen.getByRole("button", { name: /第一项任务/ }));
-  await waitFor(() => expect(api.open).toHaveBeenCalledTimes(3));
+  await waitFor(() => expect(openSnapshot).toHaveBeenCalledTimes(3));
   const restored = screen.getByRole("switch", { name: "网络搜索" });
   expect(restored).toBeChecked();
   expect(restored).toBeDisabled();
@@ -3125,7 +3144,7 @@ it("自动审查中没有人工批准按钮，自动结果仅留折叠记录", a
       },
     ],
   };
-  api.open.mockResolvedValue(reviewing);
+  openSnapshot.mockResolvedValue(reviewing);
   mount("?task=task_a");
   await screen.findByText(zh.projects.tasks.approvalMode.reviewing);
   expect(
@@ -3259,7 +3278,7 @@ it("Reviewer 转人工时在原卡显示稳定原因并保留人工决定入口"
       expires_at: fixture.created_at,
     },
   };
-  api.open.mockResolvedValue({
+  openSnapshot.mockResolvedValue({
     ...fixture,
     status: "waiting_approval",
     active_turn_id: "turn_a",
@@ -3322,7 +3341,7 @@ it("历史回合使用各轮展示快照，恢复焦点和全局开关变化不�
       ],
     })),
   };
-  api.open.mockResolvedValue(history);
+  openSnapshot.mockResolvedValue(history);
   api.get.mockResolvedValue(history);
   mount("?task=task_a");
   await screen.findByText("第 1 轮计划");
@@ -3356,7 +3375,7 @@ it("账号审批在任务之间共享，迟到任务摘要和低版本推送不�
     next_page_cursor: null,
     sync_cursor: "sync_first",
   });
-  api.open.mockImplementation(async (id) =>
+  openSnapshot.mockImplementation(async (id) =>
     id === "task_b" ? other : fixture,
   );
   const user = userEvent.setup();
@@ -3373,7 +3392,7 @@ it("账号审批在任务之间共享，迟到任务摘要和低版本推送不�
     ),
   );
   await user.click(screen.getByRole("button", { name: /另一任务/ }));
-  await waitFor(() => expect(api.open).toHaveBeenCalledWith("task_b"));
+  await waitFor(() => expect(openSnapshot).toHaveBeenCalledWith("task_b"));
   const otherSelector = await approvalSelector();
   expect(otherSelector.closest(".ant-select")).toHaveTextContent(
     zh.projects.tasks.approvalMode.approve_for_me,
@@ -3596,7 +3615,7 @@ describe("independent Task execution engines", () => {
         },
       ],
     };
-    api.open.mockResolvedValue(detail);
+    openSnapshot.mockResolvedValue(detail);
     api.update.mockImplementation(async (_id, changes) => ({
       ...detail,
       ...changes,
@@ -3643,7 +3662,7 @@ describe("independent Task execution engines", () => {
 
   it("keeps engine selection locked during an ACP turn and offers cancellation without pause", async () => {
     await withEngineResources();
-    api.open.mockResolvedValue({
+    openSnapshot.mockResolvedValue({
       ...fixture,
       engine: codexEngine,
       status: "running",
@@ -3694,7 +3713,7 @@ describe("independent Task execution engines", () => {
     const resources = await withEngineResources();
     resources.execution_engines[1].available = false;
     resources.execution_engines[1].unavailable_reason = "auth_required";
-    api.open.mockResolvedValue({ ...fixture, engine: codexEngine });
+    openSnapshot.mockResolvedValue({ ...fixture, engine: codexEngine });
     mount("?task=task_a");
     await screen.findByRole("combobox", { name: zh.projects.tasks.engine });
     expect(
@@ -3712,7 +3731,7 @@ describe("independent Task execution engines", () => {
 
   it("inspects only on request and offers the actual native model ids separately", async () => {
     const resources = await withEngineResources();
-    api.open.mockResolvedValue({ ...fixture, engine: codexEngine });
+    openSnapshot.mockResolvedValue({ ...fixture, engine: codexEngine });
     api.inspectEngine.mockImplementation(async () => {
       const entry = {
         ...resources.execution_engines[1],
@@ -3762,7 +3781,7 @@ describe("independent Task execution engines", () => {
 
 it("rejects an ACP/client-directory draft without rewriting either project directory", async () => {
   await withEngineResources();
-  api.open.mockResolvedValue({ ...fixture, engine: codexEngine });
+  openSnapshot.mockResolvedValue({ ...fixture, engine: codexEngine });
   render(
     <MemoryRouter initialEntries={["?task=task_a"]}>
       <TaskConversations projectID="proj_a" project={projectFixture} />

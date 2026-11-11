@@ -9,7 +9,7 @@ import { useTaskConversation } from "./useTaskConversation";
 
 vi.mock("../../api/modules/projects", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/modules/projects")>()),
-  projectTasksApi: { open: vi.fn(), get: vi.fn(), events: vi.fn() },
+  projectTasksApi: { get: vi.fn(), events: vi.fn() },
 }));
 vi.mock("react-i18next", () => {
   const t = (key: string) => key;
@@ -75,15 +75,16 @@ const fixture: TaskDetail = {
     },
   ],
 };
+let initialSnapshot: TaskDetail;
 beforeEach(() => {
   vi.clearAllMocks();
-  api.open.mockResolvedValue(fixture);
-  api.events.mockImplementation(
-    (_id, _cursor, _receive, signal) =>
-      new Promise<void>((resolve) => {
-        signal.addEventListener("abort", () => resolve(), { once: true });
-      }),
-  );
+  initialSnapshot = fixture;
+  api.events.mockImplementation(async (_id, cursor, receive, signal) => {
+    if (cursor === null) receive({ type: "snapshot", data: initialSnapshot });
+    return new Promise<void>((resolve) => {
+      signal.addEventListener("abort", () => resolve(), { once: true });
+    });
+  });
 });
 
 describe("计划版本合并", () => {
@@ -96,7 +97,7 @@ describe("计划版本合并", () => {
         active_turn_id: null,
         turns: [{ ...fixture.turns[0], status: "completed" }],
       };
-      api.open.mockResolvedValue(cached);
+      initialSnapshot = cached;
       const hook = renderHook(() => useTaskConversation("task_a", null));
       await waitFor(() => expect(api.events).toHaveBeenCalledTimes(1));
       const receive = api.events.mock.calls[0][2];

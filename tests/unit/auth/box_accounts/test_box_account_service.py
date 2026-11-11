@@ -793,7 +793,7 @@ def test_migration_062_preserves_old_rows_and_dialect_parity(tmp_path, monkeypat
         run_migrations(db)
         with db.connect() as conn:
             assert dict(conn.execute("SELECT * FROM users").fetchone()) == before
-            assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 66
+            assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 68
             assert conn.execute("SELECT auth_model_version FROM box_account").fetchone()[0] == 1
             assert (
                 conn.execute("SELECT role,guest_user_id FROM box_paired_clients").fetchone()["role"]
@@ -827,7 +827,7 @@ def test_management_migration_replay_preserves_live_authorization(service, manag
     with service._services.db.connect() as conn:
         assert service._repo.account(conn) == account
         assert service._repo.clients(conn) == clients
-        assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 66
+        assert conn.execute("SELECT version FROM _schema_version").fetchone()[0] == 68
     assert service._trust.read() == trust
     assert service.validate_context(manager) == manager
     assert service.validate_access_token(token) == client

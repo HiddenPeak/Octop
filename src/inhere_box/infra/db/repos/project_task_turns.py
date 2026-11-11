@@ -45,6 +45,7 @@ class ProjectTaskTurnRow:
     started_at: int | None = None
     finished_at: int | None = None
     recovery_json: str = ""
+    history_revision: int = 0
 
     @property
     def is_waiting(self) -> bool:
@@ -86,6 +87,7 @@ class ProjectTaskTurnRow:
             started_at=strict_int(r["started_at"]) if r["started_at"] is not None else None,
             finished_at=strict_int(r["finished_at"]) if r["finished_at"] is not None else None,
             recovery_json=str(r["recovery_json"]),
+            history_revision=strict_int(r["history_revision"]),
         )
 
 
@@ -115,10 +117,10 @@ class ProjectTaskTurnRepo:
         )
 
     @staticmethod
-    def update_imported(conn: Any, row: ProjectTaskTurnRow) -> None:
+    def update_imported(conn: Any, row: ProjectTaskTurnRow, *, history_revision: int) -> None:
         conn.execute(
             "UPDATE project_task_turns SET reply=?,configuration_json=?,updated_at=?,"
-            "content_blocks_json=?,content_revision=?,finished_at=? "
+            "content_blocks_json=?,content_revision=?,finished_at=?,history_revision=? "
             "WHERE turn_id=? AND task_id=? AND status='completed'",
             (
                 row.reply,
@@ -127,6 +129,7 @@ class ProjectTaskTurnRepo:
                 row.content_blocks_json,
                 row.content_revision,
                 row.finished_at,
+                history_revision,
                 row.turn_id,
                 row.task_id,
             ),
@@ -215,11 +218,56 @@ class ProjectTaskTurnRepo:
 
     @staticmethod
     def since(
-        conn: Any, task_id: str, position: int, limit: int
+        conn: Any, task_id: str, position: int, limit: int, *, through: int | None = None
+    ) -> builtins.list[ProjectTaskTurnRow]:
+        upper_bound = " AND id<=?" if through is not None else ""
+        params = (
+            (task_id, position, through, limit)
+            if through is not None
+            else (task_id, position, limit)
+        )
+        rows = conn.execute(
+            "SELECT * FROM project_task_turns WHERE task_id=? AND id>=?"
+            + upper_bound
+            + " ORDER BY id LIMIT ?",
+            params,
+        ).fetchall()
+        return [ProjectTaskTurnRow.from_row(r) for r in rows]
+
+    @staticmethod
+    def latest_position(conn: Any, task_id: str) -> int:
+        row = conn.execute(
+            "SELECT COALESCE(MAX(id), 0) AS position FROM project_task_turns WHERE task_id=?",
+            (task_id,),
+        ).fetchone()
+        return strict_int(row["position"])
+
+    @staticmethod
+    def history_revision(conn: Any, task_id: str) -> int:
+        row = conn.execute(
+            "SELECT COALESCE(MAX(history_revision), 0) AS revision FROM project_task_turns "
+            "WHERE task_id=? AND history_revision>0",
+            (task_id,),
+        ).fetchone()
+        return strict_int(row["revision"])
+
+    @staticmethod
+    def history_since(
+        conn: Any,
+        task_id: str,
+        *,
+        before: int,
+        revision: int,
+        position: int,
+        through: int,
+        limit: int,
     ) -> builtins.list[ProjectTaskTurnRow]:
         rows = conn.execute(
-            "SELECT * FROM project_task_turns WHERE task_id=? AND id>=? ORDER BY id LIMIT ?",
-            (task_id, position, limit),
+            "SELECT * FROM project_task_turns WHERE task_id=? AND id<? "
+            "AND history_revision>0 AND history_revision<=? "
+            "AND (history_revision>? OR (? > 0 AND history_revision=? AND id>?)) "
+            "ORDER BY history_revision,id LIMIT ?",
+            (task_id, before, through, revision, position, revision, position, limit),
         ).fetchall()
         return [ProjectTaskTurnRow.from_row(r) for r in rows]
 

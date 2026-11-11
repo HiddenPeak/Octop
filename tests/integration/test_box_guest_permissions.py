@@ -123,7 +123,15 @@ async def test_guest_can_use_own_projects_and_tasks_but_not_owner_resources(
             },
         )
         assert unsafe_frame["type"] == "error" and unsafe_frame["status"] == 403, unsafe_frame
-        denied = await _command(socket, "task.subscribe", "owner-subscribe", task_id=task_id)
+        own_open = await _command(
+            socket, "task.open", "guest-open", task_id=result["task_id"], open_id=str(uuid4())
+        )
+        assert own_open["type"] == "result" and own_open["data"] is None
+        denied = await _command(
+            socket, "task.open", "owner-open", task_id=task_id, open_id=str(uuid4())
+        )
+        assert denied["type"] == "error" and denied["status"] == 404
+        denied = await _command(socket, "task.open", "owner-resume", task_id=task_id, resume=True)
         assert denied["type"] == "error" and denied["status"] == 404
         denied = await _command(
             socket,

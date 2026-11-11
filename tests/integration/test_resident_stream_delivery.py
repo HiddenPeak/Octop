@@ -220,7 +220,7 @@ async def test_one_socket_keeps_task_and_resident_updates_independent(
         )
         assert created.status_code == 202, created.text
         task_id = created.json()["task_id"]
-        await command(ws, "task.subscribe", "shared-task", task_id=task_id)
+        await command(ws, "task.open", "shared-task", task_id=task_id, resume=True)
         accepted, queue = await send(env, "Independent resident output.")
         queue.put_nowait({"type": "token", "content": "Resident body"})
         resident = await next_timeline(ws, env.binding, accepted["turn_id"], reply="Resident body")
@@ -409,7 +409,7 @@ async def test_resident_subscription_error_is_scoped_and_task_keeps_streaming(
         )
         assert created.status_code == 202, created.text
         task_id = created.json()["task_id"]
-        await command(ws, "task.subscribe", "task-before-revocation", task_id=task_id)
+        await command(ws, "task.open", "task-before-revocation", task_id=task_id, resume=True)
         assert env.watches[env.binding["thread_id"]] == 1
         await asyncio.to_thread(
             env.server.services.agent_repo.set_enabled, env.binding["agent_id"], False

@@ -134,7 +134,6 @@ _GUEST_COMMANDS = frozenset(
         "task.resume",
         "task.interaction.respond",
         "task.open",
-        "task.subscribe",
         "task.unsubscribe",
     }
 )

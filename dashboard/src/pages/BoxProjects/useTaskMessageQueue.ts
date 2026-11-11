@@ -395,8 +395,9 @@ function useTaskMessageQueueState() {
                 apply({
                   ...snapshot,
                   ...event.data.task,
-                  turns: [event.data.turn],
+                  turns: event.type === "turn" ? [event.data.turn] : [],
                   event_cursor: event.data.cursor,
+                  history_revision: event.data.history_revision,
                 });
               delay = 1000;
               pump();

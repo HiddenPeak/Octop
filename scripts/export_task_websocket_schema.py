@@ -17,7 +17,7 @@ from inhere_box.infra.projects.artifact_models import (
     PublishWorkspaceFileArgs,
 )
 from inhere_box.infra.projects.client_tool_models import ClientToolCall, ClientToolClaim
-from inhere_box.infra.projects.tasks import TaskDetail, TaskUpdate
+from inhere_box.infra.projects.tasks import TaskDetail, TaskSummary, TaskSummaryUpdate, TaskUpdate
 
 
 def export_schema() -> dict[str, Any]:
@@ -31,6 +31,8 @@ def export_schema() -> dict[str, Any]:
     for model in (
         AuthenticateFrame,
         TaskDetail,
+        TaskSummary,
+        TaskSummaryUpdate,
         TaskUpdate,
         ResidentTimelineSnapshot,
         ResidentTimelineUpdate,
@@ -58,7 +60,10 @@ def export_schema() -> dict[str, Any]:
     event(
         "ReadyEvent",
         "ready",
-        {"protocol_version": {"type": "integer", "const": 3}, "session_replace": {"const": True}},
+        {
+            "protocol_version": {"type": "integer", "const": 3},
+            "session_replace": {"const": True},
+        },
         optional=("session_replace",),
     )
     event(
@@ -79,6 +84,7 @@ def export_schema() -> dict[str, Any]:
     event("ApprovalPolicyEvent", "approval.policy", {"data": ref("TaskApprovalPolicy")})
     event("SnapshotEvent", "snapshot", {"data": ref("TaskDetail")})
     event("TurnEvent", "turn", {"data": ref("TaskUpdate")})
+    event("TaskSummaryEvent", "task.summary", {"data": ref("TaskSummaryUpdate")})
     event(
         "ResidentTimelineSnapshotEvent",
         "resident.timeline.snapshot",

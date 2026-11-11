@@ -195,6 +195,7 @@ export interface TaskSummary {
   active_turn_id: string | null;
   list_revision: number;
   selected_expert_id?: string | null;
+  import_source?: "codex" | "claude" | null;
   engine?: EngineSelection;
   configuration_revision?: number;
   action_mode?: TaskActionMode;
@@ -405,6 +406,7 @@ export interface TaskDetail extends TaskSummary {
   turns: TaskTurn[];
   next_page_cursor: string | null;
   event_cursor: string | null;
+  history_revision?: number;
   configuration_events?: {
     event_id: string;
     previous_expert_id: string | null;
@@ -421,10 +423,16 @@ export interface TaskUpdate {
   task: TaskSummary;
   turn: TaskTurn;
   cursor: string;
+  history_revision?: number;
+  historical?: boolean;
 }
 export type TaskEvent =
   | { type: "turn"; data: TaskUpdate }
-  | { type: "snapshot"; data: TaskDetail };
+  | { type: "snapshot"; data: TaskDetail }
+  | {
+      type: "task.summary";
+      data: Pick<TaskUpdate, "task" | "cursor" | "history_revision">;
+    };
 
 export interface TaskExecutionOptions {
   action_timeline_enabled?: boolean | null;
@@ -706,8 +714,6 @@ export function createProjectTasksApi(hostID: string | null = null) {
         `${taskPath(id)}${query({ page_cursor: pageCursor })}`,
         { cache: "no-store" },
       ),
-    open: (id: string) =>
-      projectTaskSocket.command<TaskDetail>("task.open", { task_id: id }),
     events: projectTaskSocket.events.bind(projectTaskSocket),
     create: (projectID: string | null, body: TaskCreate) =>
       projectTaskSocket.command<TaskDetail>("task.create", {

@@ -2372,7 +2372,7 @@ def run_migrations(db: DatabasePool) -> None:
         # only after those tables exist, including on a fresh installation.
         if (
             28 <= version <= 53
-            or version in {56, 58, 59, 60, 64, 65, 66}
+            or version in {56, 58, 59, 60, 64, 65, 66, 67, 68}
             or version <= _current_version(db)
         ):
             continue
@@ -2487,3 +2487,32 @@ def run_migrations(db: DatabasePool) -> None:
             for statement in _split_pg_sql(deleted_requests.read_text(encoding="utf-8")):
                 conn.execute(statement)
             conn.execute("UPDATE _schema_version SET version = 66 WHERE version < 66")
+
+    task_history_stream = next((path for version, path in migrations if version == 67), None)
+    if task_history_stream is not None:
+        has_history_revision = "history_revision" in _table_columns(db, "project_task_turns")
+        if _current_version(db) < 67 or not has_history_revision:
+            column_ddl, index_ddl = _split_pg_sql(task_history_stream.read_text(encoding="utf-8"))
+            with db.transaction() as conn:
+                if not has_history_revision:
+                    conn.execute(column_ddl)
+                conn.execute(index_ddl)
+                conn.execute("UPDATE _schema_version SET version = 67 WHERE version < 67")
+
+    task_open_receipts = next((path for version, path in migrations if version == 68), None)
+    if task_open_receipts is not None and (
+        _current_version(db) < 68 or not _table_exists(db, "project_task_open_receipts")
+    ):
+        with db.transaction() as conn:
+            for statement in _split_pg_sql(task_open_receipts.read_text(encoding="utf-8")):
+                conn.execute(statement)
+            conn.execute("UPDATE _schema_version SET version = 68 WHERE version < 68")
+    if task_open_receipts is not None and "opened_at" not in _table_columns(
+        db, "project_task_open_receipts"
+    ):
+        # Earlier unreleased v68 builds created receipts without an order column.
+        with db.transaction() as conn:
+            conn.execute(
+                "ALTER TABLE project_task_open_receipts "
+                "ADD COLUMN opened_at BIGINT NOT NULL DEFAULT 0"
+            )

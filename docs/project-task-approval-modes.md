@@ -66,7 +66,7 @@
 
 无任务或新任务页使用 `GET /api/project-tasks/approval-policy` 读取、`PUT /api/project-tasks/approval-policy` 写入。PUT body 同 data，成功返回 `{mode,revision,updated_at}`。原 `PUT /api/project-tasks/{task_id}/approval-policy` 与 `task.approval.set` 在验证任务归属后也修改同一账号全局策略，并返回当前入口 Task 的 `TaskDetail`。`expected_revision` 校验账号全局 `approval_policy.revision`，与正文、标题和运行状态的版本分开。模式写入、账号级幂等记录及所有项目/归档 Task 的列表增量在同一 owner 事务锁中保存；保留各任务最近活动时间，所有在线订阅收到新摘要。未打开任务的详情及列表同样读取账号权威。
 
-共享 WebSocket 独立发送 `{"type":"approval.policy","data":{"mode":"ask_for_approval","revision":1,"updated_at":"2026-10-19T00:00:00Z"}}`。首次轮询及全局策略变化时推送，不依赖任何 `task.subscribe`，因此停留 New Task 页也可实时同步；ready 保持原契约。重连后仍以 GET 或首次全局推送对账。
+共享 WebSocket 独立发送 `{"type":"approval.policy","data":{"mode":"ask_for_approval","revision":1,"updated_at":"2026-10-19T00:00:00Z"}}`。首次轮询及全局策略变化时推送，停留 New Task 页也可实时同步。重连后以 GET 或首次全局推送对账。
 
 迁移 045 将现有账号初始模式设为询问，版本严格高于其历史单任务最高版本；旧 Task 列保留历史数据但不再参与审批裁决或摘要输出。账号级策略、动作和轮次快照重启后保持。新账号以询问/revision 1 开始。
 

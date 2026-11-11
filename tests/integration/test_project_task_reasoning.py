@@ -125,7 +125,8 @@ async def test_reasoning_only_updates_stream_and_survive_terminal_states_and_rec
         )["data"]
         await ws.send_json(
             {
-                "type": "task.subscribe",
+                "type": "task.open",
+                "resume": True,
                 "id": "reasoning-watch",
                 "task_id": task["task_id"],
                 "cursor": task["event_cursor"],
@@ -182,7 +183,8 @@ async def test_reasoning_only_updates_stream_and_survive_terminal_states_and_rec
     try:
         await ws.send_json(
             {
-                "type": "task.subscribe",
+                "type": "task.open",
+                "resume": True,
                 "id": "reasoning-resume",
                 "task_id": task["task_id"],
                 "cursor": cursor,
